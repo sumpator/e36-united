@@ -76,3 +76,4 @@ V `assets/js/main.js` je v části **Weekend Builder** předmět a text automati
 ## Poznámka k mapě areálu
 
 Do webu jsem záměrně nedal falešnou mapu rozmístění chatek, stanů a programu. Až bude existovat reálný plán Zbraslavic pro další ročník, lze do stejného vizuálního stylu doplnit interaktivní mapu s reálnými zónami a obsazeností.
+
