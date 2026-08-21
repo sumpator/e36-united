@@ -284,9 +284,10 @@
       copies.forEach(copy => copy.classList.toggle('is-active', copy.dataset.copy === day));
       if (index) index.textContent = `0${order.indexOf(day) + 1} / 03`;
     };
+    const mobileWeekend = window.matchMedia('(max-width:680px), (pointer:coarse)').matches;
     const resetAuto = () => {
       if (autoTimer) clearInterval(autoTimer);
-      if (!reduceMotion) autoTimer = setInterval(() => {
+      if (!reduceMotion && !mobileWeekend) autoTimer = setInterval(() => {
         const next = order[(order.indexOf(activeDay) + 1) % order.length];
         setDay(next);
       }, 6500);
