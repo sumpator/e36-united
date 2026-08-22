@@ -19,4 +19,123 @@
 .reservation-mail-state.is-confirmed{border-color:rgba(112,211,165,.2);background:rgba(112,211,165,.05);color:#91c9ad}.reservation-mail-state.is-confirmed i{background:#70d3a5;box-shadow:0 0 0 5px rgba(112,211,165,.07)}
 [data-member-sleep-field][hidden]{display:none!important}
 @media(max-width:700px){.member-logged-hero-inner{min-height:220px;align-items:flex-start;flex-direction:column;justify-content:flex-end;padding-top:34px;padding-bottom:26px}.member-logged-copy h1{font-size:52px}.member-logged-copy p{font-size:11px}.member-logged-actions{width:100%;justify-content:space-between}.member-shell{padding-top:16px}}
-\n\n/* v20 — robust auth/modal visibility */\n.member-page [hidden]{display:none!important;}\nbody.member-authenticated [data-auth-view]{display:none!important;}\nbody.member-authenticated [data-app-view]{display:block!important;}\nbody:not(.member-authenticated) [data-app-view]{display:none!important;}\n
+/* v20 — robust auth/modal visibility */
+.member-page [hidden]{display:none!important;}
+body.member-authenticated [data-auth-view]{display:none!important;}
+body.member-authenticated [data-app-view]{display:block!important;}
+body:not(.member-authenticated) [data-app-view]{display:none!important;}
+
+/* v21 — premium auth surface */
+.member-auth{position:relative;grid-template-columns:minmax(0,1.18fr) minmax(440px,.82fr);gap:22px;padding:22px;background:radial-gradient(circle at 12% 18%,rgba(77,163,255,.13),transparent 30rem),linear-gradient(145deg,#080a0d,#0c1015)}
+.member-auth-media{min-height:calc(100svh - 126px);border:1px solid rgba(255,255,255,.1);border-radius:30px;box-shadow:0 34px 90px rgba(0,0,0,.4)}
+.member-auth-photo{background:linear-gradient(90deg,rgba(5,7,10,.13),rgba(5,7,10,.68)),linear-gradient(180deg,rgba(5,7,10,.04) 34%,rgba(5,7,10,.92)),url('https://static.wixstatic.com/media/595239_ef82600a8c944b88aba5032ee9886f25~mv2.jpg/v1/fill/w_1600%2Ch_1100%2Cal_c%2Cq_88%2Cenc_avif%2Cquality_auto/u36_2.jpg') center/cover no-repeat;filter:saturate(.9) contrast(1.03)}
+.member-auth-copy{left:clamp(30px,5vw,78px);right:clamp(30px,5vw,78px);bottom:clamp(38px,6vh,72px)}
+.auth-visual-kicker{display:flex;align-items:center;justify-content:space-between;gap:16px;max-width:730px}
+.auth-visual-kicker>span:last-child{color:#8796a5;font:900 9px/1 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.16em}
+.member-auth-copy h1{font-size:clamp(58px,6.8vw,104px)}
+.member-auth-copy>p{font-size:17px;line-height:1.6}
+.auth-proof>span{padding:14px 16px;border-color:rgba(255,255,255,.17);background:rgba(5,9,14,.55)}
+.auth-proof small{margin-top:3px;font-size:9px}
+.member-auth-panel{padding:0;border:0;background:transparent}
+.member-auth-panel-inner{position:relative;width:min(540px,100%);margin:auto;padding:clamp(28px,4vw,48px);overflow:hidden;border:1px solid rgba(255,255,255,.12);border-radius:30px;background:linear-gradient(155deg,rgba(20,26,33,.97),rgba(8,11,15,.98));box-shadow:0 32px 90px rgba(0,0,0,.42),inset 0 1px 0 rgba(255,255,255,.05)}
+.member-auth-panel-inner::before{content:"";position:absolute;inset:0 12% auto;height:1px;background:linear-gradient(90deg,transparent,#73bfff,transparent);box-shadow:0 0 30px rgba(77,163,255,.55)}
+.auth-panel-top .eyebrow{font-size:10px}
+.portal-mode{padding:8px 10px;font-size:8.5px}
+.auth-panel-intro{margin-top:27px}
+.auth-panel-intro>span{color:#72bbfa;font:900 9px/1 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.15em}
+.auth-panel-intro p{margin:10px 0 0;color:#aab4be;font-size:14px;line-height:1.58}
+.auth-tabs{gap:9px;margin:28px 0 26px;padding:0;border:0;background:transparent}
+.auth-tabs button{min-height:72px;padding:12px 13px;display:grid;grid-template-columns:30px minmax(0,1fr);gap:10px;align-items:center;border:1px solid rgba(255,255,255,.09);border-radius:15px;background:rgba(255,255,255,.018);color:#77828e;text-align:left}
+.auth-tabs button>span:first-child{display:grid;place-items:center;width:28px;height:28px;border:1px solid rgba(255,255,255,.1);border-radius:9px;color:#667582;font:900 8px/1 ui-monospace,monospace}
+.auth-tabs button>span:last-child{display:grid;gap:4px}
+.auth-tabs button b{font-size:13px}
+.auth-tabs button small{color:#65717e;font-size:10px}
+.auth-tabs button.is-active{border-color:rgba(100,180,249,.36);background:linear-gradient(135deg,rgba(77,163,255,.15),rgba(255,255,255,.035));box-shadow:inset 0 1px 0 rgba(134,204,255,.18),0 14px 30px rgba(0,0,0,.24)}
+.auth-tabs button.is-active>span:first-child{border-color:rgba(89,173,247,.44);color:#c6e7ff;background:rgba(77,163,255,.12)}
+.auth-tabs button.is-active small{color:#94a7b8}
+.auth-form{gap:17px}
+.auth-heading h2{font-size:clamp(38px,3.8vw,52px)}
+.auth-heading p{margin-bottom:8px;color:#9aa6b2;font-size:14px;line-height:1.5}
+.auth-form label>span{font-size:10px;color:#8e9aa7}
+.auth-form input{min-height:58px;padding:0 16px;border-radius:14px;background:#090d12;font-size:15px}
+.password-field button{top:10px;right:10px}
+.auth-form .member-primary{min-height:58px;margin-top:3px;border-radius:14px;font-size:12px}
+.auth-link{font-size:13px;text-align:center}
+.demo-hint{padding:12px 13px;font-size:12px;line-height:1.55}
+.mail-preview-note{font-size:11.5px;line-height:1.55}
+.consent-line span{font-size:11.5px!important;line-height:1.55!important}
+.auth-trust-row{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:24px;padding-top:17px;border-top:1px solid rgba(255,255,255,.08);color:#697684;font-size:10px}
+.auth-trust-row span:first-child{display:flex;align-items:center;gap:7px;color:#9aa8b5}
+.auth-trust-row i{width:6px;height:6px;border-radius:50%;background:#70d3a5;box-shadow:0 0 0 4px rgba(112,211,165,.08)}
+
+/* v21 — comfortable Member Portal reading sizes */
+.member-app .member-logged-copy p{font-size:15.5px;line-height:1.55}
+.member-app .member-nav-item span{font-size:9.5px}
+.member-app .member-nav-item b{font-size:13.5px}
+.member-app .member-section-head p{font-size:15px;line-height:1.6}
+.member-app .card-label{font-size:9.5px;line-height:1.35}
+.member-app .card-label small{font-size:9px}
+.member-app .points-card p,.member-app .reservation-card-large p,.member-app .reward-main p{font-size:14px;line-height:1.6}
+.member-app .reservation-visual small{font-size:12px;line-height:1.5}
+.member-app .badge b{font-size:13px}
+.member-app .badge small{font-size:10.5px;line-height:1.4}
+.member-app .reservation-state{font-size:9.5px}
+.member-app .reservation-summary small{font-size:9px}
+.member-app .reservation-summary b{font-size:13px}
+.member-app .form-title span{font-size:9.5px}
+.member-app .reservation-form label>span,.member-app .car-form label>span{font-size:10.5px}
+.member-app .reservation-form input,.member-app .reservation-form select,.member-app .reservation-form textarea,.member-app .car-form input,.member-app .car-form select{font-size:14px}
+.member-app .car-body small{font-size:9.5px}
+.member-app .car-body p{font-size:13px;line-height:1.5}
+.member-app .car-actions button{font-size:11px}
+.member-app .history-year-status b{font-size:11.5px}
+.member-app .history-year-status small{font-size:10px;line-height:1.35}
+.member-app .history-note p{font-size:13px;line-height:1.55}
+.member-app .ledger-item span{font-size:9px}
+.member-app .ledger-item small{font-size:11.5px;line-height:1.45}
+.member-app .reward-lock span{font-size:9px}
+.member-app .reward-lock b{font-size:12px}
+.member-app .perk b{font-size:12.5px}
+.member-app .perk small{font-size:10.5px;line-height:1.4}
+.member-app .perk>span{font-size:8.5px}
+.member-app .reservation-mail-state{font-size:12px;line-height:1.5}
+
+@media(max-width:1100px){
+  .member-auth{grid-template-columns:minmax(0,1fr) minmax(410px,.82fr);gap:16px;padding:16px}
+  .member-auth-panel-inner{padding:30px}
+}
+@media(max-width:900px){
+  .member-auth{display:grid;grid-template-columns:1fr;gap:0;padding:16px}
+  .member-auth-media{min-height:470px}
+  .member-auth-panel{position:relative;z-index:3;margin-top:-62px;padding:0 22px 34px}
+  .member-auth-panel-inner{width:min(680px,100%)}
+  .member-auth-copy{bottom:96px}
+}
+@media(max-width:620px){
+  .member-auth{padding:0}
+  .member-auth-media{min-height:360px;border-inline:0;border-top:0;border-radius:0 0 28px 28px}
+  .member-auth-copy{left:20px;right:20px;bottom:64px}
+  .auth-visual-kicker>span:last-child{font-size:8px}
+  .member-auth-copy h1{margin:12px 0;font-size:48px;line-height:.84}
+  .member-auth-copy>p{font-size:14px;line-height:1.5}
+  .auth-proof{gap:6px;margin-top:16px}
+  .auth-proof>span{min-width:0;flex:1;padding:9px 10px;font-size:12px}
+  .auth-proof small{font-size:7.5px}
+  .member-auth-panel{margin:-38px 12px 24px;padding:0}
+  .member-auth-panel-inner{padding:24px 18px;border-radius:24px}
+  .auth-panel-intro{margin-top:22px}
+  .auth-panel-intro p{font-size:13px}
+  .auth-tabs{margin:23px 0}
+  .auth-tabs button{min-height:68px;padding:10px}
+  .auth-tabs button b{font-size:12px}
+  .auth-tabs button small{font-size:9px}
+  .auth-heading h2{font-size:36px}
+  .auth-heading p{font-size:13px}
+  .auth-grid-two{grid-template-columns:1fr}
+  .auth-form input{min-height:56px}
+  .auth-trust-row{align-items:flex-start;flex-direction:column}
+  .member-app .member-logged-copy p{font-size:14px}
+  .member-app .member-nav-item b{font-size:13px}
+  .member-app .member-section-head p{font-size:14px}
+  .member-app .badge small,.member-app .history-year-status small,.member-app .perk small{font-size:10.5px}
+}
