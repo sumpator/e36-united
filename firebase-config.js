@@ -1,17 +1,19 @@
-// E36 United Member Portal – Firebase production config.
-// The portal works in LOCAL PREVIEW mode until these values are replaced.
-// Firebase web config values are public identifiers; access is protected by Firestore / Storage Rules.
+// Public Firebase web configuration. Firebase is used only for Authentication.
+// Server-side profile data is handled by the Cloudflare Worker + D1.
 export const firebaseConfig = {
-  apiKey: "PASTE_FIREBASE_API_KEY",
-  authDomain: "PASTE_PROJECT.firebaseapp.com",
-  projectId: "PASTE_PROJECT_ID",
-  storageBucket: "PASTE_PROJECT_ID.firebasestorage.app",
-  appId: "PASTE_FIREBASE_APP_ID"
+  apiKey: "AIzaSyBLzMyHIKmUiV6o510AQIJiyD6WKnovh7Q",
+  authDomain: "e36-united.firebaseapp.com",
+  projectId: "e36-united",
+  storageBucket: "e36-united.firebasestorage.app",
+  messagingSenderId: "89800245472",
+  appId: "1:89800245472:web:d3dbdb36523d77e3069085"
 };
+
 export const portalConfig = {
-  mode: "auto",
+  mode: "production",
+  apiBaseUrl: "https://api.e36united.cz",
   points: { attendance: 2, showShineWin: 3, communityBonus: 1, rewardThreshold: 12 },
   unitedYears: [2021, 2022, 2023, 2024, 2025, 2026],
-  memberSessionKey: "e36UnitedMemberSessionV19",
+  memberLocalPrefix: "e36UnitedMemberLocalV20",
   plannerDraftKey: "e36UnitedPlannerDraftV19"
 };

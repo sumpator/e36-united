@@ -1,81 +1,109 @@
-# E36 United — Member Portal backend setup (v20)
+# E36 United — Member Portal auth setup
 
-## DŮLEŽITÉ: proč teď nechodí mail ani upload
+## Produkční architektura
 
-Pokud v portálu vidíš **`LOCAL PREVIEW · BACKEND OFF`**, web je stále jen statický frontend. GitHub/Vercel samy neposkytují uživatelskou databázi, úložiště fotek ani SMTP. V tomto režimu se účet a rezervace ukládají pouze do daného prohlížeče a branded e-mail se fyzicky nemá odkud odeslat.
+Member login používá:
 
-Aby fungovaly **skutečné účty mezi zařízeními, serverové fotky a potvrzovací e-maily**, je potřeba jednorázově dokončit kroky níže. Po jejich dokončení se badge automaticky změní na `FIREBASE LIVE`; další aktualizace webu už budou zase jen upload souborů na GitHub.
+- **Firebase Authentication** — registrace, login, logout, reset hesla, persistence a verification e-mail;
+- **Cloudflare Worker API** — ověřuje Firebase ID token a obsluhuje členský profil;
+- **Cloudflare D1** — zdroj pravdy pro serverový profil člena;
+- **Cloudflare R2** — připravené budoucí úložiště médií, v této fázi ho Member Portal nepoužívá.
 
-Po uploadu souborů na GitHub funguje celý web a **Můj United** okamžitě v LOCAL PREVIEW režimu. Preview si nově pamatuje přihlášení i po refreshi.
+Firestore ani Firebase Storage nejsou součástí Member login flow.
 
-Pro ostré účty, serverové fotky a automatické e-maily je potřeba jednorázově zapnout následující Firebase služby. Samotný Vercel hosting není nutné měnit a v repozitáři nezůstávají žádné tajné API klíče.
+## Frontend konfigurace
 
-## 1. Firebase Authentication + Firestore
+`firebase-config.js` obsahuje veřejnou Firebase Web konfiguraci a:
 
-1. Vytvoř Firebase projekt a webovou aplikaci.
-2. V Authentication zapni **Email/Password**.
-3. Pro upload fotek z veřejné galerie zapni také **Anonymous** sign-in.
-4. Vytvoř Firestore databázi.
-5. Do `firebase-config.js` vlož hodnoty `apiKey`, `authDomain`, `projectId`, `storageBucket`, `appId`.
-6. Do Firestore Rules vlož obsah `firestore.rules`.
+```text
+apiBaseUrl = https://api.e36united.cz
+```
 
-Přihlášení používá `browserLocalPersistence`, takže uživatel po běžném refreshi zůstává přihlášený. Odhlásí se až tlačítkem Odhlásit nebo smazáním dat prohlížeče.
+Firebase Web API key není serverový secret. Do GitHubu ale nikdy nepatří service-account JSON, privátní klíče ani Cloudflare secrets.
 
-## 2. Firebase Storage — skutečné fotky na serveru
+## Login flow
 
-1. Zapni Cloud Storage for Firebase.
-2. Publikuj obsah `storage.rules`.
-3. Zkontroluj `storageBucket` v `firebase-config.js`.
+1. Firebase `signInWithEmailAndPassword` ověří účet.
+2. Frontend získá Firebase ID token přes `getIdToken()`.
+3. Frontend zavolá `GET /api/me` s:
 
-Car photos se ukládají do `members/{uid}/cars/...` a gallery submissions do neveřejné fronty `gallery-pending/{uid}/...`.
+```http
+Authorization: Bearer <Firebase ID token>
+```
 
-**Poznámka 2026:** Firebase Storage vyžaduje projekt na Blaze (pay-as-you-go) plánu a připojený billing účet. Malá spotřeba může zůstat v bezplatných kvótách, ale bez Blaze Storage vrací 402/403. Vercel hosting se tím nemění.
+4. Worker token kryptograficky ověří a podle Firebase UID načte profil z D1.
+5. Pokud Firebase účet existuje, ale D1 profil ještě ne, frontend provede idempotentní `POST /api/bootstrap` a profil vytvoří.
+6. Teprve po úspěšném načtení profilu se zobrazí Member dashboard.
 
-## 3. Automatické e-maily — Firebase Trigger Email
+Při `401` frontend jednou vynutí refresh Firebase ID tokenu a request zopakuje.
 
-Samotná HTML šablona **není mail server**. Extension musí mít SMTP účet, ze kterého bude skutečně odesílat. Doporučené produkční nastavení:
+## Registrace
 
-- odesílatel: **E36 United <noreply@e36united.cz>**
-- Reply-To: **united@e36united.cz**
-- SMTP provider: např. Resend / Brevo / jiný SMTP účet, který ověří doménu `e36united.cz`
-- SMTP heslo/API credential patří pouze do nastavení Firebase Extension, nikdy do GitHubu
+Registrace záměrně **nenechává uživatele automaticky přihlášeného**:
 
-Po ověření domény nastav u poskytovatele požadované DNS záznamy (SPF/DKIM). Tím budou potvrzení chodit jako skutečné branded e-maily od E36 United, ne z klientského JavaScriptu.
+1. `createUserWithEmailAndPassword`;
+2. `updateProfile`;
+3. `POST /api/bootstrap`;
+4. `sendEmailVerification`;
+5. Firebase `signOut`;
+6. návrat na Login obrazovku.
 
+Pokud bootstrap během registrace selže, první úspěšný login ho bezpečně zopakuje.
 
-Nainstaluj oficiální Firebase Extension **Trigger Email (`firestore-send-email`)** a nastav ji na kolekci:
+## Persistence a logout
 
-`mail`
+Firebase používá `browserLocalPersistence`, takže při refreshi zůstane Firebase session zachovaná. Po obnovení stránky se ale dashboard ukáže až po novém úspěšném `/api/me`.
 
-Při instalaci zadej SMTP účet. Může to být například Resend / SendGrid / Mailgun nebo jiný SMTP poskytovatel. Doporučený FROM:
+Logout provede Firebase `signOut`, vyčistí pouze UI/session hint a resetuje in-memory profil.
 
-`E36 United <united@e36united.cz>`
+Firebase ID token se nikdy ručně neukládá do `localStorage`.
 
-Aplikace sama vytváří pouze bezpečně omezené e-mailové joby do kolekce `mail`; `firestore.rules` dovolují členovi odeslat e-mail výhradně na jeho vlastní přihlášenou adresu a pouze pro předdefinované United typy zpráv.
+## Lokální Phase 1 data
 
-### Co se odesílá automaticky
+Garáž, historie, body a rezervace ještě nejsou napojené na vlastní Worker endpointy. Do jejich serverové migrace se ukládají pouze lokálně a **odděleně podle Firebase UID**:
 
-- po registraci: branded **Welcome / United ID** e-mail,
-- Firebase zároveň odešle systémové ověření e-mailové adresy,
-- po uložení rezervace: branded **Potvrď svůj United** e-mail.
+```text
+e36UnitedMemberLocalV20:<firebaseUid>
+```
 
-Rezervace má nejdřív stav `pending_email`. E-mail obsahuje unikátní potvrzovací URL s platností 48 hodin. Po kliknutí se `member.html` otevře pod přihlášeným účtem, ověří token a teprve potom změní rezervaci na `confirmed`.
+Tím účet B nemůže zdědit lokální data účtu A po logout/login přepnutí.
 
-Grafické HTML šablony jsou v:
+Starý globální preview localStorage se automaticky nemigruje k žádnému reálnému účtu.
 
-- `email-member-welcome.html`
-- `email-reservation-confirmation.html`
-- `email-points-reward.html`
+## Worker API contract
 
-## 4. Weekend Planner → členský profil
+### `GET /api/me`
 
-Pokud je uživatel přihlášený, hlavní CTA na homepage se automaticky změní z **Připravit poptávku** na **Přidat rezervaci do profilu**. Výběr se přenese do Můj United, kde člen vybere konkrétní auto z garáže a odešle potvrzovací e-mail.
+Vyžaduje Bearer token. Vrací existující členský profil nebo `profileExists: false`.
 
-- `Jen na otočku` automaticky schová ubytování a nastaví `Bez ubytování`.
-- Show & Shine má `Ano / Možná / Ne` v profilu a `Chci soutěžit / Možná / Jedu se podívat` v planneru.
+### `POST /api/bootstrap`
 
-## 5. Co je bezpečné dát na GitHub
+Vyžaduje Bearer token a JSON s `name` / `nickname`. Operace musí být idempotentní pro stejné Firebase UID.
 
-Firebase Web config (`apiKey`, `authDomain`, `projectId`, `storageBucket`, `appId`) je klientská konfigurace a není serverový secret. Přístup chrání Firestore/Storage Rules.
+## CORS
 
-**Na GitHub nikdy nedávej:** SMTP hesla, service-account JSON, privátní klíče nebo jiné serverové secrets. SMTP přihlašovací údaje patří pouze do konfigurace Firebase Trigger Email extension.
+Worker musí povolit produkční webové originy, minimálně:
+
+```text
+https://e36united.cz
+https://www.e36united.cz
+https://e36-united.pages.dev
+```
+
+a pro aktivní preview testování také konkrétní preview origin.
+
+Povolené headers musí zahrnout `Authorization` a `Content-Type`; `OPTIONS` preflight má vracet úspěšnou odpověď.
+
+## Před nasazením
+
+Otestuj:
+
+- registrace -> Firebase účet + D1 profil -> logout na login screen;
+- login -> `/api/me` -> dashboard;
+- refresh -> automatické obnovení Firebase session + `/api/me`;
+- logout -> žádná data předchozího člena v UI;
+- login jiného účtu -> žádná lokální data předchozího UID;
+- reset hesla;
+- desktop + mobil.
+
+Legacy `firestore.rules` a `storage.rules` mohou v repozitáři zůstat jako historické soubory, ale Member Portal je nepoužívá.

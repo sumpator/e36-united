@@ -134,3 +134,7 @@ body:not(.member-authenticated) [data-app-view]{display:none!important}
   .member-app .badge small,.member-app .history-year-status small,.member-app .perk small{font-size:10.5px}
 }
 \n\n/* v20 — robust auth/modal visibility */\n.member-page [hidden]{display:none!important;}\nbody.member-authenticated [data-auth-view]{display:none!important;}\nbody.member-authenticated [data-app-view]{display:block!important;}\nbody:not(.member-authenticated) [data-app-view]{display:none!important;}\n
+
+/* auth v20 — account identity */
+.member-account-line{margin-top:10px;color:#8292a2;font:800 10px/1.45 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.04em;overflow-wrap:anywhere}
+@media(max-width:700px){.member-account-line{font-size:9px}}

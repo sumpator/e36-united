@@ -34,16 +34,16 @@
         <label><span>Heslo</span><div class="password-field"><input name="password" type="password" autocomplete="current-password" placeholder="••••••••" minlength="6" required /><button type="button" data-toggle-password aria-label="Zobrazit heslo">👁</button></div></label>
         <button class="member-primary" type="submit">Přihlásit do Můj United <span>→</span></button>
         <button class="auth-link" type="button" data-password-reset>Zapomněl jsem heslo</button>
-        <div class="demo-hint" data-demo-hint>LOCAL PREVIEW ukládá účet jen do tohoto prohlížeče. Serverové účty, fotky a e-maily se aktivují až po jednorázovém připojení backendu.</div>
+        <div class="demo-hint" data-demo-hint>Přihlášení běží přes Firebase Authentication a členský profil se načítá ze serveru.</div>
       </form>
       <form class="auth-form" data-auth-form="register">
         <div class="auth-heading"><h2>Vytvoř si United ID.</h2><p>Členská karta se ti začne skládat z historie, aut a účastí.</p></div>
         <div class="auth-grid-two"><label><span>Jméno</span><input name="name" autocomplete="name" placeholder="Jméno" required /></label><label><span>Přezdívka</span><input name="nickname" autocomplete="nickname" placeholder="Jak ti říká komunita" /></label></div>
         <label><span>E-mail</span><input name="email" type="email" autocomplete="email" placeholder="ty@email.cz" required /></label>
-        <label><span>Heslo</span><div class="password-field"><input name="password" type="password" autocomplete="new-password" placeholder="Min. 6 znaků" minlength="6" required /><button type="button" data-toggle-password aria-label="Zobrazit heslo">👁</button></div></label>
+        <label><span>Heslo</span><div class="password-field"><input name="password" type="password" autocomplete="new-password" placeholder="Min. 6 znaků" minlength="6" required /><button type="button" data-toggle-password aria-label="Zobrazit heslo">👁</button></div></label><label><span>Heslo znovu</span><div class="password-field"><input name="passwordConfirm" type="password" autocomplete="new-password" placeholder="Zopakuj heslo" minlength="6" required /><button type="button" data-toggle-password aria-label="Zobrazit heslo">👁</button></div></label>
         <label class="consent-line"><input type="checkbox" required /><span>Souhlasím se zpracováním údajů pro správu členství a rezervací E36 United.</span></label>
         <button class="member-primary" type="submit">Založit United ID <span>→</span></button>
-        <small class="mail-preview-note">V LIVE režimu po registraci přijde branded welcome e-mail a ověření adresy. V LOCAL PREVIEW se nic neodesílá.</small>
+        <small class="mail-preview-note">Po registraci odešleme ověření e-mailové adresy. Potom se přihlas svým novým United ID.</small>
       </form>
       <div class="auth-trust-row" aria-label="Informace o přístupu"><span><i></i> United Member Portal</span><span>Soukromý členský profil</span></div>
       </div>
@@ -54,7 +54,7 @@
     <div class="member-logged-hero">
       <div class="member-logged-hero-bg"></div>
       <div class="container member-logged-hero-inner">
-        <div class="member-logged-copy"><span class="member-kicker">UNITED MEMBER PORTAL</span><h1>Ahoj, <span data-member-nickname>Driver</span>.</h1><p>Tvůj United na jednom místě — rezervace, garáž, historie, body a výhody.</p></div>
+        <div class="member-logged-copy"><span class="member-kicker">UNITED MEMBER PORTAL</span><h1>Ahoj, <span data-member-nickname>Driver</span>.</h1><p>Tvůj United na jednom místě — rezervace, garáž, historie, body a výhody.</p><div class="member-account-line" data-member-account>Přihlášený účet</div></div>
         <div class="member-logged-actions"><span class="sync-state" data-sync-state>LOCAL PREVIEW</span><button class="member-ghost" data-logout>Odhlásit</button></div>
       </div>
     </div>
@@ -125,7 +125,7 @@
   </section>
 </main>
 
-<div class="member-modal" data-car-modal hidden><div class="member-modal-backdrop" data-close-car></div><div class="member-modal-dialog"><button class="member-modal-close" data-close-car>×</button><div class="member-section-head"><div><span class="member-kicker">MY GARAGE</span><h2>Přidat auto.</h2><p>V preview režimu se fotky ukládají lokálně. Po zapnutí Firebase Storage se komprimované fotografie nahrávají přímo na server.</p></div></div><form class="car-form" data-car-form><div class="form-grid-two"><label><span>Název / přezdívka auta</span><input name="nickname" placeholder="Modrá mrcha" required /></label><label><span>Karoserie</span><select name="body"><option>Sedan</option><option>Coupé</option><option>Touring</option><option>Cabrio</option><option>Compact</option><option>Z3</option><option>///M Power</option></select></label></div><div class="form-grid-two"><label><span>Model / motor</span><input name="model" placeholder="328i / M52B28" required /></label><label><span>Rok</span><input name="year" type="number" min="1990" max="2026" placeholder="1996" /></label></div><div class="form-grid-two"><label><span>Barva</span><input name="color" placeholder="Estoril Blau" /></label><label><span>SPZ (volitelné)</span><input name="plate" placeholder="—" /></label></div><label><span>Fotky auta · max 3</span><input name="photos" type="file" accept="image/jpeg,image/png,image/webp" multiple /></label><label class="consent-line"><input type="checkbox" name="primary" /><span>Nastavit jako hlavní auto</span></label><button class="member-primary" type="submit">Přidat do garáže <span>→</span></button></form></div></div>
+<div class="member-modal" data-car-modal hidden><div class="member-modal-backdrop" data-close-car></div><div class="member-modal-dialog"><button class="member-modal-close" data-close-car>×</button><div class="member-section-head"><div><span class="member-kicker">MY GARAGE</span><h2>Přidat auto.</h2><p>Fotky auta se v této fázi ukládají lokálně pro přihlášený účet. Serverový upload přes R2 doplníme v další fázi.</p></div></div><form class="car-form" data-car-form><div class="form-grid-two"><label><span>Název / přezdívka auta</span><input name="nickname" placeholder="Modrá mrcha" required /></label><label><span>Karoserie</span><select name="body"><option>Sedan</option><option>Coupé</option><option>Touring</option><option>Cabrio</option><option>Compact</option><option>Z3</option><option>///M Power</option></select></label></div><div class="form-grid-two"><label><span>Model / motor</span><input name="model" placeholder="328i / M52B28" required /></label><label><span>Rok</span><input name="year" type="number" min="1990" max="2026" placeholder="1996" /></label></div><div class="form-grid-two"><label><span>Barva</span><input name="color" placeholder="Estoril Blau" /></label><label><span>SPZ (volitelné)</span><input name="plate" placeholder="—" /></label></div><label><span>Fotky auta · max 3</span><input name="photos" type="file" accept="image/jpeg,image/png,image/webp" multiple /></label><label class="consent-line"><input type="checkbox" name="primary" /><span>Nastavit jako hlavní auto</span></label><button class="member-primary" type="submit">Přidat do garáže <span>→</span></button></form></div></div>
 <div class="member-toast" data-toast role="status" aria-live="polite"></div>
-<script type="module" src="member.js?v=20260822-21"></script>
+<script type="module" src="member.js?v=20260823-auth2"></script>
 </body></html>

@@ -1,56 +1,282 @@
-import { firebaseConfig, portalConfig } from './firebase-config.js';
+import { firebaseConfig, portalConfig } from './firebase-config.js?v=20260823-auth2';
 
 const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
-const firebaseReady = firebaseConfig?.apiKey && !firebaseConfig.apiKey.startsWith('PASTE_') && firebaseConfig.projectId && !firebaseConfig.projectId.startsWith('PASTE_');
-let firebase = null, currentUser = null;
-const localKey='e36UnitedMemberPreviewV19';
-const sessionKey=portalConfig.memberSessionKey||'e36UnitedMemberSessionV19';
+const firebaseReady=Boolean(firebaseConfig?.apiKey&&firebaseConfig?.projectId&&firebaseConfig?.appId&&!String(firebaseConfig.apiKey).startsWith('PASTE_')&&!String(firebaseConfig.projectId).startsWith('PASTE_'));
+const apiBaseUrl=(portalConfig.apiBaseUrl||'https://api.e36united.cz').replace(/\/$/,'');
+const localPrefix=portalConfig.memberLocalPrefix||'e36UnitedMemberLocalV20';
 const plannerDraftKey=portalConfig.plannerDraftKey||'e36UnitedPlannerDraftV19';
+
+let firebase=null;
+let currentUser=null;
+let authFlowActive=false;
+
 const defaultData=()=>({
-  profile:{name:'United Member',nickname:'Driver',email:'',phone:'',createdAt:new Date().toISOString()},
-  history:portalConfig.unitedYears.map(y=>({year:y,attended:false,verified:false,winner:false,category:''})),
-  cars:[], reservation:null, bonuses:[]
+  profile:{id:'',memberCode:'',name:'United Member',nickname:'Driver',email:'',phone:'',role:'member',status:'active',emailVerified:false,createdAt:''},
+  history:portalConfig.unitedYears.map(year=>({year,attended:false,verified:false,winner:false,category:''})),
+  cars:[],
+  reservation:null,
+  bonuses:[]
 });
-let data=loadLocal();
-function loadLocal(){try{const raw=localStorage.getItem(localKey)||localStorage.getItem('e36UnitedMemberPreviewV18');return {...defaultData(),...(JSON.parse(raw)||{})}}catch{return defaultData()}}
-function saveLocal(){localStorage.setItem(localKey,JSON.stringify(data)); renderAll();}
-function toast(msg){const el=$('[data-toast]'); el.textContent=msg; el.classList.add('is-visible'); clearTimeout(toast.t); toast.t=setTimeout(()=>el.classList.remove('is-visible'),2600)}
+let data=defaultData();
+
+function localKey(uid){return `${localPrefix}:${uid}`}
+function loadUserLocal(uid){
+  if(!uid)return defaultData();
+  try{
+    const raw=localStorage.getItem(localKey(uid));
+    const parsed=raw?JSON.parse(raw):{};
+    return {
+      ...defaultData(),
+      history:Array.isArray(parsed.history)?parsed.history:defaultData().history,
+      cars:Array.isArray(parsed.cars)?parsed.cars:[],
+      reservation:parsed.reservation||null,
+      bonuses:Array.isArray(parsed.bonuses)?parsed.bonuses:[]
+    };
+  }catch(error){
+    console.warn('Local member data could not be loaded',error);
+    return defaultData();
+  }
+}
+function saveUserLocal(){
+  if(!currentUser?.uid)return;
+  const payload={history:data.history,cars:data.cars,reservation:data.reservation,bonuses:data.bonuses};
+  try{localStorage.setItem(localKey(currentUser.uid),JSON.stringify(payload))}
+  catch(error){console.error('Local member data could not be saved',error);toast('Lokální data se nepodařilo uložit. Zkus odebrat velké fotografie.')}
+}
+function resetMemberState(){data=defaultData();renderAll()}
+function toast(msg){const el=$('[data-toast]');if(!el)return;el.textContent=msg;el.classList.add('is-visible');clearTimeout(toast.t);toast.t=setTimeout(()=>el.classList.remove('is-visible'),3200)}
 function esc(v=''){return String(v).replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]))}
-function uid(){return Math.random().toString(36).slice(2,10)}
+function uid(){return crypto?.randomUUID?.()||Math.random().toString(36).slice(2,10)}
+
+function setMode(text){
+  $$('[data-mode-badge]').forEach(x=>x.textContent=text);
+  const sync=$('[data-sync-state]');if(sync)sync.textContent=text;
+  $$('[data-demo-hint]').forEach(x=>x.hidden=text.includes('LIVE'));
+}
+function showAuth(){
+  document.body.classList.remove('member-authenticated');
+  const authView=$('[data-auth-view]'),appView=$('[data-app-view]');
+  if(authView)authView.hidden=false;
+  if(appView)appView.hidden=true;
+}
+function showApp(){
+  document.body.classList.add('member-authenticated');
+  const authView=$('[data-auth-view]'),appView=$('[data-app-view]');
+  if(authView)authView.hidden=true;
+  if(appView)appView.hidden=false;
+  renderAll();
+}
+function activateAuthTab(name){
+  $$('[data-auth-tab]').forEach(x=>x.classList.toggle('is-active',x.dataset.authTab===name));
+  $$('[data-auth-form]').forEach(f=>f.classList.toggle('is-active',f.dataset.authForm===name));
+}
+function resetAuthForms(){
+  $$('[data-auth-form]').forEach(form=>form.reset());
+  activateAuthTab('login');
+}
+function setButtonBusy(button,busy,label){
+  if(!button)return;
+  if(busy){button.dataset.originalHtml=button.innerHTML;button.disabled=true;if(label)button.textContent=label}
+  else{button.disabled=false;if(button.dataset.originalHtml){button.innerHTML=button.dataset.originalHtml;delete button.dataset.originalHtml}}
+}
+
+function normalizeMember(payload,user=currentUser){
+  const source=payload?.member||payload?.profile||payload?.data?.member||payload?.data?.profile||payload?.data||payload||{};
+  return {
+    id:source.id||source.uid||user?.uid||'',
+    memberCode:source.memberCode||source.member_code||'',
+    name:source.name||user?.displayName||user?.email?.split('@')[0]||'United Member',
+    nickname:source.nickname||source.name?.split(' ')[0]||user?.displayName?.split(' ')[0]||'Driver',
+    email:source.email||user?.email||'',
+    phone:source.phone||'',
+    role:source.role||'member',
+    status:source.status||'active',
+    emailVerified:typeof source.emailVerified==='boolean'?source.emailVerified:Boolean(source.email_verified??user?.emailVerified),
+    createdAt:source.createdAt||source.created_at||'',
+    updatedAt:source.updatedAt||source.updated_at||''
+  };
+}
+
+async function apiRequest(path,{method='GET',body,token,retry=true}={}){
+  if(!currentUser)throw new Error('api_auth_required');
+  const idToken=token||await currentUser.getIdToken();
+  let response;
+  try{
+    response=await fetch(`${apiBaseUrl}${path}`,{
+      method,
+      headers:{Authorization:`Bearer ${idToken}`,...(body?{'Content-Type':'application/json'}:{})},
+      body:body?JSON.stringify(body):undefined,
+      cache:'no-store'
+    });
+  }catch(error){
+    const wrapped=new Error('api_network_error');wrapped.cause=error;throw wrapped;
+  }
+  if(response.status===401&&retry){
+    const freshToken=await currentUser.getIdToken(true);
+    return apiRequest(path,{method,body,token:freshToken,retry:false});
+  }
+  const text=await response.text();
+  let payload=null;
+  if(text){try{payload=JSON.parse(text)}catch{payload={message:text}}}
+  if(!response.ok){
+    const error=new Error(payload?.message||payload?.error||`API ${response.status}`);
+    error.status=response.status;error.payload=payload;throw error;
+  }
+  return payload;
+}
+
+async function ensureMemberProfile(user){
+  currentUser=user;
+  let payload=await apiRequest('/api/me');
+  if(payload?.profileExists===false){
+    const fallbackName=(user.displayName||user.email?.split('@')[0]||'United Member').trim();
+    payload=await apiRequest('/api/bootstrap',{
+      method:'POST',
+      body:{name:fallbackName,nickname:fallbackName.split(/\s+/)[0]||'Driver'}
+    });
+  }
+  const member=normalizeMember(payload,user);
+  if(!member.id)throw new Error('member_profile_invalid');
+  if(member.id!==user.uid)throw new Error('member_identity_mismatch');
+  if(['inactive','blocked','suspended'].includes(String(member.status||'').toLowerCase()))throw new Error('member_inactive');
+  return member;
+}
+
+async function openAuthenticatedSession(user,{quiet=false}={}){
+  currentUser=user;
+  const member=await ensureMemberProfile(user);
+  const local=loadUserLocal(user.uid);
+  data={...local,profile:member};
+  setMode('AUTH + PROFIL LIVE');
+  showApp();
+  await applyPlannerDraft();
+  if(!quiet)toast(`Přihlášen jako ${member.nickname||member.name}.`);
+}
 
 async function initFirebase(){
-  if(!firebaseReady){setMode('LOCAL PREVIEW · BACKEND OFF'); if(localStorage.getItem(sessionKey)==='1'){showApp();renderAll();await applyPlannerDraft()}else showAuth(); return;}
+  // Production auth must fail closed. Remove legacy preview/session state so it can never authenticate a user.
+  ['e36UnitedMemberPreviewV19','e36UnitedMemberPreviewV18','e36UnitedMemberSessionV19'].forEach(key=>localStorage.removeItem(key));
+  resetMemberState();
+  showAuth();
+  if(!firebaseReady){setMode('AUTH NENÍ NASTAVENÝ');toast('Přihlášení není nakonfigurované.');return}
   try{
     const appMod=await import('https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js');
     const authMod=await import('https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js');
-    const dbMod=await import('https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js');
-    const storageMod=await import('https://www.gstatic.com/firebasejs/10.12.5/firebase-storage.js');
-    const app=appMod.initializeApp(firebaseConfig); const auth=authMod.getAuth(app); const db=dbMod.getFirestore(app); const storage=storageMod.getStorage(app);
+    const app=appMod.getApps().length?appMod.getApps()[0]:appMod.initializeApp(firebaseConfig);
+    const auth=authMod.getAuth(app);
     await authMod.setPersistence(auth,authMod.browserLocalPersistence);
-    firebase={...authMod,...dbMod,...storageMod,auth,db,storage}; setMode('FIREBASE LIVE');
-    authMod.onAuthStateChanged(auth,async user=>{currentUser=user;if(user&&!user.isAnonymous){localStorage.setItem(sessionKey,'1');await loadRemote();showApp();await consumeConfirmationToken();await applyPlannerDraft()}else{localStorage.removeItem(sessionKey);showAuth()}});
-  }catch(e){console.warn('Firebase unavailable, using preview mode',e);setMode('LOCAL PREVIEW · BACKEND OFF');}
+    firebase={...authMod,auth};
+    setMode('AUTH READY');
+    authMod.onAuthStateChanged(auth,async user=>{
+      if(authFlowActive)return;
+      currentUser=user;
+      if(!user){resetMemberState();showAuth();setMode('AUTH READY');return}
+      try{
+        await openAuthenticatedSession(user,{quiet:true});
+      }catch(error){
+        console.error('Unable to restore member session',error);
+        resetMemberState();
+        showAuth();
+        setMode('AUTH OK · PROFIL NEDOSTUPNÝ');
+        toast(apiError(error));
+      }
+    });
+  }catch(error){
+    console.error('Firebase Auth initialization failed',error);
+    firebase=null;currentUser=null;resetMemberState();showAuth();setMode('AUTH NEDOSTUPNÝ');toast('Přihlášení se nepodařilo inicializovat.');
+  }
 }
-function setMode(t){$$('[data-mode-badge]').forEach(x=>x.textContent=t);const s=$('[data-sync-state]');if(s)s.textContent=t;$$('[data-demo-hint]').forEach(x=>x.hidden=t==='FIREBASE LIVE')}
-async function loadRemote(){if(!firebase||!currentUser)return;const ref=firebase.doc(firebase.db,'members',currentUser.uid);const snap=await firebase.getDoc(ref);if(snap.exists())data={...defaultData(),...snap.data()};else{data=defaultData();data.profile.email=currentUser.email||'';}const carsSnap=await firebase.getDocs(firebase.collection(firebase.db,'members',currentUser.uid,'cars'));data.cars=carsSnap.docs.map(d=>({id:d.id,...d.data()}));if(!snap.exists())await syncRemote();renderAll()}
-async function syncRemote(){if(firebase&&currentUser){const {cars,...memberData}=data;await firebase.setDoc(firebase.doc(firebase.db,'members',currentUser.uid),memberData,{merge:true});for(const car of cars){const {id,...carData}=car;await firebase.setDoc(firebase.doc(firebase.db,'members',currentUser.uid,'cars',id),carData,{merge:true});}}else localStorage.setItem(localKey,JSON.stringify(data));}
-async function commit(msg='Uloženo'){await syncRemote();renderAll();toast(msg)}
 
-function showAuth(){ document.body.classList.remove('member-authenticated'); $('[data-auth-view]').hidden=false; $('[data-app-view]').hidden=true; }
-function showApp(){ document.body.classList.add('member-authenticated'); $('[data-auth-view]').hidden=true; $('[data-app-view]').hidden=false; renderAll(); }
+$$('[data-auth-tab]').forEach(btn=>btn.addEventListener('click',()=>activateAuthTab(btn.dataset.authTab)));
+$$('[data-toggle-password]').forEach(button=>button.addEventListener('click',()=>{const input=button.parentElement.querySelector('input');if(input)input.type=input.type==='password'?'text':'password'}));
 
-$$('[data-auth-tab]').forEach(btn=>btn.addEventListener('click',()=>{$$('[data-auth-tab]').forEach(x=>x.classList.toggle('is-active',x===btn));$$('[data-auth-form]').forEach(f=>f.classList.toggle('is-active',f.dataset.authForm===btn.dataset.authTab))}));
-$$('[data-toggle-password]').forEach(b=>b.addEventListener('click',()=>{const i=b.parentElement.querySelector('input');i.type=i.type==='password'?'text':'password'}));
+$('[data-auth-form="login"]')?.addEventListener('submit',async event=>{
+  event.preventDefault();
+  if(!firebase)return toast('Přihlášení teď není dostupné.');
+  const form=event.currentTarget,button=form.querySelector('button[type="submit"]'),fd=new FormData(form);
+  const email=String(fd.get('email')||'').trim().toLowerCase(),password=String(fd.get('password')||'');
+  resetMemberState();showAuth();
+  authFlowActive=true;setButtonBusy(button,true,'Přihlašuji…');
+  try{
+    const cred=await firebase.signInWithEmailAndPassword(firebase.auth,email,password);
+    currentUser=cred.user;
+    await openAuthenticatedSession(cred.user);
+  }catch(error){
+    console.error('Login failed',error);
+    if(firebase.auth.currentUser){try{await firebase.signOut(firebase.auth)}catch{}}
+    currentUser=null;resetMemberState();showAuth();setMode('AUTH READY');toast(authOrApiError(error));
+  }finally{
+    authFlowActive=false;setButtonBusy(button,false);
+  }
+});
 
-$('[data-auth-form="login"]').addEventListener('submit',async e=>{e.preventDefault();const fd=new FormData(e.currentTarget),email=fd.get('email'),password=fd.get('password');try{if(firebaseReady&&firebase){await firebase.signInWithEmailAndPassword(firebase.auth,email,password)}else{data.profile.email=email;localStorage.setItem(sessionKey,'1');saveLocal();showApp();await applyPlannerDraft();toast('Preview profil otevřen')}}catch(err){toast(authError(err))}});
-$('[data-auth-form="register"]').addEventListener('submit',async e=>{e.preventDefault();const fd=new FormData(e.currentTarget),email=fd.get('email'),password=fd.get('password'),name=fd.get('name'),nickname=fd.get('nickname')||name.split(' ')[0];try{if(firebaseReady&&firebase){const cred=await firebase.createUserWithEmailAndPassword(firebase.auth,email,password);currentUser=cred.user;await firebase.updateProfile(currentUser,{displayName:name});data=defaultData();data.profile={...data.profile,name,nickname,email};await syncRemote();await firebase.sendEmailVerification(currentUser);try{await queueMail('member_welcome','Vítej v Můj United · tvoje United ID','email-member-welcome.html',{member_name:name,member_email:email,member_id:String((email||nickname).split('').reduce((a,c)=>a+c.charCodeAt(0),0)%900+100),portal_url:new URL('member.html',location.href).href})}catch(e){console.warn('Welcome mail unavailable',e)}showApp();toast('United ID vytvořeno · ověření e-mailu odesláno')}else{data=defaultData();data.profile={...data.profile,name,nickname,email};localStorage.setItem(sessionKey,'1');saveLocal();showApp();toast('United ID vytvořeno v preview režimu')}}catch(err){toast(authError(err))}});
-$('[data-password-reset]').addEventListener('click',async()=>{const email=$('[data-auth-form="login"] input[name="email"]').value;if(!email)return toast('Nejdřív vyplň e-mail.');if(firebaseReady&&firebase){try{await firebase.sendPasswordResetEmail(firebase.auth,email);toast('Odkaz pro nové heslo byl odeslán.')}catch(e){toast(authError(e))}}else toast('Preview mode: reset hesla se neposílá.')});
-$('[data-logout]').addEventListener('click',async()=>{if(firebase&&currentUser)await firebase.signOut(firebase.auth);localStorage.removeItem(sessionKey);currentUser=null;showAuth()});
-function authError(e){const c=e?.code||'';if(c.includes('invalid-credential'))return 'E-mail nebo heslo nesedí.';if(c.includes('email-already'))return 'Tento e-mail už United ID má.';if(c.includes('weak-password'))return 'Heslo musí mít alespoň 6 znaků.';return 'Akci se nepodařilo dokončit.'}
+$('[data-auth-form="register"]')?.addEventListener('submit',async event=>{
+  event.preventDefault();
+  if(!firebase)return toast('Registrace teď není dostupná.');
+  const form=event.currentTarget,button=form.querySelector('button[type="submit"]'),fd=new FormData(form);
+  const email=String(fd.get('email')||'').trim().toLowerCase(),password=String(fd.get('password')||''),passwordConfirm=String(fd.get('passwordConfirm')||''),name=String(fd.get('name')||'').trim(),nickname=String(fd.get('nickname')||'').trim()||name.split(/\s+/)[0];
+  if(password!==passwordConfirm)return toast('Hesla se neshodují.');
+  authFlowActive=true;setButtonBusy(button,true,'Zakládám United ID…');
+  let createdUser=null,emailSent=false,bootstrapOk=false;
+  try{
+    const cred=await firebase.createUserWithEmailAndPassword(firebase.auth,email,password);
+    createdUser=cred.user;currentUser=createdUser;
+    await firebase.updateProfile(createdUser,{displayName:name});
+    try{await apiRequest('/api/bootstrap',{method:'POST',body:{name,nickname}});bootstrapOk=true}catch(error){console.error('Member bootstrap failed after registration',error)}
+    try{await firebase.sendEmailVerification(createdUser);emailSent=true}catch(error){console.error('Verification email failed',error)}
+  }catch(error){
+    console.error('Registration failed',error);toast(authError(error));return;
+  }finally{
+    if(createdUser){try{await firebase.signOut(firebase.auth)}catch(error){console.warn('Sign out after registration failed',error)}}
+    currentUser=null;resetMemberState();showAuth();activateAuthTab('login');
+    const loginEmail=$('[data-auth-form="login"] input[name="email"]');if(loginEmail)loginEmail.value=email;
+    authFlowActive=false;setButtonBusy(button,false);
+  }
+  if(bootstrapOk&&emailSent)toast('United ID bylo vytvořeno. Ověření e-mailu jsme odeslali; teď se můžeš přihlásit.');
+  else if(bootstrapOk)toast('United ID bylo vytvořeno. Teď se můžeš přihlásit; ověřovací e-mail se nepodařilo odeslat.');
+  else toast('United ID bylo vytvořeno. Profil se doplní při prvním přihlášení.');
+});
 
-$$('.member-nav-item[data-member-section]').forEach(b=>b.addEventListener('click',()=>openSection(b.dataset.memberSection)));
-$$('[data-jump]').forEach(b=>b.addEventListener('click',()=>openSection(b.dataset.jump)));
-function openSection(id){$$('.member-nav-item[data-member-section]').forEach(b=>b.classList.toggle('is-active',b.dataset.memberSection===id));$$('[data-member-panel]').forEach(p=>p.classList.toggle('is-active',p.dataset.memberPanel===id));if(innerWidth<700)window.scrollTo({top:82,behavior:'smooth'})}
+$('[data-password-reset]')?.addEventListener('click',async()=>{
+  const email=$('[data-auth-form="login"] input[name="email"]')?.value?.trim().toLowerCase();
+  if(!email)return toast('Nejdřív vyplň e-mail.');
+  if(!firebase)return toast('Reset hesla teď není dostupný.');
+  try{await firebase.sendPasswordResetEmail(firebase.auth,email);toast('Odkaz pro nové heslo byl odeslán.')}catch(error){toast(authError(error))}
+});
+
+$('[data-logout]')?.addEventListener('click',async()=>{
+  authFlowActive=true;
+  try{if(firebase)await firebase.signOut(firebase.auth)}catch(error){console.warn('Firebase logout failed',error)}
+  currentUser=null;resetMemberState();resetAuthForms();showAuth();setMode(firebase?'AUTH READY':'AUTH NEDOSTUPNÝ');authFlowActive=false;toast('Odhlášeno.');
+});
+
+function authError(error){
+  const code=String(error?.code||'');
+  if(code.includes('invalid-credential')||code.includes('wrong-password')||code.includes('user-not-found'))return 'E-mail nebo heslo nesedí.';
+  if(code.includes('email-already-in-use')||code.includes('email-already'))return 'Tento e-mail už United ID má.';
+  if(code.includes('weak-password'))return 'Heslo musí mít alespoň 6 znaků.';
+  if(code.includes('invalid-email'))return 'E-mail nemá platný formát.';
+  if(code.includes('too-many-requests'))return 'Příliš mnoho pokusů. Zkus to za chvíli znovu.';
+  if(code.includes('network-request-failed'))return 'Nepodařilo se spojit s Firebase. Zkontroluj připojení.';
+  if(code.includes('unauthorized-domain'))return 'Tato doména není ve Firebase povolená.';
+  if(code.includes('operation-not-allowed'))return 'Přihlášení e-mailem není ve Firebase povolené.';
+  if(code.includes('user-disabled'))return 'Tento účet je deaktivovaný.';
+  return 'Akci se nepodařilo dokončit.';
+}
+function apiError(error){
+  if(error?.message==='api_network_error')return 'Členské API není dostupné. Zkus stránku obnovit.';
+  if(error?.message==='member_identity_mismatch')return 'Bezpečnostní kontrola profilu selhala. Byl jsi odhlášen.';
+  if(error?.message==='member_inactive')return 'Tento členský účet není aktivní.';
+  if(error?.status===401)return 'Přihlášení vypršelo. Přihlas se znovu.';
+  if(error?.status===403)return 'Tato doména nemá povolený přístup k členskému API.';
+  if(error?.status>=500)return 'Členský profil je dočasně nedostupný.';
+  return 'Členský profil se nepodařilo načíst.';
+}
+function authOrApiError(error){return error?.status||error?.message==='api_network_error'?apiError(error):authError(error)}
+
+$$('.member-nav-item[data-member-section]').forEach(button=>button.addEventListener('click',()=>openSection(button.dataset.memberSection)));
+$$('[data-jump]').forEach(button=>button.addEventListener('click',()=>openSection(button.dataset.jump)));
+function openSection(id){$$('.member-nav-item[data-member-section]').forEach(button=>button.classList.toggle('is-active',button.dataset.memberSection===id));$$('[data-member-panel]').forEach(panel=>panel.classList.toggle('is-active',panel.dataset.memberPanel===id));if(innerWidth<700)window.scrollTo({top:82,behavior:'smooth'})}
 
 const badgeDefs=[
   {id:'first',icon:'1×',name:'First United',desc:'První účast',test:d=>attended(d)>=1},
@@ -61,134 +287,86 @@ const badgeDefs=[
   {id:'garage',icon:'▦',name:'Full Garage',desc:'3 auta v garáži',test:d=>d.cars.length>=3},
   {id:'twelve',icon:'12',name:'Full Points',desc:'12 / 12 United Points',test:d=>points(d)>=12}
 ];
-function attended(d=data){return d.history.filter(h=>h.attended).length} function verified(d=data){return d.history.filter(h=>h.attended&&h.verified).length}
-function memberSince(d=data){const y=d.history.filter(h=>h.attended).map(h=>h.year);return y.length?Math.min(...y):null}
+function attended(d=data){return d.history.filter(h=>h.attended).length}
+function verified(d=data){return d.history.filter(h=>h.attended&&h.verified).length}
+function memberSince(d=data){const years=d.history.filter(h=>h.attended).map(h=>h.year);return years.length?Math.min(...years):null}
 function points(d=data){const p=portalConfig.points;return Math.min(p.rewardThreshold,d.history.reduce((n,h)=>n+(h.attended&&h.verified?p.attendance:0)+(h.winner&&h.verified?p.showShineWin:0),0)+(d.bonuses||[]).reduce((n,b)=>n+(b.points||0),0))}
 function lifetimePoints(d=data){const p=portalConfig.points;return d.history.reduce((n,h)=>n+(h.attended&&h.verified?p.attendance:0)+(h.winner&&h.verified?p.showShineWin:0),0)+(d.bonuses||[]).reduce((n,b)=>n+(b.points||0),0)}
-function status(d=data){const n=verified(d);if(n>=5)return 'VETERAN';if(n>=3)return 'REGULAR';if(n>=1)return 'MEMBER';return 'ROOKIE'}
+function status(d=data){const count=verified(d);if(count>=5)return 'VETERAN';if(count>=3)return 'REGULAR';if(count>=1)return 'MEMBER';return 'ROOKIE'}
 
 function renderAll(){renderProfile();renderPoints();renderBadges();renderGarage();renderHistory();renderReservation();renderRewards()}
-function renderProfile(){const p=data.profile||{};const nick=p.nickname||p.name?.split(' ')[0]||'Driver';$('[data-member-nickname]').textContent=nick;$('[data-card-name]').textContent=(p.name||'United Member').toUpperCase();$('[data-card-id]').textContent=String((p.email||nick).split('').reduce((a,c)=>a+c.charCodeAt(0),0)%900+100);const car=data.cars.find(c=>c.primary)||data.cars[0];$('[data-card-car]').textContent=car?`${car.body} · ${car.model}${car.nickname?' · '+car.nickname:''}`:'BMW E36 · Garage pending';$('[data-member-since]').textContent=memberSince()||'—';$('[data-history-since]').textContent=memberSince()||'—';$('[data-attendance-count]').textContent=attended();$('[data-member-status]').textContent=status()}
-function renderPoints(){const p=points();$('[data-points]').textContent=p;const track=$('[data-points-track]');track.innerHTML=Array.from({length:12},(_,i)=>`<i class="${i<p?'is-on':''}"></i>`).join('');$('[data-points-copy]').textContent=p>=12?'12 / 12. United Merch reward je odemčený.':`Ještě ${12-p} bodů a odemykáš United Merch reward.`}
-function renderBadges(){const unlocked=badgeDefs.filter(b=>b.test(data));const html=(arr)=>arr.map(b=>`<div class="badge ${b.test(data)?'':'is-locked'}"><span class="badge-icon">${b.icon}</span><div><b>${b.name}</b><small>${b.desc}</small></div></div>`).join('');$('[data-badges-preview]').innerHTML=html((unlocked.length?unlocked:badgeDefs).slice(0,5));$('[data-badge-cabinet]').innerHTML=html(badgeDefs)}
-function renderGarage(){const grid=$('[data-garage-grid]');if(!data.cars.length){grid.innerHTML='<div class="garage-empty"><div><b>Garáž je zatím prázdná.</b><br><small>Přidej svoje první E36. Pak ho můžeš napárovat na rezervaci.</small></div></div>';renderCarSelect();return}grid.innerHTML=data.cars.map(c=>`<article class="car-card"><div class="car-photo">${c.photos?.[0]?`<img src="${c.photos[0]}" alt="${esc(c.nickname||c.model)}">`:'<div class="car-photo-placeholder">E36</div>'}${c.primary?'<span class="car-primary">HLAVNÍ AUTO</span>':''}</div><div class="car-body"><small>${esc(c.body)} · ${esc(c.year||'')}</small><h3>${esc(c.nickname||c.model)}</h3><p>${esc(c.model)}${c.color?' · '+esc(c.color):''}</p><div class="car-actions"><button data-primary-car="${c.id}">${c.primary?'Hlavní':'Nastavit hlavní'}</button><button data-delete-car="${c.id}">Odebrat</button></div></div></article>`).join('');$$('[data-primary-car]').forEach(b=>b.onclick=async()=>{data.cars.forEach(c=>c.primary=c.id===b.dataset.primaryCar);await commit('Hlavní auto změněno')});$$('[data-delete-car]').forEach(b=>b.onclick=async()=>{if(!confirm('Odebrat auto z garáže?'))return;const removedId=b.dataset.deleteCar;data.cars=data.cars.filter(c=>c.id!==removedId);if(firebase&&currentUser)await firebase.deleteDoc(firebase.doc(firebase.db,'members',currentUser.uid,'cars',removedId));if(data.cars.length&&!data.cars.some(c=>c.primary))data.cars[0].primary=true;await commit('Auto odebráno')});renderCarSelect()}
-function renderCarSelect(){const s=$('[data-car-select]');if(!s)return;s.innerHTML=data.cars.length?data.cars.map(c=>`<option value="${c.id}">${esc(c.nickname||c.model)} · ${esc(c.body)}</option>`).join(''):'<option value="">Nejdřív přidej auto do garáže</option>'}
-function renderHistory(){const grid=$('[data-history-grid]');grid.innerHTML=data.history.map(h=>`<button class="history-year ${h.attended?'is-attended':''}" data-history-year="${h.year}"><div class="history-year-number">${h.year}</div><div class="history-year-status"><div><b>${h.attended?'ÚČAST PŘIDÁNA':'NEBYL/A JSEM'}</b><small>${h.attended?(h.verified?'Ověřeno United týmem':'Čeká na ověření'):'Klikni pro přidání'}</small></div><span class="history-check">${h.attended?'✓':'+'}</span></div></button>`).join('');$$('[data-history-year]').forEach(b=>b.onclick=async()=>{const h=data.history.find(x=>x.year===+b.dataset.historyYear);h.attended=!h.attended;if(!h.attended){h.verified=false;h.winner=false}await commit(h.attended?`United ${h.year} přidáno do historie`:`United ${h.year} odebráno`)})}
-function renderReservation(){
-  const r=data.reservation;
-  const miniStatus=$('[data-reservation-status]'),year=$('[data-res-year]'),title=$('[data-res-title]'),car=$('[data-res-car]');
-  const mailState=$('[data-reservation-mail-state]');
-  if(!r){
-    miniStatus.textContent='Žádná aktivní';year.textContent='—';title.textContent='Příští United';car.textContent='Vyber auto z garáže při potvrzení rezervace.';
-    $('[data-reservation-state-label]').textContent='Bez aktivní rezervace';$('[data-reservation-year]').textContent='—';$('[data-reservation-title]').textContent='Příští E36 United';$('[data-reservation-summary]').innerHTML='';
-    if(mailState){mailState.classList.remove('is-confirmed');mailState.querySelector('span').textContent='Rezervace je platná až po potvrzení odkazu v e-mailu.'}
-    return;
-  }
-  const confirmed=r.status==='confirmed';
-  const isDraft=r.status==='draft';
-  const isLocal=r.status==='local_saved';
-  if(reservationForm){
-    if(reservationForm.elements.carId&&r.carId)reservationForm.elements.carId.value=r.carId;
-    if(reservationForm.elements.arrival)reservationForm.elements.arrival.value=r.arrival||'Pátek';
-    if(reservationForm.elements.crew)reservationForm.elements.crew.value=r.crew||2;
-    if(reservationForm.elements.sleep)reservationForm.elements.sleep.value=r.sleep||'Chatka';
-    if(reservationForm.elements.showshine)reservationForm.elements.showshine.value=r.showshine||'Ne';
-    if(reservationForm.elements.note)reservationForm.elements.note.value=r.note||'';
-    syncMemberSleep();
-  }
-  miniStatus.textContent=confirmed?'Potvrzeno':(isDraft?'Rozpracováno':(isLocal?'Uloženo lokálně':'Čeká na e-mail'));year.textContent=r.year||'NEXT';title.textContent=r.title||'United rezervace';car.textContent=r.carSnapshot?`${r.carSnapshot.nickname||r.carSnapshot.model} · ${r.carSnapshot.body}`:'Auto zatím není vybrané';
-  $('[data-reservation-state-label]').textContent=confirmed?'Rezervace potvrzena':(isDraft?'Rezervace z Weekend Planneru':(isLocal?'Rezervace uložená lokálně':'Čeká na potvrzení e-mailem'));$('[data-reservation-year]').textContent=r.year||'NEXT';$('[data-reservation-title]').textContent=r.title||'E36 United';
-  $('[data-reservation-description]').textContent=confirmed?'Rezervace je potvrzená a napárovaná na konkrétní snapshot auta z tvojí garáže.':(isDraft?'Výběr z Weekend Planneru je už uložený v profilu. Vyber auto a tlačítkem vpravo odešli potvrzovací e-mail.':(isLocal?'Rezervace je uložená v tomto prohlížeči. Serverový e-mail začne fungovat po připojení backendu.':'Rezervace je uložená, ale aktivuje se až po kliknutí na potvrzovací odkaz v e-mailu.'));
-  const sleep = r.arrival==='Jen na otočku' ? 'Bez ubytování' : r.sleep;
-  const statusText=confirmed?'POTVRZENO':(isDraft?'ROZPRACOVÁNO':(isLocal?'LOCAL PREVIEW':'ČEKÁ NA E-MAIL'));
-  $('[data-reservation-summary]').innerHTML=`<div><small>AUTO</small><b>${esc(r.carSnapshot?.nickname||r.carSnapshot?.model||'—')}</b></div><div><small>PŘÍJEZD</small><b>${esc(r.arrival||'—')}</b></div><div><small>POSÁDKA</small><b>${esc(r.crew)} osoby</b></div><div><small>UBYTOVÁNÍ</small><b>${esc(sleep||'—')}</b></div><div><small>SHOW & SHINE</small><b>${esc(r.showshine)}</b></div><div><small>STATUS</small><b>${statusText}</b></div>`;
-  if(mailState){mailState.classList.toggle('is-confirmed',confirmed);mailState.querySelector('span').textContent=confirmed?'E-mail potvrzen · rezervace je aktivní.':(isDraft?'Výběr je už v profilu. Potvrzovací e-mail odešle až tlačítko „Uložit a poslat potvrzení“.':(isLocal?'LOCAL PREVIEW: server ani e-mail zatím nejsou připojené.':'Otevři e-mail od E36 United a potvrď rezervaci jedním kliknutím.'))}
+function renderProfile(){
+  const p=data.profile||{},nick=p.nickname||p.name?.split(' ')[0]||'Driver';
+  const nickEl=$('[data-member-nickname]');if(nickEl)nickEl.textContent=nick;
+  const nameEl=$('[data-card-name]');if(nameEl)nameEl.textContent=(p.name||'United Member').toUpperCase();
+  const code=p.memberCode?String(p.memberCode).replace(/^EU-?/i,'').slice(-6):String((p.email||nick).split('').reduce((a,c)=>a+c.charCodeAt(0),0)%900+100);
+  const idEl=$('[data-card-id]');if(idEl)idEl.textContent=code;
+  const accountEl=$('[data-member-account]');if(accountEl)accountEl.textContent=[p.email,p.memberCode,p.emailVerified?'e-mail ověřen':'e-mail neověřen'].filter(Boolean).join(' · ');
+  const car=data.cars.find(c=>c.primary)||data.cars[0];const carEl=$('[data-card-car]');if(carEl)carEl.textContent=car?`${car.body} · ${car.model}${car.nickname?' · '+car.nickname:''}`:'BMW E36 · Garage pending';
+  $('[data-member-since]').textContent=memberSince()||'—';$('[data-history-since]').textContent=memberSince()||'—';$('[data-attendance-count]').textContent=attended();$('[data-member-status]').textContent=status();
 }
-function renderRewards(){const p=points(),life=lifetimePoints();$('[data-reward-score]').textContent=p;const lock=$('[data-reward-lock]');lock.classList.toggle('is-unlocked',p>=12);lock.querySelector('span').textContent=p>=12?'UNLOCKED':'LOCKED';$('[data-reward-remaining]').textContent=p>=12?'United Merch reward je aktivní':`${12-p} bodů zbývá`;$('[data-points-ledger]').innerHTML=`<div class="ledger-item"><span>OVĚŘENÁ ÚČAST</span><b>+${portalConfig.points.attendance} body</b><small>Za každý potvrzený United.</small></div><div class="ledger-item"><span>SHOW & SHINE WIN</span><b>+${portalConfig.points.showShineWin} body</b><small>Po potvrzení výsledku organizátorem.</small></div><div class="ledger-item"><span>LIFETIME SCORE</span><b>${life} bodů</b><small>Celoživotní skóre se nemaže po rewardu.</small></div>`;const perks=[['⚡','Early registration','Členové dostanou registraci dřív.',verified()>=1],['◆','Member-only United Merch','Přístup k vybraným dropům.',verified()>=1],['12','United Merch reward','Odměna po dosažení 12 / 12.',p>=12],['★','Community voting','Hlasování o vybraných aktivitách.',verified()>=3],['⌁','Priority accommodation','Dřívější přístup k vybranému ubytování.',verified()>=5]];$('[data-perks-list]').innerHTML=perks.map(x=>`<div class="perk ${x[3]?'':'is-locked'}"><i>${x[0]}</i><div><b>${x[1]}</b><small>${x[2]}</small></div><span>${x[3]?'ACTIVE':'LOCKED'}</span></div>`).join('')}
+function renderPoints(){const p=points();$('[data-points]').textContent=p;const track=$('[data-points-track]');track.innerHTML=Array.from({length:12},(_,i)=>`<i class="${i<p?'is-on':''}"></i>`).join('');$('[data-points-copy]').textContent=p>=12?'12 / 12. United Merch reward je odemčený.':`Ještě ${12-p} bodů a odemykáš United Merch reward.`}
+function renderBadges(){const unlocked=badgeDefs.filter(b=>b.test(data));const html=arr=>arr.map(b=>`<div class="badge ${b.test(data)?'':'is-locked'}"><span class="badge-icon">${b.icon}</span><div><b>${b.name}</b><small>${b.desc}</small></div></div>`).join('');$('[data-badges-preview]').innerHTML=html((unlocked.length?unlocked:badgeDefs).slice(0,5));$('[data-badge-cabinet]').innerHTML=html(badgeDefs)}
+function renderGarage(){
+  const grid=$('[data-garage-grid]');
+  if(!data.cars.length){grid.innerHTML='<div class="garage-empty"><div><b>Garáž je zatím prázdná.</b><br><small>Přidej svoje první E36. Pak ho můžeš napárovat na rezervaci.</small></div></div>';renderCarSelect();return}
+  grid.innerHTML=data.cars.map(c=>`<article class="car-card"><div class="car-photo">${c.photos?.[0]?`<img src="${c.photos[0]}" alt="${esc(c.nickname||c.model)}">`:'<div class="car-photo-placeholder">E36</div>'}${c.primary?'<span class="car-primary">HLAVNÍ AUTO</span>':''}</div><div class="car-body"><small>${esc(c.body)} · ${esc(c.year||'')}</small><h3>${esc(c.nickname||c.model)}</h3><p>${esc(c.model)}${c.color?' · '+esc(c.color):''}</p><div class="car-actions"><button data-primary-car="${c.id}">${c.primary?'Hlavní':'Nastavit hlavní'}</button><button data-delete-car="${c.id}">Odebrat</button></div></div></article>`).join('');
+  $$('[data-primary-car]').forEach(button=>button.onclick=async()=>{data.cars.forEach(c=>c.primary=c.id===button.dataset.primaryCar);await commit('Hlavní auto změněno')});
+  $$('[data-delete-car]').forEach(button=>button.onclick=async()=>{if(!confirm('Odebrat auto z garáže?'))return;data.cars=data.cars.filter(c=>c.id!==button.dataset.deleteCar);if(data.cars.length&&!data.cars.some(c=>c.primary))data.cars[0].primary=true;await commit('Auto odebráno')});
+  renderCarSelect();
+}
+function renderCarSelect(){const select=$('[data-car-select]');if(!select)return;select.innerHTML=data.cars.length?data.cars.map(c=>`<option value="${c.id}">${esc(c.nickname||c.model)} · ${esc(c.body)}</option>`).join(''):'<option value="">Nejdřív přidej auto do garáže</option>'}
+function renderHistory(){const grid=$('[data-history-grid]');grid.innerHTML=data.history.map(h=>`<button class="history-year ${h.attended?'is-attended':''}" data-history-year="${h.year}"><div class="history-year-number">${h.year}</div><div class="history-year-status"><div><b>${h.attended?'ÚČAST PŘIDÁNA':'NEBYL/A JSEM'}</b><small>${h.attended?(h.verified?'Ověřeno United týmem':'Čeká na ověření'):'Klikni pro přidání'}</small></div><span class="history-check">${h.attended?'✓':'+'}</span></div></button>`).join('');$$('[data-history-year]').forEach(button=>button.onclick=async()=>{const h=data.history.find(x=>x.year===+button.dataset.historyYear);h.attended=!h.attended;if(!h.attended){h.verified=false;h.winner=false}await commit(h.attended?`United ${h.year} přidáno do historie`:`United ${h.year} odebráno`)})}
 
 const reservationForm=$('[data-reservation-form]');
 const arrivalSelect=reservationForm?.elements?.arrival;
 const sleepField=$('[data-member-sleep-field]');
-function syncMemberSleep(){
-  if(!reservationForm||!arrivalSelect||!sleepField)return;
-  const dayPass=arrivalSelect.value==='Jen na otočku';
-  sleepField.hidden=dayPass;
-  if(dayPass)reservationForm.elements.sleep.value='Bez ubytování';
-}
+function syncMemberSleep(){if(!reservationForm||!arrivalSelect||!sleepField)return;const dayPass=arrivalSelect.value==='Jen na otočku';sleepField.hidden=dayPass;if(dayPass)reservationForm.elements.sleep.value='Bez ubytování'}
 arrivalSelect?.addEventListener('change',syncMemberSleep);syncMemberSleep();
 
-reservationForm?.addEventListener('submit',async e=>{
-  e.preventDefault();
-  const fd=new FormData(e.currentTarget),car=data.cars.find(c=>c.id===fd.get('carId'));
+function renderReservation(){
+  const r=data.reservation,miniStatus=$('[data-reservation-status]'),year=$('[data-res-year]'),title=$('[data-res-title]'),car=$('[data-res-car]'),mailState=$('[data-reservation-mail-state]');
+  if(!r){miniStatus.textContent='Žádná aktivní';year.textContent='—';title.textContent='Příští United';car.textContent='Vyber auto z garáže při potvrzení rezervace.';$('[data-reservation-state-label]').textContent='Bez aktivní rezervace';$('[data-reservation-year]').textContent='—';$('[data-reservation-title]').textContent='Příští E36 United';$('[data-reservation-summary]').innerHTML='';if(mailState){mailState.classList.remove('is-confirmed');mailState.querySelector('span').textContent='Rezervační backend bude zapojen v další fázi.'}return}
+  const confirmed=r.status==='confirmed',isDraft=r.status==='draft',isLocal=r.status==='local_saved';
+  if(reservationForm){if(reservationForm.elements.carId&&r.carId)reservationForm.elements.carId.value=r.carId;if(reservationForm.elements.arrival)reservationForm.elements.arrival.value=r.arrival||'Pátek';if(reservationForm.elements.crew)reservationForm.elements.crew.value=r.crew||2;if(reservationForm.elements.sleep)reservationForm.elements.sleep.value=r.sleep||'Chatka';if(reservationForm.elements.showshine)reservationForm.elements.showshine.value=r.showshine||'Ne';if(reservationForm.elements.note)reservationForm.elements.note.value=r.note||'';syncMemberSleep()}
+  miniStatus.textContent=confirmed?'Potvrzeno':(isDraft?'Rozpracováno':(isLocal?'Uloženo lokálně':'Čeká na potvrzení'));year.textContent=r.year||'NEXT';title.textContent=r.title||'United rezervace';car.textContent=r.carSnapshot?`${r.carSnapshot.nickname||r.carSnapshot.model} · ${r.carSnapshot.body}`:'Auto zatím není vybrané';
+  $('[data-reservation-state-label]').textContent=confirmed?'Rezervace potvrzena':(isDraft?'Rezervace z Weekend Planneru':(isLocal?'Rezervace uložená lokálně':'Čeká na potvrzení'));$('[data-reservation-year]').textContent=r.year||'NEXT';$('[data-reservation-title]').textContent=r.title||'E36 United';
+  $('[data-reservation-description]').textContent=confirmed?'Rezervace je potvrzená a napárovaná na konkrétní snapshot auta z tvojí garáže.':(isDraft?'Výběr z Weekend Planneru je uložený v profilu tohoto zařízení.':(isLocal?'Rezervace je zatím uložená pouze pro tento účet v tomto prohlížeči.':'Rezervace čeká na potvrzení.'));
+  const sleep=r.arrival==='Jen na otočku'?'Bez ubytování':r.sleep,statusText=confirmed?'POTVRZENO':(isDraft?'ROZPRACOVÁNO':(isLocal?'LOKÁLNĚ ULOŽENO':'PENDING'));
+  $('[data-reservation-summary]').innerHTML=`<div><small>AUTO</small><b>${esc(r.carSnapshot?.nickname||r.carSnapshot?.model||'—')}</b></div><div><small>PŘÍJEZD</small><b>${esc(r.arrival||'—')}</b></div><div><small>POSÁDKA</small><b>${esc(r.crew)} osoby</b></div><div><small>UBYTOVÁNÍ</small><b>${esc(sleep||'—')}</b></div><div><small>SHOW & SHINE</small><b>${esc(r.showshine)}</b></div><div><small>STATUS</small><b>${statusText}</b></div>`;
+  if(mailState){mailState.classList.toggle('is-confirmed',confirmed);mailState.querySelector('span').textContent=confirmed?'Rezervace je potvrzená.':'Serverové uložení rezervace bude zapojeno v další fázi.'}
+}
+function renderRewards(){const p=points(),life=lifetimePoints();$('[data-reward-score]').textContent=p;const lock=$('[data-reward-lock]');lock.classList.toggle('is-unlocked',p>=12);lock.querySelector('span').textContent=p>=12?'UNLOCKED':'LOCKED';$('[data-reward-remaining]').textContent=p>=12?'United Merch reward je aktivní':`${12-p} bodů zbývá`;$('[data-points-ledger]').innerHTML=`<div class="ledger-item"><span>OVĚŘENÁ ÚČAST</span><b>+${portalConfig.points.attendance} body</b><small>Za každý potvrzený United.</small></div><div class="ledger-item"><span>SHOW & SHINE WIN</span><b>+${portalConfig.points.showShineWin} body</b><small>Po potvrzení výsledku organizátorem.</small></div><div class="ledger-item"><span>LIFETIME SCORE</span><b>${life} bodů</b><small>Celoživotní skóre se nemaže po rewardu.</small></div>`;const perks=[['⚡','Early registration','Členové dostanou registraci dřív.',verified()>=1],['◆','Member-only United Merch','Přístup k vybraným dropům.',verified()>=1],['12','United Merch reward','Odměna po dosažení 12 / 12.',p>=12],['★','Community voting','Hlasování o vybraných aktivitách.',verified()>=3],['⌁','Priority accommodation','Dřívější přístup k vybranému ubytování.',verified()>=5]];$('[data-perks-list]').innerHTML=perks.map(x=>`<div class="perk ${x[3]?'':'is-locked'}"><i>${x[0]}</i><div><b>${x[1]}</b><small>${x[2]}</small></div><span>${x[3]?'ACTIVE':'LOCKED'}</span></div>`).join('')}
+
+async function commit(message='Uloženo'){saveUserLocal();renderAll();toast(message)}
+
+reservationForm?.addEventListener('submit',async event=>{
+  event.preventDefault();
+  if(!currentUser)return toast('Nejdřív se přihlas.');
+  const fd=new FormData(event.currentTarget),car=data.cars.find(c=>c.id===fd.get('carId'));
   if(!car)return toast('Nejdřív přidej auto do garáže.');
-  const arrival=fd.get('arrival')||'Pátek';
-  const sleep=arrival==='Jen na otočku'?'Bez ubytování':fd.get('sleep');
-  const liveBackend=!!(firebase&&currentUser&&!currentUser.isAnonymous);
-  data.reservation={year:'NEXT',title:'Příští E36 United',carId:car.id,carSnapshot:{id:car.id,nickname:car.nickname,model:car.model,body:car.body,year:car.year,color:car.color,photo:car.photos?.[0]||''},arrival,crew:+fd.get('crew'),sleep,showshine:fd.get('showshine'),note:fd.get('note'),status:liveBackend?'pending_email':'local_saved',confirmationHash:'',updatedAt:new Date().toISOString()};
-  await syncRemote();renderAll();
-  if(liveBackend){
-    const submit=$('[data-reservation-submit]');submit?.setAttribute('disabled','disabled');
-    try{
-      const token=randomToken(),confirmationHash=await sha256hex(token),confirmationExpiresAt=new Date(Date.now()+48*60*60*1000).toISOString();
-      data.reservation.confirmationHash=confirmationHash;data.reservation.confirmationExpiresAt=confirmationExpiresAt;data.reservation.confirmationSentAt=new Date().toISOString();await syncRemote();
-      const confirmationUrl=new URL(`member.html?confirmReservation=${encodeURIComponent(token)}`,location.href).href;
-      const portalUrl=new URL('member.html',location.href).href;
-      await queueMail('reservation_confirmation','Potvrď rezervaci · E36 United','email-reservation-confirmation.html',{member_name:data.profile.nickname||data.profile.name||'United member',event_name:data.reservation.title||'E36 United',car_name:data.reservation.carSnapshot?.nickname||data.reservation.carSnapshot?.model||'BMW E36',arrival:data.reservation.arrival||'—',crew:data.reservation.crew||'—',sleep:data.reservation.arrival==='Jen na otočku'?'Bez ubytování':(data.reservation.sleep||'—'),showshine:data.reservation.showshine||'—',confirmation_url:confirmationUrl,portal_url:portalUrl});
-      await commit('Potvrzovací e-mail byl zařazen k odeslání');
-    }catch(err){console.warn(err);await commit('Rezervace uložena · e-mail se nepodařilo zařadit');toast('Rezervace je uložená, ale potvrzovací e-mail se nepodařilo připravit. Zkontroluj Trigger Email nastavení.')}finally{submit?.removeAttribute('disabled')}
-  }else{
-    data.reservation.previewConfirmation=true;await commit('Rezervace uložena lokálně · serverový e-mail vyžaduje aktivní backend');
-  }
+  const arrival=fd.get('arrival')||'Pátek',sleep=arrival==='Jen na otočku'?'Bez ubytování':fd.get('sleep');
+  data.reservation={year:'NEXT',title:'Příští E36 United',carId:car.id,carSnapshot:{id:car.id,nickname:car.nickname,model:car.model,body:car.body,year:car.year,color:car.color,photo:car.photos?.[0]||''},arrival,crew:+fd.get('crew'),sleep,showshine:fd.get('showshine'),note:fd.get('note'),status:'local_saved',updatedAt:new Date().toISOString()};
+  await commit('Rezervace je zatím uložená lokálně pro tento účet.');
 });
 
-const carModal=$('[data-car-modal]');$('[data-open-car]').onclick=()=>{carModal.hidden=false;document.body.classList.add('modal-open')};$$('[data-close-car]').forEach(b=>b.onclick=()=>{carModal.hidden=true;document.body.classList.remove('modal-open')});
-$('[data-car-form]').addEventListener('submit',async e=>{
-  e.preventDefault();
-  const fd=new FormData(e.currentTarget),files=[...e.currentTarget.elements.photos.files].slice(0,3),carId=uid();
-  const photos=[];
-  try{
-    for(let i=0;i<files.length;i++){
-      if(firebase&&currentUser&&!currentUser.isAnonymous)photos.push(await uploadCarPhoto(files[i],carId,i));
-      else photos.push(await compressImageDataUrl(files[i]));
-    }
-  }catch(err){console.warn(err);return toast('Fotky se nepodařilo nahrát. Zkontroluj Firebase Storage a pravidla.');}
+const carModal=$('[data-car-modal]');
+$('[data-open-car]')?.addEventListener('click',()=>{carModal.hidden=false;document.body.classList.add('modal-open')});
+$$('[data-close-car]').forEach(button=>button.addEventListener('click',()=>{carModal.hidden=true;document.body.classList.remove('modal-open')}));
+$('[data-car-form]')?.addEventListener('submit',async event=>{
+  event.preventDefault();
+  if(!currentUser)return toast('Nejdřív se přihlas.');
+  const fd=new FormData(event.currentTarget),files=[...event.currentTarget.elements.photos.files].slice(0,3),carId=uid(),photos=[];
+  try{for(const file of files)photos.push(await compressImageDataUrl(file))}catch(error){console.warn(error);return toast('Fotky se nepodařilo zpracovat.')}
   const car={id:carId,nickname:fd.get('nickname'),body:fd.get('body'),model:fd.get('model'),year:fd.get('year'),color:fd.get('color'),plate:fd.get('plate'),primary:fd.get('primary')==='on'||!data.cars.length,photos};
-  if(car.primary)data.cars.forEach(c=>c.primary=false);data.cars.push(car);carModal.hidden=true;document.body.classList.remove('modal-open');e.currentTarget.reset();await commit(firebase&&currentUser?'Auto i fotky nahrány do garáže':'Auto přidáno do lokální garáže');
+  if(car.primary)data.cars.forEach(c=>c.primary=false);data.cars.push(car);carModal.hidden=true;document.body.classList.remove('modal-open');event.currentTarget.reset();await commit('Auto přidáno do lokální garáže tohoto účtu.');
 });
-async function compressImageBlob(file,max=1600,quality=.78){return await new Promise((resolve,reject)=>{const img=new Image,reader=new FileReader;reader.onload=()=>img.src=reader.result;reader.onerror=reject;img.onload=()=>{const scale=Math.min(1,max/Math.max(img.width,img.height)),c=document.createElement('canvas');c.width=Math.round(img.width*scale);c.height=Math.round(img.height*scale);c.getContext('2d').drawImage(img,0,0,c.width,c.height);c.toBlob(blob=>blob?resolve(blob):reject(new Error('image_compression_failed')),'image/jpeg',quality)};reader.readAsDataURL(file)})}
-async function compressImageDataUrl(file){const blob=await compressImageBlob(file,900,.62);return await new Promise((resolve,reject)=>{const r=new FileReader;r.onload=()=>resolve(r.result);r.onerror=reject;r.readAsDataURL(blob)})}
-async function uploadCarPhoto(file,carId,index){const blob=await compressImageBlob(file);const path=`members/${currentUser.uid}/cars/${carId}/${Date.now()}-${index}.jpg`;const ref=firebase.ref(firebase.storage,path);await firebase.uploadBytes(ref,blob,{contentType:'image/jpeg',cacheControl:'public,max-age=31536000'});return await firebase.getDownloadURL(ref)}
+async function compressImageBlob(file,max=1600,quality=.78){return new Promise((resolve,reject)=>{const img=new Image(),reader=new FileReader();reader.onload=()=>img.src=reader.result;reader.onerror=reject;img.onload=()=>{const scale=Math.min(1,max/Math.max(img.width,img.height)),canvas=document.createElement('canvas');canvas.width=Math.round(img.width*scale);canvas.height=Math.round(img.height*scale);canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);canvas.toBlob(blob=>blob?resolve(blob):reject(new Error('image_compression_failed')),'image/jpeg',quality)};reader.readAsDataURL(file)})}
+async function compressImageDataUrl(file){const blob=await compressImageBlob(file,900,.62);return new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=reject;reader.readAsDataURL(blob)})}
 
-
-
-function randomToken(){const bytes=crypto.getRandomValues(new Uint8Array(32));return [...bytes].map(b=>b.toString(16).padStart(2,'0')).join('')}
-function emailEsc(v=''){return String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-async function queueMail(kind,subject,templateFile,vars={}){
-  if(!firebase||!currentUser||currentUser.isAnonymous||!currentUser.email)throw new Error('mail_auth_required');
-  const response=await fetch(templateFile,{cache:'no-store'});if(!response.ok)throw new Error('mail_template_missing');
-  let html=await response.text();Object.entries(vars).forEach(([key,value])=>{html=html.split(`{{${key}}}`).join(emailEsc(value))});
-  await firebase.addDoc(firebase.collection(firebase.db,'mail'),{ownerUid:currentUser.uid,kind,to:[currentUser.email],message:{subject,html},createdAt:firebase.serverTimestamp()});
-}
-async function sha256hex(value){
-  const bytes=new TextEncoder().encode(String(value||''));
-  const digest=await crypto.subtle.digest('SHA-256',bytes);
-  return [...new Uint8Array(digest)].map(b=>b.toString(16).padStart(2,'0')).join('');
-}
-async function consumeConfirmationToken(){
-  const params=new URLSearchParams(location.search),token=params.get('confirmReservation');
-  if(!token||!data.reservation?.confirmationHash)return;
-  try{
-    const hash=await sha256hex(token);
-    if(data.reservation.confirmationExpiresAt&&Date.now()>Date.parse(data.reservation.confirmationExpiresAt)){toast('Potvrzovací odkaz už vypršel. Odešli rezervaci znovu a dostaneš nový e-mail.');return;}
-    if(hash!==data.reservation.confirmationHash){toast('Potvrzovací odkaz není platný nebo už neodpovídá aktuální rezervaci.');return;}
-    if(data.reservation.status!=='confirmed'){
-      data.reservation.status='confirmed';data.reservation.confirmedAt=new Date().toISOString();await commit('Rezervace potvrzena e-mailem ✓');
-    }
-    const clean=new URL(location.href);clean.searchParams.delete('confirmReservation');history.replaceState({},'',clean.pathname+clean.search+clean.hash);openSection('reservation');
-  }catch(err){console.warn(err);toast('Potvrzení rezervace se nepodařilo dokončit.');}
-}
 async function applyPlannerDraft(){
-  const raw=localStorage.getItem(plannerDraftKey)||localStorage.getItem('e36UnitedReservationDraftV20');if(!raw||!reservationForm)return;
+  const raw=localStorage.getItem(plannerDraftKey)||localStorage.getItem('e36UnitedReservationDraftV20');
+  if(!raw||!reservationForm||!currentUser)return;
   try{
     const draft=JSON.parse(raw);if(!draft)return;
     if(reservationForm.elements.arrival)reservationForm.elements.arrival.value=draft.arrival||'Pátek';
@@ -199,13 +377,13 @@ async function applyPlannerDraft(){
     syncMemberSleep();
     const selectedCar=data.cars.find(c=>c.primary)||data.cars[0]||null;
     data.reservation={year:'NEXT',title:'Příští E36 United',carId:selectedCar?.id||'',carSnapshot:selectedCar?{id:selectedCar.id,nickname:selectedCar.nickname,model:selectedCar.model,body:selectedCar.body,year:selectedCar.year,color:selectedCar.color,photo:selectedCar.photos?.[0]||''}:null,arrival:draft.arrival||'Pátek',crew:+(draft.people||2),sleep:draft.arrival==='Jen na otočku'?'Bez ubytování':(draft.sleep||'Chatka'),showshine:showMap[draft.showshine]||draft.showshine||'Ne',note:'',status:'draft',source:'weekend_planner',updatedAt:new Date().toISOString()};
-    await syncRemote();renderAll();openSection('reservation');
+    saveUserLocal();renderAll();openSection('reservation');
     localStorage.removeItem(plannerDraftKey);localStorage.removeItem('e36UnitedReservationDraftV20');
-    toast(selectedCar?'Rezervace z Weekend Planneru je už v profilu. Zkontroluj ji a odešli potvrzení.':'Rezervace z Weekend Planneru je už v profilu. Přidej nebo vyber auto a odešli potvrzení.');
-  }catch(err){console.warn(err);localStorage.removeItem(plannerDraftKey);localStorage.removeItem('e36UnitedReservationDraftV20')}
+    toast(selectedCar?'Výběr z Weekend Planneru je v profilu. Zkontroluj ho.':'Výběr z Weekend Planneru je v profilu. Přidej auto.');
+  }catch(error){console.warn(error);localStorage.removeItem(plannerDraftKey);localStorage.removeItem('e36UnitedReservationDraftV20')}
 }
 
-// Mobile nav
-const menuBtn=$('.menu-btn'),nav=$('.nav-links');if(menuBtn&&nav)menuBtn.addEventListener('click',()=>{const o=document.body.classList.toggle('menu-open');menuBtn.setAttribute('aria-expanded',String(o));nav.classList.toggle('open',o)});
+const menuBtn=$('.menu-btn'),nav=$('.nav-links');
+if(menuBtn&&nav)menuBtn.addEventListener('click',()=>{const open=document.body.classList.toggle('menu-open');menuBtn.setAttribute('aria-expanded',String(open));nav.classList.toggle('open',open)});
 
 initFirebase();
