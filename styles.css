@@ -917,18 +917,59 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid rgba(
 }
 \n\n/* v20 — day-pass Live Summary has three real milestones */\n.weekend-preview.is-day-pass .weekend-timeline--v8{grid-template-columns:repeat(3,minmax(0,1fr))!important;}\n.weekend-preview.is-day-pass .weekend-timeline--v8 .weekend-timeline-line{left:16.666%!important;right:16.666%!important;}\n.weekend-preview.is-day-pass .weekend-timeline--v8 [data-timeline-step="sleep"]{display:none!important;}\n@media(max-width:680px){\n  .weekend-preview.is-day-pass .weekend-timeline--v8{grid-template-columns:repeat(3,minmax(0,1fr))!important;}\n  .weekend-preview.is-day-pass .weekend-timeline--v8 .weekend-timeline-line{left:16.666%!important;right:16.666%!important;}\n}\n
 
-/* United Merch hero — dominant U emblem */
-.merch-page .merch-hero-grid{grid-template-columns:minmax(0,.9fr) minmax(470px,1.1fr);gap:38px}
-.merch-page .merch-hero-art{overflow:visible;background:radial-gradient(circle at 50% 46%,rgba(38,139,255,.24),rgba(9,19,32,.14) 42%,rgba(7,9,11,.9) 72%);border-color:rgba(91,176,255,.2);box-shadow:0 52px 150px rgba(0,0,0,.52),0 0 90px rgba(27,125,255,.08)}
-.merch-page .merch-hero-art:after{content:"";position:absolute;inset:12%;z-index:0;border-radius:50%;background:radial-gradient(circle,rgba(67,158,255,.2),rgba(25,102,206,.07) 45%,transparent 72%);filter:blur(18px);pointer-events:none}
-.merch-page .merch-hero-art:before{width:64%;height:64%;border-color:rgba(117,192,255,.36);box-shadow:0 0 44px rgba(61,153,255,.08)}
-.merch-page .merch-hero-logo-shell{position:relative;z-index:3;width:112%;aspect-ratio:1;display:grid;place-items:center;pointer-events:none;filter:drop-shadow(0 34px 50px rgba(0,0,0,.48))}
-.merch-page .merch-hero-logo{display:block;width:100%;height:100%;object-fit:contain;mix-blend-mode:screen;filter:saturate(1.05) contrast(1.08) brightness(1.03) drop-shadow(0 0 22px rgba(42,151,255,.24));transform:scale(1.04);animation:merchLogoFloat 6.5s ease-in-out infinite;will-change:transform}
-.merch-page .merch-hero-art>small{bottom:7%;z-index:4;color:#91a9bd;font-size:10px;letter-spacing:.2em;text-shadow:0 0 16px rgba(74,165,255,.25)}
-.merch-page .merch-orbit{z-index:1;border-color:rgba(174,206,235,.13);box-shadow:0 0 20px rgba(57,140,222,.04)}
-.merch-page .merch-orbit-a{width:126%;height:47%}.merch-page .merch-orbit-b{width:47%;height:126%}
-@keyframes merchLogoFloat{0%,100%{transform:scale(1.04) translateY(0)}50%{transform:scale(1.065) translateY(-7px)}}
-@media(max-width:1050px){.merch-page .merch-hero-grid{grid-template-columns:1fr .9fr;gap:26px}.merch-page .merch-hero-logo-shell{width:108%}}
-@media(max-width:760px){.merch-page .merch-hero-art{width:min(460px,94vw);margin:22px auto 0}.merch-page .merch-hero-logo-shell{width:110%}.merch-page .merch-hero-art>small{bottom:5%}}
-@media(max-width:430px){.merch-page .merch-hero-art{width:min(390px,92vw)}.merch-page .merch-hero-logo-shell{width:108%}}
+/* United Merch hero — integrated dominant U emblem */
+.merch-page .merch-hero{background:
+  radial-gradient(900px 620px at 79% 43%,rgba(29,116,220,.095),transparent 66%),
+  linear-gradient(90deg,rgba(7,9,11,0) 47%,rgba(12,22,35,.16) 100%);
+}
+.merch-page .merch-hero-grid{grid-template-columns:minmax(0,.88fr) minmax(520px,1.12fr);gap:24px;align-items:center}
+.merch-page .merch-hero-art{
+  width:112%;max-width:690px;justify-self:center;transform:translateX(2%);
+  overflow:visible;border:0;border-radius:0;background:transparent;box-shadow:none;isolation:isolate;
+}
+.merch-page .merch-hero-art:after{
+  content:"";position:absolute;inset:4%;z-index:0;border-radius:50%;pointer-events:none;
+  background:radial-gradient(circle at 48% 48%,rgba(37,137,255,.17),rgba(17,67,126,.06) 42%,transparent 70%);
+  filter:blur(34px);opacity:.9;
+}
+.merch-page .merch-hero-art:before{
+  width:61%;height:61%;z-index:1;border-color:rgba(100,175,240,.22);
+  box-shadow:0 0 52px rgba(50,142,231,.035);
+}
+.merch-page .merch-hero-logo-shell{
+  position:relative;z-index:3;width:128%;aspect-ratio:1;display:grid;place-items:center;pointer-events:none;
+  filter:drop-shadow(0 42px 58px rgba(0,0,0,.38));
+}
+.merch-page .merch-hero-logo{
+  display:block;width:100%;height:100%;object-fit:contain;
+  filter:saturate(.98) contrast(1.02) brightness(.98) drop-shadow(0 0 26px rgba(34,132,238,.14));
+  transform:scale(1.03);animation:merchLogoFloat 7.5s ease-in-out infinite;will-change:transform;
+}
+.merch-page .merch-hero-art>small{
+  bottom:5.5%;z-index:4;color:#75889a;font-size:9px;letter-spacing:.22em;
+  text-shadow:0 0 14px rgba(74,165,255,.16);
+}
+.merch-page .merch-orbit{z-index:1;border-color:rgba(159,188,215,.12);box-shadow:none;opacity:.82}
+.merch-page .merch-orbit-a{width:132%;height:47%}.merch-page .merch-orbit-b{width:47%;height:132%}
+@keyframes merchLogoFloat{0%,100%{transform:scale(1.03) translateY(0)}50%{transform:scale(1.045) translateY(-5px)}}
+@media(max-width:1180px){
+  .merch-page .merch-hero-grid{grid-template-columns:minmax(0,.94fr) minmax(430px,1.06fr);gap:18px}
+  .merch-page .merch-hero-art{width:108%;transform:translateX(1%)}
+  .merch-page .merch-hero-logo-shell{width:123%}
+}
+@media(max-width:900px){
+  .merch-page .merch-hero-grid{grid-template-columns:1fr;gap:18px}
+  .merch-page .merch-hero-art{width:min(620px,90vw);margin:18px auto 0;transform:none}
+  .merch-page .merch-hero-logo-shell{width:118%}
+}
+@media(max-width:760px){
+  .merch-page .merch-hero-art{width:min(500px,96vw);margin:12px auto 0}
+  .merch-page .merch-hero-logo-shell{width:116%}
+  .merch-page .merch-hero-art>small{bottom:3.5%}
+}
+@media(max-width:430px){
+  .merch-page .merch-hero-art{width:min(420px,96vw)}
+  .merch-page .merch-hero-logo-shell{width:114%}
+}
 @media(prefers-reduced-motion:reduce){.merch-page .merch-hero-logo{animation:none}}
+
