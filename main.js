@@ -183,21 +183,6 @@ input.files = dt.files;
 renderPreview();
 });
 
-async function getGalleryBackend(){
-  const cfg=await import('./firebase-config.js');
-  const fc=cfg.firebaseConfig;
-  if(!fc?.apiKey||String(fc.apiKey).startsWith('PASTE_'))return null;
-  const appMod=await import('https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js');
-  const authMod=await import('https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js');
-  const storageMod=await import('https://www.gstatic.com/firebasejs/10.12.5/firebase-storage.js');
-  const dbMod=await import('https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js');
-  const app=appMod.getApps().length?appMod.getApps()[0]:appMod.initializeApp(fc);
-  const auth=authMod.getAuth(app);await authMod.setPersistence(auth,authMod.browserLocalPersistence);
-  await new Promise(resolve=>{const unsub=authMod.onAuthStateChanged(auth,()=>{unsub();resolve();});});
-  let user=auth.currentUser;if(!user)user=(await authMod.signInAnonymously(auth)).user;
-  return {user,storage:storageMod.getStorage(app),db:dbMod.getFirestore(app),storageMod,dbMod};
-}
-const safeFileName=name=>String(name||'photo.jpg').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^A-Za-z0-9._-]+/g,'-').slice(-90);
 const fallbackShare=async(files,name,email)=>{
   const shareText=`Fotky z E36 United\nOd: ${name}\nKontakt: ${email}\n\nFotografie posílám ke schválení do community galerie.`;
   if(navigator.canShare&&navigator.share&&navigator.canShare({files})){
@@ -207,7 +192,7 @@ const fallbackShare=async(files,name,email)=>{
   const subject=encodeURIComponent('Fotky do galerie E36 United');
   const body=encodeURIComponent(`${shareText}\n\nVybrané soubory: ${files.map(f=>f.name).join(', ')}\n\nProsím přilož vybrané fotografie k tomuto e-mailu.`);
   window.location.href=`mailto:united@e36united.cz?subject=${subject}&body=${body}`;
-  setStatus('Firebase Storage zatím není aktivní. Otevírám záložní e-mail.','success');
+  setStatus('Serverový R2 upload bude doplněn v další fázi. Otevírám záložní e-mail.','success');
 };
 
 form?.addEventListener('submit', async e => {
@@ -215,25 +200,12 @@ form?.addEventListener('submit', async e => {
   if (!input || !form) return;
   const files=[...input.files],error=validateFiles(files);if(error){setStatus(error,'error');return}if(!form.reportValidity())return;
   const fd=new FormData(form),name=String(fd.get('name')||'').trim(),email=String(fd.get('email')||'').trim();
-  submit?.setAttribute('disabled','disabled');setStatus('Nahrávám fotografie na United server…');
+  submit?.setAttribute('disabled','disabled');setStatus('Připravuji bezpečné odeslání fotografií…');
   try{
-    const backend=await getGalleryBackend();
-    if(!backend){await fallbackShare(files,name,email);return;}
-    const submissionId=`${Date.now().toString(36)}-${crypto.getRandomValues(new Uint32Array(1))[0].toString(36)}`;
-    const uploaded=[];
-    for(let i=0;i<files.length;i++){
-      const file=files[i],path=`gallery-pending/${backend.user.uid}/${submissionId}/${String(i+1).padStart(2,'0')}-${safeFileName(file.name)}`;
-      const ref=backend.storageMod.ref(backend.storage,path);
-      await backend.storageMod.uploadBytes(ref,file,{contentType:file.type,customMetadata:{originalName:file.name,submissionId}});
-      uploaded.push({name:file.name,path,size:file.size,type:file.type});
-      setStatus(`Nahrávám ${i+1} / ${files.length}…`);
-    }
-    await backend.dbMod.setDoc(backend.dbMod.doc(backend.db,'gallerySubmissions',submissionId),{ownerUid:backend.user.uid,name,email,status:'pending',files:uploaded,createdAt:backend.dbMod.serverTimestamp()});
-    setStatus('Hotovo. Fotky jsou nahrané a čekají na schválení v galerii.','success');form.reset();renderPreview();
+    await fallbackShare(files,name,email);
   }catch(err){
-    console.warn('Gallery upload failed',err);
-    const storageIssue=String(err?.code||err?.message||'').includes('storage')||String(err?.message||'').includes('402')||String(err?.message||'').includes('403');
-    setStatus(storageIssue?'Serverový upload není aktivní. Zkontroluj Firebase Storage / Blaze a storage.rules.':'Nahrávání se nepodařilo. Zkus to znovu.','error');
+    console.warn('Gallery share failed',err);
+    setStatus('Odeslání se nepodařilo. Zkus to znovu.','error');
   }finally{submit?.removeAttribute('disabled')}
 });
 }
