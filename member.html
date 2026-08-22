@@ -6,8 +6,8 @@
   <title>Můj United | E36 United Member Portal</title>
   <meta name="robots" content="noindex,nofollow" />
   <meta name="theme-color" content="#090a0c" />
-  <link rel="stylesheet" href="styles.css?v=20260822-20" />
-  <link rel="stylesheet" href="member.css?v=20260822-20" />
+  <link rel="stylesheet" href="styles.css?v=20260822-21" />
+  <link rel="stylesheet" href="member.css?v=20260822-21" />
 </head>
 <body class="member-page">
 <header class="site-header scrolled member-header">
@@ -22,10 +22,12 @@
 
 <main class="member-main">
   <section class="member-auth" data-auth-view>
-    <div class="member-auth-media"><div class="member-auth-photo"></div><div class="member-auth-grid"></div><div class="member-auth-copy"><span class="member-kicker">UNITED MEMBER PORTAL</span><h1>Jeden účet.<br><em>Celý United.</em></h1><p>Historie srazů, tvoje auta, rezervace, body, badges a členské výhody na jednom místě.</p><div class="auth-proof"><span>12 / 12 <small>UNITED POINTS</small></span><span>GARAGE <small>VÍCE AUT</small></span><span>PERKS <small>PRO ČLENY</small></span></div></div></div>
+    <div class="member-auth-media"><div class="member-auth-photo"></div><div class="member-auth-grid"></div><div class="member-auth-copy"><div class="auth-visual-kicker"><span class="member-kicker">UNITED MEMBER PORTAL</span><span>EST. 2007</span></div><h1>Jeden účet.<br><em>Celý United.</em></h1><p>Historie srazů, tvoje auta, rezervace, body, badges a členské výhody na jednom místě.</p><div class="auth-proof"><span>12 / 12 <small>UNITED POINTS</small></span><span>GARAGE <small>VÍCE AUT</small></span><span>PERKS <small>PRO ČLENY</small></span></div></div></div>
     <div class="member-auth-panel">
+      <div class="member-auth-panel-inner">
       <div class="auth-panel-top"><span class="eyebrow">Můj United</span><div class="portal-mode" data-mode-badge>Preview mode</div></div>
-      <div class="auth-tabs" role="tablist"><button class="is-active" data-auth-tab="login">Přihlášení</button><button data-auth-tab="register">Založit United ID</button></div>
+      <div class="auth-panel-intro"><span>BMW E36 COMMUNITY ACCESS</span><p>Tvůj osobní vstup do United — jedna identita pro komunitu, auta i společné zážitky.</p></div>
+      <div class="auth-tabs" role="tablist" aria-label="Přihlášení nebo registrace"><button class="is-active" data-auth-tab="login"><span>01</span><span><b>Přihlášení</b><small>Mám United ID</small></span></button><button data-auth-tab="register"><span>02</span><span><b>Registrace</b><small>Chci United ID</small></span></button></div>
       <form class="auth-form is-active" data-auth-form="login">
         <div class="auth-heading"><h2>Vítej zpátky.</h2><p>Přihlas se do svého United profilu.</p></div>
         <label><span>E-mail</span><input name="email" type="email" autocomplete="email" placeholder="ty@email.cz" required /></label>
@@ -43,6 +45,8 @@
         <button class="member-primary" type="submit">Založit United ID <span>→</span></button>
         <small class="mail-preview-note">V LIVE režimu po registraci přijde branded welcome e-mail a ověření adresy. V LOCAL PREVIEW se nic neodesílá.</small>
       </form>
+      <div class="auth-trust-row" aria-label="Informace o přístupu"><span><i></i> United Member Portal</span><span>Soukromý členský profil</span></div>
+      </div>
     </div>
   </section>
 
@@ -123,5 +127,5 @@
 
 <div class="member-modal" data-car-modal hidden><div class="member-modal-backdrop" data-close-car></div><div class="member-modal-dialog"><button class="member-modal-close" data-close-car>×</button><div class="member-section-head"><div><span class="member-kicker">MY GARAGE</span><h2>Přidat auto.</h2><p>V preview režimu se fotky ukládají lokálně. Po zapnutí Firebase Storage se komprimované fotografie nahrávají přímo na server.</p></div></div><form class="car-form" data-car-form><div class="form-grid-two"><label><span>Název / přezdívka auta</span><input name="nickname" placeholder="Modrá mrcha" required /></label><label><span>Karoserie</span><select name="body"><option>Sedan</option><option>Coupé</option><option>Touring</option><option>Cabrio</option><option>Compact</option><option>Z3</option><option>///M Power</option></select></label></div><div class="form-grid-two"><label><span>Model / motor</span><input name="model" placeholder="328i / M52B28" required /></label><label><span>Rok</span><input name="year" type="number" min="1990" max="2026" placeholder="1996" /></label></div><div class="form-grid-two"><label><span>Barva</span><input name="color" placeholder="Estoril Blau" /></label><label><span>SPZ (volitelné)</span><input name="plate" placeholder="—" /></label></div><label><span>Fotky auta · max 3</span><input name="photos" type="file" accept="image/jpeg,image/png,image/webp" multiple /></label><label class="consent-line"><input type="checkbox" name="primary" /><span>Nastavit jako hlavní auto</span></label><button class="member-primary" type="submit">Přidat do garáže <span>→</span></button></form></div></div>
 <div class="member-toast" data-toast role="status" aria-live="polite"></div>
-<script type="module" src="member.js?v=20260822-20"></script>
+<script type="module" src="member.js?v=20260822-21"></script>
 </body></html>

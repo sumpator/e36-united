@@ -3,6 +3,19 @@ const qs = (selector, root = document) => root.querySelector(selector);
 const qsa = (selector, root = document) => [...root.querySelectorAll(selector)];
 const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+const coreStyles = qs('link[href^="styles.css"]');
+if (coreStyles && !coreStyles.href.includes('v=20260822-21')) coreStyles.href = 'styles.css?v=20260822-21';
+
+/* Temporary rebuild notice — homepage only. */
+const heroContent = qs('.home-page .hero-content');
+if (heroContent && !qs('.site-wip', heroContent)) {
+const notice = document.createElement('aside');
+notice.className = 'site-wip';
+notice.setAttribute('role', 'status');
+notice.innerHTML = '<span class="site-wip-label"><i></i>WORK IN PROGRESS</span><p>Web právě přestavujeme. Některé funkce ještě nemusí být kompletní.</p>';
+heroContent.prepend(notice);
+}
+
 /* Header + mobile nav */
 const header = qs('.site-header');
 const menuBtn = qs('.menu-btn');
@@ -937,8 +950,9 @@ copy:'Příjezd, hlavní program a návrat bez nocování.'
 },
 show: {
 'Chci soutěžit': {
-image:'https://static.wixstatic.com/media/595239_dabd7051ed494297b10d7009a4136814~mv2.jpeg/v1/fill/w_1000%2Ch_720%2Cal_c%2Cq_88%2Cenc_avif%2Cquality_auto/595239_dabd7051ed494297b10d7009a4136814~mv2.jpeg',
-alt:'Soutěžní režim Show and Shine E36 United',
+image:'pohary.jpg',
+alt:'Poháry pro soutěžící Show and Shine E36 United',
+position:'center 38%',
 title:'Chci soutěžit',
 copy:'Tvoje E36 jde na plochu. Z návštěvy se stává soutěžní víkend.',
 badge:'COMPETE'
@@ -976,7 +990,9 @@ window.setTimeout(() => el.classList.remove('is-updating'), 780);
 };
 
 const swapImage = (img, payload) => {
-if (!img || !payload || img.getAttribute('src') === payload.image) return;
+if (!img || !payload) return;
+img.style.objectPosition = payload.position || 'center';
+if (img.getAttribute('src') === payload.image) return;
 img.style.opacity = '.18';
 img.alt = payload.alt;
 img.onerror = () => {
