@@ -1,8 +1,0 @@
-User-agent: *
-Allow: /
-Sitemap: https://www.e36united.cz/sitemap.xml
-
-Disallow: /member.html
-Disallow: /email-member-welcome.html
-Disallow: /email-reservation-confirmation.html
-Disallow: /email-points-reward.html
