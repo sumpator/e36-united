@@ -1,0 +1,20 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /members/{userId}/cars/{carId}/{fileName} {
+      allow read: if true;
+      allow write: if request.auth != null
+                   && request.auth.uid == userId
+                   && request.resource.size < 8 * 1024 * 1024
+                   && request.resource.contentType.matches('image/.*');
+    }
+    match /gallery-pending/{userId}/{submissionId}/{fileName} {
+      allow read: if false;
+      allow create: if request.auth != null
+                    && request.auth.uid == userId
+                    && request.resource.size < 12 * 1024 * 1024
+                    && request.resource.contentType.matches('image/.*');
+      allow update, delete: if false;
+    }
+  }
+}
