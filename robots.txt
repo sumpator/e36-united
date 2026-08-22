@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://www.e36united.cz/sitemap.xml
