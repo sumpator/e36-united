@@ -1,6 +1,6 @@
 // Public Firebase web configuration. Firebase is used only for Authentication.
 export const firebaseConfig = {
-  apiKey: "AIzaSyBLzMyHIKmUiV6o510AQIJIiyD6WKnovh7Q",
+  apiKey: "AIzaSyBLzMyHIKmUiV6o510AQIJiyD6WKnovh7Q",
   authDomain: "e36-united.firebaseapp.com",
   projectId: "e36-united",
   storageBucket: "e36-united.firebasestorage.app",
