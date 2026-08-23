@@ -8,7 +8,7 @@
 <meta content="noindex,nofollow" name="robots"/>
 <meta content="#090a0c" name="theme-color"/>
 <link href="styles.css?v=20260823-media1" rel="stylesheet"/>
-<link href="member.css?v=20260823-planner-handoff1" rel="stylesheet"/>
+<link href="member.css?v=20260823-reservation-ux2" rel="stylesheet"/>
 </head>
 <body class="member-page">
 <header class="site-header scrolled member-header">
@@ -100,9 +100,10 @@
 <form class="reservation-form" data-reservation-form="">
 <div class="form-title"><span>DETAILY REZERVACE</span><b>Zkontrolovat a odeslat</b></div>
 <label><span>Auto z garáže</span><select data-car-select="" name="carId"></select></label>
+<div aria-live="polite" class="reservation-car-required-inline" data-reservation-car-error="" hidden=""><strong>Nejdřív přidej auto.</strong><p>Potřebujeme vědět, se kterým E36 přijedeš. Fotku můžeš doplnit později.</p><button class="member-primary member-primary--compact" data-reservation-add-car="" type="button">+ Přidat auto</button></div>
 <div class="form-grid-two"><label><span>Příjezd</span><select data-member-arrival="" name="arrival"><option>Pátek</option><option>Sobota</option><option>Jen na otočku</option></select></label><label><span>Posádka</span><input max="8" min="1" name="crew" type="number" value="2"/></label></div>
 <label data-member-sleep-field=""><span>Ubytování</span><select name="sleep"><option>Chatka</option><option>Stan</option><option>Bez ubytování</option></select></label>
-<label><span>Počet ubytovacích míst</span><input max="2" min="0" name="accommodationUnits" required="" type="number" value="1"/></label>
+<label><span>Počet ubytovacích míst</span><input max="8" min="1" name="accommodationUnits" required="" type="number" value="1"/><small class="reservation-field-note">Maximum je 8 míst. Při navýšení se automaticky upraví i posádka.</small></label>
 <label><span>Show &amp; Shine</span><select name="showshine"><option value="Ne">Ne</option><option value="Možná">Možná</option><option value="Ano">Ano</option></select></label>
 <label><span>Poznámka pro United tým</span><textarea name="note" placeholder="Příjezd později, speciální požadavek…" rows="3"></textarea></label>
 <button class="member-primary" data-reservation-submit="" type="submit">Odeslat rezervaci <span>→</span></button>
@@ -161,5 +162,5 @@
 </main>
 <div class="member-modal" data-car-modal="" hidden=""><div class="member-modal-backdrop" data-close-car=""></div><div class="member-modal-dialog"><button class="member-modal-close" data-close-car="">×</button><div class="member-section-head"><div><span class="member-kicker">MY GARAGE</span><h2>Přidat auto.</h2><p>Fotka není povinná. Doplň ji kdykoliv později a využij naplno United profil a členské výhody. Nahrát můžeš až 3 fotky; bez dalšího sdílení nejsou veřejné.</p></div></div><form class="car-form" data-car-form=""><div class="form-grid-two"><label><span>Název / přezdívka auta</span><input name="nickname" placeholder="Modrá mrcha" required=""/></label><label><span>Karoserie</span><select name="body"><option>Sedan</option><option>Coupé</option><option>Touring</option><option>Cabrio</option><option>Compact</option><option>Z3</option><option>///M Power</option></select></label></div><div class="form-grid-two"><label><span>Model / motor</span><input name="model" placeholder="328i / M52B28" required=""/></label><label><span>Rok</span><input max="2026" min="1990" name="year" placeholder="1996" type="number"/></label></div><div class="form-grid-two"><label><span>Barva</span><input name="color" placeholder="Estoril Blau"/></label><label><span>SPZ (volitelné)</span><input name="plate" placeholder="—"/></label></div><label><span>Fotky auta · max 3 · JPG / PNG / WEBP</span><input accept="image/jpeg,image/png,image/webp" multiple="" name="photos" type="file"/></label><label class="consent-line"><input name="primary" type="checkbox"/><span>Nastavit jako hlavní auto</span></label><button class="member-primary" type="submit">Přidat do garáže <span>→</span></button></form></div></div>
 <div aria-live="polite" class="member-toast" data-toast="" role="status"></div>
-<script src="member.js?v=20260823-planner-handoff1" type="module"></script>
+<script src="member.js?v=20260823-reservation-ux2" type="module"></script>
 </body></html>
