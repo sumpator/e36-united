@@ -8,7 +8,7 @@
 <meta content="noindex,nofollow" name="robots"/>
 <meta content="#090a0c" name="theme-color"/>
 <link href="styles.css?v=20260823-media1" rel="stylesheet"/>
-<link href="member.css?v=20260823-reservation-design1" rel="stylesheet"/>
+<link href="member.css?v=20260823-reservation-status2" rel="stylesheet"/>
 </head>
 <body class="member-page">
 <header class="site-header scrolled member-header">
@@ -61,7 +61,7 @@
 <div class="member-layout">
 <aside class="member-sidebar">
 <button class="member-nav-item is-active" data-member-section="overview"><span>01</span><b>Přehled</b></button>
-<button class="member-nav-item" data-member-section="reservation"><span>02</span><b>Rezervace</b></button>
+<button class="member-nav-item" data-member-section="reservation"><span>02</span><b>Rezervace</b><i aria-hidden="true" class="member-nav-reservation-status is-status-none" data-reservation-nav-status=""></i></button>
 <button class="member-nav-item" data-member-section="garage"><span>03</span><b>Moje auta</b></button><button class="member-nav-item" data-member-section="photos"><span>04</span><b>Moje fotky</b></button>
 <button class="member-nav-item" data-member-section="history"><span>05</span><b>Moje United</b></button>
 <button class="member-nav-item" data-member-section="rewards"><span>06</span><b>Body &amp; perks</b></button>
@@ -74,6 +74,11 @@
 <div class="driver-card-bottom"><div><small>UNITED MEMBER SINCE</small><b data-member-since="">—</b></div><div><small>ATTENDED</small><b><span data-attendance-count="">0</span>× UNITED</b></div><div><small>STATUS</small><b data-member-status="">ROOKIE</b></div></div>
 <div class="driver-card-mark">E36<br/>UNITED</div>
 </article>
+<button class="overview-reservation-status is-status-none" data-jump="reservation" data-reservation-overview-card="" type="button">
+<span class="overview-reservation-meta"><small data-reservation-overview-event="">UNITED 2026</small><span>AKTUÁLNÍ REZERVACE</span></span>
+<span class="overview-reservation-main"><strong data-reservation-overview-label="">NAČÍTÁM STAV REZERVACE</strong><span data-reservation-overview-copy="">Ověřuji tvoji rezervaci pro aktuální United.</span></span>
+<span class="overview-reservation-action" data-reservation-overview-action="">Otevřít rezervaci <b>→</b></span>
+</button>
 <div class="overview-grid">
 <article class="points-card"><div class="card-label"><span>12 UNITED POINTS</span><small>ODměna / United Merch</small></div><div class="points-gauge"><div class="points-sign"><span data-points="">0</span><small>/ 12</small></div><div class="points-track" data-points-track=""></div></div><p data-points-copy="">Za ověřené účasti a výsledky sbíráš body. Dvanáctka odemyká odměnu do United Merch.</p><button class="text-action" data-jump="rewards">Jak body fungují →</button></article>
 <article class="reservation-mini"><div class="card-label"><span>AKTUÁLNÍ REZERVACE</span><small data-reservation-status="">Načítám stav</small></div><div class="reservation-visual"><span class="reservation-year" data-res-year="">—</span><div><b data-res-title="">Příští United</b><small data-res-car="">Vyber auto z garáže při odeslání rezervace.</small></div></div><button class="member-secondary" data-jump="reservation">Otevřít rezervaci</button></article>
@@ -83,7 +88,7 @@
 <section class="member-section" data-member-panel="reservation">
 <div class="member-section-head"><div><span class="member-kicker">AKTUÁLNÍ UNITED</span><h2>Rezervace &amp; auto.</h2><p>Konkrétní auto se uloží k rezervaci jako snapshot. Když ho později upravíš v garáži, historie rezervace zůstane správně.</p></div><span class="member-chip">MEMBER PRIORITY</span></div>
 <div class="reservation-workbench">
-<article class="reservation-card-large" data-reservation-card=""><div class="reservation-car-hero" data-reservation-car-hero="" hidden=""></div><div class="reservation-card-overlay"></div><div aria-live="polite" class="reservation-state"><i></i><span data-reservation-state-label="">Načítám stav rezervace</span></div><div class="reservation-large-year" data-reservation-year="">—</div><h3 data-reservation-title="">Příští E36 United</h3><p data-reservation-description="">Ověřuji, zda je registrace otevřená a jestli už máš uloženou rezervaci.</p><div class="reservation-summary" data-reservation-summary=""></div></article>
+<article class="reservation-card-large" data-reservation-card=""><div class="reservation-car-hero" data-reservation-car-hero="" hidden=""></div><div class="reservation-card-overlay"></div><div aria-live="polite" class="reservation-state"><small>STAV REZERVACE</small><span class="reservation-state-value"><i data-reservation-state-symbol="">·</i><strong data-reservation-state-label="">NAČÍTÁM STAV</strong></span></div><div class="reservation-large-year" data-reservation-year="">—</div><h3 data-reservation-title="">Příští E36 United</h3><p data-reservation-description="">Ověřuji, zda je registrace otevřená a jestli už máš uloženou rezervaci.</p><div class="reservation-summary" data-reservation-summary=""></div></article>
 <form class="reservation-form" data-reservation-form="">
 <div class="form-title"><span>REZERVAČNÍ SNAPSHOT</span><b>Připravit / upravit přehled</b></div>
 <label><span>Auto z garáže</span><select data-car-select="" name="carId"></select></label>
@@ -136,5 +141,5 @@
 </main>
 <div class="member-modal" data-car-modal="" hidden=""><div class="member-modal-backdrop" data-close-car=""></div><div class="member-modal-dialog"><button class="member-modal-close" data-close-car="">×</button><div class="member-section-head"><div><span class="member-kicker">MY GARAGE</span><h2>Přidat auto.</h2><p>Fotka není povinná. Doplň ji kdykoliv později a využij naplno United profil a členské výhody. Nahrát můžeš až 3 fotky; bez dalšího sdílení nejsou veřejné.</p></div></div><form class="car-form" data-car-form=""><div class="form-grid-two"><label><span>Název / přezdívka auta</span><input name="nickname" placeholder="Modrá mrcha" required=""/></label><label><span>Karoserie</span><select name="body"><option>Sedan</option><option>Coupé</option><option>Touring</option><option>Cabrio</option><option>Compact</option><option>Z3</option><option>///M Power</option></select></label></div><div class="form-grid-two"><label><span>Model / motor</span><input name="model" placeholder="328i / M52B28" required=""/></label><label><span>Rok</span><input max="2026" min="1990" name="year" placeholder="1996" type="number"/></label></div><div class="form-grid-two"><label><span>Barva</span><input name="color" placeholder="Estoril Blau"/></label><label><span>SPZ (volitelné)</span><input name="plate" placeholder="—"/></label></div><label><span>Fotky auta · max 3 · JPG / PNG / WEBP</span><input accept="image/jpeg,image/png,image/webp" multiple="" name="photos" type="file"/></label><label class="consent-line"><input name="primary" type="checkbox"/><span>Nastavit jako hlavní auto</span></label><button class="member-primary" type="submit">Přidat do garáže <span>→</span></button></form></div></div>
 <div aria-live="polite" class="member-toast" data-toast="" role="status"></div>
-<script src="member.js?v=20260823-reservation-design1" type="module"></script>
+<script src="member.js?v=20260823-reservation-status2" type="module"></script>
 </body></html>

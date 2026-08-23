@@ -429,11 +429,37 @@ const sleepField=$('[data-member-sleep-field]');
 function syncMemberSleep(){if(!reservationForm||!arrivalSelect||!sleepField)return;const dayPass=arrivalSelect.value==='Jen na otočku',crew=Math.max(1,Math.min(8,Number(reservationForm.elements.crew.value)||1)),units=reservationForm.elements.accommodationUnits,unitsField=units?.closest('label');sleepField.hidden=dayPass;if(dayPass){reservationForm.elements.sleep.value='Bez ubytování';if(units)units.value='0'}if(units){units.max=String(crew);if(Number(units.value)>crew)units.value=String(crew);units.disabled=dayPass||!reservationState.registrationOpen}if(unitsField)unitsField.hidden=dayPass}
 arrivalSelect?.addEventListener('change',syncMemberSleep);reservationForm?.elements?.crew?.addEventListener('input',syncMemberSleep);syncMemberSleep();
 
-const reservationStatusNames={pending:'Čeká na schválení',approved:'Schválená',rejected:'Zamítnutá',cancelled:'Zrušená'};
+const reservationStatusNames={pending:'Čeká na schválení',approved:'Schválena',rejected:'Zamítnuta',cancelled:'Zrušena'};
+const reservationStatusLoudNames={pending:'ČEKÁ NA SCHVÁLENÍ',approved:'SCHVÁLENA',rejected:'ZAMÍTNUTA',cancelled:'ZRUŠENA'};
+const reservationStatusSymbols={pending:'!',approved:'✓',rejected:'×',cancelled:'—'};
 function setReservationCardStatus(status){
-  const card=$('[data-reservation-card]');if(!card)return;
-  for(const value of Object.keys(reservationStatusNames))card.classList.remove(`is-status-${value}`);
-  if(reservationStatusNames[status])card.classList.add(`is-status-${status}`);
+  const key=reservationStatusNames[status]?status:'none';
+  const elements=[$('[data-reservation-card]'),$('[data-reservation-overview-card]'),$('.reservation-mini'),$('[data-reservation-nav-status]')].filter(Boolean);
+  for(const element of elements){for(const value of [...Object.keys(reservationStatusNames),'none'])element.classList.remove(`is-status-${value}`);element.classList.add(`is-status-${key}`)}
+  const navStatus=$('[data-reservation-nav-status]');if(navStatus)navStatus.title=reservationStatusNames[status]||'Bez rezervace';
+}
+function reservationDescription(reservation){
+  if(!reservation)return reservationState.message||(reservationState.registrationOpen?'Registrace je otevřená. Připrav a odešli svoji rezervaci.':'Aktuálně není otevřená registrace na žádný event.');
+  if(reservation.status==='rejected')return reservationState.registrationOpen?'Rezervace nebyla schválena. Údaje můžeš upravit a znovu odeslat.':'Rezervace nebyla schválena. Registrace je už uzavřená.';
+  if(reservation.status==='cancelled')return reservationState.registrationOpen?'Rezervace je zrušená. Pokud chceš, můžeš ji upravit a znovu odeslat.':'Rezervace je zrušená. Registrace je už uzavřená.';
+  return {pending:'Rezervace čeká na kontrolu United týmem.',approved:'Rezervace byla schválena United týmem.'}[reservation.status]||'Rezervace je uložená.';
+}
+function renderReservationOverview(reservation){
+  const open=reservationState.registrationOpen,status=reservation?.status;
+  const eventYear=reservation?.year&&reservation.year!=='NEXT'?reservation.year:new Date().getFullYear();
+  const event=$('[data-reservation-overview-event]'),label=$('[data-reservation-overview-label]'),copy=$('[data-reservation-overview-copy]'),action=$('[data-reservation-overview-action]');
+  if(event)event.textContent=`UNITED ${eventYear}`;
+  if(!reservation){
+    if(label)label.textContent=open?'JEŠTĚ NEMÁŠ REZERVACI':'REGISTRACE JE UZAVŘENÁ';
+    if(copy)copy.textContent=open?'Registrace je otevřená. Vytvoř si rezervaci pro aktuální United.':'Aktuálně nemáš rezervaci a registrace je už uzavřená.';
+    if(action)action.innerHTML=`${open?'Vytvořit rezervaci':'Zobrazit registraci'} <b>→</b>`;
+    return;
+  }
+  const labels={approved:'REZERVACE SCHVÁLENA',pending:'ČEKÁ NA SCHVÁLENÍ',rejected:'REZERVACE ZAMÍTNUTA',cancelled:'REZERVACE ZRUŠENA'};
+  const copies={approved:'Máš potvrzeno. Tvoje rezervace je schválená United týmem.',pending:'Rezervaci máme. United tým ji ještě zkontroluje.',rejected:'Tvoje rezervace nebyla schválena.',cancelled:'Tvoje rezervace je zrušená.'};
+  if(label)label.textContent=labels[status]||'AKTUÁLNÍ REZERVACE';
+  if(copy)copy.textContent=copies[status]||'Otevři detail aktuální rezervace.';
+  if(action)action.innerHTML='Otevřít rezervaci <b>→</b>';
 }
 function renderReservationCarPhoto(reservation){
   const card=$('[data-reservation-card]'),hero=$('[data-reservation-car-hero]');if(!card||!hero)return;
@@ -462,23 +488,22 @@ function renderReservation(){
   const buttonLabels={pending:'Uložit změny',approved:'Upravit rezervaci',rejected:'Upravit a znovu odeslat',cancelled:'Obnovit rezervaci'};
   const buttonLabel=!reservationState.registrationOpen?'Registrace je uzavřená':r?(buttonLabels[r.status]||'Uložit změny'):'Vytvořit rezervaci';
   if(submit){submit.disabled=!reservationState.registrationOpen;if(!submit.dataset.originalHtml)submit.innerHTML=`${buttonLabel} <span>→</span>`}
-  setReservationCardStatus(r?.status);renderReservationCarPhoto(r);
+  setReservationCardStatus(r?.status);renderReservationOverview(r);renderReservationCarPhoto(r);
   if(!r){
     const open=reservationState.registrationOpen;
     miniStatus.textContent=open?'Bez rezervace':'Registrace zavřená';year.textContent=open?'NEXT':'—';title.textContent='Příští United';car.textContent=open?'Vyber auto z garáže a odešli rezervaci.':'Aktuálně není otevřená registrace.';
-    $('[data-reservation-state-label]').textContent=open?'Bez aktivní rezervace':'Registrace není otevřená';$('[data-reservation-year]').textContent=open?'NEXT':'—';$('[data-reservation-title]').textContent='Příští E36 United';$('[data-reservation-description]').textContent=reservationState.message||(open?'Registrace je otevřená. Připrav a odešli svoji rezervaci.':'Aktuálně není otevřená registrace na žádný event.');$('[data-reservation-summary]').innerHTML='';
+    $('[data-reservation-state-symbol]').textContent=open?'+':'—';$('[data-reservation-state-label]').textContent=open?'JEŠTĚ NEMÁŠ REZERVACI':'REGISTRACE JE UZAVŘENÁ';$('[data-reservation-year]').textContent=open?'NEXT':'—';$('[data-reservation-title]').textContent='Příští E36 United';$('[data-reservation-description]').textContent=reservationDescription(null);$('[data-reservation-summary]').innerHTML='';
     if(mailState){mailState.classList.remove('is-confirmed');mailState.querySelector('span').textContent=open?'Po odeslání bude rezervace čekat na schválení.':'Rezervaci bude možné odeslat po otevření registrace.'}
     return;
   }
   const statusText=reservationStatusNames[r.status]||r.status||'Čeká na schválení';
   if(reservationForm){if(reservationForm.elements.carId&&r.carId)reservationForm.elements.carId.value=r.carId;if(reservationForm.elements.arrival)reservationForm.elements.arrival.value=r.arrival||'Pátek';if(reservationForm.elements.crew)reservationForm.elements.crew.value=r.crew||2;if(reservationForm.elements.sleep)reservationForm.elements.sleep.value=r.sleep||'Chatka';if(reservationForm.elements.accommodationUnits)reservationForm.elements.accommodationUnits.value=r.accommodationUnits??0;if(reservationForm.elements.showshine)reservationForm.elements.showshine.value=r.showshine||'Ne';if(reservationForm.elements.note)reservationForm.elements.note.value=r.note||'';syncMemberSleep()}
   miniStatus.textContent=statusText;year.textContent=r.year||'NEXT';title.textContent=r.title||'United rezervace';car.textContent=r.carSnapshot?`${r.carSnapshot.nickname||r.carSnapshot.model} · ${r.carSnapshot.body}`:'Auto zatím není vybrané';
-  $('[data-reservation-state-label]').textContent=statusText;$('[data-reservation-year]').textContent=r.year||'NEXT';$('[data-reservation-title]').textContent=r.title||'E36 United';
-  const descriptions={pending:'Rezervace čeká na kontrolu United týmem.',approved:'Rezervace byla schválena United týmem.',rejected:'Rezervace byla zamítnuta. Údaje můžeš upravit a znovu odeslat.',cancelled:'Rezervace je zrušená. Pokud je registrace stále otevřená, můžeš ji upravit a znovu odeslat.'};
-  $('[data-reservation-description]').textContent=descriptions[r.status]||'Rezervace je uložená.';
+  $('[data-reservation-state-symbol]').textContent=reservationStatusSymbols[r.status]||'·';$('[data-reservation-state-label]').textContent=reservationStatusLoudNames[r.status]||String(r.status||'AKTUÁLNÍ').toUpperCase();$('[data-reservation-year]').textContent=r.year||'NEXT';$('[data-reservation-title]').textContent=r.title||'E36 United';
+  const description=reservationDescription(r);$('[data-reservation-description]').textContent=description;
   const sleep=r.arrival==='Jen na otočku'?'Bez ubytování':r.sleep;
   $('[data-reservation-summary]').innerHTML=`<div><small>AUTO</small><b>${esc(r.carSnapshot?.nickname||r.carSnapshot?.model||'—')}</b></div><div><small>PŘÍJEZD</small><b>${esc(r.arrival||'—')}</b></div><div><small>POSÁDKA</small><b>${esc(r.crew)} osoby</b></div><div><small>UBYTOVÁNÍ</small><b>${esc(sleep||'—')}</b></div><div><small>SHOW & SHINE</small><b>${esc(r.showshine)}</b></div><div><small>STATUS</small><b>${esc(statusText)}</b></div>`;
-  if(mailState){mailState.classList.toggle('is-confirmed',r.status==='approved');mailState.querySelector('span').textContent=descriptions[r.status]||'Rezervace je uložená.'}
+  if(mailState){mailState.classList.toggle('is-confirmed',r.status==='approved');mailState.querySelector('span').textContent=description}
 }
 function renderRewards(){const p=points(),life=lifetimePoints();$('[data-reward-score]').textContent=p;const lock=$('[data-reward-lock]');lock.classList.toggle('is-unlocked',p>=12);lock.querySelector('span').textContent=p>=12?'UNLOCKED':'LOCKED';$('[data-reward-remaining]').textContent=p>=12?'United Merch reward je aktivní':`${12-p} bodů zbývá`;$('[data-points-ledger]').innerHTML=`<div class="ledger-item"><span>OVĚŘENÁ ÚČAST</span><b>+${portalConfig.points.attendance} body</b><small>Za každý potvrzený United.</small></div><div class="ledger-item"><span>SHOW & SHINE WIN</span><b>+${portalConfig.points.showShineWin} body</b><small>Po potvrzení výsledku organizátorem.</small></div><div class="ledger-item"><span>LIFETIME SCORE</span><b>${life} bodů</b><small>Celoživotní skóre se nemaže po rewardu.</small></div>`;const perks=[['⚡','Early registration','Členové dostanou registraci dřív.',verified()>=1],['◆','Member-only United Merch','Přístup k vybraným dropům.',verified()>=1],['12','United Merch reward','Odměna po dosažení 12 / 12.',p>=12],['★','Community voting','Hlasování o vybraných aktivitách.',verified()>=3],['⌁','Priority accommodation','Dřívější přístup k vybranému ubytování.',verified()>=5]];$('[data-perks-list]').innerHTML=perks.map(x=>`<div class="perk ${x[3]?'':'is-locked'}"><i>${x[0]}</i><div><b>${x[1]}</b><small>${x[2]}</small></div><span>${x[3]?'ACTIVE':'LOCKED'}</span></div>`).join('')}
 
