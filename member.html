@@ -8,7 +8,7 @@
 <meta content="noindex,nofollow" name="robots"/>
 <meta content="#090a0c" name="theme-color"/>
 <link href="styles.css?v=20260823-media1" rel="stylesheet"/>
-<link href="member.css?v=20260823-reservation-status2" rel="stylesheet"/>
+<link href="member.css?v=20260823-planner-handoff1" rel="stylesheet"/>
 </head>
 <body class="member-page">
 <header class="site-header scrolled member-header">
@@ -34,7 +34,7 @@
 <label><span>Heslo</span><div class="password-field"><input autocomplete="current-password" minlength="6" name="password" placeholder="••••••••" required="" type="password"/><button aria-label="Zobrazit heslo" data-toggle-password="" type="button">👁</button></div></label>
 <button class="member-primary" type="submit">Přihlásit do Můj United <span>→</span></button>
 <button class="auth-link" data-password-reset="" type="button">Zapomněl jsem heslo</button>
-<div class="demo-hint" data-demo-hint="">Přihlášení běží přes Firebase Authentication a členský profil se načítá ze serveru.</div>
+<div class="demo-hint" data-demo-hint="">Přihlášení chrání Firebase Authentication a tvoje členské údaje zůstávají v Můj United.</div>
 </form>
 <form class="auth-form" data-auth-form="register">
 <div class="auth-heading"><h2>Vytvoř si United ID.</h2><p>Členská karta se ti začne skládat z historie, aut a účastí.</p></div>
@@ -70,7 +70,7 @@
 <div class="member-content">
 <section class="member-section is-active" data-member-panel="overview">
 <article class="driver-card">
-<div class="driver-card-top"><div><small>UNITED DRIVER CARD</small><strong data-card-name="">UNITED MEMBER</strong><span data-card-car="">BMW E36 · Garage pending</span></div><div class="driver-id">EU<span data-card-id="">036</span></div></div>
+<div class="driver-card-top"><div><small>UNITED DRIVER CARD</small><strong data-card-name="">UNITED MEMBER</strong><span data-card-car="">BMW E36 · Garáž čeká na první auto</span></div><div class="driver-id">EU<span data-card-id="">036</span></div></div>
 <div class="driver-card-bottom"><div><small>UNITED MEMBER SINCE</small><b data-member-since="">—</b></div><div><small>ATTENDED</small><b><span data-attendance-count="">0</span>× UNITED</b></div><div><small>STATUS</small><b data-member-status="">ROOKIE</b></div></div>
 <div class="driver-card-mark">E36<br/>UNITED</div>
 </article>
@@ -86,18 +86,25 @@
 <article class="badges-preview"><div class="section-row-head"><div><span class="member-kicker">BADGES</span><h2>Tvoje United stopy.</h2></div><button class="text-action" data-jump="rewards">Všechny odměny →</button></div><div class="badge-row" data-badges-preview=""></div></article>
 </section>
 <section class="member-section" data-member-panel="reservation">
-<div class="member-section-head"><div><span class="member-kicker">AKTUÁLNÍ UNITED</span><h2>Rezervace &amp; auto.</h2><p>Konkrétní auto se uloží k rezervaci jako snapshot. Když ho později upravíš v garáži, historie rezervace zůstane správně.</p></div><span class="member-chip">MEMBER PRIORITY</span></div>
+<div class="member-section-head"><div><span class="member-kicker">AKTUÁLNÍ UNITED</span><h2>Rezervace &amp; auto.</h2><p>Vybrané auto zůstane u této rezervace. Když ho později upravíš v garáži, údaje rezervace zůstanou správně.</p></div><span class="member-chip">MEMBER PRIORITY</span></div>
+<aside aria-live="polite" class="planner-handoff-banner" data-planner-handoff="" hidden="">
+<div class="planner-handoff-head"><span>WEEKEND PLANNER</span><h3 data-planner-handoff-title="">Výběr z Weekend Planneru máme.</h3><p data-planner-handoff-copy="">Příjezd, ubytování a posádku jsme přenesli. Zkontroluj detaily a rezervaci odešli.</p></div>
+<div class="planner-handoff-recap" data-planner-handoff-recap=""></div>
+<div class="planner-handoff-decision" data-planner-handoff-decision="" hidden=""><strong>Už máš rezervaci.</strong><p>Weekend Planner obsahuje nový výběr. Chceš ho načíst do formuláře?</p><div><button class="member-primary member-primary--compact" data-planner-handoff-use="" type="button">Použít nový plán <span>→</span></button><button class="member-secondary" data-planner-handoff-keep="" type="button">Ponechat současnou rezervaci</button></div></div>
+<div class="planner-handoff-car" data-planner-handoff-car="" hidden=""><strong>Ještě tvoje E36 a máme hotovo.</strong><p>Pro rezervaci potřebujeme vědět, se kterým autem přijedeš. Stačí základní údaje — fotku můžeš doplnit kdykoliv později.</p><button class="member-primary member-primary--compact" data-planner-handoff-add-car="" type="button">+ Přidat auto</button></div>
+<p class="planner-handoff-approved" data-planner-handoff-approved="" hidden="">Po odeslání změn bude rezervace znovu čekat na schválení.</p>
+</aside>
 <div class="reservation-workbench">
 <article class="reservation-card-large" data-reservation-card=""><div class="reservation-car-hero" data-reservation-car-hero="" hidden=""></div><div class="reservation-card-overlay"></div><div aria-live="polite" class="reservation-state"><small>STAV REZERVACE</small><span class="reservation-state-value"><i data-reservation-state-symbol="">·</i><strong data-reservation-state-label="">NAČÍTÁM STAV</strong></span></div><div class="reservation-large-year" data-reservation-year="">—</div><h3 data-reservation-title="">Příští E36 United</h3><p data-reservation-description="">Ověřuji, zda je registrace otevřená a jestli už máš uloženou rezervaci.</p><div class="reservation-summary" data-reservation-summary=""></div></article>
 <form class="reservation-form" data-reservation-form="">
-<div class="form-title"><span>REZERVAČNÍ SNAPSHOT</span><b>Připravit / upravit přehled</b></div>
+<div class="form-title"><span>DETAILY REZERVACE</span><b>Zkontrolovat a odeslat</b></div>
 <label><span>Auto z garáže</span><select data-car-select="" name="carId"></select></label>
 <div class="form-grid-two"><label><span>Příjezd</span><select data-member-arrival="" name="arrival"><option>Pátek</option><option>Sobota</option><option>Jen na otočku</option></select></label><label><span>Posádka</span><input max="8" min="1" name="crew" type="number" value="2"/></label></div>
 <label data-member-sleep-field=""><span>Ubytování</span><select name="sleep"><option>Chatka</option><option>Stan</option><option>Bez ubytování</option></select></label>
 <label><span>Počet ubytovacích míst</span><input max="2" min="0" name="accommodationUnits" required="" type="number" value="1"/></label>
 <label><span>Show &amp; Shine</span><select name="showshine"><option value="Ne">Ne</option><option value="Možná">Možná</option><option value="Ano">Ano</option></select></label>
 <label><span>Poznámka pro United tým</span><textarea name="note" placeholder="Příjezd později, speciální požadavek…" rows="3"></textarea></label>
-<button class="member-primary" data-reservation-submit="" type="submit">Vytvořit rezervaci <span>→</span></button>
+<button class="member-primary" data-reservation-submit="" type="submit">Odeslat rezervaci <span>→</span></button>
 <div class="reservation-mail-state" data-reservation-mail-state=""><i></i><span>Po odeslání bude rezervace čekat na schválení.</span></div>
 </form>
 </div>
@@ -108,18 +115,30 @@
 </section>
 <section class="member-section" data-member-panel="photos">
 <div class="member-section-head">
-<div><span class="member-kicker">MEMBER PHOTOS</span><h2>Moje fotky.</h2><p>Nahraj vlastní fotografie z United. Uloží se na United server a do veřejné galerie se dostanou až po schválení týmem.</p></div>
-<span class="member-chip">R2 · MODERATED</span>
+<div><span class="member-kicker">MEMBER PHOTOS</span><h2>Moje fotky.</h2><p>Nahraj svoje fotky z United. Ve veřejné galerii se objeví až po schválení United týmem.</p></div>
+<span class="member-chip">UNITED · SCHVALOVÁNÍ</span>
 </div>
 <div class="member-photo-upload-grid">
 <form class="member-photo-upload" data-member-gallery-form="">
-<label><span>Fotky · max. 8 najednou</span><input accept="image/jpeg,image/png,image/webp" multiple="" name="photos" required="" type="file"/></label>
+<label class="member-photo-dropzone" data-member-photo-dropzone="">
+<input accept="image/jpeg,image/png,image/webp" class="member-photo-input" data-member-photo-input="" multiple="" name="photos" required="" type="file"/>
+<span aria-hidden="true" class="member-photo-dropzone-icon">↥</span>
+<strong>Nahraj fotky z United</strong>
+<span class="member-photo-dropzone-copy member-photo-dropzone-copy--desktop">Přetáhni je sem, nebo je vyber z počítače.</span>
+<span class="member-photo-dropzone-copy member-photo-dropzone-copy--mobile">Vyber fotky z telefonu.</span>
+<span class="member-photo-picker-cta">Vybrat fotky <b>→</b></span>
+<small>JPG, PNG nebo WebP · až 8 fotek najednou</small>
+</label>
+<div aria-live="polite" class="member-photo-selection" data-member-photo-selection="" hidden="">
+<strong data-member-photo-count=""></strong>
+<small data-member-photo-names=""></small>
+</div>
 <label><span>Krátký popisek (volitelné)</span><input maxlength="240" name="caption" placeholder="United 2026, páteční příjezd…"/></label>
-<p class="member-photo-note">Fotky před odesláním zmenšíme pro web. Po uploadu mají status <b>PENDING</b> a čekají na schválení.</p>
+<p class="member-photo-note">Fotky před odesláním upravíme pro web. Po nahrání počkají na schválení United týmem.</p>
 <button class="member-primary" type="submit">Nahrát fotky ke schválení <span>→</span></button>
 </form>
 <div class="member-gallery-status-card">
-<div class="form-title"><span>MOJE UPLOADY</span><b>Stav schválení</b></div>
+<div class="form-title"><span>ODESLANÉ FOTKY</span><b>Stav schválení</b></div>
 <div class="member-gallery-list" data-member-gallery-list=""></div>
 </div>
 </div>
@@ -141,5 +160,5 @@
 </main>
 <div class="member-modal" data-car-modal="" hidden=""><div class="member-modal-backdrop" data-close-car=""></div><div class="member-modal-dialog"><button class="member-modal-close" data-close-car="">×</button><div class="member-section-head"><div><span class="member-kicker">MY GARAGE</span><h2>Přidat auto.</h2><p>Fotka není povinná. Doplň ji kdykoliv později a využij naplno United profil a členské výhody. Nahrát můžeš až 3 fotky; bez dalšího sdílení nejsou veřejné.</p></div></div><form class="car-form" data-car-form=""><div class="form-grid-two"><label><span>Název / přezdívka auta</span><input name="nickname" placeholder="Modrá mrcha" required=""/></label><label><span>Karoserie</span><select name="body"><option>Sedan</option><option>Coupé</option><option>Touring</option><option>Cabrio</option><option>Compact</option><option>Z3</option><option>///M Power</option></select></label></div><div class="form-grid-two"><label><span>Model / motor</span><input name="model" placeholder="328i / M52B28" required=""/></label><label><span>Rok</span><input max="2026" min="1990" name="year" placeholder="1996" type="number"/></label></div><div class="form-grid-two"><label><span>Barva</span><input name="color" placeholder="Estoril Blau"/></label><label><span>SPZ (volitelné)</span><input name="plate" placeholder="—"/></label></div><label><span>Fotky auta · max 3 · JPG / PNG / WEBP</span><input accept="image/jpeg,image/png,image/webp" multiple="" name="photos" type="file"/></label><label class="consent-line"><input name="primary" type="checkbox"/><span>Nastavit jako hlavní auto</span></label><button class="member-primary" type="submit">Přidat do garáže <span>→</span></button></form></div></div>
 <div aria-live="polite" class="member-toast" data-toast="" role="status"></div>
-<script src="member.js?v=20260823-reservation-status2" type="module"></script>
+<script src="member.js?v=20260823-planner-handoff1" type="module"></script>
 </body></html>

@@ -552,9 +552,10 @@ if (location.hash === '#venue-details-panel') openInfoPanel('venue-details-panel
 /* Weekend Builder + interactive United map */
 const planner = qs('[data-planner]');
 const unitedMap = qs('[data-united-map]');
-const plannerState = { arrival:'Pátek', sleep:'Chatka', people:2, showshine:'Jedu se podívat' };
+const plannerState = { arrival:'Pátek', sleep:'Chatka', accommodationUnits:2, people:2, showshine:'Jedu se podívat' };
 let updatePlanner = () => {};
 let setPlannerChoice = () => {};
+let memberPlannerMode = false;
 
 if (planner) {
 const groups = qsa('[data-choice-group]', planner);
@@ -575,9 +576,13 @@ const sleepGroup = qs('[data-choice-group="sleep"]', planner);
 const sleepStep = sleepGroup?.closest('.planner-step');
 const sleepPreviewCard = qs('[data-preview-card="sleep"]', planner);
 const sleepTimelineStep = qs('[data-timeline-step="sleep"]', planner);
+const accommodationUnitsStep = qs('[data-accommodation-units-step]', planner);
+const accommodationUnitsEl = qs('[data-accommodation-units]', planner);
+const accommodationUnitsLabel = qs('[data-accommodation-units-label]', planner);
+const plannerRecap = qs('[data-planner-recap]', planner);
 const plannerActionCopy = qs('.planner-actionbar-copy strong', planner);
 let lastOvernightSleep = plannerState.sleep;
-let memberPlannerMode = false;
+let accommodationUnitsTouched = false;
 
 const slug = (value, fallback) => value.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^A-Za-z]/g,'').slice(0,2).toUpperCase() || fallback;
 const personLabel = count => count === 1 ? 'osoba' : (count >= 2 && count <= 4 ? 'osoby' : 'osob');
@@ -593,13 +598,22 @@ if (key === 'arrival') {
   if (value === 'Jen na otočku') {
     if (plannerState.sleep !== 'Bez ubytování') lastOvernightSleep = plannerState.sleep;
     plannerState.sleep = 'Bez ubytování';
+    plannerState.accommodationUnits = 0;
+    accommodationUnitsTouched = false;
     qsa('.choice', sleepGroup || planner).forEach(c => c.classList.toggle('is-active', c.dataset.value === 'Bez ubytování'));
   } else if (wasDayPass && plannerState.sleep === 'Bez ubytování') {
     plannerState.sleep = lastOvernightSleep || 'Chatka';
+    plannerState.accommodationUnits = plannerState.people;
+    accommodationUnitsTouched = false;
     qsa('.choice', sleepGroup || planner).forEach(c => c.classList.toggle('is-active', c.dataset.value === plannerState.sleep));
   }
 }
-if (key === 'sleep' && value !== 'Bez ubytování') lastOvernightSleep = value;
+if (key === 'sleep') {
+  if (value !== 'Bez ubytování') {
+    if (plannerState.sleep === 'Bez ubytování') {plannerState.accommodationUnits = plannerState.people;accommodationUnitsTouched=false}
+    lastOvernightSleep = value;
+  } else {plannerState.accommodationUnits = 0;accommodationUnitsTouched=false}
+}
 plannerState[key] = value;
 updatePlanner();
 };
@@ -607,35 +621,26 @@ updatePlanner();
 updatePlanner = () => {
 const dayPass = plannerState.arrival === 'Jen na otočku';
 if (dayPass) plannerState.sleep = 'Bez ubytování';
+const needsAccommodation = !dayPass && plannerState.sleep !== 'Bez ubytování';
+plannerState.accommodationUnits = needsAccommodation ? Math.max(1,Math.min(plannerState.people,Number(plannerState.accommodationUnits)||plannerState.people)) : 0;
 if (sleepStep) sleepStep.hidden = dayPass;
 if (sleepPreviewCard) sleepPreviewCard.hidden = dayPass;
 if (sleepTimelineStep) sleepTimelineStep.hidden = dayPass;
+if (accommodationUnitsStep) accommodationUnitsStep.hidden = !needsAccommodation;
 if (unitedMap) unitedMap.classList.toggle('is-day-pass', dayPass);
-if (plannerActionCopy) plannerActionCopy.textContent = memberPlannerMode ? 'Hotovo. Ulož si výběr rovnou do Můj United.' : 'Hotovo. Teď už jen pošli poptávku.';
-if (mail) mail.innerHTML = memberPlannerMode ? 'Přidat rezervaci do profilu <span>→</span>' : 'Připravit poptávku <span>→</span>';
+if (plannerActionCopy) plannerActionCopy.textContent = memberPlannerMode ? 'Hotovo. Výběr přeneseme do Můj United.' : 'Hotovo. Teď už jen dokončit rezervaci.';
+if (mail) {mail.innerHTML = memberPlannerMode ? 'Dokončit v Můj United <span>→</span>' : 'Pokračovat k rezervaci <span>→</span>';mail.href='member.html'}
 if (peopleEl) peopleEl.textContent = plannerState.people;
 if (peopleLabel) peopleLabel.textContent = personLabel(plannerState.people);
+if (accommodationUnitsEl) accommodationUnitsEl.textContent = plannerState.accommodationUnits;
+if (accommodationUnitsLabel) accommodationUnitsLabel.textContent = plannerState.accommodationUnits===1?'místo':plannerState.accommodationUnits>=2&&plannerState.accommodationUnits<=4?'místa':'míst';
 if (summaryArrival) summaryArrival.textContent = plannerState.arrival;
 if (summarySleep) summarySleep.textContent = plannerState.sleep;
 if (summaryPeople) summaryPeople.textContent = plannerState.people;
 if (summaryPeopleLabel) summaryPeopleLabel.textContent = personLabel(plannerState.people);
 if (summaryShow) summaryShow.textContent = plannerState.showshine;
+if (plannerRecap) plannerRecap.textContent = `${plannerState.arrival} · ${plannerState.sleep}${needsAccommodation?` · ${plannerState.accommodationUnits} ${plannerState.accommodationUnits===1?'místo':'místa'}`:''} · ${plannerState.people} ${personLabel(plannerState.people)} · Show & Shine · ${{'Chci soutěžit':'Ano','Možná':'Možná','Jedu se podívat':'Ne'}[plannerState.showshine]||'Ne'}`;
 if (code) code.textContent = `U36–${slug(plannerState.arrival,'P')}${slug(plannerState.sleep,'CH')}–${String(plannerState.people).padStart(2,'0')}`;
-if (mail && !memberPlannerMode) {
-const subject = 'E36 United – zájem / rezervace ubytování';
-const body = [
-'Ahoj E36 United,','',
-'mám zájem o další E36 United a rád/a bych ověřil/a možnosti podle této konfigurace:',
-`• Příjezd: ${plannerState.arrival}`,
-`• Ubytování: ${plannerState.sleep}`,
-`• Počet lidí: ${plannerState.people}`,
-`• Show & Shine: ${plannerState.showshine}`,'',
-'Prosím o informaci k termínu a dostupnosti.','', 'Díky!'
-].join('\n');
-mail.href = `mailto:united@e36united.cz?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-} else if (mail && memberPlannerMode) {
-  mail.href = 'member.html#reservation';
-}
 document.dispatchEvent(new CustomEvent('e36:planner',{detail:{...plannerState}}));
 };
 
@@ -644,8 +649,10 @@ qsa('.choice', group).forEach(choice => choice.addEventListener('click', () => {
 setPlannerChoice(group.dataset.choiceGroup, choice.dataset.value);
 }));
 });
-qs('[data-people-minus]', planner)?.addEventListener('click', () => { plannerState.people = Math.max(1, plannerState.people - 1); updatePlanner(); });
-qs('[data-people-plus]', planner)?.addEventListener('click', () => { plannerState.people = Math.min(8, plannerState.people + 1); updatePlanner(); });
+qs('[data-people-minus]', planner)?.addEventListener('click', () => { plannerState.people = Math.max(1, plannerState.people - 1);plannerState.accommodationUnits=accommodationUnitsTouched?Math.min(plannerState.accommodationUnits,plannerState.people):plannerState.people;updatePlanner(); });
+qs('[data-people-plus]', planner)?.addEventListener('click', () => { plannerState.people = Math.min(8, plannerState.people + 1);if(!accommodationUnitsTouched)plannerState.accommodationUnits=plannerState.people;updatePlanner(); });
+qs('[data-accommodation-units-minus]', planner)?.addEventListener('click', () => {accommodationUnitsTouched=true;plannerState.accommodationUnits=Math.max(1,plannerState.accommodationUnits-1);updatePlanner()});
+qs('[data-accommodation-units-plus]', planner)?.addEventListener('click', () => {accommodationUnitsTouched=true;plannerState.accommodationUnits=Math.min(plannerState.people,plannerState.accommodationUnits+1);updatePlanner()});
 
 if (googleCalendar && plannerSection) {
 const start = (plannerSection.dataset.eventStart || '2026-06-19').replaceAll('-','');
@@ -693,20 +700,43 @@ updatePlanner();
 refreshMemberPlannerMode();
 }
 
-/* Inquiry completion sheet */
+/* Account-first planner completion with a manual e-mail fallback. */
 const inquiryModal = qs('[data-inquiry-modal]');
+const inquiryDialog = qs('.inquiry-dialog',inquiryModal||document);
 const inquiryTrigger = qs('[data-planner-mail]');
 const inquiryForm = qs('[data-inquiry-form]');
 const inquiryPlan = qs('[data-inquiry-plan]');
+const plannerChoiceStep = qs('[data-planner-choice-step]');
 let inquiryReturnFocus = null;
+const handoffStoragePrefix='e36UnitedPlannerHandoff:v1:';
 
 const inquiryPersonLabel = count => count === 1 ? 'osoba' : (count >= 2 && count <= 4 ? 'osoby' : 'osob');
+const accommodationLabel = count => count === 1 ? 'místo' : (count >= 2 && count <= 4 ? 'místa' : 'míst');
 const renderInquiryPlan = () => {
-  if (inquiryPlan) inquiryPlan.textContent = `${plannerState.arrival} · ${plannerState.sleep} · ${plannerState.people} ${inquiryPersonLabel(plannerState.people)} · ${plannerState.showshine}`;
+  if (!inquiryPlan) return;
+  const accommodation=plannerState.accommodationUnits?` · ${plannerState.accommodationUnits} ${accommodationLabel(plannerState.accommodationUnits)} k ubytování`:'';
+  inquiryPlan.textContent = `${plannerState.arrival} · ${plannerState.sleep}${accommodation} · ${plannerState.people} ${inquiryPersonLabel(plannerState.people)} · ${plannerState.showshine}`;
+};
+const setInquiryStage = stage => {
+  const manual=stage==='manual';
+  if(plannerChoiceStep)plannerChoiceStep.hidden=manual;
+  qsa('[data-inquiry-manual]').forEach(element=>element.hidden=!manual);
+  inquiryDialog?.setAttribute('aria-labelledby',manual?'inquiry-title':'planner-choice-title');
+  if(manual)inquiryDialog?.removeAttribute('aria-describedby');else inquiryDialog?.setAttribute('aria-describedby','planner-choice-intro');
+};
+const openPlannerChoice = () => {
+  if (!inquiryModal) return;
+  inquiryReturnFocus = document.activeElement;
+  setInquiryStage('choice');
+  renderInquiryPlan();
+  inquiryModal.hidden = false;
+  document.body.classList.add('modal-open');
+  window.requestAnimationFrame(() => qs('[data-planner-register]')?.focus());
 };
 const openInquiry = () => {
   if (!inquiryModal) return;
-  inquiryReturnFocus = document.activeElement;
+  if(inquiryModal.hidden)inquiryReturnFocus=document.activeElement;
+  setInquiryStage('manual');
   renderInquiryPlan();
   inquiryModal.hidden = false;
   document.body.classList.add('modal-open');
@@ -718,22 +748,56 @@ const closeInquiry = () => {
   document.body.classList.remove('modal-open');
   inquiryReturnFocus?.focus?.();
 };
+const cleanupPlannerHandoffs=()=>{
+  try{
+    for(let index=localStorage.length-1;index>=0;index--){
+      const key=localStorage.key(index);if(!key?.startsWith(handoffStoragePrefix))continue;
+      try{const value=JSON.parse(localStorage.getItem(key)||'null'),expiresAt=Date.parse(value?.expiresAt);if(!value||!Number.isFinite(expiresAt)||expiresAt<=Date.now())localStorage.removeItem(key)}catch{localStorage.removeItem(key)}
+    }
+  }catch(error){console.debug('Planner handoff cleanup unavailable.',error)}
+};
+const encodePlannerHandoff=draft=>{
+  const bytes=new TextEncoder().encode(JSON.stringify(draft));
+  let binary='';for(const byte of bytes)binary+=String.fromCharCode(byte);
+  return btoa(binary).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+};
+const createPlannerHandoff=()=>{
+  cleanupPlannerHandoffs();
+  const draftId=crypto.randomUUID();
+  const now=Date.now(),createdAt=new Date(now).toISOString(),expiresAt=new Date(now+7*24*60*60*1000).toISOString();
+  const eventSection=planner?.closest('[data-event-start]'),eventStart=eventSection?.dataset.eventStart||'',eventId=eventSection?.dataset.eventId||null;
+  const eventYear=Number(eventStart.slice(0,4))||new Date().getFullYear();
+  const attendanceType={Pátek:'full_weekend',Sobota:'saturday_only','Jen na otočku':'day_visit'}[plannerState.arrival];
+  const showShine={'Chci soutěžit':'Ano','Možná':'Možná','Jedu se podívat':'Ne'}[plannerState.showshine];
+  const draft={version:1,draftId,source:'weekend-planner',eventYear,eventId:eventId||null,createdAt,expiresAt,arrival:plannerState.arrival,attendanceType,accommodation:plannerState.sleep,accommodationUnits:plannerState.accommodationUnits,crew:plannerState.people,showShine};
+  try{localStorage.setItem(`${handoffStoragePrefix}${draftId}`,JSON.stringify(draft))}catch(error){console.debug('Planner handoff local storage unavailable.',error)}
+  return draft;
+};
+const continueToMember=mode=>{
+  const draft=createPlannerHandoff(),destination=new URL('member.html',window.location.href);
+  if(mode)destination.searchParams.set('mode',mode);
+  destination.searchParams.set('panel','reservation');
+  destination.searchParams.set('draft',draft.draftId);
+  destination.hash=`handoff=${encodeURIComponent(encodePlannerHandoff(draft))}`;
+  const opened=window.open(destination.href,'_blank');
+  if(opened){try{opened.opener=null}catch{}closeInquiry();return}
+  window.location.assign(destination.href);
+};
 
-inquiryTrigger?.addEventListener('click', e => {
-  e.preventDefault();
-  const isMember = memberPlannerMode;
-  if (isMember) {
-    const plannerDraft={...plannerState,createdAt:new Date().toISOString()};
-    localStorage.setItem('e36UnitedPlannerDraftV19', JSON.stringify(plannerDraft));
-    localStorage.setItem('e36UnitedReservationDraftV20', JSON.stringify(plannerDraft));
-    window.location.href = 'member.html#reservation';
-    return;
-  }
-  openInquiry();
-});
+inquiryTrigger?.addEventListener('click', e => {e.preventDefault();if(memberPlannerMode)continueToMember(null);else openPlannerChoice()});
+qs('[data-planner-register]')?.addEventListener('click',()=>continueToMember('register'));
+qs('[data-planner-login]')?.addEventListener('click',()=>continueToMember('login'));
+qs('[data-planner-manual]')?.addEventListener('click',openInquiry);
 qsa('[data-inquiry-close]').forEach(el => el.addEventListener('click', closeInquiry));
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape' && inquiryModal && !inquiryModal.hidden) closeInquiry();
+  if (!inquiryModal || inquiryModal.hidden) return;
+  if (e.key === 'Escape'){e.preventDefault();closeInquiry();return}
+  if(e.key!=='Tab')return;
+  const focusable=qsa('button:not([disabled]),a[href],input:not([disabled])',inquiryDialog).filter(element=>element.offsetParent!==null);
+  if(!focusable.length)return;
+  const first=focusable[0],last=focusable.at(-1);
+  if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus()}
+  else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus()}
 });
 document.addEventListener('e36:planner', renderInquiryPlan);
 
@@ -752,6 +816,7 @@ inquiryForm?.addEventListener('submit', e => {
     'mám zájem o další E36 United a rád/a bych ověřil/a možnosti podle této konfigurace:','',
     `• Příjezd: ${plannerState.arrival}`,
     `• Ubytování: ${plannerState.sleep}`,
+    `• Počet míst k ubytování: ${plannerState.accommodationUnits}`,
     `• Počet lidí: ${plannerState.people}`,
     `• Show & Shine: ${plannerState.showshine}`,'',
     'Údaje posádky:',
@@ -775,6 +840,7 @@ const flowDayCopy = qs('[data-flow-day-copy]', unitedMap);
 const flowSleepImage = qs('[data-flow-sleep-image]', unitedMap);
 const flowSleepTitle = qs('[data-flow-sleep-title]', unitedMap);
 const flowSleepCopy = qs('[data-flow-sleep-copy]', unitedMap);
+const flowAccommodationUnits = qs('[data-preview-accommodation-units]', unitedMap);
 const flowShowImage = qs('[data-flow-show-image]', unitedMap);
 const flowShowTitle = qs('[data-flow-show-title]', unitedMap);
 const flowShowCopy = qs('[data-flow-show-copy]', unitedMap);
@@ -925,13 +991,14 @@ if (flowDayTitle) flowDayTitle.textContent = day.title;
 if (flowDayCopy) flowDayCopy.textContent = day.copy;
 if (flowSleepTitle) flowSleepTitle.textContent = sleep.title;
 if (flowSleepCopy) flowSleepCopy.textContent = sleep.copy;
+if (flowAccommodationUnits) {flowAccommodationUnits.hidden=!state.accommodationUnits;flowAccommodationUnits.textContent=`${state.accommodationUnits} ${state.accommodationUnits===1?'místo':'místa'} k ubytování`}
 if (flowShowTitle) flowShowTitle.textContent = show.title;
 if (flowShowCopy) flowShowCopy.textContent = show.copy;
 if (flowShowBadge) flowShowBadge.textContent = show.badge;
 renderPeople(state.people);
 
 if (mapArrival) mapArrival.textContent = state.arrival;
-if (mapSleep) mapSleep.textContent = state.sleep;
+if (mapSleep) mapSleep.textContent = state.accommodationUnits?`${state.sleep} · ${state.accommodationUnits} ${state.accommodationUnits===1?'místo':'místa'}`:state.sleep;
 if (mapShow) mapShow.textContent = state.showshine;
 
 Object.entries(previewCards).forEach(([key,card]) => {
@@ -945,6 +1012,7 @@ if (previousPreviewState) {
 ['arrival','sleep','people','showshine'].forEach(key => {
 if (previousPreviewState[key] !== state[key]) animateSelection(key);
 });
+if(previousPreviewState.accommodationUnits!==state.accommodationUnits)animateSelection('sleep');
 }
 previousPreviewState = {...state};
 };
