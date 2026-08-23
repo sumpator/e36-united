@@ -85,150 +85,61 @@ play.replaceWith(iframe);
 });
 });
 
-/* Lightbox gallery with arrows + thumbnail rail */
+/* Lightbox gallery with arrows + thumbnail rail. Supports photos inserted after page load. */
 const lightbox = qs('.lightbox');
 const lightboxImg = lightbox?.querySelector('.lightbox-stage > img');
-const lightboxItems = qsa('[data-lightbox]');
 const lightboxCounter = lightbox ? qs('[data-lightbox-counter]', lightbox) : null;
 const lightboxTitle = lightbox ? qs('[data-lightbox-title]', lightbox) : null;
 const lightboxThumbs = lightbox ? qs('[data-lightbox-thumbs]', lightbox) : null;
+let lightboxItems = [];
 let lightboxIndex = 0;
-const paintLightbox = (index, focusThumb = true) => {
-if (!lightbox || !lightboxImg || !lightboxItems.length) return;
-lightboxIndex = (index + lightboxItems.length) % lightboxItems.length;
-const item = lightboxItems[lightboxIndex];
-const img = item.querySelector('img');
-lightboxImg.src = item.dataset.full || img?.src || '';
-lightboxImg.alt = img?.alt || '';
-if (lightboxCounter) lightboxCounter.textContent = `${String(lightboxIndex + 1).padStart(2,'0')} / ${String(lightboxItems.length).padStart(2,'0')}`;
-if (lightboxTitle) lightboxTitle.textContent = img?.alt || 'E36 United';
-qsa('.lightbox-thumb', lightboxThumbs || document).forEach((thumb, i) => thumb.classList.toggle('is-active', i === lightboxIndex));
-if (focusThumb) qs('.lightbox-thumb.is-active', lightboxThumbs || document)?.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'});
+const collectLightboxItems = () => qsa('[data-lightbox]');
+const rebuildLightboxThumbs = () => {
+  if (!lightboxThumbs) return;
+  lightboxThumbs.innerHTML = '';
+  lightboxItems.forEach((item, i) => {
+    const source = item.querySelector('img');
+    const button = document.createElement('button');
+    button.type='button'; button.className='lightbox-thumb'; button.setAttribute('aria-label',`Otevřít fotografii ${i+1}`);
+    const image = document.createElement('img'); image.src=source?.src||''; image.alt=''; image.loading='lazy';
+    button.append(image); button.addEventListener('click',()=>paintLightbox(i)); lightboxThumbs.append(button);
+  });
 };
-const openLightbox = index => { paintLightbox(index, false); lightbox?.classList.add('open'); document.body.style.overflow='hidden'; };
+const paintLightbox = (index, focusThumb = true) => {
+  if (!lightbox || !lightboxImg || !lightboxItems.length) return;
+  lightboxIndex = (index + lightboxItems.length) % lightboxItems.length;
+  const item = lightboxItems[lightboxIndex];
+  const img = item.querySelector('img');
+  lightboxImg.src = item.dataset.full || img?.src || '';
+  lightboxImg.alt = img?.alt || '';
+  if (lightboxCounter) lightboxCounter.textContent = `${String(lightboxIndex + 1).padStart(2,'0')} / ${String(lightboxItems.length).padStart(2,'0')}`;
+  if (lightboxTitle) lightboxTitle.textContent = item.dataset.caption || img?.alt || 'E36 United';
+  qsa('.lightbox-thumb', lightboxThumbs || document).forEach((thumb, i) => thumb.classList.toggle('is-active', i === lightboxIndex));
+  if (focusThumb) qs('.lightbox-thumb.is-active', lightboxThumbs || document)?.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'});
+};
+const openLightboxItem = item => {
+  lightboxItems = collectLightboxItems();
+  const index = Math.max(0, lightboxItems.indexOf(item));
+  rebuildLightboxThumbs();
+  paintLightbox(index, false);
+  lightbox?.classList.add('open'); document.body.style.overflow='hidden';
+};
 const closeLightbox = () => { lightbox?.classList.remove('open'); document.body.style.overflow=''; };
-if (lightboxThumbs && lightboxItems.length) {
-lightboxThumbs.innerHTML = '';
-lightboxItems.forEach((item, i) => {
-const source = item.querySelector('img');
-const button = document.createElement('button');
-button.type='button'; button.className='lightbox-thumb'; button.setAttribute('aria-label',`Otevřít fotografii ${i+1}`);
-const image = document.createElement('img'); image.src=source?.src||''; image.alt=''; image.loading='lazy';
-button.append(image); button.addEventListener('click',()=>paintLightbox(i)); lightboxThumbs.append(button);
+document.addEventListener('click', e => {
+  const item = e.target.closest?.('[data-lightbox]');
+  if (!item || !document.body.contains(item)) return;
+  e.preventDefault(); openLightboxItem(item);
 });
-}
-lightboxItems.forEach((item, i) => item.addEventListener('click', () => openLightbox(i)));
 lightbox?.querySelector('.lightbox-prev')?.addEventListener('click',()=>paintLightbox(lightboxIndex-1));
 lightbox?.querySelector('.lightbox-next')?.addEventListener('click',()=>paintLightbox(lightboxIndex+1));
 lightbox?.addEventListener('click', e => { if (e.target === lightbox) closeLightbox(); });
 lightbox?.querySelector('.lightbox-close')?.addEventListener('click', closeLightbox);
 document.addEventListener('keydown', e => {
-if (!lightbox?.classList.contains('open')) return;
-if (e.key === 'Escape') closeLightbox();
-if (e.key === 'ArrowLeft') paintLightbox(lightboxIndex-1);
-if (e.key === 'ArrowRight') paintLightbox(lightboxIndex+1);
+  if (!lightbox?.classList.contains('open')) return;
+  if (e.key === 'Escape') closeLightbox();
+  if (e.key === 'ArrowLeft') paintLightbox(lightboxIndex-1);
+  if (e.key === 'ArrowRight') paintLightbox(lightboxIndex+1);
 });
-
-/* Community gallery upload */
-const communityUpload = qs('[data-community-upload]');
-if (communityUpload) {
-const form = qs('[data-upload-form]', communityUpload);
-const input = qs('[data-upload-input]', communityUpload);
-const dropzone = qs('[data-upload-dropzone]', communityUpload);
-const preview = qs('[data-upload-preview]', communityUpload);
-const count = qs('[data-upload-count]', communityUpload);
-const status = qs('[data-upload-status]', communityUpload);
-const submit = qs('[data-upload-submit]', communityUpload);
-const maxFiles = 8;
-const maxBytes = 12 * 1024 * 1024;
-const allowed = ['image/jpeg','image/png','image/webp'];
-
-const setStatus = (message, type='') => {
-if (!status) return;
-status.textContent = message;
-status.classList.remove('is-success','is-error');
-if (type) status.classList.add(`is-${type}`);
-};
-
-const validateFiles = files => {
-if (!files.length) return 'Vyber alespoň jednu fotografii.';
-if (files.length > maxFiles) return `Můžeš nahrát maximálně ${maxFiles} fotografií najednou.`;
-const badType = files.find(file => !allowed.includes(file.type));
-if (badType) return `Soubor „${badType.name}“ není JPG, PNG ani WEBP.`;
-const tooLarge = files.find(file => file.size > maxBytes);
-if (tooLarge) return `Soubor „${tooLarge.name}“ je větší než 12 MB.`;
-return '';
-};
-
-const renderPreview = () => {
-if (!input || !preview) return;
-const files = [...input.files];
-preview.innerHTML = '';
-if (count) count.textContent = `${files.length} / ${maxFiles} vybráno`;
-const error = validateFiles(files);
-if (files.length && error) setStatus(error,'error');
-else if (!status?.classList.contains('is-success')) setStatus('');
-files.slice(0,maxFiles).forEach(file => {
-const figure = document.createElement('figure');
-const img = document.createElement('img');
-const label = document.createElement('span');
-label.textContent = file.name;
-figure.append(img,label);
-preview.append(figure);
-const reader = new FileReader();
-reader.onload = () => { img.src = String(reader.result || ''); };
-reader.readAsDataURL(file);
-});
-};
-
-input?.addEventListener('change', renderPreview);
-['dragenter','dragover'].forEach(type => dropzone?.addEventListener(type, e => {
-e.preventDefault(); dropzone.classList.add('is-dragging');
-}));
-['dragleave','drop'].forEach(type => dropzone?.addEventListener(type, e => {
-e.preventDefault(); dropzone.classList.remove('is-dragging');
-}));
-dropzone?.addEventListener('drop', e => {
-if (!input || !e.dataTransfer?.files?.length) return;
-const dt = new DataTransfer();
-[...e.dataTransfer.files].slice(0,maxFiles).forEach(file => dt.items.add(file));
-input.files = dt.files;
-renderPreview();
-});
-
-async function getGalleryBackend(){
-  // Firebase is authentication-only in the current architecture.
-  // Gallery server upload will be re-enabled only through the authorized Worker + R2 flow.
-  return null;
-}
-const safeFileName=name=>String(name||'photo.jpg').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^A-Za-z0-9._-]+/g,'-').slice(-90);
-const fallbackShare=async(files,name,email)=>{
-  const shareText=`Fotky z E36 United\nOd: ${name}\nKontakt: ${email}\n\nFotografie posílám ke schválení do community galerie.`;
-  if(navigator.canShare&&navigator.share&&navigator.canShare({files})){
-    await navigator.share({title:'Fotky z E36 United',text:shareText,files});
-    setStatus('Serverový upload zatím není aktivní. Otevřel jsem systémové sdílení jako záložní cestu.','success');return;
-  }
-  const subject=encodeURIComponent('Fotky do galerie E36 United');
-  const body=encodeURIComponent(`${shareText}\n\nVybrané soubory: ${files.map(f=>f.name).join(', ')}\n\nProsím přilož vybrané fotografie k tomuto e-mailu.`);
-  window.location.href=`mailto:united@e36united.cz?subject=${subject}&body=${body}`;
-  setStatus('Serverový upload galerie zatím není aktivní. Otevírám záložní e-mail.','success');
-};
-
-form?.addEventListener('submit', async e => {
-  e.preventDefault();
-  if (!input || !form) return;
-  const files=[...input.files],error=validateFiles(files);if(error){setStatus(error,'error');return}if(!form.reportValidity())return;
-  const fd=new FormData(form),name=String(fd.get('name')||'').trim(),email=String(fd.get('email')||'').trim();
-  submit?.setAttribute('disabled','disabled');setStatus('Nahrávám fotografie na United server…');
-  try{
-    const backend=await getGalleryBackend();
-    if(!backend){await fallbackShare(files,name,email);return;}
-  }catch(err){
-    console.warn('Gallery fallback failed',err);
-    setStatus('Odeslání se nepodařilo. Zkus to znovu.','error');
-  }finally{submit?.removeAttribute('disabled')}
-});
-}
 
 qsa('[data-year]').forEach(el => el.textContent = new Date().getFullYear());
 

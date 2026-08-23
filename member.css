@@ -138,3 +138,16 @@ body:not(.member-authenticated) [data-app-view]{display:none!important}
 /* auth v20 — account identity */
 .member-account-line{margin-top:10px;color:#8292a2;font:800 10px/1.45 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.04em;overflow-wrap:anywhere}
 @media(max-width:700px){.member-account-line{font-size:9px}}
+
+/* --- Member media uploads / R2 --- */
+.member-photo-upload-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(320px,.92fr);gap:20px;align-items:start}
+.member-photo-upload,.member-gallery-status-card{border:1px solid rgba(119,174,228,.18);background:linear-gradient(180deg,rgba(13,21,31,.88),rgba(8,13,20,.88));border-radius:22px;padding:22px;box-shadow:0 18px 45px rgba(0,0,0,.16)}
+.member-photo-upload label{display:grid;gap:8px;margin-bottom:16px}.member-photo-upload label>span{font-size:.76rem;letter-spacing:.12em;text-transform:uppercase;color:#8ea3b8;font-weight:700}
+.member-photo-upload input[type="file"],.member-photo-upload input[type="text"],.member-photo-upload input:not([type]){width:100%;border:1px solid rgba(126,179,231,.18);background:#0a1119;color:#f4f8fc;border-radius:12px;padding:13px 14px}
+.member-photo-note{font-size:.92rem;line-height:1.55;color:#93a3b3;margin:2px 0 18px}.member-photo-note b{color:#78bdff}
+.member-gallery-list{display:grid;gap:10px;margin-top:14px}.member-gallery-empty{display:grid;gap:5px;padding:18px;border:1px dashed rgba(126,179,231,.2);border-radius:14px;color:#dce8f4}.member-gallery-empty small{color:#8295a8;line-height:1.45}
+.member-gallery-item{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:13px 14px;border-radius:14px;background:#091018;border:1px solid rgba(126,179,231,.12)}.member-gallery-item>div{display:grid;gap:3px;min-width:0}.member-gallery-item small{font-size:.7rem;color:#657b91}.member-gallery-item b{font-size:.9rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:320px}.member-gallery-item>span{font-size:.64rem;letter-spacing:.08em;font-weight:800;padding:6px 8px;border-radius:999px;white-space:nowrap}
+.member-gallery-item .status-pending{color:#f8d278;background:rgba(191,135,18,.12);border:1px solid rgba(248,210,120,.18)}.member-gallery-item .status-approved{color:#89e7ac;background:rgba(49,169,93,.12);border:1px solid rgba(137,231,172,.2)}.member-gallery-item .status-rejected{color:#ff9c9c;background:rgba(190,49,49,.12);border:1px solid rgba(255,156,156,.18)}
+.car-photo img[data-car-photo-id]{opacity:0;transition:opacity .25s ease}.car-photo img[data-car-photo-id][src]{opacity:1}
+@media(max-width:900px){.member-photo-upload-grid{grid-template-columns:1fr}.member-gallery-item b{max-width:52vw}}
+@media(max-width:560px){.member-photo-upload,.member-gallery-status-card{padding:16px;border-radius:18px}.member-gallery-item{align-items:flex-start;flex-direction:column}.member-gallery-item b{max-width:100%}}

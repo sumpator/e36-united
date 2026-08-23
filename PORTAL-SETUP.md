@@ -107,3 +107,14 @@ Otestuj:
 - desktop + mobil.
 
 Legacy `firestore.rules` a `storage.rules` mohou v repozitáři zůstat jako historické soubory, ale Member Portal je nepoužívá.
+
+## Media / R2 update
+
+Aktuální frontend podporuje serverový upload přes Worker + privátní R2. Kompletní Worker je v `cloudflare-worker-media.js`; deployment kroky jsou v `MEDIA-DEPLOY.md`.
+
+- cars → D1 `cars`
+- car photos → R2 + D1 `car_photos`
+- member/community photos → R2 + D1 `gallery_submissions`
+- public gallery → pouze `gallery_submissions.status = approved`
+
+Firebase Storage ani Firestore se pro media nepoužívají.
