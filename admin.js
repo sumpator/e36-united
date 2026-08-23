@@ -114,6 +114,7 @@ function renderOverview(payload){
 function recordsLabel(count){return `${count} ${count===1?'záznam':count>1&&count<5?'záznamy':'záznamů'}`}
 function photosLabel(count){return `${count} ${count===1?'fotografie':count>1&&count<5?'fotografie':'fotografií'}`}
 function renderReservationTabs(){
+  $('[data-reservation-nav-count]').textContent=reservationItems.filter(item=>item.status==='pending').length;
   $$('[data-reservation-filter]').forEach(button=>{
     const filter=button.dataset.reservationFilter;
     const count=filter==='all'?reservationItems.length:reservationItems.filter(item=>item.status===filter).length;
