@@ -489,19 +489,33 @@ const sleepField=$('[data-member-sleep-field]');
 function syncMemberSleep(){if(!reservationForm||!arrivalSelect||!sleepField)return;const dayPass=arrivalSelect.value==='Jen na otočku',crew=Math.max(1,Math.min(8,Number(reservationForm.elements.crew.value)||1)),units=reservationForm.elements.accommodationUnits,unitsField=units?.closest('label');sleepField.hidden=dayPass;if(dayPass){reservationForm.elements.sleep.value='Bez ubytování';if(units)units.value='0'}if(units){units.max=String(crew);if(Number(units.value)>crew)units.value=String(crew);units.disabled=dayPass||!reservationState.registrationOpen}if(unitsField)unitsField.hidden=dayPass}
 arrivalSelect?.addEventListener('change',syncMemberSleep);reservationForm?.elements?.crew?.addEventListener('input',syncMemberSleep);syncMemberSleep();
 
-function plannerHandoffRecap(handoff){
-  const units=handoff.accommodationUnits?` · ${handoff.accommodationUnits} ${handoff.accommodationUnits===1?'místo':'místa'}`:'';
-  return `${handoff.arrival} · ${handoff.accommodation}${units} · ${handoff.crew} ${handoff.crew===1?'osoba':handoff.crew<=4?'osoby':'osob'} · Show & Shine · ${handoff.showShine}`;
+function plannerReservationWindowState(){
+  if(reservationState.registrationOpen)return 'open';
+  const event=reservationState.event||{},openAt=Date.parse(event.registrationOpenAt||event.registration_open_at||''),closeAt=Date.parse(event.registrationCloseAt||event.registration_close_at||''),now=Date.now();
+  if(Number.isFinite(openAt)&&now<openAt)return 'upcoming';
+  if(Number.isFinite(closeAt)&&now>closeAt)return 'ended';
+  return 'unavailable';
+}
+function isPlannerWaitingState(){return Boolean(activePlannerHandoff&&!reservationState.registrationOpen&&!data.reservation)}
+function renderPlannerHandoffRecap(container,handoff){
+  if(!container)return;
+  const units=handoff.accommodationUnits,accommodation=units?`${handoff.accommodation} / ${units} ${units===1?'místo':units<=4?'místa':'míst'}`:handoff.accommodation;
+  const crew=`${handoff.crew} ${handoff.crew===1?'osoba':handoff.crew<=4?'osoby':'osob'}`;
+  container.replaceChildren(...[handoff.arrival,accommodation,crew,`Show & Shine: ${handoff.showShine}`].map(value=>{const chip=document.createElement('span');chip.textContent=value;return chip}));
 }
 function renderPlannerHandoff(){
-  const banner=$('[data-planner-handoff]');if(!banner)return;
-  if(!activePlannerHandoff){banner.hidden=true;return}
-  const closed=!reservationState.registrationOpen,title=$('[data-planner-handoff-title]'),copy=$('[data-planner-handoff-copy]'),recap=$('[data-planner-handoff-recap]'),decision=$('[data-planner-handoff-decision]'),carPrompt=$('[data-planner-handoff-car]'),approved=$('[data-planner-handoff-approved]');
+  const banner=$('[data-planner-handoff]'),section=$('[data-reservation-section]'),workbench=$('[data-reservation-workbench]');if(!banner)return;
+  const waiting=isPlannerWaitingState();section?.classList.toggle('is-planner-waiting',waiting);if(workbench)workbench.hidden=waiting;
+  if(!activePlannerHandoff){banner.hidden=true;banner.classList.remove('is-waiting');return}
+  const closed=!reservationState.registrationOpen,title=$('[data-planner-handoff-title]'),copy=$('[data-planner-handoff-copy]'),recap=$('[data-planner-handoff-recap]'),next=$('[data-planner-handoff-next]'),continueButton=$('[data-planner-handoff-continue]'),nextCopy=$('[data-planner-handoff-next-copy]'),decision=$('[data-planner-handoff-decision]'),carPrompt=$('[data-planner-handoff-car]'),approved=$('[data-planner-handoff-approved]');
   banner.hidden=false;
-  if(closed){title.textContent='Tvůj plán jsme zachovali.';copy.textContent='Registrace je momentálně uzavřená, takže rezervaci teď není možné odeslat.'}
+  banner.classList.toggle('is-waiting',waiting);banner.dataset.reservationWindow=plannerReservationWindowState();
+  if(waiting){title.textContent='TVŮJ PLÁN JE PŘIPRAVENÝ';copy.textContent='Výběr z Weekend Planneru jsme uložili. Jakmile spustíme rezervace na další United, dokončíš ho tady.'}
+  else if(closed){title.textContent='Tvůj nový plán jsme zachovali.';copy.textContent='Skutečná rezervace zůstává beze změny a její stav má vždy přednost.'}
   else if(plannerHandoffChoice==='kept'){title.textContent='Současná rezervace zůstává.';copy.textContent='Tvůj nový výběr jsme zachovali, ale do formuláře jsme ho nepřenesli.'}
   else{title.textContent='Výběr z Weekend Planneru máme.';copy.textContent='Příjezd, ubytování a posádku jsme přenesli. Zkontroluj detaily a rezervaci odešli.'}
-  recap.textContent=plannerHandoffRecap(activePlannerHandoff);
+  renderPlannerHandoffRecap(recap,activePlannerHandoff);
+  next.hidden=Boolean(data.reservation);continueButton.disabled=closed;continueButton.setAttribute('aria-disabled',String(closed));nextCopy.textContent=closed?'Rezervace na další United ještě nejsou spuštěné.':'Tvůj plán je připravený k dokončení.';
   decision.hidden=closed||!(data.reservation&&plannerHandoffChoice==='pending');
   carPrompt.hidden=closed||!(plannerHandoffApplied&&!data.cars.length);
   approved.hidden=closed||!(plannerHandoffApplied&&data.reservation?.status==='approved');
@@ -517,7 +531,7 @@ function applyPlannerHandoffToForm(){
   syncMemberSleep();
   const selectedCar=data.cars.length===1?data.cars[0]:(data.cars.find(car=>car.primary)||data.cars[0]||null);
   if(selectedCar&&reservationForm.elements.carId)reservationForm.elements.carId.value=selectedCar.id;
-  plannerHandoffApplied=true;plannerHandoffChoice='applied';openSection('reservation');renderPlannerHandoff();
+  plannerHandoffApplied=true;plannerHandoffChoice='applied';openSection('reservation');if(data.reservation)renderPlannerHandoff();else renderReservation();
 }
 function clearPlannerHandoff(){
   if(activePlannerHandoff?.draftId){try{localStorage.removeItem(`${plannerHandoffPrefix}${activePlannerHandoff.draftId}`)}catch(error){console.debug('Weekend Planner handoff could not be removed.',error)}}
@@ -527,6 +541,13 @@ function clearPlannerHandoff(){
 }
 $('[data-planner-handoff-use]')?.addEventListener('click',()=>{applyPlannerHandoffToForm();toast('Nový plán je připravený ve formuláři. Zkontroluj ho a rezervaci odešli.')});
 $('[data-planner-handoff-keep]')?.addEventListener('click',()=>{plannerHandoffChoice='kept';plannerHandoffApplied=false;renderReservation();renderPlannerHandoff();toast('Současná rezervace zůstala beze změny.')});
+$('[data-planner-handoff-overview]')?.addEventListener('click',()=>openSection('overview'));
+$('[data-planner-handoff-continue]')?.addEventListener('click',()=>{
+  if(!activePlannerHandoff||!reservationState.registrationOpen||data.reservation)return;
+  if(!plannerHandoffApplied)applyPlannerHandoffToForm();
+  if(!data.cars.length){returnToReservationAfterCar=true;openCarModal();return}
+  reservationForm?.scrollIntoView({behavior:'smooth',block:'start'});reservationForm?.elements?.carId?.focus();
+});
 
 const reservationStatusNames={pending:'Čeká na schválení',approved:'Schválena',rejected:'Zamítnuta',cancelled:'Zrušena'};
 const reservationStatusLoudNames={pending:'ČEKÁ NA SCHVÁLENÍ',approved:'SCHVÁLENA',rejected:'ZAMÍTNUTA',cancelled:'ZRUŠENA'};
@@ -544,14 +565,14 @@ function reservationDescription(reservation){
   return {pending:'Rezervace čeká na kontrolu United týmem.',approved:'Rezervace byla schválena United týmem.'}[reservation.status]||'Rezervace je uložená.';
 }
 function renderReservationOverview(reservation){
-  const open=reservationState.registrationOpen,status=reservation?.status;
-  const eventYear=reservation?.year&&reservation.year!=='NEXT'?reservation.year:new Date().getFullYear();
+  const open=reservationState.registrationOpen,status=reservation?.status,waiting=isPlannerWaitingState();
+  const eventYear=reservation?.year&&reservation.year!=='NEXT'?reservation.year:(waiting?activePlannerHandoff.eventYear:new Date().getFullYear());
   const event=$('[data-reservation-overview-event]'),label=$('[data-reservation-overview-label]'),copy=$('[data-reservation-overview-copy]'),action=$('[data-reservation-overview-action]');
   if(event)event.textContent=`UNITED ${eventYear}`;
   if(!reservation){
-    if(label)label.textContent=open?'JEŠTĚ NEMÁŠ REZERVACI':'REGISTRACE JE UZAVŘENÁ';
-    if(copy)copy.textContent=open?'Registrace je otevřená. Vytvoř si rezervaci pro aktuální United.':'Aktuálně nemáš rezervaci a registrace je už uzavřená.';
-    if(action)action.innerHTML=`${open?'Vytvořit rezervaci':'Zobrazit registraci'} <b>→</b>`;
+    if(label)label.textContent=waiting?'TVŮJ PLÁN JE PŘIPRAVENÝ':open?'JEŠTĚ NEMÁŠ REZERVACI':'REGISTRACE JE UZAVŘENÁ';
+    if(copy)copy.textContent=waiting?'Výběr z Weekend Planneru jsme uložili. Dokončíš ho tady, jakmile spustíme rezervace.':open?'Registrace je otevřená. Vytvoř si rezervaci pro aktuální United.':'Aktuálně nemáš rezervaci a registrace je už uzavřená.';
+    if(action)action.innerHTML=`${waiting?'Dokončit rezervaci':open?'Vytvořit rezervaci':'Zobrazit registraci'} <b>→</b>`;
     return;
   }
   const labels={approved:'REZERVACE SCHVÁLENA',pending:'ČEKÁ NA SCHVÁLENÍ',rejected:'REZERVACE ZAMÍTNUTA',cancelled:'REZERVACE ZRUŠENA'};
@@ -589,8 +610,8 @@ function renderReservation(){
   if(submit){submit.disabled=!reservationState.registrationOpen;if(!submit.dataset.originalHtml)submit.innerHTML=`${buttonLabel} <span>→</span>`}
   setReservationCardStatus(r?.status);renderReservationOverview(r);renderReservationCarPhoto(r);renderPlannerHandoff();
   if(!r){
-    const open=reservationState.registrationOpen;
-    miniStatus.textContent=open?'Bez rezervace':'Registrace zavřená';year.textContent=open?'NEXT':'—';title.textContent='Příští United';car.textContent=open?'Vyber auto z garáže a odešli rezervaci.':'Aktuálně není otevřená registrace.';
+    const open=reservationState.registrationOpen,waiting=isPlannerWaitingState();
+    miniStatus.textContent=waiting?'Plán připravený':open?'Bez rezervace':'Registrace zavřená';year.textContent=waiting?activePlannerHandoff.eventYear:open?'NEXT':'—';title.textContent=waiting?'Tvůj plán je připravený':'Příští United';car.textContent=waiting?'Dokončíš ho tady, jakmile spustíme rezervace.':open?'Vyber auto z garáže a odešli rezervaci.':'Aktuálně není otevřená registrace.';
     $('[data-reservation-state-symbol]').textContent=open?'+':'—';$('[data-reservation-state-label]').textContent=open?'JEŠTĚ NEMÁŠ REZERVACI':'REGISTRACE JE UZAVŘENÁ';$('[data-reservation-year]').textContent=open?'NEXT':'—';$('[data-reservation-title]').textContent='Příští E36 United';$('[data-reservation-description]').textContent=reservationDescription(null);$('[data-reservation-summary]').innerHTML='';
     if(mailState){mailState.classList.remove('is-confirmed');mailState.querySelector('span').textContent=open?'Po odeslání bude rezervace čekat na schválení.':'Rezervaci bude možné odeslat po otevření registrace.'}
     return;
