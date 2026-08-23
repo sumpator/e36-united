@@ -59,6 +59,19 @@ export default {
           if (url.pathname === "/api/admin/reservations" && request.method === "GET") {
             return await getAdminReservations(env, origin);
           }
+          if (url.pathname === "/api/admin/gallery" && request.method === "GET") {
+            return await getAdminGallery(env, origin);
+          }
+
+          const adminGalleryMediaMatch = url.pathname.match(/^\/api\/admin\/gallery\/media\/([^/]+)$/);
+          if (adminGalleryMediaMatch && request.method === "GET") {
+            return await adminGalleryMedia(env, decodeURIComponent(adminGalleryMediaMatch[1]), origin);
+          }
+
+          const adminGalleryMatch = url.pathname.match(/^\/api\/admin\/gallery\/([^/]+)$/);
+          if (adminGalleryMatch && request.method === "PATCH") {
+            return await patchAdminGallery(request, env, auth, decodeURIComponent(adminGalleryMatch[1]), origin);
+          }
 
           const adminReservationMatch = url.pathname.match(/^\/api\/admin\/reservations\/([^/]+)$/);
           if (adminReservationMatch && request.method === "PATCH") {
@@ -140,8 +153,9 @@ function publicAdminEvent(event) {
 
 async function getAdminOverview(env, origin) {
   const event = await getLatestAdminEvent(env);
+  const gallery = await getAdminGalleryCounts(env);
   if (!event) {
-    return json({ ok: true, event: null, overview: emptyAdminOverview() }, 200, origin);
+    return json({ ok: true, event: null, overview: { ...emptyAdminOverview(), gallery } }, 200, origin);
   }
 
   const totals = await env.DB.prepare(`
@@ -174,7 +188,25 @@ async function getAdminOverview(env, origin) {
     WHERE event_id = ?
   `).bind(event.id).first();
 
-  return json({ ok: true, event: publicAdminEvent(event), overview: mapAdminOverview(totals) }, 200, origin);
+  return json({ ok: true, event: publicAdminEvent(event), overview: { ...mapAdminOverview(totals), gallery } }, 200, origin);
+}
+
+async function getAdminGalleryCounts(env) {
+  const row = await env.DB.prepare(`
+    SELECT
+      COALESCE(SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END), 0) AS pending,
+      COALESCE(SUM(CASE WHEN status = 'approved' THEN 1 ELSE 0 END), 0) AS approved,
+      COALESCE(SUM(CASE WHEN status = 'rejected' THEN 1 ELSE 0 END), 0) AS rejected,
+      COUNT(*) AS total
+    FROM gallery_submissions
+  `).first();
+
+  return {
+    pending: Number(row?.pending || 0),
+    approved: Number(row?.approved || 0),
+    rejected: Number(row?.rejected || 0),
+    total: Number(row?.total || 0),
+  };
 }
 
 function emptyAdminOverview() {
@@ -342,6 +374,110 @@ async function patchAdminReservation(request, env, auth, reservationId, origin) 
       reviewedBy: auth.uid,
     },
   }, 200, origin);
+}
+
+async function getAdminGallery(env, origin) {
+  const rows = await env.DB.prepare(`
+    SELECT
+      g.id, g.caption, g.status, g.created_at, g.review_note,
+      m.name AS member_name, m.nickname AS member_nickname,
+      m.email AS member_email, m.member_code
+    FROM gallery_submissions g
+    JOIN members m ON m.id = g.member_id
+    WHERE g.status IN ('pending', 'approved', 'rejected')
+    ORDER BY g.created_at DESC
+  `).all();
+
+  return json({
+    ok: true,
+    photos: (rows.results || []).map(row => ({
+      id: row.id,
+      caption: row.caption || "",
+      status: row.status,
+      createdAt: row.created_at,
+      reviewNote: row.review_note || "",
+      member: {
+        name: row.member_name || "",
+        nickname: row.member_nickname || "",
+        email: row.member_email || "",
+        memberCode: row.member_code || "",
+      },
+    })),
+  }, 200, origin);
+}
+
+async function adminGalleryMedia(env, submissionId, origin) {
+  const row = await env.DB.prepare(`
+    SELECT r2_key
+    FROM gallery_submissions
+    WHERE id = ? AND status IN ('pending', 'approved', 'rejected')
+    LIMIT 1
+  `).bind(submissionId).first();
+  if (!row) return json({ ok: false, error: "gallery_not_found", message: "Fotografie nebyla nalezena." }, 404, origin);
+
+  const object = await env.MEDIA.get(row.r2_key);
+  if (!object) return json({ ok: false, error: "media_not_found", message: "Soubor fotografie nebyl nalezen." }, 404, origin);
+
+  const headers = new Headers();
+  object.writeHttpMetadata(headers);
+  headers.set("Cache-Control", "private, no-store");
+  headers.set("ETag", object.httpEtag || object.etag || "");
+  return cors(new Response(object.body, { status: 200, headers }), origin);
+}
+
+async function patchAdminGallery(request, env, auth, submissionId, origin) {
+  let body = {};
+  try {
+    body = await request.json();
+    if (!body || typeof body !== "object" || Array.isArray(body)) throw new Error("Invalid JSON object");
+  } catch {
+    return json({ ok: false, error: "invalid_json", message: "Požadavek nemá platný JSON." }, 400, origin);
+  }
+
+  const allowedKeys = new Set(["status", "reviewNote"]);
+  if (Object.keys(body).some(key => !allowedKeys.has(key))) {
+    return json({ ok: false, error: "invalid_fields", message: "Lze změnit pouze stav a admin poznámku." }, 400, origin);
+  }
+
+  const status = clean(body.status);
+  const reviewNote = clean(body.reviewNote).slice(0, 1000);
+  if (!["pending", "approved", "rejected"].includes(status)) {
+    return json({ ok: false, error: "invalid_status", message: "Neplatný stav fotografie." }, 400, origin);
+  }
+
+  const submission = await env.DB.prepare(`
+    SELECT id, status, review_note
+    FROM gallery_submissions
+    WHERE id = ?
+    LIMIT 1
+  `).bind(submissionId).first();
+  if (!submission) return json({ ok: false, error: "gallery_not_found", message: "Fotografie nebyla nalezena." }, 404, origin);
+
+  const currentReviewNote = submission.review_note || "";
+  if (submission.status === status && currentReviewNote === reviewNote) {
+    return json({ ok: true, unchanged: true, photo: { id: submissionId, status, reviewNote } }, 200, origin);
+  }
+
+  const oldState = JSON.stringify({ status: submission.status, reviewNote: currentReviewNote });
+  const newState = JSON.stringify({ status, reviewNote });
+  const actionId = crypto.randomUUID();
+  const results = await env.DB.batch([
+    env.DB.prepare(`
+      UPDATE gallery_submissions
+      SET status = ?, review_note = ?, reviewed_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `).bind(status, reviewNote || null, submissionId),
+    env.DB.prepare(`
+      INSERT INTO admin_actions (
+        id, admin_member_id, action_type, entity_type, entity_id,
+        old_state_json, new_state_json, note, created_at
+      )
+      VALUES (?, ?, 'gallery_status_changed', 'gallery_submission', ?, ?, ?, ?, CURRENT_TIMESTAMP)
+    `).bind(actionId, auth.uid, submissionId, oldState, newState, reviewNote || null),
+  ]);
+
+  if (!results[0]?.meta?.changes) throw new Error("Gallery submission was not updated");
+  return json({ ok: true, photo: { id: submissionId, status, reviewNote } }, 200, origin);
 }
 
 async function bootstrapMember(request, env, auth, origin) {
@@ -758,7 +894,7 @@ async function publicGalleryMedia(env, submissionId, origin) {
   if (!object) return json({ ok: false, error: "Media not found" }, 404, origin);
   const headers = new Headers();
   object.writeHttpMetadata(headers);
-  headers.set("Cache-Control", "public, max-age=86400, immutable");
+  headers.set("Cache-Control", "no-store");
   headers.set("ETag", object.httpEtag || object.etag || "");
   return cors(new Response(object.body, { status: 200, headers }), origin);
 }

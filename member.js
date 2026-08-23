@@ -708,7 +708,7 @@ async function compressImageBlob(file,max=1800,quality=.82){return new Promise((
 function renderMemberGallery(){
   const list=$('[data-member-gallery-list]');if(!list)return;
   if(!memberGallery.length){list.innerHTML='<div class="member-gallery-empty"><b>Zatím jsi neposlal žádné fotografie.</b><small>Nahraj je tady. Po schválení se objeví ve veřejné galerii.</small></div>';return}
-  const label={pending:'ČEKÁ NA SCHVÁLENÍ',approved:'SCHVÁLENO',rejected:'ZAMÍTNUTO'};
+  const label={pending:'ČEKÁ NA SCHVÁLENÍ',approved:'SCHVÁLENA',rejected:'ZAMÍTNUTA'};
   list.innerHTML=memberGallery.map(item=>`<article class="member-gallery-item"><div><small>${esc(new Date(item.createdAt||Date.now()).toLocaleDateString('cs-CZ'))}</small><b>${esc(item.caption||'Fotka do United galerie')}</b></div><span class="status-${esc(item.status)}">${label[item.status]||esc(item.status)}</span></article>`).join('');
 }
 

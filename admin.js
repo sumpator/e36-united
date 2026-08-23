@@ -12,7 +12,15 @@ let currentUser=null;
 let loading=false;
 let reservationItems=[];
 let reservationFilter='pending';
+let galleryItems=[];
+let galleryFilter='pending';
+let selectedGalleryId=null;
+let lightboxReturnFocus=null;
+const galleryMediaUrls=new Map();
+const galleryMediaPromises=new Map();
+const galleryMediaTokens=new Map();
 const reservationFilterLabels={pending:'Žádosti',approved:'Schválené',rejected:'Zamítnuté',cancelled:'Zrušené',all:'Všechny'};
+const galleryFilterLabels={pending:'Žádosti',approved:'Schválené',rejected:'Zamítnuté',all:'Všechny'};
 
 const app=initializeApp(firebaseConfig);
 const auth=getAuth(app);
@@ -29,6 +37,7 @@ function numeric(value){return Number(value||0)}
 function formatMoney(value){return money.format(numeric(value))}
 function formatDate(value,withTime=true){if(!value)return '—';const normalized=/Z$|[+-]\d\d:\d\d$/.test(value)?value:`${value.replace(' ','T')}Z`;const date=new Date(normalized);if(Number.isNaN(date.getTime()))return value;return withTime?dateTime.format(date):new Intl.DateTimeFormat('cs-CZ',{dateStyle:'medium'}).format(date)}
 function statusLabel(status){return({pending:'Čeká',approved:'Schválená',rejected:'Zamítnutá',cancelled:'Zrušená'})[status]||status||'—'}
+function galleryStatusLabel(status){return({pending:'Čeká na schválení',approved:'Schválena',rejected:'Zamítnuta'})[status]||status||'—'}
 function paymentLabel(status){return({paid:'Zaplaceno',unpaid:'Nezaplaceno',overdue:'Po splatnosti',early_paid:'Zaplaceno předem',refunded:'Vráceno'})[status]||status||'—'}
 function attendanceLabel(type){return({full_weekend:'Full weekend',saturday_only:'Sobota',day_visit:'Day visit'})[type]||type||'—'}
 
@@ -42,8 +51,20 @@ async function apiRequest(path,{method='GET',body,retry=true}={}){
   return payload;
 }
 
-function setLoading(active){loading=active;$('[data-loading]').hidden=!active;$$('[data-refresh], [data-review-action]').forEach(button=>button.disabled=active)}
-function setDenied(){setView('denied')}
+async function apiMedia(path,{retry=true}={}){
+  if(!currentUser)throw new Error('Přihlášení vypršelo.');
+  const token=await currentUser.getIdToken(!retry);
+  const response=await fetch(`${apiBaseUrl}${path}`,{headers:{Authorization:`Bearer ${token}`},cache:'no-store'});
+  if(response.status===401&&retry)return apiMedia(path,{retry:false});
+  if(!response.ok){
+    const text=await response.text();let payload={};try{payload=text?JSON.parse(text):{}}catch{payload={message:text}}
+    const error=new Error(payload.message||payload.error||`API ${response.status}`);error.status=response.status;throw error;
+  }
+  return response.blob();
+}
+
+function setLoading(active){loading=active;$('[data-loading]').hidden=!active;$$('[data-refresh], [data-review-action], [data-gallery-action]').forEach(button=>button.disabled=active)}
+function setDenied(){closeGalleryLightbox();setView('denied')}
 function setBar(selector,value,total){$(selector).style.width=`${total?Math.min(100,(numeric(value)/total)*100):0}%`}
 
 function renderOverview(payload){
@@ -54,6 +75,7 @@ function renderOverview(payload){
   const show=overview.showShine||{};
   const accommodation=overview.accommodation||{};
   const payments=overview.payments||{};
+  const gallery=overview.gallery||{};
   $('[data-event-year]').textContent=event?.year||'—';
   $('[data-event-state]').textContent=event?`Registrace: ${event.registrationStatus||'—'}`:'Žádný event v databázi';
   $('[data-kpi-reservations]').textContent=numeric(overview.reservations);
@@ -61,6 +83,8 @@ function renderOverview(payload){
   $('[data-kpi-cars]').textContent=numeric(overview.cars);
   $('[data-kpi-pending]').textContent=numeric(statuses.pending);
   $('[data-kpi-payments]').textContent=`${numeric(payments.paid)+numeric(payments.earlyPaid)} / ${numeric(payments.unpaid)+numeric(payments.overdue)}`;
+  $('[data-kpi-gallery-pending]').textContent=numeric(gallery.pending);
+  $('[data-gallery-nav-count]').textContent=numeric(gallery.pending);
   $('[data-capacity-reservations]').textContent=event?.reservationCapacity?`kapacita ${event.reservationCapacity}`:'kapacita —';
 
   const attendanceTotal=numeric(attendance.fullWeekend)+numeric(attendance.saturdayOnly)+numeric(attendance.dayVisit);
@@ -88,6 +112,7 @@ function renderOverview(payload){
 }
 
 function recordsLabel(count){return `${count} ${count===1?'záznam':count>1&&count<5?'záznamy':'záznamů'}`}
+function photosLabel(count){return `${count} ${count===1?'fotografie':count>1&&count<5?'fotografie':'fotografií'}`}
 function renderReservationTabs(){
   $$('[data-reservation-filter]').forEach(button=>{
     const filter=button.dataset.reservationFilter;
@@ -140,11 +165,114 @@ function setReservationFilter(filter,scroll=false){
   if(scroll)$('[data-reservation-tabs]')?.scrollIntoView({behavior:'smooth',block:'start'});
 }
 
+function galleryActions(item){
+  const actions=[
+    {status:'pending',label:'Vrátit k posouzení',className:'pending'},
+    {status:'approved',label:'Schválit',className:'approve'},
+    {status:'rejected',label:'Zamítnout',className:'reject'},
+  ];
+  return actions.filter(action=>action.status!==item.status).map(action=>`<button class="admin-button ${action.className}" data-gallery-action="${action.status}" type="button">${action.label}</button>`).join('');
+}
+function galleryIdentity(item){const member=item.member||{};return member.nickname||member.name||member.email||'United member'}
+function galleryMeta(item){const member=item.member||{};return [member.name,member.memberCode,member.email].filter(Boolean).join(' · ')}
+function galleryCard(item){
+  return `<article class="admin-gallery-card" data-gallery-id="${escapeHtml(item.id)}">
+    <button aria-label="Otevřít náhled fotografie od ${escapeHtml(galleryIdentity(item))}" class="admin-gallery-image" data-gallery-preview="${escapeHtml(item.id)}" type="button">
+      <img alt="Fotografie od ${escapeHtml(galleryIdentity(item))}" data-gallery-media="${escapeHtml(item.id)}"/>
+      <span>Otevřít náhled</span>
+    </button>
+    <div class="admin-gallery-card-body">
+      <div class="admin-gallery-card-head"><div><h3>${escapeHtml(galleryIdentity(item))}</h3><p>${escapeHtml(galleryMeta(item))}</p></div><small class="admin-badge admin-badge--${escapeHtml(item.status)}">${escapeHtml(galleryStatusLabel(item.status))}</small></div>
+      <p class="admin-gallery-caption">${escapeHtml(item.caption||'Bez popisku.')}</p>
+      <small class="admin-gallery-date">Nahráno ${escapeHtml(formatDate(item.createdAt))}</small>
+      <div class="admin-gallery-review"><textarea data-gallery-review-note maxlength="1000" placeholder="Krátká admin poznámka">${escapeHtml(item.reviewNote||'')}</textarea><div class="admin-review-actions">${galleryActions(item)}</div></div>
+    </div>
+  </article>`;
+}
+function renderGalleryTabs(){
+  $$('[data-gallery-filter]').forEach(button=>{
+    const filter=button.dataset.galleryFilter;
+    const count=filter==='all'?galleryItems.length:galleryItems.filter(item=>item.status===filter).length;
+    $(`[data-gallery-filter-count="${filter}"]`,button).textContent=count;
+    const active=filter===galleryFilter;
+    button.classList.toggle('is-active',active);button.setAttribute('aria-selected',String(active));button.tabIndex=active?0:-1;
+  });
+}
+function renderGalleryCounts(){
+  const pending=galleryItems.filter(item=>item.status==='pending').length;
+  $('[data-kpi-gallery-pending]').textContent=pending;
+  $('[data-gallery-nav-count]').textContent=pending;
+}
+function renderGalleryList(){
+  const photos=galleryFilter==='all'?galleryItems:galleryItems.filter(item=>item.status===galleryFilter);
+  const neededIds=new Set(photos.map(item=>item.id));if(selectedGalleryId)neededIds.add(selectedGalleryId);pruneGalleryMedia(neededIds);
+  $('[data-gallery-count]').textContent=galleryFilter==='all'?photosLabel(photos.length):`${photosLabel(photos.length)} z ${galleryItems.length}`;
+  const list=$('[data-gallery-list]');
+  if(!photos.length){list.innerHTML=`<div class="admin-empty">V záložce ${escapeHtml(galleryFilterLabels[galleryFilter].toLowerCase())} nejsou žádné fotografie.</div>`;return}
+  list.innerHTML=photos.map(galleryCard).join('');
+  hydrateGalleryMedia(list);
+}
+function renderGallery(payload){galleryItems=Array.isArray(payload.photos)?payload.photos:[];renderGalleryTabs();renderGalleryCounts();renderGalleryList()}
+function setGalleryFilter(filter,scroll=false){
+  if(!galleryFilterLabels[filter])return;
+  galleryFilter=filter;renderGalleryTabs();renderGalleryList();
+  if(scroll)$('[data-gallery-tabs]')?.scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+async function galleryMediaUrl(id){
+  if(galleryMediaUrls.has(id))return galleryMediaUrls.get(id);
+  if(galleryMediaPromises.has(id))return galleryMediaPromises.get(id);
+  const token={};galleryMediaTokens.set(id,token);
+  const promise=apiMedia(`/api/admin/gallery/media/${encodeURIComponent(id)}`).then(blob=>{
+    if(galleryMediaTokens.get(id)!==token||!currentUser)throw new Error('Náhled už není potřeba.');
+    const url=URL.createObjectURL(blob);galleryMediaUrls.set(id,url);return url;
+  }).finally(()=>{if(galleryMediaTokens.get(id)===token)galleryMediaTokens.delete(id);if(galleryMediaPromises.get(id)===promise)galleryMediaPromises.delete(id)});
+  galleryMediaPromises.set(id,promise);return promise;
+}
+function hydrateGalleryMedia(root=document){
+  $$('[data-gallery-media]',root).forEach(async image=>{
+    if(image.dataset.loaded==='true')return;
+    try{image.src=await galleryMediaUrl(image.dataset.galleryMedia);image.dataset.loaded='true';image.closest('.admin-gallery-image, .admin-gallery-lightbox-media')?.classList.add('is-loaded')}
+    catch{image.alt='Náhled fotografie se nepodařilo načíst.';image.closest('.admin-gallery-image, .admin-gallery-lightbox-media')?.classList.add('is-error')}
+  });
+}
+function releaseGalleryMediaId(id){const url=galleryMediaUrls.get(id);if(url)URL.revokeObjectURL(url);galleryMediaUrls.delete(id);galleryMediaTokens.delete(id);galleryMediaPromises.delete(id)}
+function pruneGalleryMedia(neededIds){const knownIds=new Set([...galleryMediaUrls.keys(),...galleryMediaTokens.keys()]);knownIds.forEach(id=>{if(!neededIds.has(id))releaseGalleryMediaId(id)})}
+function releaseGalleryMedia(){pruneGalleryMedia(new Set())}
+
+function renderGalleryLightbox(){
+  const item=galleryItems.find(photo=>photo.id===selectedGalleryId);
+  if(!item){closeGalleryLightbox();return}
+  const content=$('[data-gallery-lightbox-content]');
+  content.innerHTML=`<article class="admin-gallery-lightbox-card" data-gallery-id="${escapeHtml(item.id)}">
+    <div class="admin-gallery-lightbox-media"><img alt="Fotografie od ${escapeHtml(galleryIdentity(item))}" data-gallery-media="${escapeHtml(item.id)}"/></div>
+    <div class="admin-gallery-lightbox-info">
+      <span class="admin-kicker">FOTOGRAFIE ČLENA</span><h2 id="admin-gallery-lightbox-title">${escapeHtml(galleryIdentity(item))}</h2><p>${escapeHtml(galleryMeta(item))}</p>
+      <small class="admin-badge admin-badge--${escapeHtml(item.status)}">${escapeHtml(galleryStatusLabel(item.status))}</small>
+      <p class="admin-gallery-caption">${escapeHtml(item.caption||'Bez popisku.')}</p><small class="admin-gallery-date">Nahráno ${escapeHtml(formatDate(item.createdAt))}</small>
+      <div class="admin-gallery-review"><textarea data-gallery-review-note maxlength="1000" placeholder="Krátká admin poznámka">${escapeHtml(item.reviewNote||'')}</textarea><div class="admin-review-actions">${galleryActions(item)}</div></div>
+    </div>
+  </article>`;
+  hydrateGalleryMedia(content);
+}
+function openGalleryLightbox(id,source){
+  if(!galleryItems.some(item=>item.id===id))return;
+  selectedGalleryId=id;lightboxReturnFocus=source||document.activeElement;renderGalleryLightbox();
+  $('[data-gallery-lightbox]').hidden=false;document.body.classList.add('admin-lightbox-open');
+  $('[data-gallery-lightbox-close]:not(.admin-gallery-lightbox-backdrop)')?.focus();
+}
+function closeGalleryLightbox(){
+  const closingId=selectedGalleryId;const lightbox=$('[data-gallery-lightbox]');if(lightbox)lightbox.hidden=true;
+  document.body.classList.remove('admin-lightbox-open');selectedGalleryId=null;
+  if(closingId){const visible=galleryFilter==='all'||galleryItems.some(item=>item.id===closingId&&item.status===galleryFilter);if(!visible)releaseGalleryMediaId(closingId)}
+  if(lightboxReturnFocus?.isConnected)lightboxReturnFocus.focus();lightboxReturnFocus=null;
+}
+
 async function loadAdminData(){
   if(loading)return;setLoading(true);
   try{
-    const [overview,reservations]=await Promise.all([apiRequest('/api/admin/overview'),apiRequest('/api/admin/reservations')]);
-    renderOverview(overview);renderReservations(reservations);setView('admin');
+    const [overview,reservations,gallery]=await Promise.all([apiRequest('/api/admin/overview'),apiRequest('/api/admin/reservations'),apiRequest('/api/admin/gallery')]);
+    renderOverview(overview);renderReservations(reservations);renderGallery(gallery);setView('admin');
   }catch(error){if(error.status===403){setDenied();return}toast(error.message||'Admin data se nepodařilo načíst.')}finally{setLoading(false)}
 }
 
@@ -160,6 +288,22 @@ async function updateReservation(card,status){
   catch(error){if(error.status===403){setDenied();return}toast(error.message||'Rezervaci se nepodařilo změnit.')}finally{if(button)button.disabled=false}
 }
 
+async function updateGallery(container,status){
+  const submissionId=container.dataset.galleryId;const note=$('[data-gallery-review-note]',container)?.value||'';
+  $$('[data-gallery-action]',container).forEach(button=>button.disabled=true);
+  try{
+    await apiRequest(`/api/admin/gallery/${encodeURIComponent(submissionId)}`,{method:'PATCH',body:{status,reviewNote:note}});
+    const item=galleryItems.find(photo=>photo.id===submissionId);if(item){item.status=status;item.reviewNote=note}
+    renderGalleryTabs();renderGalleryCounts();renderGalleryList();if(selectedGalleryId===submissionId)renderGalleryLightbox();
+    const messages={pending:'Fotografie byla vrácena k posouzení.',approved:'Fotografie byla schválena.',rejected:'Fotografie byla zamítnuta.'};toast(messages[status]||'Stav fotografie byl změněn.');
+  }catch(error){if(error.status===403){setDenied();return}toast(error.message||'Fotografii se nepodařilo změnit.')}finally{$$('[data-gallery-action]',container).forEach(button=>button.disabled=false)}
+}
+
+function jumpToSection(section){
+  const target=section==='dashboard'?$('.admin-kpis'):$(`[data-admin-section="${section}"]`);
+  target?.scrollIntoView({behavior:'smooth',block:'start'});
+}
+
 $('[data-login-form]').addEventListener('submit',async event=>{
   event.preventDefault();const button=$('button[type="submit"]',event.currentTarget);const form=new FormData(event.currentTarget);button.disabled=true;$('[data-auth-status]').textContent='';
   try{await signInWithEmailAndPassword(auth,String(form.get('email')||'').trim(),String(form.get('password')||''))}
@@ -169,16 +313,26 @@ $('[data-login-form]').addEventListener('submit',async event=>{
 document.addEventListener('click',event=>{
   const logout=event.target.closest('[data-logout]');if(logout){signOut(auth);return}
   const refresh=event.target.closest('[data-refresh]');if(refresh){loadAdminData();return}
+  const jump=event.target.closest('[data-admin-jump]');if(jump){jumpToSection(jump.dataset.adminJump);return}
   const filter=event.target.closest('[data-reservation-filter]');if(filter){setReservationFilter(filter.dataset.reservationFilter);return}
   const pending=event.target.closest('[data-open-pending]');if(pending){setReservationFilter('pending',true);return}
+  const galleryPending=event.target.closest('[data-open-gallery-pending]');if(galleryPending){setGalleryFilter('pending',true);return}
+  const galleryFilterButton=event.target.closest('[data-gallery-filter]');if(galleryFilterButton){setGalleryFilter(galleryFilterButton.dataset.galleryFilter);return}
+  const preview=event.target.closest('[data-gallery-preview]');if(preview){openGalleryLightbox(preview.dataset.galleryPreview,preview);return}
+  if(event.target.closest('[data-gallery-lightbox-close]')){closeGalleryLightbox();return}
+  const galleryAction=event.target.closest('[data-gallery-action]');if(galleryAction){const card=galleryAction.closest('[data-gallery-id]');if(card)updateGallery(card,galleryAction.dataset.galleryAction);return}
   const action=event.target.closest('[data-review-action]');if(action){const card=action.closest('[data-reservation-id]');if(card)updateReservation(card,action.dataset.reviewAction)}
 });
-document.addEventListener('keydown',event=>{if((event.key==='Enter'||event.key===' ')&&event.target.closest('[data-open-pending]')){event.preventDefault();setReservationFilter('pending',true)}});
+document.addEventListener('keydown',event=>{
+  if(event.key==='Escape'&&!$('[data-gallery-lightbox]').hidden){closeGalleryLightbox();return}
+  if((event.key==='Enter'||event.key===' ')&&event.target.closest('[data-open-pending]')){event.preventDefault();setReservationFilter('pending',true)}
+  if((event.key==='Enter'||event.key===' ')&&event.target.closest('[data-open-gallery-pending]')){event.preventDefault();setGalleryFilter('pending',true)}
+});
 
 onAuthStateChanged(auth,user=>{
   currentUser=user;
-  if(!user){setView('auth');$('[data-admin-account]').textContent='';return}
-  reservationFilter='pending';
+  if(!user){closeGalleryLightbox();releaseGalleryMedia();galleryItems=[];reservationItems=[];setView('auth');$('[data-admin-account]').textContent='';return}
+  reservationFilter='pending';galleryFilter='pending';
   $('[data-admin-account]').textContent=user.email||user.uid;
   loadAdminData();
 });
