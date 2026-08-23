@@ -36,6 +36,10 @@ export default {
         return await publicGalleryList(env, url, origin);
       }
 
+      if (url.pathname === "/api/events/current" && request.method === "GET") {
+        return await getPublicCurrentEvent(env, origin);
+      }
+
       // Public media stream only for approved gallery submissions.
       if (url.pathname.startsWith("/api/gallery/media/") && request.method === "GET") {
         return await publicGalleryMedia(env, decodeURIComponent(url.pathname.split("/").pop()), origin);
@@ -54,10 +58,19 @@ export default {
           }
 
           if (url.pathname === "/api/admin/overview" && request.method === "GET") {
-            return await getAdminOverview(env, origin);
+            return await getAdminOverview(env, url, origin);
           }
           if (url.pathname === "/api/admin/reservations" && request.method === "GET") {
-            return await getAdminReservations(env, origin);
+            return await getAdminReservations(env, url, origin);
+          }
+          if (url.pathname === "/api/admin/events" && request.method === "GET") {
+            return await getAdminEvents(env, origin);
+          }
+          if (url.pathname === "/api/admin/accommodation" && request.method === "GET") {
+            return await getAdminAccommodation(env, url, origin);
+          }
+          if (url.pathname === "/api/admin/accommodation" && request.method === "POST") {
+            return await createAdminAccommodation(request, env, auth, origin);
           }
           if (url.pathname === "/api/admin/gallery" && request.method === "GET") {
             return await getAdminGallery(env, origin);
@@ -76,6 +89,16 @@ export default {
           const adminReservationMatch = url.pathname.match(/^\/api\/admin\/reservations\/([^/]+)$/);
           if (adminReservationMatch && request.method === "PATCH") {
             return await patchAdminReservation(request, env, auth, decodeURIComponent(adminReservationMatch[1]), origin);
+          }
+
+          const adminEventMatch = url.pathname.match(/^\/api\/admin\/events\/([^/]+)$/);
+          if (adminEventMatch && request.method === "PATCH") {
+            return await patchAdminEvent(request, env, auth, decodeURIComponent(adminEventMatch[1]), origin);
+          }
+
+          const adminAccommodationMatch = url.pathname.match(/^\/api\/admin\/accommodation\/([^/]+)$/);
+          if (adminAccommodationMatch && request.method === "PATCH") {
+            return await patchAdminAccommodation(request, env, auth, decodeURIComponent(adminAccommodationMatch[1]), origin);
           }
 
           return json({ ok: false, error: "not_found", message: "Admin endpoint neexistuje." }, 404, origin);
@@ -125,16 +148,33 @@ async function requireAdmin(env, auth) {
   return member?.role === "admin" && member?.status === "active" ? member : null;
 }
 
-async function getLatestAdminEvent(env) {
-  return await env.DB.prepare(`
-    SELECT
-      id, year, registration_status,
-      accommodation_capacity, reservation_capacity,
-      booking_commitment_czk, booking_due_at, booking_paid_czk
-    FROM events
-    ORDER BY year DESC
+const EVENT_SELECT = `
+  SELECT
+    id, year, registration_status, is_current,
+    accommodation_capacity, reservation_capacity,
+    full_weekend_nights, saturday_only_nights,
+    booking_commitment_czk, booking_due_at, booking_paid_czk
+  FROM events
+`;
+
+async function getCurrentEvent(env) {
+  return await env.DB.prepare(`${EVENT_SELECT}
+    ORDER BY is_current DESC, year DESC
     LIMIT 1
   `).first();
+}
+
+async function getEventById(env, eventId) {
+  if (!eventId) return null;
+  return await env.DB.prepare(`${EVENT_SELECT}
+    WHERE id = ?
+    LIMIT 1
+  `).bind(eventId).first();
+}
+
+async function getRequestedAdminEvent(env, url) {
+  const eventId = clean(url.searchParams.get("eventId"));
+  return eventId ? await getEventById(env, eventId) : await getCurrentEvent(env);
 }
 
 function publicAdminEvent(event) {
@@ -142,19 +182,32 @@ function publicAdminEvent(event) {
   return {
     id: event.id,
     year: Number(event.year || 0),
+    isCurrent: !!event.is_current,
     registrationStatus: event.registration_status || "",
     accommodationCapacity: Number(event.accommodation_capacity || 0),
     reservationCapacity: Number(event.reservation_capacity || 0),
+    fullWeekendNights: Number(event.full_weekend_nights ?? 2),
+    saturdayOnlyNights: Number(event.saturday_only_nights ?? 1),
     bookingCommitmentCzk: Number(event.booking_commitment_czk || 0),
     bookingDueAt: event.booking_due_at || null,
     bookingPaidCzk: Number(event.booking_paid_czk || 0),
   };
 }
 
-async function getAdminOverview(env, origin) {
-  const event = await getLatestAdminEvent(env);
+async function getAdminEvents(env, origin) {
+  const rows = await env.DB.prepare(`${EVENT_SELECT}
+    ORDER BY year DESC
+  `).all();
+  return json({ ok: true, events: (rows.results || []).map(publicAdminEvent) }, 200, origin);
+}
+
+async function getAdminOverview(env, url, origin) {
+  const event = await getRequestedAdminEvent(env, url);
   const gallery = await getAdminGalleryCounts(env);
   if (!event) {
+    if (clean(url.searchParams.get("eventId"))) {
+      return json({ ok: false, error: "event_not_found", message: "Event nebyl nalezen." }, 404, origin);
+    }
     return json({ ok: true, event: null, overview: { ...emptyAdminOverview(), gallery } }, 200, origin);
   }
 
@@ -252,9 +305,14 @@ function mapAdminOverview(row = {}) {
   };
 }
 
-async function getAdminReservations(env, origin) {
-  const event = await getLatestAdminEvent(env);
-  if (!event) return json({ ok: true, event: null, reservations: [] }, 200, origin);
+async function getAdminReservations(env, url, origin) {
+  const event = await getRequestedAdminEvent(env, url);
+  if (!event) {
+    if (clean(url.searchParams.get("eventId"))) {
+      return json({ ok: false, error: "event_not_found", message: "Event nebyl nalezen." }, 404, origin);
+    }
+    return json({ ok: true, event: null, reservations: [] }, 200, origin);
+  }
 
   const rows = await env.DB.prepare(`
     SELECT
@@ -263,10 +321,26 @@ async function getAdminReservations(env, origin) {
       r.show_shine, r.note, r.status, r.payment_status,
       r.amount_due_czk, r.amount_paid_czk,
       r.submitted_at, r.updated_at, r.reviewed_at, r.review_note,
+      ra.option_id AS accommodation_option_id,
+      ra.option_name AS accommodation_option_name,
+      ra.kind AS accommodation_option_kind,
+      ra.people_count AS accommodation_people_count,
+      ra.unit_count AS accommodation_unit_count,
+      ra.unit_price_czk AS accommodation_unit_price_czk,
+      ra.person_price_czk AS accommodation_person_price_czk,
+      ra.bedding_fee_per_person_czk AS accommodation_bedding_fee_czk,
+      ra.city_tax_per_person_per_night_czk AS accommodation_city_tax_czk,
+      ra.nights AS accommodation_nights,
+      ra.base_total_czk AS accommodation_base_total_czk,
+      ra.person_total_czk AS accommodation_person_total_czk,
+      ra.bedding_total_czk AS accommodation_bedding_total_czk,
+      ra.city_tax_total_czk AS accommodation_city_tax_total_czk,
+      ra.total_czk AS accommodation_total_czk,
       m.name AS member_name, m.nickname AS member_nickname,
       m.email AS member_email, m.member_code
     FROM reservations r
     JOIN members m ON m.id = r.member_id
+    LEFT JOIN reservation_accommodation ra ON ra.reservation_id = r.id
     WHERE r.event_id = ?
     ORDER BY
       CASE r.status WHEN 'pending' THEN 0 WHEN 'rejected' THEN 1 WHEN 'approved' THEN 2 ELSE 3 END,
@@ -303,6 +377,7 @@ function publicAdminReservation(reservation) {
     crew: Number(reservation.crew || 0),
     accommodation: reservation.accommodation || "",
     accommodationUnits: Number(reservation.accommodation_units || 0),
+    accommodationSnapshot: mapAccommodationSnapshot(reservation),
     showShine: reservation.show_shine || "Ne",
     note: reservation.note || "",
     status: reservation.status || "pending",
@@ -313,6 +388,291 @@ function publicAdminReservation(reservation) {
     updatedAt: reservation.updated_at || null,
     reviewedAt: reservation.reviewed_at || null,
     reviewNote: reservation.review_note || "",
+  };
+}
+
+async function getPublicCurrentEvent(env, origin) {
+  const event = await getCurrentEvent(env);
+  if (!event) return json({ ok: true, event: null, accommodationOptions: [] }, 200, origin);
+  const options = await listAccommodationOptions(env, event.id, true);
+  return json({
+    ok: true,
+    event: {
+      id: event.id,
+      year: Number(event.year || 0),
+      registrationStatus: event.registration_status || "closed",
+      registrationOpen: event.registration_status === "open",
+      reservationCapacity: Number(event.reservation_capacity || 0),
+      fullWeekendNights: Number(event.full_weekend_nights ?? 2),
+      saturdayOnlyNights: Number(event.saturday_only_nights ?? 1),
+    },
+    accommodationOptions: options,
+  }, 200, origin);
+}
+
+async function listAccommodationOptions(env, eventId, activeOnly = false) {
+  const rows = await env.DB.prepare(`
+    SELECT
+      o.id, o.event_id, o.name, o.kind, o.inventory_mode,
+      o.units_total, o.capacity_per_unit,
+      o.unit_price_czk, o.person_price_czk,
+      o.bedding_fee_per_person_czk,
+      o.city_tax_per_person_per_night_czk,
+      o.active, o.sort_order, o.created_at, o.updated_at,
+      COALESCE(SUM(CASE WHEN r.status IN ('pending', 'approved') THEN ra.unit_count ELSE 0 END), 0) AS blocked_units
+    FROM event_accommodation_options o
+    LEFT JOIN reservation_accommodation ra ON ra.option_id = o.id
+    LEFT JOIN reservations r ON r.id = ra.reservation_id
+    WHERE o.event_id = ? AND (? = 0 OR o.active = 1)
+    GROUP BY
+      o.id, o.event_id, o.name, o.kind, o.inventory_mode,
+      o.units_total, o.capacity_per_unit,
+      o.unit_price_czk, o.person_price_czk,
+      o.bedding_fee_per_person_czk,
+      o.city_tax_per_person_per_night_czk,
+      o.active, o.sort_order, o.created_at, o.updated_at
+    ORDER BY o.sort_order ASC, o.name COLLATE NOCASE ASC
+  `).bind(eventId, activeOnly ? 1 : 0).all();
+  return (rows.results || []).map(mapAccommodationOption);
+}
+
+async function listMemberAccommodationOptions(env, eventId, reservation = null) {
+  const options = await listAccommodationOptions(env, eventId, true);
+  const ownSnapshot = reservation ? mapAccommodationSnapshot(reservation) : null;
+  if (ownSnapshot && ["pending", "approved"].includes(reservation.status)) {
+    const ownOption = options.find(option => option.id === ownSnapshot.optionId && option.inventoryMode === "limited");
+    if (ownOption) {
+      ownOption.freeUnits = Math.min(ownOption.unitsTotal, ownOption.freeUnits + ownSnapshot.unitCount);
+      ownOption.soldOut = ownOption.freeUnits === 0;
+    }
+  }
+  return options;
+}
+
+function mapAccommodationOption(row) {
+  const limited = row.inventory_mode === "limited";
+  const total = Number(row.units_total || 0);
+  const blocked = Number(row.blocked_units || 0);
+  const free = limited ? Math.max(0, total - blocked) : null;
+  return {
+    id: row.id,
+    eventId: row.event_id,
+    name: row.name,
+    kind: row.kind,
+    inventoryMode: row.inventory_mode,
+    unitsTotal: total,
+    blockedUnits: blocked,
+    freeUnits: free,
+    capacityPerUnit: Number(row.capacity_per_unit || 1),
+    unitPriceCzk: Number(row.unit_price_czk || 0),
+    personPriceCzk: Number(row.person_price_czk || 0),
+    beddingFeePerPersonCzk: Number(row.bedding_fee_per_person_czk || 0),
+    cityTaxPerPersonPerNightCzk: Number(row.city_tax_per_person_per_night_czk || 0),
+    active: !!row.active,
+    sortOrder: Number(row.sort_order || 0),
+    soldOut: limited && free === 0,
+  };
+}
+
+async function getAdminAccommodation(env, url, origin) {
+  const event = await getRequestedAdminEvent(env, url);
+  if (!event) return json({ ok: false, error: "event_not_found", message: "Event nebyl nalezen." }, 404, origin);
+  return json({ ok: true, event: publicAdminEvent(event), options: await listAccommodationOptions(env, event.id) }, 200, origin);
+}
+
+function readAccommodationConfig(body, current = null) {
+  const value = (key, fallback) => Object.prototype.hasOwnProperty.call(body, key) ? body[key] : fallback;
+  const config = {
+    name: clean(value("name", current?.name)).slice(0, 80),
+    kind: clean(value("kind", current?.kind)),
+    inventoryMode: clean(value("inventoryMode", current?.inventory_mode)),
+    unitsTotal: Number(value("unitsTotal", current?.units_total ?? 0)),
+    capacityPerUnit: Number(value("capacityPerUnit", current?.capacity_per_unit ?? 1)),
+    unitPriceCzk: Number(value("unitPriceCzk", current?.unit_price_czk ?? 0)),
+    personPriceCzk: Number(value("personPriceCzk", current?.person_price_czk ?? 0)),
+    beddingFeePerPersonCzk: Number(value("beddingFeePerPersonCzk", current?.bedding_fee_per_person_czk ?? 0)),
+    cityTaxPerPersonPerNightCzk: Number(value("cityTaxPerPersonPerNightCzk", current?.city_tax_per_person_per_night_czk ?? 0)),
+    active: value("active", current ? !!current.active : true) === true,
+    sortOrder: Number(value("sortOrder", current?.sort_order ?? 0)),
+  };
+  if (config.name.length < 2) return { error: "Název ubytování musí mít alespoň 2 znaky." };
+  if (!["cabin", "tent"].includes(config.kind)) return { error: "Vyber platný druh ubytování." };
+  if (!["limited", "unlimited"].includes(config.inventoryMode)) return { error: "Vyber platný režim kapacity." };
+  for (const key of ["unitsTotal", "capacityPerUnit", "unitPriceCzk", "personPriceCzk", "beddingFeePerPersonCzk", "cityTaxPerPersonPerNightCzk", "sortOrder"]) {
+    if (!Number.isInteger(config[key])) return { error: "Číselné hodnoty musí být celá čísla." };
+  }
+  if (config.unitsTotal < 0 || config.capacityPerUnit < 1 || config.capacityPerUnit > 8) return { error: "Kapacita jednotky musí být 1 až 8 osob a počet jednotek nesmí být záporný." };
+  if ([config.unitPriceCzk, config.personPriceCzk, config.beddingFeePerPersonCzk, config.cityTaxPerPersonPerNightCzk].some(amount => amount < 0)) return { error: "Ceny nesmí být záporné." };
+  return { config };
+}
+
+async function createAdminAccommodation(request, env, auth, origin) {
+  const parsed = await readJsonObject(request, origin);
+  if (parsed.response) return parsed.response;
+  const body = parsed.body;
+  const allowedKeys = new Set(["eventId", "name", "kind", "inventoryMode", "unitsTotal", "capacityPerUnit", "unitPriceCzk", "personPriceCzk", "beddingFeePerPersonCzk", "cityTaxPerPersonPerNightCzk", "active", "sortOrder"]);
+  if (Object.keys(body).some(key => !allowedKeys.has(key))) return json({ ok: false, error: "invalid_fields", message: "Požadavek obsahuje nepovolená pole." }, 400, origin);
+  const event = await getEventById(env, clean(body.eventId));
+  if (!event) return json({ ok: false, error: "event_not_found", message: "Event nebyl nalezen." }, 404, origin);
+  const result = readAccommodationConfig(body);
+  if (result.error) return json({ ok: false, error: "invalid_accommodation", message: result.error }, 400, origin);
+  const config = result.config;
+  const duplicate = await env.DB.prepare("SELECT id FROM event_accommodation_options WHERE event_id = ? AND name = ? COLLATE NOCASE LIMIT 1").bind(event.id, config.name).first();
+  if (duplicate) return json({ ok: false, error: "duplicate_accommodation", message: "Ubytování s tímto názvem už u eventu existuje." }, 409, origin);
+
+  const id = crypto.randomUUID();
+  const actionId = crypto.randomUUID();
+  const newState = JSON.stringify({ ...config, eventId: event.id });
+  await env.DB.batch([
+    env.DB.prepare(`
+      INSERT INTO event_accommodation_options (
+        id, event_id, name, kind, inventory_mode, units_total, capacity_per_unit,
+        unit_price_czk, person_price_czk, bedding_fee_per_person_czk,
+        city_tax_per_person_per_night_czk, active, sort_order
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).bind(id, event.id, config.name, config.kind, config.inventoryMode, config.unitsTotal, config.capacityPerUnit, config.unitPriceCzk, config.personPriceCzk, config.beddingFeePerPersonCzk, config.cityTaxPerPersonPerNightCzk, config.active ? 1 : 0, config.sortOrder),
+    env.DB.prepare(`
+      INSERT INTO admin_actions (id, admin_member_id, action_type, entity_type, entity_id, old_state_json, new_state_json, note, created_at)
+      VALUES (?, ?, 'accommodation_option_created', 'event_accommodation_option', ?, ?, ?, ?, CURRENT_TIMESTAMP)
+    `).bind(actionId, auth.uid, id, JSON.stringify(null), newState, config.name),
+  ]);
+  const option = (await listAccommodationOptions(env, event.id)).find(item => item.id === id);
+  return json({ ok: true, option }, 201, origin);
+}
+
+async function getBlockedAccommodationUnits(env, optionId) {
+  const row = await env.DB.prepare(`
+    SELECT COALESCE(SUM(ra.unit_count), 0) AS blocked_units
+    FROM reservation_accommodation ra
+    JOIN reservations r ON r.id = ra.reservation_id
+    WHERE ra.option_id = ? AND r.status IN ('pending', 'approved')
+  `).bind(optionId).first();
+  return Number(row?.blocked_units || 0);
+}
+
+async function patchAdminAccommodation(request, env, auth, optionId, origin) {
+  const parsed = await readJsonObject(request, origin);
+  if (parsed.response) return parsed.response;
+  const body = parsed.body;
+  const allowedKeys = new Set(["name", "kind", "inventoryMode", "unitsTotal", "capacityPerUnit", "unitPriceCzk", "personPriceCzk", "beddingFeePerPersonCzk", "cityTaxPerPersonPerNightCzk", "active", "sortOrder"]);
+  if (!Object.keys(body).length || Object.keys(body).some(key => !allowedKeys.has(key))) return json({ ok: false, error: "invalid_fields", message: "Požadavek obsahuje nepovolená pole." }, 400, origin);
+  const current = await env.DB.prepare("SELECT * FROM event_accommodation_options WHERE id = ? LIMIT 1").bind(optionId).first();
+  if (!current) return json({ ok: false, error: "accommodation_not_found", message: "Typ ubytování nebyl nalezen." }, 404, origin);
+  const result = readAccommodationConfig(body, current);
+  if (result.error) return json({ ok: false, error: "invalid_accommodation", message: result.error }, 400, origin);
+  const config = result.config;
+  const duplicate = await env.DB.prepare("SELECT id FROM event_accommodation_options WHERE event_id = ? AND name = ? COLLATE NOCASE AND id <> ? LIMIT 1").bind(current.event_id, config.name, optionId).first();
+  if (duplicate) return json({ ok: false, error: "duplicate_accommodation", message: "Ubytování s tímto názvem už u eventu existuje." }, 409, origin);
+  const blocked = await getBlockedAccommodationUnits(env, optionId);
+  if (config.inventoryMode === "limited" && config.unitsTotal < blocked) return accommodationCapacityConflict(config.name, origin, "Kapacitu nelze snížit pod počet aktuálně rezervovaných jednotek.");
+
+  const oldStateObject = accommodationState(current);
+  const newStateObject = { ...config, eventId: current.event_id };
+  if (JSON.stringify(oldStateObject) === JSON.stringify(newStateObject)) return json({ ok: true, unchanged: true, option: mapAccommodationOption({ ...current, blocked_units: blocked }) }, 200, origin);
+
+  const writeToken = createWriteToken();
+  const actionId = crypto.randomUUID();
+  const results = await env.DB.batch([
+    env.DB.prepare(`
+      UPDATE event_accommodation_options
+      SET name = ?, kind = ?, inventory_mode = ?, units_total = ?, capacity_per_unit = ?,
+          unit_price_czk = ?, person_price_czk = ?, bedding_fee_per_person_czk = ?,
+          city_tax_per_person_per_night_czk = ?, active = ?, sort_order = ?, updated_at = ?
+      WHERE id = ? AND (
+        ? <> 'limited' OR ? >= (
+          SELECT COALESCE(SUM(ra.unit_count), 0)
+          FROM reservation_accommodation ra
+          JOIN reservations r ON r.id = ra.reservation_id
+          WHERE ra.option_id = event_accommodation_options.id AND r.status IN ('pending', 'approved')
+        )
+      )
+    `).bind(config.name, config.kind, config.inventoryMode, config.unitsTotal, config.capacityPerUnit, config.unitPriceCzk, config.personPriceCzk, config.beddingFeePerPersonCzk, config.cityTaxPerPersonPerNightCzk, config.active ? 1 : 0, config.sortOrder, writeToken, optionId, config.inventoryMode, config.unitsTotal),
+    env.DB.prepare(`
+      INSERT INTO admin_actions (id, admin_member_id, action_type, entity_type, entity_id, old_state_json, new_state_json, note, created_at)
+      SELECT ?, ?, 'accommodation_option_changed', 'event_accommodation_option', ?, ?, ?, ?, CURRENT_TIMESTAMP
+      FROM event_accommodation_options WHERE id = ? AND updated_at = ?
+    `).bind(actionId, auth.uid, optionId, JSON.stringify(oldStateObject), JSON.stringify(newStateObject), config.name, optionId, writeToken),
+  ]);
+  if (!results[0]?.meta?.changes) return accommodationCapacityConflict(config.name, origin, "Kapacita se mezitím obsadila. Obnov data a zkus to znovu.");
+  const option = (await listAccommodationOptions(env, current.event_id)).find(item => item.id === optionId);
+  return json({ ok: true, option }, 200, origin);
+}
+
+function accommodationState(row) {
+  return {
+    name: row.name,
+    kind: row.kind,
+    inventoryMode: row.inventory_mode,
+    unitsTotal: Number(row.units_total || 0),
+    capacityPerUnit: Number(row.capacity_per_unit || 1),
+    unitPriceCzk: Number(row.unit_price_czk || 0),
+    personPriceCzk: Number(row.person_price_czk || 0),
+    beddingFeePerPersonCzk: Number(row.bedding_fee_per_person_czk || 0),
+    cityTaxPerPersonPerNightCzk: Number(row.city_tax_per_person_per_night_czk || 0),
+    active: !!row.active,
+    sortOrder: Number(row.sort_order || 0),
+    eventId: row.event_id,
+  };
+}
+
+async function patchAdminEvent(request, env, auth, eventId, origin) {
+  const parsed = await readJsonObject(request, origin);
+  if (parsed.response) return parsed.response;
+  const body = parsed.body;
+  const allowedKeys = new Set(["isCurrent", "registrationStatus", "reservationCapacity", "fullWeekendNights", "saturdayOnlyNights", "bookingCommitmentCzk", "bookingDueAt", "bookingPaidCzk"]);
+  if (!Object.keys(body).length || Object.keys(body).some(key => !allowedKeys.has(key))) return json({ ok: false, error: "invalid_fields", message: "Požadavek obsahuje nepovolená pole." }, 400, origin);
+  const current = await getEventById(env, eventId);
+  if (!current) return json({ ok: false, error: "event_not_found", message: "Event nebyl nalezen." }, 404, origin);
+
+  const next = {
+    isCurrent: Object.prototype.hasOwnProperty.call(body, "isCurrent") ? body.isCurrent === true : !!current.is_current,
+    registrationStatus: Object.prototype.hasOwnProperty.call(body, "registrationStatus") ? clean(body.registrationStatus) : current.registration_status,
+    reservationCapacity: Number(Object.prototype.hasOwnProperty.call(body, "reservationCapacity") ? body.reservationCapacity : current.reservation_capacity),
+    fullWeekendNights: Number(Object.prototype.hasOwnProperty.call(body, "fullWeekendNights") ? body.fullWeekendNights : current.full_weekend_nights),
+    saturdayOnlyNights: Number(Object.prototype.hasOwnProperty.call(body, "saturdayOnlyNights") ? body.saturdayOnlyNights : current.saturday_only_nights),
+    bookingCommitmentCzk: Number(Object.prototype.hasOwnProperty.call(body, "bookingCommitmentCzk") ? body.bookingCommitmentCzk : current.booking_commitment_czk),
+    bookingDueAt: Object.prototype.hasOwnProperty.call(body, "bookingDueAt") ? clean(body.bookingDueAt) || null : current.booking_due_at || null,
+    bookingPaidCzk: Number(Object.prototype.hasOwnProperty.call(body, "bookingPaidCzk") ? body.bookingPaidCzk : current.booking_paid_czk),
+  };
+  if (Object.prototype.hasOwnProperty.call(body, "isCurrent") && body.isCurrent !== true) return json({ ok: false, error: "invalid_current_event", message: "Aktuální event lze pouze přepnout na jiný event." }, 400, origin);
+  if (!["open", "closed"].includes(next.registrationStatus)) return json({ ok: false, error: "invalid_registration_status", message: "Stav rezervací musí být open nebo closed." }, 400, origin);
+  for (const key of ["reservationCapacity", "fullWeekendNights", "saturdayOnlyNights", "bookingCommitmentCzk", "bookingPaidCzk"]) {
+    if (!Number.isInteger(next[key]) || next[key] < 0) return json({ ok: false, error: "invalid_event_value", message: "Číselné hodnoty eventu musí být nezáporná celá čísla." }, 400, origin);
+  }
+  if (next.fullWeekendNights > 14 || next.saturdayOnlyNights > 14) return json({ ok: false, error: "invalid_nights", message: "Počet nocí musí být 0 až 14." }, 400, origin);
+  if (next.bookingDueAt && !/^\d{4}-\d{2}-\d{2}$/.test(next.bookingDueAt)) return json({ ok: false, error: "invalid_booking_due_at", message: "Splatnost musí být ve formátu RRRR-MM-DD." }, 400, origin);
+
+  const oldState = eventState(current);
+  if (JSON.stringify(oldState) === JSON.stringify(next)) return json({ ok: true, unchanged: true, event: publicAdminEvent(current) }, 200, origin);
+  const statements = [];
+  if (next.isCurrent && !current.is_current) statements.push(env.DB.prepare("UPDATE events SET is_current = 0 WHERE is_current = 1"));
+  statements.push(env.DB.prepare(`
+    UPDATE events
+    SET is_current = ?, registration_status = ?, reservation_capacity = ?,
+        full_weekend_nights = ?, saturday_only_nights = ?,
+        booking_commitment_czk = ?, booking_due_at = ?, booking_paid_czk = ?
+    WHERE id = ?
+  `).bind(next.isCurrent ? 1 : 0, next.registrationStatus, next.reservationCapacity, next.fullWeekendNights, next.saturdayOnlyNights, next.bookingCommitmentCzk, next.bookingDueAt, next.bookingPaidCzk, eventId));
+  statements.push(env.DB.prepare(`
+    INSERT INTO admin_actions (id, admin_member_id, action_type, entity_type, entity_id, old_state_json, new_state_json, note, created_at)
+    VALUES (?, ?, 'event_settings_changed', 'event', ?, ?, ?, ?, CURRENT_TIMESTAMP)
+  `).bind(crypto.randomUUID(), auth.uid, eventId, JSON.stringify(oldState), JSON.stringify(next), next.isCurrent && !current.is_current ? "Nastaven aktuální event" : null));
+  const results = await env.DB.batch(statements);
+  const updateResult = results[next.isCurrent && !current.is_current ? 1 : 0];
+  if (!updateResult?.meta?.changes) throw new Error("Event was not updated");
+  return json({ ok: true, event: publicAdminEvent(await getEventById(env, eventId)) }, 200, origin);
+}
+
+function eventState(row) {
+  return {
+    isCurrent: !!row.is_current,
+    registrationStatus: row.registration_status || "closed",
+    reservationCapacity: Number(row.reservation_capacity || 0),
+    fullWeekendNights: Number(row.full_weekend_nights ?? 2),
+    saturdayOnlyNights: Number(row.saturday_only_nights ?? 1),
+    bookingCommitmentCzk: Number(row.booking_commitment_czk || 0),
+    bookingDueAt: row.booking_due_at || null,
+    bookingPaidCzk: Number(row.booking_paid_czk || 0),
   };
 }
 
@@ -337,33 +697,61 @@ async function patchAdminReservation(request, env, auth, reservationId, origin) 
   }
 
   const reservation = await env.DB.prepare(`
-    SELECT id, status, review_note
-    FROM reservations
-    WHERE id = ?
+    SELECT r.id, r.status, r.review_note, ra.option_name
+    FROM reservations r
+    LEFT JOIN reservation_accommodation ra ON ra.reservation_id = r.id
+    WHERE r.id = ?
     LIMIT 1
   `).bind(reservationId).first();
   if (!reservation) return json({ ok: false, error: "reservation_not_found", message: "Rezervace nebyla nalezena." }, 404, origin);
 
-  const oldState = JSON.stringify({ status: reservation.status, reviewNote: reservation.review_note || "" });
+  const currentReviewNote = reservation.review_note || "";
+  if (reservation.status === status && currentReviewNote === reviewNote) {
+    return json({ ok: true, unchanged: true, reservation: { id: reservationId, status, reviewNote } }, 200, origin);
+  }
+
+  const oldState = JSON.stringify({ status: reservation.status, reviewNote: currentReviewNote });
   const newState = JSON.stringify({ status, reviewNote });
   const actionId = crypto.randomUUID();
+  const writeToken = createWriteToken();
+  const requiresCapacityCheck = !["pending", "approved"].includes(reservation.status) && ["pending", "approved"].includes(status);
 
   const results = await env.DB.batch([
     env.DB.prepare(`
       UPDATE reservations
-      SET status = ?, review_note = ?, reviewed_by = ?, reviewed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
-      WHERE id = ?
-    `).bind(status, reviewNote || null, auth.uid, reservationId),
+      SET status = ?, review_note = ?, reviewed_by = ?, reviewed_at = CURRENT_TIMESTAMP, updated_at = ?
+      WHERE id = ? AND (
+        ? = 0 OR NOT EXISTS (
+          SELECT 1
+          FROM reservation_accommodation own_allocation
+          JOIN event_accommodation_options option ON option.id = own_allocation.option_id
+          WHERE own_allocation.reservation_id = reservations.id
+            AND option.inventory_mode = 'limited'
+            AND option.units_total < own_allocation.unit_count + (
+              SELECT COALESCE(SUM(other_allocation.unit_count), 0)
+              FROM reservation_accommodation other_allocation
+              JOIN reservations other_reservation ON other_reservation.id = other_allocation.reservation_id
+              WHERE other_allocation.option_id = own_allocation.option_id
+                AND other_reservation.status IN ('pending', 'approved')
+                AND other_reservation.id <> reservations.id
+            )
+        )
+      )
+    `).bind(status, reviewNote || null, auth.uid, writeToken, reservationId, requiresCapacityCheck ? 1 : 0),
     env.DB.prepare(`
       INSERT INTO admin_actions (
         id, admin_member_id, action_type, entity_type, entity_id,
-        old_state_json, new_state_json, note
+        old_state_json, new_state_json, note, created_at
       )
-      VALUES (?, ?, 'reservation_status_changed', 'reservation', ?, ?, ?, ?)
-    `).bind(actionId, auth.uid, reservationId, oldState, newState, reviewNote || null),
+      SELECT ?, ?, 'reservation_status_changed', 'reservation', ?, ?, ?, ?, CURRENT_TIMESTAMP
+      FROM reservations WHERE id = ? AND updated_at = ?
+    `).bind(actionId, auth.uid, reservationId, oldState, newState, reviewNote || null, reservationId, writeToken),
   ]);
 
-  if (!results[0]?.meta?.changes) throw new Error("Reservation was not updated");
+  if (!results[0]?.meta?.changes) {
+    if (requiresCapacityCheck) return accommodationCapacityConflict(reservation.option_name || "Vybrané ubytování", origin);
+    throw new Error("Reservation was not updated");
+  }
 
   return json({
     ok: true,
@@ -532,27 +920,35 @@ async function getMember(env, auth, origin) {
   return json({ ok: true, authenticated: true, profileExists: true, member: publicMember(member) }, 200, origin);
 }
 
-async function getOpenEvent(env) {
-  return await env.DB.prepare(`
-    SELECT id, registration_status
-    FROM events
-    WHERE registration_status = 'open'
-    ORDER BY year DESC
-    LIMIT 1
-  `).first();
-}
-
 async function findCurrentReservation(env, memberId, eventId) {
   return await env.DB.prepare(`
     SELECT
-      id, member_id, event_id, car_id,
-      car_model, car_body, car_year, car_color, car_nickname,
-      arrival, crew, accommodation, show_shine, note, status,
-      attendance_type, accommodation_units,
-      amount_due_czk, amount_paid_czk, payment_status,
-      paid_at, submitted_at, created_at, updated_at
-    FROM reservations
-    WHERE member_id = ? AND event_id = ?
+      r.id, r.member_id, r.event_id, r.car_id,
+      r.car_model, r.car_body, r.car_year, r.car_color, r.car_nickname,
+      r.arrival, r.crew, r.accommodation, r.show_shine, r.note, r.status,
+      r.attendance_type, r.accommodation_units,
+      r.amount_due_czk, r.amount_paid_czk, r.payment_status,
+      r.paid_at, r.submitted_at, r.created_at, r.updated_at,
+      e.year AS event_year, e.registration_status AS event_registration_status,
+      ra.option_id AS accommodation_option_id,
+      ra.option_name AS accommodation_option_name,
+      ra.kind AS accommodation_option_kind,
+      ra.people_count AS accommodation_people_count,
+      ra.unit_count AS accommodation_unit_count,
+      ra.unit_price_czk AS accommodation_unit_price_czk,
+      ra.person_price_czk AS accommodation_person_price_czk,
+      ra.bedding_fee_per_person_czk AS accommodation_bedding_fee_czk,
+      ra.city_tax_per_person_per_night_czk AS accommodation_city_tax_czk,
+      ra.nights AS accommodation_nights,
+      ra.base_total_czk AS accommodation_base_total_czk,
+      ra.person_total_czk AS accommodation_person_total_czk,
+      ra.bedding_total_czk AS accommodation_bedding_total_czk,
+      ra.city_tax_total_czk AS accommodation_city_tax_total_czk,
+      ra.total_czk AS accommodation_total_czk
+    FROM reservations r
+    JOIN events e ON e.id = r.event_id
+    LEFT JOIN reservation_accommodation ra ON ra.reservation_id = r.id
+    WHERE r.member_id = ? AND r.event_id = ?
     LIMIT 1
   `).bind(memberId, eventId).first();
 }
@@ -566,9 +962,25 @@ async function findLatestReservation(env, memberId) {
       r.attendance_type, r.accommodation_units,
       r.amount_due_czk, r.amount_paid_czk, r.payment_status,
       r.paid_at, r.submitted_at, r.created_at, r.updated_at,
-      e.registration_status AS event_registration_status
+      e.year AS event_year, e.registration_status AS event_registration_status,
+      ra.option_id AS accommodation_option_id,
+      ra.option_name AS accommodation_option_name,
+      ra.kind AS accommodation_option_kind,
+      ra.people_count AS accommodation_people_count,
+      ra.unit_count AS accommodation_unit_count,
+      ra.unit_price_czk AS accommodation_unit_price_czk,
+      ra.person_price_czk AS accommodation_person_price_czk,
+      ra.bedding_fee_per_person_czk AS accommodation_bedding_fee_czk,
+      ra.city_tax_per_person_per_night_czk AS accommodation_city_tax_czk,
+      ra.nights AS accommodation_nights,
+      ra.base_total_czk AS accommodation_base_total_czk,
+      ra.person_total_czk AS accommodation_person_total_czk,
+      ra.bedding_total_czk AS accommodation_bedding_total_czk,
+      ra.city_tax_total_czk AS accommodation_city_tax_total_czk,
+      ra.total_czk AS accommodation_total_czk
     FROM reservations r
     JOIN events e ON e.id = r.event_id
+    LEFT JOIN reservation_accommodation ra ON ra.reservation_id = r.id
     WHERE r.member_id = ?
     ORDER BY e.year DESC
     LIMIT 1
@@ -576,33 +988,36 @@ async function findLatestReservation(env, memberId) {
 }
 
 async function getCurrentReservation(env, auth, origin) {
-  const event = await getOpenEvent(env);
+  const event = await getCurrentEvent(env);
   if (!event) {
     const reservation = await findLatestReservation(env, auth.uid);
     return json({
       ok: true,
       registrationOpen: false,
       event: reservation ? { id: reservation.event_id, registrationStatus: reservation.event_registration_status } : null,
+      accommodationOptions: [],
       reservation: reservation ? publicReservation(reservation) : null,
       message: reservation ? "Registrace je uzavřená. Zobrazuje se poslední uložená rezervace." : "Registrace na žádný event aktuálně není otevřená.",
     }, 200, origin);
   }
 
   const reservation = await findCurrentReservation(env, auth.uid, event.id);
+  const options = await listMemberAccommodationOptions(env, event.id, reservation);
   return json({
     ok: true,
-    registrationOpen: true,
-    event: { id: event.id, registrationStatus: event.registration_status },
+    registrationOpen: event.registration_status === "open",
+    event: publicMemberEvent(event),
+    accommodationOptions: options,
     reservation: reservation ? publicReservation(reservation) : null,
-    message: reservation ? "Rezervace byla načtena." : "Registrace je otevřená, ale zatím nemáš rezervaci.",
+    message: reservation
+      ? (event.registration_status === "open" ? "Rezervace byla načtena." : "Rezervace je uložená, ale rezervace pro event jsou uzavřené.")
+      : (event.registration_status === "open" ? "Rezervace jsou otevřené, ale zatím nemáš rezervaci." : "Rezervace na tento event zatím nejsou otevřené."),
   }, 200, origin);
 }
 
 async function putCurrentReservation(request, env, auth, origin) {
-  const event = await getOpenEvent(env);
-  if (!event) {
-    return json({ ok: false, error: "registration_closed", message: "Registrace na žádný event aktuálně není otevřená." }, 409, origin);
-  }
+  const event = await getCurrentEvent(env);
+  if (!event || event.registration_status !== "open") return json({ ok: false, error: "registration_closed", message: "Rezervace na aktuální event nejsou otevřené." }, 409, origin);
 
   let body = {};
   try {
@@ -613,20 +1028,24 @@ async function putCurrentReservation(request, env, auth, origin) {
 
   const carId = clean(body.carId);
   const arrival = clean(body.arrival);
-  const accommodation = arrival === "Jen na otočku" ? "Bez ubytování" : clean(body.accommodation);
   const showShine = clean(body.showShine);
   const note = clean(body.note).slice(0, 1000);
   const crew = Number(body.crew);
-  const attendanceType = clean(body.attendanceType);
-  const accommodationUnits = accommodation === "Bez ubytování" || attendanceType === "day_visit" ? 0 : body.accommodationUnits;
+  const requestedAccommodation = clean(body.accommodation);
+  const accommodationOptionId = clean(body.accommodationOptionId);
+  const arrivalTypes = { "Pátek": "full_weekend", "Sobota": "saturday_only", "Jen na otočku": "day_visit" };
+  const attendanceType = arrivalTypes[arrival] || "";
+  const wantsAccommodation = attendanceType !== "day_visit" && requestedAccommodation !== "Bez ubytování";
+  const accommodationUnits = wantsAccommodation ? Number(body.accommodationUnits) : 0;
 
   if (!carId) return json({ ok: false, error: "car_required", message: "Vyber auto z garáže." }, 400, origin);
   if (!["Pátek", "Sobota", "Jen na otočku"].includes(arrival)) return json({ ok: false, error: "invalid_arrival", message: "Vyber platný příjezd." }, 400, origin);
-  if (!["Chatka", "Stan", "Bez ubytování"].includes(accommodation)) return json({ ok: false, error: "invalid_accommodation", message: "Vyber platné ubytování." }, 400, origin);
+  if (!["Chatka", "Stan", "Bez ubytování"].includes(requestedAccommodation)) return json({ ok: false, error: "invalid_accommodation", message: "Vyber platné ubytování." }, 400, origin);
   if (!["Ne", "Možná", "Ano"].includes(showShine)) return json({ ok: false, error: "invalid_show_shine", message: "Vyber platnou možnost Show & Shine." }, 400, origin);
   if (!Number.isInteger(crew) || crew < 1 || crew > 8) return json({ ok: false, error: "invalid_crew", message: "Posádka musí mít 1 až 8 osob." }, 400, origin);
-  if (!["full_weekend", "saturday_only", "day_visit"].includes(attendanceType)) return json({ ok: false, error: "invalid_attendance_type", message: "Vyber platný typ účasti." }, 400, origin);
-  if (!Number.isInteger(accommodationUnits) || accommodationUnits < 0 || accommodationUnits > crew) return json({ ok: false, error: "invalid_accommodation_units", message: "Počet ubytovacích míst musí být celé číslo od 0 do počtu členů posádky." }, 400, origin);
+  if (!attendanceType) return json({ ok: false, error: "invalid_attendance_type", message: "Vyber platný typ účasti." }, 400, origin);
+  if (!Number.isInteger(accommodationUnits) || accommodationUnits < (wantsAccommodation ? 1 : 0) || accommodationUnits > crew) return json({ ok: false, error: "invalid_accommodation_units", message: "Počet ubytovaných musí být celé číslo od 1 do počtu členů posádky." }, 400, origin);
+  if (wantsAccommodation && !accommodationOptionId) return json({ ok: false, error: "accommodation_option_required", message: "Vyber konkrétní typ ubytování." }, 400, origin);
 
   const member = await env.DB.prepare("SELECT id FROM members WHERE id = ? LIMIT 1").bind(auth.uid).first();
   if (!member) return json({ ok: false, error: "member_profile_required", message: "Nejdřív dokonči členský profil." }, 409, origin);
@@ -639,19 +1058,63 @@ async function putCurrentReservation(request, env, auth, origin) {
   `).bind(carId, auth.uid).first();
   if (!car) return json({ ok: false, error: "car_not_found", message: "Vybrané auto nepatří přihlášenému účtu." }, 404, origin);
 
-  const reservationId = crypto.randomUUID();
+  let option = null;
+  let pricing = null;
+  let accommodation = "Bez ubytování";
+  if (wantsAccommodation) {
+    option = await env.DB.prepare(`
+      SELECT * FROM event_accommodation_options
+      WHERE id = ? AND event_id = ? AND active = 1
+      LIMIT 1
+    `).bind(accommodationOptionId, event.id).first();
+    if (!option) return json({ ok: false, error: "accommodation_option_not_found", message: "Vybrané ubytování už není dostupné." }, 409, origin);
+    const expectedKind = requestedAccommodation === "Chatka" ? "cabin" : "tent";
+    if (option.kind !== expectedKind) return json({ ok: false, error: "invalid_accommodation_option", message: "Vybraný typ neodpovídá zvolenému ubytování." }, 400, origin);
+    accommodation = option.kind === "cabin" ? "Chatka" : "Stan";
+    pricing = calculateAccommodationPricing(event, option, accommodationUnits, attendanceType);
+  }
 
-  const result = await env.DB.prepare(`
+  const existing = await env.DB.prepare("SELECT id FROM reservations WHERE member_id = ? AND event_id = ? LIMIT 1").bind(auth.uid, event.id).first();
+  const reservationId = existing?.id || crypto.randomUUID();
+  const writeToken = createWriteToken();
+  const amountDueCzk = pricing?.totalCzk || 0;
+  const reservationStatement = env.DB.prepare(`
     INSERT INTO reservations (
       id, member_id, event_id, car_id,
       car_model, car_body, car_year, car_color, car_nickname,
       arrival, crew, accommodation, show_shine, note,
       status, attendance_type, accommodation_units,
-      amount_due_czk, amount_paid_czk, payment_status, submitted_at
+      amount_due_czk, amount_paid_czk, payment_status, submitted_at, updated_at
     )
-    SELECT ?, ?, events.id, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, 0, 0, 'unpaid', CURRENT_TIMESTAMP
+    SELECT ?, ?, events.id, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, 0, 'unpaid', CURRENT_TIMESTAMP, ?
     FROM events
-    WHERE events.id = ? AND events.registration_status = 'open'
+    ${option ? "JOIN event_accommodation_options selected_option ON selected_option.id = ?" : ""}
+    WHERE events.id = ?
+      AND (events.is_current = 1 OR NOT EXISTS (SELECT 1 FROM events current_event WHERE current_event.is_current = 1))
+      AND events.registration_status = 'open'
+      ${option ? `AND selected_option.event_id = events.id AND selected_option.active = 1
+        AND selected_option.name = ?
+        AND selected_option.kind = ?
+        AND events.full_weekend_nights = ?
+        AND events.saturday_only_nights = ?
+        AND selected_option.inventory_mode = ?
+        AND selected_option.units_total = ?
+        AND selected_option.capacity_per_unit = ?
+        AND selected_option.unit_price_czk = ?
+        AND selected_option.person_price_czk = ?
+        AND selected_option.bedding_fee_per_person_czk = ?
+        AND selected_option.city_tax_per_person_per_night_czk = ?
+        AND (
+          selected_option.inventory_mode = 'unlimited' OR
+          selected_option.units_total >= ? + (
+            SELECT COALESCE(SUM(other_allocation.unit_count), 0)
+            FROM reservation_accommodation other_allocation
+            JOIN reservations other_reservation ON other_reservation.id = other_allocation.reservation_id
+            WHERE other_allocation.option_id = selected_option.id
+              AND other_reservation.status IN ('pending', 'approved')
+              AND NOT (other_reservation.member_id = ? AND other_reservation.event_id = events.id)
+          )
+        )` : ""}
     ON CONFLICT(member_id, event_id) DO UPDATE SET
       car_id = excluded.car_id,
       car_model = excluded.car_model,
@@ -667,18 +1130,68 @@ async function putCurrentReservation(request, env, auth, origin) {
       status = 'pending',
       attendance_type = excluded.attendance_type,
       accommodation_units = excluded.accommodation_units,
+      amount_due_czk = excluded.amount_due_czk,
       submitted_at = CURRENT_TIMESTAMP,
-      updated_at = CURRENT_TIMESTAMP
-  `).bind(
+      updated_at = excluded.updated_at
+  `);
+  const baseBindings = [
     reservationId, auth.uid, car.id,
     car.model, car.body, car.year || null, car.color || null, car.nickname || null,
     arrival, crew, accommodation, showShine, note || null,
-    attendanceType, accommodationUnits,
-    event.id,
-  ).run();
-
-  if (!result.meta?.changes) {
-    return json({ ok: false, error: "registration_closed", message: "Registrace byla mezitím uzavřena. Rezervace nebyla uložena." }, 409, origin);
+    attendanceType, accommodationUnits, amountDueCzk, writeToken,
+  ];
+  const optionBindings = option ? [option.id] : [];
+  const conditionBindings = option ? [
+    option.name, option.kind,
+    Number(event.full_weekend_nights ?? 2), Number(event.saturday_only_nights ?? 1),
+    option.inventory_mode, Number(option.units_total || 0), Number(option.capacity_per_unit),
+    Number(option.unit_price_czk || 0), Number(option.person_price_czk || 0),
+    Number(option.bedding_fee_per_person_czk || 0), Number(option.city_tax_per_person_per_night_czk || 0),
+    pricing.unitCount, auth.uid,
+  ] : [];
+  const statements = [reservationStatement.bind(...baseBindings, ...optionBindings, event.id, ...conditionBindings)];
+  if (option) {
+    statements.push(env.DB.prepare(`
+      INSERT INTO reservation_accommodation (
+        reservation_id, option_id, option_name, kind, people_count, unit_count,
+        unit_price_czk, person_price_czk, bedding_fee_per_person_czk,
+        city_tax_per_person_per_night_czk, nights,
+        base_total_czk, person_total_czk, bedding_total_czk, city_tax_total_czk, total_czk,
+        updated_at
+      )
+      SELECT current_reservation.id, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+      FROM reservations current_reservation
+      WHERE current_reservation.member_id = ? AND current_reservation.event_id = ? AND current_reservation.updated_at = ?
+      ON CONFLICT(reservation_id) DO UPDATE SET
+        option_id = excluded.option_id,
+        option_name = excluded.option_name,
+        kind = excluded.kind,
+        people_count = excluded.people_count,
+        unit_count = excluded.unit_count,
+        unit_price_czk = excluded.unit_price_czk,
+        person_price_czk = excluded.person_price_czk,
+        bedding_fee_per_person_czk = excluded.bedding_fee_per_person_czk,
+        city_tax_per_person_per_night_czk = excluded.city_tax_per_person_per_night_czk,
+        nights = excluded.nights,
+        base_total_czk = excluded.base_total_czk,
+        person_total_czk = excluded.person_total_czk,
+        bedding_total_czk = excluded.bedding_total_czk,
+        city_tax_total_czk = excluded.city_tax_total_czk,
+        total_czk = excluded.total_czk,
+        updated_at = excluded.updated_at
+    `).bind(option.id, option.name, option.kind, accommodationUnits, pricing.unitCount, pricing.unitPriceCzk, pricing.personPriceCzk, pricing.beddingFeePerPersonCzk, pricing.cityTaxPerPersonPerNightCzk, pricing.nights, pricing.baseTotalCzk, pricing.personTotalCzk, pricing.beddingTotalCzk, pricing.cityTaxTotalCzk, pricing.totalCzk, writeToken, auth.uid, event.id, writeToken));
+  } else {
+    statements.push(env.DB.prepare(`
+      DELETE FROM reservation_accommodation
+      WHERE reservation_id = (
+        SELECT id FROM reservations WHERE member_id = ? AND event_id = ? AND updated_at = ?
+      )
+    `).bind(auth.uid, event.id, writeToken));
+  }
+  const results = await env.DB.batch(statements);
+  if (!results[0]?.meta?.changes) {
+    if (option) return accommodationCapacityConflict(option.name, origin);
+    return json({ ok: false, error: "registration_closed", message: "Rezervace byly mezitím uzavřeny. Rezervace nebyla uložena." }, 409, origin);
   }
 
   const reservation = await findCurrentReservation(env, auth.uid, event.id);
@@ -687,7 +1200,8 @@ async function putCurrentReservation(request, env, auth, origin) {
   return json({
     ok: true,
     registrationOpen: true,
-    event: { id: event.id, registrationStatus: event.registration_status },
+    event: publicMemberEvent(event),
+    accommodationOptions: await listMemberAccommodationOptions(env, event.id, reservation),
     reservation: publicReservation(reservation),
     message: "Rezervace byla uložena a čeká na schválení.",
   }, 200, origin);
@@ -988,6 +1502,7 @@ function publicReservation(reservation) {
   return {
     id: reservation.id,
     eventId: reservation.event_id,
+    eventYear: Number(reservation.event_year || 0),
     carId: reservation.car_id,
     carSnapshot: {
       id: reservation.car_id,
@@ -1005,6 +1520,7 @@ function publicReservation(reservation) {
     status: reservation.status || "pending",
     attendanceType: reservation.attendance_type || "",
     accommodationUnits: Number(reservation.accommodation_units || 0),
+    accommodationSnapshot: mapAccommodationSnapshot(reservation),
     amountDueCzk: Number(reservation.amount_due_czk || 0),
     amountPaidCzk: Number(reservation.amount_paid_czk || 0),
     paymentStatus: reservation.payment_status || "unpaid",
@@ -1013,6 +1529,88 @@ function publicReservation(reservation) {
     createdAt: reservation.created_at || null,
     updatedAt: reservation.updated_at || null,
   };
+}
+
+function mapAccommodationSnapshot(row) {
+  if (!row?.accommodation_option_id) return null;
+  return {
+    optionId: row.accommodation_option_id,
+    optionName: row.accommodation_option_name || "",
+    kind: row.accommodation_option_kind || "",
+    peopleCount: Number(row.accommodation_people_count || 0),
+    unitCount: Number(row.accommodation_unit_count || 0),
+    unitPriceCzk: Number(row.accommodation_unit_price_czk || 0),
+    personPriceCzk: Number(row.accommodation_person_price_czk || 0),
+    beddingFeePerPersonCzk: Number(row.accommodation_bedding_fee_czk || 0),
+    cityTaxPerPersonPerNightCzk: Number(row.accommodation_city_tax_czk || 0),
+    nights: Number(row.accommodation_nights || 0),
+    baseTotalCzk: Number(row.accommodation_base_total_czk || 0),
+    personTotalCzk: Number(row.accommodation_person_total_czk || 0),
+    beddingTotalCzk: Number(row.accommodation_bedding_total_czk || 0),
+    cityTaxTotalCzk: Number(row.accommodation_city_tax_total_czk || 0),
+    totalCzk: Number(row.accommodation_total_czk || 0),
+  };
+}
+
+function publicMemberEvent(event) {
+  return {
+    id: event.id,
+    year: Number(event.year || 0),
+    registrationStatus: event.registration_status || "closed",
+    fullWeekendNights: Number(event.full_weekend_nights ?? 2),
+    saturdayOnlyNights: Number(event.saturday_only_nights ?? 1),
+  };
+}
+
+function calculateAccommodationPricing(event, option, peopleCount, attendanceType) {
+  const capacityPerUnit = Math.max(1, Number(option.capacity_per_unit || 1));
+  const unitCount = Math.ceil(peopleCount / capacityPerUnit);
+  const nights = attendanceType === "full_weekend"
+    ? Number(event.full_weekend_nights ?? 2)
+    : attendanceType === "saturday_only" ? Number(event.saturday_only_nights ?? 1) : 0;
+  const unitPriceCzk = Number(option.unit_price_czk || 0);
+  const personPriceCzk = Number(option.person_price_czk || 0);
+  const beddingFeePerPersonCzk = Number(option.bedding_fee_per_person_czk || 0);
+  const cityTaxPerPersonPerNightCzk = Number(option.city_tax_per_person_per_night_czk || 0);
+  const baseTotalCzk = unitCount * unitPriceCzk;
+  const personTotalCzk = peopleCount * personPriceCzk;
+  const beddingTotalCzk = peopleCount * beddingFeePerPersonCzk;
+  const cityTaxTotalCzk = peopleCount * nights * cityTaxPerPersonPerNightCzk;
+  return {
+    unitCount,
+    nights,
+    unitPriceCzk,
+    personPriceCzk,
+    beddingFeePerPersonCzk,
+    cityTaxPerPersonPerNightCzk,
+    baseTotalCzk,
+    personTotalCzk,
+    beddingTotalCzk,
+    cityTaxTotalCzk,
+    totalCzk: baseTotalCzk + personTotalCzk + beddingTotalCzk + cityTaxTotalCzk,
+  };
+}
+
+function accommodationCapacityConflict(name, origin, message = "") {
+  return json({
+    ok: false,
+    error: "accommodation_capacity_exceeded",
+    message: message || `${name} už bohužel nemá dost volné kapacity pro tvoji posádku. Vyber jinou možnost.`,
+  }, 409, origin);
+}
+
+async function readJsonObject(request, origin) {
+  try {
+    const body = await request.json();
+    if (!body || typeof body !== "object" || Array.isArray(body)) throw new Error("Invalid JSON object");
+    return { body };
+  } catch {
+    return { response: json({ ok: false, error: "invalid_json", message: "Požadavek nemá platný JSON." }, 400, origin) };
+  }
+}
+
+function createWriteToken() {
+  return `${new Date().toISOString()}-${crypto.randomUUID()}`;
 }
 
 function decodeBase64UrlText(value) { return new TextDecoder().decode(decodeBase64UrlBytes(value)); }

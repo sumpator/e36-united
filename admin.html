@@ -7,7 +7,7 @@
   <meta content="#090a0c" name="theme-color"/>
   <title>United Admin | E36 United</title>
   <link href="styles.css?v=20260823-admin1" rel="stylesheet"/>
-  <link href="admin.css?v=20260823-gallery1" rel="stylesheet"/>
+  <link href="admin.css?v=20260823-event1" rel="stylesheet"/>
 </head>
 <body class="admin-page">
   <header class="site-header scrolled admin-header">
@@ -44,6 +44,7 @@
       <div class="admin-hero">
         <div class="container admin-hero-inner">
           <div><span class="admin-kicker">UNITED CONTROL ROOM</span><h1>Event <em data-event-year>—</em></h1><p data-event-state>Načítám aktuální přehled…</p></div>
+          <label class="admin-event-selector"><span>ROČNÍK UNITED</span><select aria-label="Vybrat event" data-event-select></select></label>
           <div class="admin-hero-actions"><span data-admin-account></span><button class="admin-button" data-refresh>Obnovit data</button><button class="admin-button" data-logout>Odhlásit</button></div>
         </div>
       </div>
@@ -54,6 +55,8 @@
           <nav aria-label="Sekce United Admin" class="admin-section-nav">
             <button data-admin-jump="dashboard" type="button">Přehled</button>
             <button data-admin-jump="reservations" type="button">Rezervace <b data-reservation-nav-count>0</b></button>
+            <button data-admin-jump="accommodation" type="button">Ubytování</button>
+            <button data-admin-jump="settings" type="button">Nastavení</button>
             <button data-admin-jump="gallery" type="button">Fotky <b data-gallery-nav-count>0</b></button>
           </nav>
           <section class="admin-kpis" aria-label="Hlavní ukazatele">
@@ -97,6 +100,42 @@
             <div class="booking-gap"><span>United musí předfinancovat</span><strong data-booking-gap>0 Kč</strong></div>
           </section>
 
+          <section class="admin-event-accommodation" data-admin-section="accommodation">
+            <div class="admin-section-head"><div><span class="admin-kicker">EVENT ACCOMMODATION</span><h2>Ubytování a kapacity.</h2><p>Fyzické jednotky, jejich obsazenost a ceník vybraného ročníku.</p></div><span class="admin-count" data-accommodation-option-count>0 možností</span></div>
+            <div class="admin-accommodation-grid" data-accommodation-list></div>
+            <details class="admin-config-card admin-accommodation-create">
+              <summary>+ Přidat typ ubytování</summary>
+              <form class="admin-config-form" data-accommodation-create-form>
+                <label class="admin-field admin-field--wide"><span>Název</span><input maxlength="80" name="name" placeholder="Např. Chatka A" required/></label>
+                <label class="admin-field"><span>Druh</span><select name="kind"><option value="cabin">Chatka</option><option value="tent">Stan</option></select></label>
+                <label class="admin-field"><span>Kapacita</span><select name="inventoryMode"><option value="limited">Omezená</option><option value="unlimited">Bez omezení</option></select></label>
+                <label class="admin-field"><span>Počet jednotek</span><input min="0" name="unitsTotal" required type="number" value="0"/></label>
+                <label class="admin-field"><span>Max. osob / jednotku</span><input max="8" min="1" name="capacityPerUnit" required type="number" value="4"/></label>
+                <label class="admin-field"><span>Cena / jednotku (Kč)</span><input min="0" name="unitPriceCzk" required type="number" value="0"/></label>
+                <label class="admin-field"><span>Cena / osobu (Kč)</span><input min="0" name="personPriceCzk" required type="number" value="0"/></label>
+                <label class="admin-field"><span>Povlečení / osobu (Kč)</span><input min="0" name="beddingFeePerPersonCzk" required type="number" value="0"/></label>
+                <label class="admin-field"><span>Taxa / osobu / noc (Kč)</span><input min="0" name="cityTaxPerPersonPerNightCzk" required type="number" value="0"/></label>
+                <label class="admin-check"><input checked name="active" type="checkbox"/><span>Aktivní nabídka</span></label>
+                <button class="admin-button admin-button--primary" type="submit">Přidat ubytování <span>→</span></button>
+              </form>
+            </details>
+          </section>
+
+          <section class="admin-event-settings" data-admin-section="settings">
+            <div class="admin-section-head"><div><span class="admin-kicker">EVENT SETTINGS</span><h2>Nastavení eventu.</h2><p>Změny platí jen pro vybraný ročník a zapisují se do admin auditu.</p></div></div>
+            <form class="admin-config-card admin-config-form" data-event-settings-form>
+              <label class="admin-field"><span>Rezervace</span><select name="registrationStatus"><option value="open">Otevřené</option><option value="closed">Uzavřené</option></select></label>
+              <label class="admin-field"><span>Kapacita rezervací</span><input min="0" name="reservationCapacity" required type="number"/></label>
+              <label class="admin-field"><span>Nocí · full weekend</span><input max="14" min="0" name="fullWeekendNights" required type="number"/></label>
+              <label class="admin-field"><span>Nocí · sobota</span><input max="14" min="0" name="saturdayOnlyNights" required type="number"/></label>
+              <label class="admin-field"><span>Booking závazek (Kč)</span><input min="0" name="bookingCommitmentCzk" required type="number"/></label>
+              <label class="admin-field"><span>Splatnost závazku</span><input name="bookingDueAt" type="date"/></label>
+              <label class="admin-field"><span>Booking paid (Kč)</span><input min="0" name="bookingPaidCzk" required type="number"/></label>
+              <label class="admin-check admin-field--wide"><input name="isCurrent" type="checkbox"/><span>Použít jako aktuální event pro web a členské rezervace</span></label>
+              <button class="admin-button admin-button--primary" type="submit">Uložit nastavení <span>→</span></button>
+            </form>
+          </section>
+
           <section class="admin-reservations" data-admin-section="reservations">
             <div class="admin-section-head"><div><span class="admin-kicker">RESERVATIONS</span><h2>Rezervace členů.</h2></div><span class="admin-count" data-reservation-count>0 záznamů</span></div>
             <div aria-label="Filtrovat rezervace podle stavu" class="admin-reservation-tabs" data-reservation-tabs role="tablist">
@@ -131,6 +170,6 @@
     </div>
   </div>
   <div aria-live="polite" class="admin-toast" data-toast role="status"></div>
-  <script src="admin.js?v=20260823-admin-nav1" type="module"></script>
+  <script src="admin.js?v=20260823-event2" type="module"></script>
 </body>
 </html>

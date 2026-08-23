@@ -552,7 +552,9 @@ if (location.hash === '#venue-details-panel') openInfoPanel('venue-details-panel
 /* Weekend Builder + interactive United map */
 const planner = qs('[data-planner]');
 const unitedMap = qs('[data-united-map]');
-const plannerState = { arrival:'Pátek', sleep:'Chatka', accommodationUnits:2, people:2, showshine:'Jedu se podívat' };
+const plannerState = { arrival:'Pátek', sleep:'Chatka', accommodationOptionId:null, accommodationUnits:2, people:2, partialAccommodation:false, showshine:'Jedu se podívat' };
+let plannerEventData = null;
+let plannerAccommodationOptions = [];
 let updatePlanner = () => {};
 let setPlannerChoice = () => {};
 let memberPlannerMode = false;
@@ -579,13 +581,60 @@ const sleepTimelineStep = qs('[data-timeline-step="sleep"]', planner);
 const accommodationUnitsStep = qs('[data-accommodation-units-step]', planner);
 const accommodationUnitsEl = qs('[data-accommodation-units]', planner);
 const accommodationUnitsLabel = qs('[data-accommodation-units-label]', planner);
+const accommodationOptionStep = qs('[data-planner-accommodation-option-step]', planner);
+const accommodationOptionSelect = qs('[data-planner-accommodation-option]', planner);
+const accommodationOptionTitle = qs('[data-planner-accommodation-option-title]', planner);
+const accommodationAvailability = qs('[data-planner-accommodation-availability]', planner);
+const partialAccommodationStep = qs('[data-planner-partial-step]', planner);
+const partialAccommodationInput = qs('[data-planner-partial-accommodation]', planner);
+const plannerPricePreview = qs('[data-planner-price-preview]', planner);
 const plannerRecap = qs('[data-planner-recap]', planner);
 const plannerActionCopy = qs('.planner-actionbar-copy strong', planner);
 let lastOvernightSleep = plannerState.sleep;
-let accommodationUnitsTouched = false;
 
 const slug = (value, fallback) => value.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^A-Za-z]/g,'').slice(0,2).toUpperCase() || fallback;
 const personLabel = count => count === 1 ? 'osoba' : (count >= 2 && count <= 4 ? 'osoby' : 'osob');
+const plannerMoney = new Intl.NumberFormat('cs-CZ',{style:'currency',currency:'CZK',maximumFractionDigits:0});
+const plannerEscapeHtml = value => String(value||'').replace(/[&<>'"]/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[char]));
+const plannerAccommodationKind = () => plannerState.sleep === 'Chatka' ? 'cabin' : plannerState.sleep === 'Stan' ? 'tent' : null;
+const matchingPlannerAccommodation = () => plannerAccommodationOptions.filter(option => option.active && option.kind === plannerAccommodationKind());
+const selectedPlannerAccommodation = () => matchingPlannerAccommodation().find(option => option.id === plannerState.accommodationOptionId) || null;
+const plannerNights = () => plannerState.arrival === 'Pátek' ? Number(plannerEventData?.fullWeekendNights ?? 2) : plannerState.arrival === 'Sobota' ? Number(plannerEventData?.saturdayOnlyNights ?? 1) : 0;
+const plannerAccommodationPrice = option => {
+  const people=plannerState.accommodationUnits,unitCount=Math.ceil(people/Math.max(1,Number(option?.capacityPerUnit||1))),nights=plannerNights();
+  const base=unitCount*Number(option?.unitPriceCzk||0),person=people*Number(option?.personPriceCzk||0),bedding=people*Number(option?.beddingFeePerPersonCzk||0),cityTax=people*nights*Number(option?.cityTaxPerPersonPerNightCzk||0);
+  return {people,unitCount,nights,base,person,bedding,cityTax,total:base+person+bedding+cityTax};
+};
+const renderPlannerAccommodationOptions = (preferredId='') => {
+  if (!accommodationOptionSelect) return;
+  const options=matchingPlannerAccommodation(),previous=preferredId||plannerState.accommodationOptionId||'';
+  accommodationOptionSelect.innerHTML=(!options.length&&plannerEventData?'<option value="">Ubytování zatím není nastavené</option>':options.length>1?'<option value="">Vyber konkrétní možnost</option>':'')+options.map(option=>{
+    const availability=option.inventoryMode==='unlimited'?'bez omezení':option.soldOut?'VYPRODÁNO':`k dispozici: ${Number(option.freeUnits||0)}`;
+    const place=option.kind==='tent'?'jeden stan':'jednu chatku';
+    return `<option value="${plannerEscapeHtml(option.id)}" ${option.soldOut?'disabled':''}>${plannerEscapeHtml(option.name)} · max. ${Number(option.capacityPerUnit||1)} ${personLabel(Number(option.capacityPerUnit||1))} na ${place} · ${availability}</option>`;
+  }).join('');
+  const preferred=options.find(option=>option.id===previous&&!option.soldOut);
+  plannerState.accommodationOptionId=preferred?.id||(options.length===1&&!options[0].soldOut?options[0].id:null);
+  accommodationOptionSelect.value=plannerState.accommodationOptionId||'';
+  accommodationOptionSelect.disabled=!options.length;
+};
+const renderPlannerPrice = (needsAccommodation) => {
+  if (!plannerPricePreview || !accommodationAvailability) return;
+  const option=selectedPlannerAccommodation();
+  if (!needsAccommodation || !option) {
+    plannerPricePreview.hidden=true;plannerPricePreview.innerHTML='';
+    const matching=matchingPlannerAccommodation();accommodationAvailability.textContent=needsAccommodation&&matching.length?(matching.every(item=>item.soldOut)?'VYPRODÁNO · vyber jiný typ ubytování.':'Vyber konkrétní možnost.'):needsAccommodation&&plannerEventData?'Ubytování pro tento event zatím není nakonfigurované. Můžeš zvolit Bez ubytování.':'';
+    return;
+  }
+  const price=plannerAccommodationPrice(option),free=option.freeUnits,enough=option.inventoryMode==='unlimited'||Number(free)>=price.unitCount;
+  accommodationAvailability.classList.toggle('is-warning',!enough);
+  const place=option.kind==='tent'?'jeden stan':'jednu chatku';
+  const availabilityCopy=option.inventoryMode==='unlimited'?`Dostupné bez omezení · max. ${Number(option.capacityPerUnit||1)} ${personLabel(Number(option.capacityPerUnit||1))} na ${place}.`:!enough?'Pro tvoji posádku už není dostatek volné kapacity.':Number(free)===1?'Zbývá poslední volná možnost.':Number(free)===2?'Zbývají poslední 2 možnosti.':`Aktuálně k dispozici: ${free}.`;
+  accommodationAvailability.textContent=availabilityCopy;
+  const rows=[[`${price.unitCount}× ${option.name}`,price.base],['Poplatek za osoby',price.person],['Povlečení',price.bedding],[`Pobytová taxa · ${price.nights} ${price.nights===1?'noc':'noci'}`,price.cityTax]].filter(([,value])=>value>0);
+  plannerPricePreview.hidden=false;
+  plannerPricePreview.innerHTML=`<div class="planner-price-title"><span>${price.people} ${personLabel(price.people)} · ${price.unitCount}× ${plannerEscapeHtml(option.name)}</span><small>orientační cena</small></div>${rows.map(([label,value])=>`<div><span>${plannerEscapeHtml(label)}</span><b>${plannerMoney.format(value)}</b></div>`).join('')}<div class="planner-price-total"><strong>CELKEM</strong><b>${plannerMoney.format(price.total)}</b></div><small>${plannerEscapeHtml(availabilityCopy)} Cenu při rezervaci znovu ověříme podle aktuální dostupnosti.</small>`;
+};
 
 setPlannerChoice = (key, value) => {
 const group = qs(`[data-choice-group="${key}"]`, planner);
@@ -599,22 +648,24 @@ if (key === 'arrival') {
     if (plannerState.sleep !== 'Bez ubytování') lastOvernightSleep = plannerState.sleep;
     plannerState.sleep = 'Bez ubytování';
     plannerState.accommodationUnits = 0;
-    accommodationUnitsTouched = false;
+    plannerState.partialAccommodation = false;
+    plannerState.accommodationOptionId = null;
     qsa('.choice', sleepGroup || planner).forEach(c => c.classList.toggle('is-active', c.dataset.value === 'Bez ubytování'));
   } else if (wasDayPass && plannerState.sleep === 'Bez ubytování') {
     plannerState.sleep = lastOvernightSleep || 'Chatka';
     plannerState.accommodationUnits = plannerState.people;
-    accommodationUnitsTouched = false;
+    plannerState.partialAccommodation = false;
     qsa('.choice', sleepGroup || planner).forEach(c => c.classList.toggle('is-active', c.dataset.value === plannerState.sleep));
   }
 }
 if (key === 'sleep') {
   if (value !== 'Bez ubytování') {
-    if (plannerState.sleep === 'Bez ubytování') {plannerState.accommodationUnits = plannerState.people;accommodationUnitsTouched=false}
+    if (plannerState.sleep === 'Bez ubytování') {plannerState.accommodationUnits = plannerState.people;plannerState.partialAccommodation=false}
     lastOvernightSleep = value;
-  } else {plannerState.accommodationUnits = 0;accommodationUnitsTouched=false}
+  } else {plannerState.accommodationUnits = 0;plannerState.partialAccommodation=false}
 }
 plannerState[key] = value;
+if(key==='sleep'||key==='arrival')renderPlannerAccommodationOptions();
 updatePlanner();
 };
 
@@ -622,25 +673,33 @@ updatePlanner = () => {
 const dayPass = plannerState.arrival === 'Jen na otočku';
 if (dayPass) plannerState.sleep = 'Bez ubytování';
 const needsAccommodation = !dayPass && plannerState.sleep !== 'Bez ubytování';
-plannerState.accommodationUnits = needsAccommodation ? Math.max(1,Math.min(plannerState.people,Number(plannerState.accommodationUnits)||plannerState.people)) : 0;
+plannerState.partialAccommodation=needsAccommodation&&Boolean(partialAccommodationInput?.checked);
+plannerState.accommodationUnits = needsAccommodation ? (plannerState.partialAccommodation?Math.max(1,Math.min(plannerState.people,Number(plannerState.accommodationUnits)||plannerState.people)):plannerState.people) : 0;
 if (sleepStep) sleepStep.hidden = dayPass;
 if (sleepPreviewCard) sleepPreviewCard.hidden = dayPass;
 if (sleepTimelineStep) sleepTimelineStep.hidden = dayPass;
-if (accommodationUnitsStep) accommodationUnitsStep.hidden = !needsAccommodation;
+if (partialAccommodationStep) partialAccommodationStep.hidden = !needsAccommodation;
+if (accommodationUnitsStep) accommodationUnitsStep.hidden = !plannerState.partialAccommodation;
+const plannerOptions=matchingPlannerAccommodation(),singleUsablePlannerOption=plannerOptions.length===1&&!plannerOptions[0].soldOut;
+if (accommodationOptionStep) accommodationOptionStep.hidden = !needsAccommodation || singleUsablePlannerOption || (!plannerEventData && !plannerAccommodationOptions.length);
+if (accommodationOptionTitle) accommodationOptionTitle.textContent=plannerState.sleep==='Chatka'?'Typ chatky':'Typ stanu';
+if (partialAccommodationInput) partialAccommodationInput.checked=plannerState.partialAccommodation;
 if (unitedMap) unitedMap.classList.toggle('is-day-pass', dayPass);
 if (plannerActionCopy) plannerActionCopy.textContent = memberPlannerMode ? 'Hotovo. Výběr přeneseme do Můj United.' : 'Hotovo. Teď už jen dokončit rezervaci.';
 if (mail) {mail.innerHTML = memberPlannerMode ? 'Dokončit v Můj United <span>→</span>' : 'Pokračovat k rezervaci <span>→</span>';mail.href='member.html'}
 if (peopleEl) peopleEl.textContent = plannerState.people;
 if (peopleLabel) peopleLabel.textContent = personLabel(plannerState.people);
 if (accommodationUnitsEl) accommodationUnitsEl.textContent = plannerState.accommodationUnits;
-if (accommodationUnitsLabel) accommodationUnitsLabel.textContent = plannerState.accommodationUnits===1?'místo':plannerState.accommodationUnits>=2&&plannerState.accommodationUnits<=4?'místa':'míst';
+if (accommodationUnitsLabel) accommodationUnitsLabel.textContent = personLabel(plannerState.accommodationUnits);
 if (summaryArrival) summaryArrival.textContent = plannerState.arrival;
-if (summarySleep) summarySleep.textContent = plannerState.sleep;
+const selectedOption=selectedPlannerAccommodation();
+if (summarySleep) summarySleep.textContent = selectedOption?.name||plannerState.sleep;
 if (summaryPeople) summaryPeople.textContent = plannerState.people;
 if (summaryPeopleLabel) summaryPeopleLabel.textContent = personLabel(plannerState.people);
 if (summaryShow) summaryShow.textContent = plannerState.showshine;
-if (plannerRecap) plannerRecap.textContent = `${plannerState.arrival} · ${plannerState.sleep}${needsAccommodation?` · ${plannerState.accommodationUnits} ${plannerState.accommodationUnits===1?'místo':'místa'}`:''} · ${plannerState.people} ${personLabel(plannerState.people)} · Show & Shine · ${{'Chci soutěžit':'Ano','Možná':'Možná','Jedu se podívat':'Ne'}[plannerState.showshine]||'Ne'}`;
+if (plannerRecap) plannerRecap.textContent = `${plannerState.arrival} · ${selectedOption?.name||plannerState.sleep}${needsAccommodation?` · ${plannerState.accommodationUnits} ${personLabel(plannerState.accommodationUnits)}`:''} · ${plannerState.people} ${personLabel(plannerState.people)} · Show & Shine · ${{'Chci soutěžit':'Ano','Možná':'Možná','Jedu se podívat':'Ne'}[plannerState.showshine]||'Ne'}`;
 if (code) code.textContent = `U36–${slug(plannerState.arrival,'P')}${slug(plannerState.sleep,'CH')}–${String(plannerState.people).padStart(2,'0')}`;
+renderPlannerPrice(needsAccommodation);
 document.dispatchEvent(new CustomEvent('e36:planner',{detail:{...plannerState}}));
 };
 
@@ -649,10 +708,29 @@ qsa('.choice', group).forEach(choice => choice.addEventListener('click', () => {
 setPlannerChoice(group.dataset.choiceGroup, choice.dataset.value);
 }));
 });
-qs('[data-people-minus]', planner)?.addEventListener('click', () => { plannerState.people = Math.max(1, plannerState.people - 1);plannerState.accommodationUnits=accommodationUnitsTouched?Math.min(plannerState.accommodationUnits,plannerState.people):plannerState.people;updatePlanner(); });
-qs('[data-people-plus]', planner)?.addEventListener('click', () => { plannerState.people = Math.min(8, plannerState.people + 1);if(!accommodationUnitsTouched)plannerState.accommodationUnits=plannerState.people;updatePlanner(); });
-qs('[data-accommodation-units-minus]', planner)?.addEventListener('click', () => {accommodationUnitsTouched=true;plannerState.accommodationUnits=Math.max(1,plannerState.accommodationUnits-1);updatePlanner()});
-qs('[data-accommodation-units-plus]', planner)?.addEventListener('click', () => {accommodationUnitsTouched=true;plannerState.accommodationUnits=Math.min(plannerState.people,plannerState.accommodationUnits+1);updatePlanner()});
+qs('[data-people-minus]', planner)?.addEventListener('click', () => { plannerState.people = Math.max(1, plannerState.people - 1);plannerState.accommodationUnits=plannerState.partialAccommodation?Math.min(plannerState.accommodationUnits,plannerState.people):plannerState.people;updatePlanner(); });
+qs('[data-people-plus]', planner)?.addEventListener('click', () => { plannerState.people = Math.min(8, plannerState.people + 1);if(!plannerState.partialAccommodation)plannerState.accommodationUnits=plannerState.people;updatePlanner(); });
+qs('[data-accommodation-units-minus]', planner)?.addEventListener('click', () => {plannerState.accommodationUnits=Math.max(1,plannerState.accommodationUnits-1);updatePlanner()});
+qs('[data-accommodation-units-plus]', planner)?.addEventListener('click', () => {plannerState.accommodationUnits=Math.min(plannerState.people,plannerState.accommodationUnits+1);updatePlanner()});
+partialAccommodationInput?.addEventListener('change',()=>{plannerState.partialAccommodation=partialAccommodationInput.checked;if(!plannerState.partialAccommodation)plannerState.accommodationUnits=plannerState.people;updatePlanner()});
+accommodationOptionSelect?.addEventListener('change',()=>{plannerState.accommodationOptionId=accommodationOptionSelect.value||null;updatePlanner()});
+
+const loadPlannerCurrentEvent=async()=>{
+  try{
+    const cfg=await import('./firebase-config.js?v=20260823-auth2'),base=String(cfg.portalConfig?.apiBaseUrl||'https://api.e36united.cz').replace(/\/$/,'');
+    const response=await fetch(`${base}/api/events/current`,{cache:'no-store'});if(!response.ok)throw new Error(`Event API ${response.status}`);
+    const payload=await response.json();plannerEventData=payload?.event||null;
+    plannerAccommodationOptions=(Array.isArray(payload?.accommodationOptions)?payload.accommodationOptions:[]).map(option=>({
+      id:String(option.id||''),name:String(option.name||''),kind:option.kind==='tent'?'tent':'cabin',inventoryMode:option.inventoryMode==='unlimited'?'unlimited':'limited',
+      unitsTotal:Number(option.unitsTotal||0),freeUnits:option.freeUnits==null?null:Number(option.freeUnits),capacityPerUnit:Math.max(1,Number(option.capacityPerUnit||1)),
+      unitPriceCzk:Number(option.unitPriceCzk||0),personPriceCzk:Number(option.personPriceCzk||0),beddingFeePerPersonCzk:Number(option.beddingFeePerPersonCzk||0),cityTaxPerPersonPerNightCzk:Number(option.cityTaxPerPersonPerNightCzk||0),active:option.active!==false,soldOut:option.soldOut===true,
+    })).filter(option=>option.id&&option.name);
+    if(plannerSection&&plannerEventData){plannerSection.dataset.eventId=plannerEventData.id;plannerSection.dataset.eventYear=plannerEventData.year}
+    const statusCopy=qs('.planner-status span',planner);if(statusCopy&&plannerEventData)statusCopy.textContent=`Výběr pro United ${plannerEventData.year} zatím není rezervace. Dokončíš ji v Můj United.`;
+    renderPlannerAccommodationOptions();updatePlanner();
+  }catch(error){console.debug('Aktuální nabídka ubytování není dostupná; Planner pokračuje bez live ceníku.',error);plannerEventData=null;plannerAccommodationOptions=[];renderPlannerAccommodationOptions();updatePlanner()}
+};
+loadPlannerCurrentEvent();
 
 if (googleCalendar && plannerSection) {
 const start = (plannerSection.dataset.eventStart || '2026-06-19').replaceAll('-','');
@@ -711,11 +789,12 @@ let inquiryReturnFocus = null;
 const handoffStoragePrefix='e36UnitedPlannerHandoff:v1:';
 
 const inquiryPersonLabel = count => count === 1 ? 'osoba' : (count >= 2 && count <= 4 ? 'osoby' : 'osob');
-const accommodationLabel = count => count === 1 ? 'místo' : (count >= 2 && count <= 4 ? 'místa' : 'míst');
+const accommodationLabel = count => count === 1 ? 'osoba' : (count >= 2 && count <= 4 ? 'osoby' : 'osob');
 const renderInquiryPlan = () => {
   if (!inquiryPlan) return;
+  const option=plannerAccommodationOptions.find(item=>item.id===plannerState.accommodationOptionId);
   const accommodation=plannerState.accommodationUnits?` · ${plannerState.accommodationUnits} ${accommodationLabel(plannerState.accommodationUnits)} k ubytování`:'';
-  inquiryPlan.textContent = `${plannerState.arrival} · ${plannerState.sleep}${accommodation} · ${plannerState.people} ${inquiryPersonLabel(plannerState.people)} · ${plannerState.showshine}`;
+  inquiryPlan.textContent = `${plannerState.arrival} · ${option?.name||plannerState.sleep}${accommodation} · ${plannerState.people} ${inquiryPersonLabel(plannerState.people)} · ${plannerState.showshine}`;
 };
 const setInquiryStage = stage => {
   const manual=stage==='manual';
@@ -765,11 +844,11 @@ const createPlannerHandoff=()=>{
   cleanupPlannerHandoffs();
   const draftId=crypto.randomUUID();
   const now=Date.now(),createdAt=new Date(now).toISOString(),expiresAt=new Date(now+7*24*60*60*1000).toISOString();
-  const eventSection=planner?.closest('[data-event-start]'),eventStart=eventSection?.dataset.eventStart||'',eventId=eventSection?.dataset.eventId||null;
-  const eventYear=Number(eventStart.slice(0,4))||new Date().getFullYear();
+  const eventSection=planner?.closest('[data-event-start]'),eventStart=eventSection?.dataset.eventStart||'',eventId=plannerEventData?.id||eventSection?.dataset.eventId||null;
+  const eventYear=Number(plannerEventData?.year||eventSection?.dataset.eventYear||eventStart.slice(0,4))||new Date().getFullYear();
   const attendanceType={Pátek:'full_weekend',Sobota:'saturday_only','Jen na otočku':'day_visit'}[plannerState.arrival];
   const showShine={'Chci soutěžit':'Ano','Možná':'Možná','Jedu se podívat':'Ne'}[plannerState.showshine];
-  const draft={version:1,draftId,source:'weekend-planner',eventYear,eventId:eventId||null,createdAt,expiresAt,arrival:plannerState.arrival,attendanceType,accommodation:plannerState.sleep,accommodationUnits:plannerState.accommodationUnits,crew:plannerState.people,showShine};
+  const draft={version:1,draftId,source:'weekend-planner',eventYear,eventId:eventId||null,createdAt,expiresAt,arrival:plannerState.arrival,attendanceType,accommodation:plannerState.sleep,accommodationOptionId:plannerState.accommodationOptionId||null,accommodationUnits:plannerState.accommodationUnits,crew:plannerState.people,showShine};
   try{localStorage.setItem(`${handoffStoragePrefix}${draftId}`,JSON.stringify(draft))}catch(error){console.debug('Planner handoff local storage unavailable.',error)}
   return draft;
 };
@@ -815,8 +894,8 @@ inquiryForm?.addEventListener('submit', e => {
     'Ahoj E36 United,','',
     'mám zájem o další E36 United a rád/a bych ověřil/a možnosti podle této konfigurace:','',
     `• Příjezd: ${plannerState.arrival}`,
-    `• Ubytování: ${plannerState.sleep}`,
-    `• Počet míst k ubytování: ${plannerState.accommodationUnits}`,
+    `• Ubytování: ${plannerAccommodationOptions.find(item=>item.id===plannerState.accommodationOptionId)?.name||plannerState.sleep}`,
+    `• Počet osob k ubytování: ${plannerState.accommodationUnits}`,
     `• Počet lidí: ${plannerState.people}`,
     `• Show & Shine: ${plannerState.showshine}`,'',
     'Údaje posádky:',
@@ -983,22 +1062,23 @@ const renderPreview = state => {
 const day = flowAssets.day[state.arrival] || flowAssets.day['Pátek'];
 const sleep = flowAssets.sleep[state.sleep] || flowAssets.sleep['Chatka'];
 const show = flowAssets.show[state.showshine] || flowAssets.show['Jedu se podívat'];
+const liveOption = plannerAccommodationOptions.find(option=>option.id===state.accommodationOptionId);
 
 swapImage(flowDayImage, day);
 swapImage(flowSleepImage, sleep);
 swapImage(flowShowImage, show);
 if (flowDayTitle) flowDayTitle.textContent = day.title;
 if (flowDayCopy) flowDayCopy.textContent = day.copy;
-if (flowSleepTitle) flowSleepTitle.textContent = sleep.title;
-if (flowSleepCopy) flowSleepCopy.textContent = sleep.copy;
-if (flowAccommodationUnits) {flowAccommodationUnits.hidden=!state.accommodationUnits;flowAccommodationUnits.textContent=`${state.accommodationUnits} ${state.accommodationUnits===1?'místo':'místa'} k ubytování`}
+if (flowSleepTitle) flowSleepTitle.textContent = liveOption?.name||sleep.title;
+if (flowSleepCopy) {const place=liveOption?.kind==='tent'?'jeden stan':'jednu chatku';flowSleepCopy.textContent = liveOption?(liveOption.inventoryMode==='unlimited'?`Max. ${liveOption.capacityPerUnit} ${personLabel(liveOption.capacityPerUnit)} na ${place} · dostupné bez omezení.`:`Max. ${liveOption.capacityPerUnit} ${personLabel(liveOption.capacityPerUnit)} na ${place} · k dispozici: ${liveOption.freeUnits}.`):sleep.copy}
+if (flowAccommodationUnits) {flowAccommodationUnits.hidden=!state.accommodationUnits;flowAccommodationUnits.textContent=`${state.accommodationUnits} ${personLabelPreview(state.accommodationUnits)} k ubytování`}
 if (flowShowTitle) flowShowTitle.textContent = show.title;
 if (flowShowCopy) flowShowCopy.textContent = show.copy;
 if (flowShowBadge) flowShowBadge.textContent = show.badge;
 renderPeople(state.people);
 
 if (mapArrival) mapArrival.textContent = state.arrival;
-if (mapSleep) mapSleep.textContent = state.accommodationUnits?`${state.sleep} · ${state.accommodationUnits} ${state.accommodationUnits===1?'místo':'místa'}`:state.sleep;
+if (mapSleep) mapSleep.textContent = state.accommodationUnits?`${liveOption?.name||state.sleep} · ${state.accommodationUnits} ${personLabelPreview(state.accommodationUnits)}`:state.sleep;
 if (mapShow) mapShow.textContent = state.showshine;
 
 Object.entries(previewCards).forEach(([key,card]) => {
