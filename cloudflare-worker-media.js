@@ -1572,7 +1572,7 @@ function calculateAccommodationPricing(event, option, peopleCount, attendanceTyp
   const personPriceCzk = Number(option.person_price_czk || 0);
   const beddingFeePerPersonCzk = Number(option.bedding_fee_per_person_czk || 0);
   const cityTaxPerPersonPerNightCzk = Number(option.city_tax_per_person_per_night_czk || 0);
-  const baseTotalCzk = unitCount * unitPriceCzk;
+  const baseTotalCzk = unitCount * unitPriceCzk * nights;
   const personTotalCzk = peopleCount * personPriceCzk;
   const beddingTotalCzk = peopleCount * beddingFeePerPersonCzk;
   const cityTaxTotalCzk = peopleCount * nights * cityTaxPerPersonPerNightCzk;

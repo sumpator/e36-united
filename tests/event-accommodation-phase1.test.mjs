@@ -5,7 +5,7 @@ import { DatabaseSync } from 'node:sqlite';
 
 const migration = readFileSync(new URL('../D1-event-accommodation-v1.sql', import.meta.url), 'utf8');
 const workerSource = readFileSync(new URL('../cloudflare-worker-media.js', import.meta.url), 'utf8');
-const workerModule = await import(`data:text/javascript;base64,${Buffer.from(`${workerSource}\nexport { putCurrentReservation, patchAdminReservation, createAdminAccommodation, patchAdminAccommodation, patchAdminEvent, getAdminReservations };`).toString('base64')}`);
+const workerModule = await import(`data:text/javascript;base64,${Buffer.from(`${workerSource}\nexport { putCurrentReservation, patchAdminReservation, createAdminAccommodation, patchAdminAccommodation, patchAdminEvent, getAdminReservations, calculateAccommodationPricing };`).toString('base64')}`);
 
 function database(events = [{ id: 'event-2026', year: 2026, status: 'open' }]) {
   const db = new DatabaseSync(':memory:');
@@ -62,7 +62,7 @@ function addOption(db, overrides = {}) {
 
 function price({ people, capacity, unitPrice, personPrice = 0, bedding = 0, tax = 0, nights = 0 }) {
   const unitCount = Math.ceil(people / capacity);
-  const base = unitCount * unitPrice;
+  const base = unitCount * unitPrice * nights;
   const person = people * personPrice;
   const beddingTotal = people * bedding;
   const cityTax = people * nights * tax;
@@ -78,7 +78,7 @@ function addAllocation(db, { reservationId, memberId, optionId = 'cabin-a', unit
       unit_price_czk, person_price_czk, bedding_fee_per_person_czk,
       city_tax_per_person_per_night_czk, nights, base_total_czk, person_total_czk,
       bedding_total_czk, city_tax_total_czk, total_czk
-    ) VALUES (?, ?, 'Chatka A', 'cabin', ?, ?, 2400, 0, 120, 50, 2, 2400, 0, 480, 400, ?)
+    ) VALUES (?, ?, 'Chatka A', 'cabin', ?, ?, 2400, 0, 120, 50, 2, 4800, 0, 480, 400, ?)
   `).run(reservationId, optionId, people, units, total);
 }
 
@@ -167,22 +167,41 @@ test('2. five people in a max-four cabin use two physical units', () => {
   assert.equal(price({ people: 5, capacity: 4, unitPrice: 2400 }).unitCount, 2);
 });
 
-test('3. fixed cabin price does not change with occupancy inside one unit', () => {
-  assert.equal(price({ people: 1, capacity: 4, unitPrice: 2400 }).base, 2400);
-  assert.equal(price({ people: 4, capacity: 4, unitPrice: 2400 }).base, 2400);
+test('3. server unit price is charged per physical unit per night', () => {
+  const event = { full_weekend_nights: 2, saturday_only_nights: 1 };
+  const option = {
+    capacity_per_unit: 4, unit_price_czk: 2400, person_price_czk: 0,
+    bedding_fee_per_person_czk: 0, city_tax_per_person_per_night_czk: 0,
+  };
+  assert.equal(workerModule.calculateAccommodationPricing(event, option, 4, 'full_weekend').baseTotalCzk, 4800);
+  assert.equal(workerModule.calculateAccommodationPricing(event, option, 4, 'saturday_only').baseTotalCzk, 2400);
+  assert.equal(workerModule.calculateAccommodationPricing(event, option, 5, 'full_weekend').baseTotalCzk, 9600);
 });
 
-test('4. per-person fees scale with accommodated people', () => {
-  const result = price({ people: 4, capacity: 4, unitPrice: 2400, personPrice: 80, bedding: 120 });
-  assert.equal(result.person, 320);
-  assert.equal(result.bedding, 480);
+test('4. per-person price and bedding are charged once per accommodated person', () => {
+  const event = { full_weekend_nights: 2, saturday_only_nights: 1 };
+  const option = {
+    capacity_per_unit: 4, unit_price_czk: 2400, person_price_czk: 80,
+    bedding_fee_per_person_czk: 120, city_tax_per_person_per_night_czk: 0,
+  };
+  const friday = workerModule.calculateAccommodationPricing(event, option, 4, 'full_weekend');
+  const saturday = workerModule.calculateAccommodationPricing(event, option, 4, 'saturday_only');
+  assert.equal(friday.personTotalCzk, 320);
+  assert.equal(saturday.personTotalCzk, 320);
+  assert.equal(friday.beddingTotalCzk, 480);
+  assert.equal(saturday.beddingTotalCzk, 480);
 });
 
 test('5. Friday and Saturday use event-configured night counts', () => {
-  const friday = price({ people: 4, capacity: 4, unitPrice: 2400, tax: 50, nights: 2 });
-  const saturday = price({ people: 4, capacity: 4, unitPrice: 2400, tax: 50, nights: 1 });
-  assert.equal(friday.cityTax, 400);
-  assert.equal(saturday.cityTax, 200);
+  const event = { full_weekend_nights: 2, saturday_only_nights: 1 };
+  const option = {
+    capacity_per_unit: 4, unit_price_czk: 2400, person_price_czk: 0,
+    bedding_fee_per_person_czk: 0, city_tax_per_person_per_night_czk: 50,
+  };
+  const friday = workerModule.calculateAccommodationPricing(event, option, 4, 'full_weekend');
+  const saturday = workerModule.calculateAccommodationPricing(event, option, 4, 'saturday_only');
+  assert.equal(friday.cityTaxTotalCzk, 400);
+  assert.equal(saturday.cityTaxTotalCzk, 200);
 });
 
 test('6. the final available cabin can be reserved', async () => {
@@ -191,7 +210,7 @@ test('6. the final available cabin can be reserved', async () => {
   const response=await submitWorkerReservation(db,{memberId:'m2',people:4});
   assert.equal(response.status, 200);
   assert.equal(blockedUnits(db), 2);
-  assert.equal(db.prepare("SELECT total_czk FROM reservation_accommodation WHERE reservation_id=(SELECT id FROM reservations WHERE member_id='m2')").get().total_czk, 3280);
+  assert.equal(db.prepare("SELECT total_czk FROM reservation_accommodation WHERE reservation_id=(SELECT id FROM reservations WHERE member_id='m2')").get().total_czk, 5680);
   const editResponse=await submitWorkerReservation(db,{memberId:'m2',people:4});
   assert.equal(editResponse.status,200,'an edit excludes the member own existing allocation');
   assert.equal(db.prepare("SELECT COUNT(*) AS value FROM reservations WHERE member_id='m2'").get().value,1);
@@ -239,10 +258,10 @@ test('10. admin cannot lower capacity below active blocked units', async () => {
 
 test('11. later price changes do not alter an existing reservation snapshot', () => {
   const db = database(); addOption(db);
-  addAllocation(db, { reservationId: 'r1', memberId: 'm1', units: 1, total: 3280 });
+  addAllocation(db, { reservationId: 'r1', memberId: 'm1', units: 1, total: 5680 });
   db.prepare("UPDATE event_accommodation_options SET capacity_per_unit=2, unit_price_czk=9999, bedding_fee_per_person_czk=999 WHERE id='cabin-a'").run();
   const snapshot = db.prepare("SELECT unit_count, unit_price_czk, bedding_fee_per_person_czk, total_czk FROM reservation_accommodation WHERE reservation_id='r1'").get();
-  assert.deepEqual({ ...snapshot }, { unit_count: 1, unit_price_czk: 2400, bedding_fee_per_person_czk: 120, total_czk: 3280 });
+  assert.deepEqual({ ...snapshot }, { unit_count: 1, unit_price_czk: 2400, bedding_fee_per_person_czk: 120, total_czk: 5680 });
 });
 
 test('12. legacy reservation without snapshot remains readable', () => {
@@ -340,11 +359,11 @@ test('17. day visit ignores a supplied option and stores no accommodation charge
 test('18. an explicit member edit reprices and replaces the snapshot from current configuration', async () => {
   const db = database(); addOption(db);
   assert.equal((await submitWorkerReservation(db, { memberId: 'm1', people: 4 })).status, 200);
-  assert.equal(db.prepare("SELECT total_czk FROM reservation_accommodation WHERE reservation_id=(SELECT id FROM reservations WHERE member_id='m1')").get().total_czk, 3280);
+  assert.equal(db.prepare("SELECT total_czk FROM reservation_accommodation WHERE reservation_id=(SELECT id FROM reservations WHERE member_id='m1')").get().total_czk, 5680);
   db.prepare("UPDATE event_accommodation_options SET capacity_per_unit=2,unit_price_czk=3000 WHERE id='cabin-a'").run();
   assert.equal((await submitWorkerReservation(db, { memberId: 'm1', people: 4 })).status, 200);
   const snapshot = db.prepare("SELECT people_count,unit_count,unit_price_czk,total_czk FROM reservation_accommodation WHERE reservation_id=(SELECT id FROM reservations WHERE member_id='m1')").get();
-  assert.deepEqual({ ...snapshot }, { people_count: 4, unit_count: 2, unit_price_czk: 3000, total_czk: 6880 });
+  assert.deepEqual({ ...snapshot }, { people_count: 4, unit_count: 2, unit_price_czk: 3000, total_czk: 12880 });
 });
 
 test('19. two concurrent member requests cannot both take the final limited unit', async () => {

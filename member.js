@@ -532,7 +532,7 @@ function numericValue(value){return Number(value||0)}
 function reservationNights(arrival=arrivalSelect?.value){return arrival==='Pátek'?numericValue(reservationState.event?.fullWeekendNights??2):arrival==='Sobota'?numericValue(reservationState.event?.saturdayOnlyNights??1):0}
 function priceAccommodation(option,people){
   const unitCount=accommodationUnitCount(people,option),nights=reservationNights();
-  const baseTotalCzk=unitCount*numericValue(option?.unitPriceCzk),personTotalCzk=people*numericValue(option?.personPriceCzk),beddingTotalCzk=people*numericValue(option?.beddingFeePerPersonCzk),cityTaxTotalCzk=people*nights*numericValue(option?.cityTaxPerPersonPerNightCzk);
+  const baseTotalCzk=unitCount*numericValue(option?.unitPriceCzk)*nights,personTotalCzk=people*numericValue(option?.personPriceCzk),beddingTotalCzk=people*numericValue(option?.beddingFeePerPersonCzk),cityTaxTotalCzk=people*nights*numericValue(option?.cityTaxPerPersonPerNightCzk);
   return {unitCount,nights,baseTotalCzk,personTotalCzk,beddingTotalCzk,cityTaxTotalCzk,totalCzk:baseTotalCzk+personTotalCzk+beddingTotalCzk+cityTaxTotalCzk};
 }
 function formatCzk(value){return czkFormatter.format(numericValue(value))}
@@ -562,13 +562,15 @@ function renderAccommodationPreview(){
     : !hasCapacity?'Pro tvoji posádku už není dostatek volné kapacity.':free===1?'Zbývá poslední volná možnost.':free===2?'Zbývají poslední 2 možnosti.':`Aktuálně k dispozici: ${free}.`;
   accommodationAvailability.textContent=availabilityCopy;
   const rows=[
-    [`${pricing.unitCount}× ${option.name}`,pricing.baseTotalCzk],
+    [`${pricing.unitCount}× ${option.name} · ${pricing.nights} ${pricing.nights===1?'noc':'noci'}`,pricing.baseTotalCzk],
     ['Poplatek za osoby',pricing.personTotalCzk],
     ['Povlečení',pricing.beddingTotalCzk],
     [`Pobytová taxa · ${pricing.nights} ${pricing.nights===1?'noc':'noci'}`,pricing.cityTaxTotalCzk],
   ].filter(([,value])=>value>0);
+  const detailOpen=$('[data-reservation-price-details]',accommodationPreview)?.open===true;
   accommodationPreview.hidden=false;
-  accommodationPreview.innerHTML=`<div class="reservation-price-head"><span>${people} ${people===1?'osoba':people<=4?'osoby':'osob'} · ${pricing.unitCount}× ${esc(option.name)}</span><small>orientační cena</small></div>${rows.map(([label,value])=>`<div><span>${esc(label)}</span><b>${esc(formatCzk(value))}</b></div>`).join('')}<div class="reservation-price-total"><strong>CELKEM</strong><b>${esc(formatCzk(pricing.totalCzk))}</b></div><small>${esc(availabilityCopy)} Konečnou cenu ověříme při odeslání rezervace.</small>`;
+  accommodationPreview.innerHTML=`<div class="reservation-price-head"><span>${people} ${people===1?'osoba':people<=4?'osoby':'osob'} · ${pricing.unitCount}× ${esc(option.name)}</span></div><div class="reservation-price-estimate"><span>Orientačně celkem</span><b>${esc(formatCzk(pricing.totalCzk))}</b></div><details class="reservation-price-details" data-reservation-price-details><summary><span class="price-detail-show">+ Detail ceny</span><span class="price-detail-hide">− Skrýt detail</span></summary><div class="reservation-price-breakdown">${rows.map(([label,value])=>`<div><span>${esc(label)}</span><b>${esc(formatCzk(value))}</b></div>`).join('')}<div class="reservation-price-total"><strong>Celkem</strong><b>${esc(formatCzk(pricing.totalCzk))}</b></div><small>Konečnou cenu ověříme při odeslání rezervace.</small></div></details>`;
+  const priceDetails=$('[data-reservation-price-details]',accommodationPreview);if(priceDetails)priceDetails.open=detailOpen;
 }
 function syncMemberSleep(source='form'){
   if(!reservationForm||!arrivalSelect||!sleepField||!crewInput||!accommodationUnitsInput||!sleepSelect||!accommodationOptionSelect||!accommodationPartialInput)return;
@@ -717,7 +719,7 @@ function renderSavedReservationPrice(reservation){
   const snapshot=reservation?.accommodationSnapshot;
   if(!snapshot){container.hidden=true;container.innerHTML='';return}
   const rows=[
-    [`${snapshot.unitCount}× ${snapshot.optionName}`,snapshot.baseTotalCzk],
+    [`${snapshot.unitCount}× ${snapshot.optionName} · ${snapshot.nights} ${snapshot.nights===1?'noc':'noci'}`,snapshot.baseTotalCzk],
     ['Poplatek za osoby',snapshot.personTotalCzk],
     ['Povlečení',snapshot.beddingTotalCzk],
     [`Pobytová taxa · ${snapshot.nights} ${snapshot.nights===1?'noc':'noci'}`,snapshot.cityTaxTotalCzk],

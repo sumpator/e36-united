@@ -602,7 +602,7 @@ const selectedPlannerAccommodation = () => matchingPlannerAccommodation().find(o
 const plannerNights = () => plannerState.arrival === 'Pátek' ? Number(plannerEventData?.fullWeekendNights ?? 2) : plannerState.arrival === 'Sobota' ? Number(plannerEventData?.saturdayOnlyNights ?? 1) : 0;
 const plannerAccommodationPrice = option => {
   const people=plannerState.accommodationUnits,unitCount=Math.ceil(people/Math.max(1,Number(option?.capacityPerUnit||1))),nights=plannerNights();
-  const base=unitCount*Number(option?.unitPriceCzk||0),person=people*Number(option?.personPriceCzk||0),bedding=people*Number(option?.beddingFeePerPersonCzk||0),cityTax=people*nights*Number(option?.cityTaxPerPersonPerNightCzk||0);
+  const base=unitCount*Number(option?.unitPriceCzk||0)*nights,person=people*Number(option?.personPriceCzk||0),bedding=people*Number(option?.beddingFeePerPersonCzk||0),cityTax=people*nights*Number(option?.cityTaxPerPersonPerNightCzk||0);
   return {people,unitCount,nights,base,person,bedding,cityTax,total:base+person+bedding+cityTax};
 };
 const renderPlannerAccommodationOptions = (preferredId='') => {
@@ -631,9 +631,11 @@ const renderPlannerPrice = (needsAccommodation) => {
   const place=option.kind==='tent'?'jeden stan':'jednu chatku';
   const availabilityCopy=option.inventoryMode==='unlimited'?`Dostupné bez omezení · max. ${Number(option.capacityPerUnit||1)} ${personLabel(Number(option.capacityPerUnit||1))} na ${place}.`:!enough?'Pro tvoji posádku už není dostatek volné kapacity.':Number(free)===1?'Zbývá poslední volná možnost.':Number(free)===2?'Zbývají poslední 2 možnosti.':`Aktuálně k dispozici: ${free}.`;
   accommodationAvailability.textContent=availabilityCopy;
-  const rows=[[`${price.unitCount}× ${option.name}`,price.base],['Poplatek za osoby',price.person],['Povlečení',price.bedding],[`Pobytová taxa · ${price.nights} ${price.nights===1?'noc':'noci'}`,price.cityTax]].filter(([,value])=>value>0);
+  const rows=[[`${price.unitCount}× ${option.name} · ${price.nights} ${price.nights===1?'noc':'noci'}`,price.base],['Poplatek za osoby',price.person],['Povlečení',price.bedding],[`Pobytová taxa · ${price.nights} ${price.nights===1?'noc':'noci'}`,price.cityTax]].filter(([,value])=>value>0);
+  const detailOpen=qs('[data-planner-price-details]',plannerPricePreview)?.open===true;
   plannerPricePreview.hidden=false;
-  plannerPricePreview.innerHTML=`<div class="planner-price-title"><span>${price.people} ${personLabel(price.people)} · ${price.unitCount}× ${plannerEscapeHtml(option.name)}</span><small>orientační cena</small></div>${rows.map(([label,value])=>`<div><span>${plannerEscapeHtml(label)}</span><b>${plannerMoney.format(value)}</b></div>`).join('')}<div class="planner-price-total"><strong>CELKEM</strong><b>${plannerMoney.format(price.total)}</b></div><small>${plannerEscapeHtml(availabilityCopy)} Cenu při rezervaci znovu ověříme podle aktuální dostupnosti.</small>`;
+  plannerPricePreview.innerHTML=`<div class="planner-price-title"><span>${price.people} ${personLabel(price.people)} · ${price.unitCount}× ${plannerEscapeHtml(option.name)}</span></div><div class="planner-price-estimate"><span>Orientačně celkem</span><b>${plannerMoney.format(price.total)}</b></div><details class="planner-price-details" data-planner-price-details><summary><span class="price-detail-show">+ Detail ceny</span><span class="price-detail-hide">− Skrýt detail</span></summary><div class="planner-price-breakdown">${rows.map(([label,value])=>`<div><span>${plannerEscapeHtml(label)}</span><b>${plannerMoney.format(value)}</b></div>`).join('')}<div class="planner-price-total"><strong>Celkem</strong><b>${plannerMoney.format(price.total)}</b></div><small>Cenu při rezervaci znovu ověříme podle aktuální dostupnosti.</small></div></details>`;
+  const priceDetails=qs('[data-planner-price-details]',plannerPricePreview);if(priceDetails)priceDetails.open=detailOpen;
 };
 
 setPlannerChoice = (key, value) => {
@@ -1070,8 +1072,8 @@ swapImage(flowShowImage, show);
 if (flowDayTitle) flowDayTitle.textContent = day.title;
 if (flowDayCopy) flowDayCopy.textContent = day.copy;
 if (flowSleepTitle) flowSleepTitle.textContent = liveOption?.name||sleep.title;
-if (flowSleepCopy) {const place=liveOption?.kind==='tent'?'jeden stan':'jednu chatku';flowSleepCopy.textContent = liveOption?(liveOption.inventoryMode==='unlimited'?`Max. ${liveOption.capacityPerUnit} ${personLabel(liveOption.capacityPerUnit)} na ${place} · dostupné bez omezení.`:`Max. ${liveOption.capacityPerUnit} ${personLabel(liveOption.capacityPerUnit)} na ${place} · k dispozici: ${liveOption.freeUnits}.`):sleep.copy}
-if (flowAccommodationUnits) {flowAccommodationUnits.hidden=!state.accommodationUnits;flowAccommodationUnits.textContent=`${state.accommodationUnits} ${personLabelPreview(state.accommodationUnits)} k ubytování`}
+if (flowSleepCopy) {const place=liveOption?.kind==='tent'?'jeden stan':'jednu chatku';flowSleepCopy.textContent = liveOption?(liveOption.inventoryMode==='unlimited'?`Max. ${liveOption.capacityPerUnit} ${personLabelPreview(liveOption.capacityPerUnit)} na ${place} · dostupné bez omezení.`:`Max. ${liveOption.capacityPerUnit} ${personLabelPreview(liveOption.capacityPerUnit)} na ${place} · k dispozici: ${liveOption.freeUnits}.`):sleep.copy}
+if (flowAccommodationUnits) {const hasAccommodationUnits=state.accommodationUnits>0;flowAccommodationUnits.hidden=!hasAccommodationUnits;flowAccommodationUnits.style.display=hasAccommodationUnits?'':'none';flowAccommodationUnits.textContent=hasAccommodationUnits?`${state.accommodationUnits} ${personLabelPreview(state.accommodationUnits)} k ubytování`:''}
 if (flowShowTitle) flowShowTitle.textContent = show.title;
 if (flowShowCopy) flowShowCopy.textContent = show.copy;
 if (flowShowBadge) flowShowBadge.textContent = show.badge;
