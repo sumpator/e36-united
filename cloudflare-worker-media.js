@@ -50,6 +50,9 @@ export default {
         if (url.pathname === "/api/bootstrap" && request.method === "POST") return await bootstrapMember(request, env, auth, origin);
         if (url.pathname === "/api/me" && request.method === "GET") return await getMember(env, auth, origin);
 
+        if (url.pathname === "/api/reservations/current" && request.method === "GET") return await getCurrentReservation(env, auth, origin);
+        if (url.pathname === "/api/reservations/current" && request.method === "PUT") return await putCurrentReservation(request, env, auth, origin);
+
         if (url.pathname === "/api/cars" && request.method === "GET") return await listCars(env, auth, origin);
         if (url.pathname === "/api/cars" && request.method === "POST") return await createCar(request, env, auth, origin);
 
@@ -128,6 +131,148 @@ async function getMember(env, auth, origin) {
   }
 
   return json({ ok: true, authenticated: true, profileExists: true, member: publicMember(member) }, 200, origin);
+}
+
+async function getOpenEvent(env) {
+  return await env.DB.prepare(`
+    SELECT id, registration_status
+    FROM events
+    WHERE registration_status = 'open'
+    ORDER BY year DESC
+    LIMIT 1
+  `).first();
+}
+
+async function findCurrentReservation(env, memberId, eventId) {
+  return await env.DB.prepare(`
+    SELECT
+      id, member_id, event_id, car_id,
+      car_model, car_body, car_year, car_color, car_nickname,
+      arrival, crew, accommodation, show_shine, note, status,
+      attendance_type, accommodation_units,
+      amount_due_czk, amount_paid_czk, payment_status,
+      paid_at, submitted_at, created_at, updated_at
+    FROM reservations
+    WHERE member_id = ? AND event_id = ?
+    LIMIT 1
+  `).bind(memberId, eventId).first();
+}
+
+async function getCurrentReservation(env, auth, origin) {
+  const event = await getOpenEvent(env);
+  if (!event) {
+    return json({
+      ok: true,
+      registrationOpen: false,
+      event: null,
+      reservation: null,
+      message: "Registrace na žádný event aktuálně není otevřená.",
+    }, 200, origin);
+  }
+
+  const reservation = await findCurrentReservation(env, auth.uid, event.id);
+  return json({
+    ok: true,
+    registrationOpen: true,
+    event: { id: event.id, registrationStatus: event.registration_status },
+    reservation: reservation ? publicReservation(reservation) : null,
+    message: reservation ? "Rezervace byla načtena ze serveru." : "Registrace je otevřená, ale zatím nemáš rezervaci.",
+  }, 200, origin);
+}
+
+async function putCurrentReservation(request, env, auth, origin) {
+  const event = await getOpenEvent(env);
+  if (!event) {
+    return json({ ok: false, error: "registration_closed", message: "Registrace na žádný event aktuálně není otevřená." }, 409, origin);
+  }
+
+  let body = {};
+  try {
+    body = await request.json();
+    if (!body || typeof body !== "object" || Array.isArray(body)) throw new Error("Invalid JSON object");
+  }
+  catch { return json({ ok: false, error: "invalid_json", message: "Požadavek nemá platný JSON." }, 400, origin); }
+
+  const carId = clean(body.carId);
+  const arrival = clean(body.arrival);
+  const accommodation = arrival === "Jen na otočku" ? "Bez ubytování" : clean(body.accommodation);
+  const showShine = clean(body.showShine);
+  const note = clean(body.note).slice(0, 1000);
+  const crew = Number(body.crew);
+  const attendanceType = clean(body.attendanceType);
+  const accommodationUnits = body.accommodationUnits;
+
+  if (!carId) return json({ ok: false, error: "car_required", message: "Vyber auto z garáže." }, 400, origin);
+  if (!["Pátek", "Sobota", "Jen na otočku"].includes(arrival)) return json({ ok: false, error: "invalid_arrival", message: "Vyber platný příjezd." }, 400, origin);
+  if (!["Chatka", "Stan", "Bez ubytování"].includes(accommodation)) return json({ ok: false, error: "invalid_accommodation", message: "Vyber platné ubytování." }, 400, origin);
+  if (!["Ne", "Možná", "Ano"].includes(showShine)) return json({ ok: false, error: "invalid_show_shine", message: "Vyber platnou možnost Show & Shine." }, 400, origin);
+  if (!Number.isInteger(crew) || crew < 1 || crew > 8) return json({ ok: false, error: "invalid_crew", message: "Posádka musí mít 1 až 8 osob." }, 400, origin);
+  if (!["full_weekend", "saturday_only", "day_visit"].includes(attendanceType)) return json({ ok: false, error: "invalid_attendance_type", message: "Vyber platný typ účasti." }, 400, origin);
+  if (!Number.isInteger(accommodationUnits) || accommodationUnits < 0 || accommodationUnits > crew) return json({ ok: false, error: "invalid_accommodation_units", message: "Počet ubytovacích míst musí být celé číslo od 0 do počtu členů posádky." }, 400, origin);
+
+  const member = await env.DB.prepare("SELECT id FROM members WHERE id = ? LIMIT 1").bind(auth.uid).first();
+  if (!member) return json({ ok: false, error: "member_profile_required", message: "Nejdřív dokonči členský profil." }, 409, origin);
+
+  const car = await env.DB.prepare(`
+    SELECT id, model, body, year, color, nickname
+    FROM cars
+    WHERE id = ? AND member_id = ?
+    LIMIT 1
+  `).bind(carId, auth.uid).first();
+  if (!car) return json({ ok: false, error: "car_not_found", message: "Vybrané auto nepatří přihlášenému účtu." }, 404, origin);
+
+  const reservationId = crypto.randomUUID();
+
+  const result = await env.DB.prepare(`
+    INSERT INTO reservations (
+      id, member_id, event_id, car_id,
+      car_model, car_body, car_year, car_color, car_nickname,
+      arrival, crew, accommodation, show_shine, note,
+      status, attendance_type, accommodation_units,
+      amount_due_czk, amount_paid_czk, payment_status, submitted_at
+    )
+    SELECT ?, ?, events.id, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, 0, 0, 'unpaid', CURRENT_TIMESTAMP
+    FROM events
+    WHERE events.id = ? AND events.registration_status = 'open'
+    ON CONFLICT(member_id, event_id) DO UPDATE SET
+      car_id = excluded.car_id,
+      car_model = excluded.car_model,
+      car_body = excluded.car_body,
+      car_year = excluded.car_year,
+      car_color = excluded.car_color,
+      car_nickname = excluded.car_nickname,
+      arrival = excluded.arrival,
+      crew = excluded.crew,
+      accommodation = excluded.accommodation,
+      show_shine = excluded.show_shine,
+      note = excluded.note,
+      status = 'pending',
+      attendance_type = excluded.attendance_type,
+      accommodation_units = excluded.accommodation_units,
+      submitted_at = CURRENT_TIMESTAMP,
+      updated_at = CURRENT_TIMESTAMP
+  `).bind(
+    reservationId, auth.uid, car.id,
+    car.model, car.body, car.year || null, car.color || null, car.nickname || null,
+    arrival, crew, accommodation, showShine, note || null,
+    attendanceType, accommodationUnits,
+    event.id,
+  ).run();
+
+  if (!result.meta?.changes) {
+    return json({ ok: false, error: "registration_closed", message: "Registrace byla mezitím uzavřena. Rezervace nebyla uložena." }, 409, origin);
+  }
+
+  const reservation = await findCurrentReservation(env, auth.uid, event.id);
+  if (!reservation) throw new Error("Reservation was not found after upsert");
+
+  return json({
+    ok: true,
+    registrationOpen: true,
+    event: { id: event.id, registrationStatus: event.registration_status },
+    reservation: publicReservation(reservation),
+    message: "Rezervace byla uložena na server a čeká na schválení.",
+  }, 200, origin);
 }
 
 async function listCars(env, auth, origin) {
@@ -421,6 +566,37 @@ function publicMember(member) {
   };
 }
 
+function publicReservation(reservation) {
+  return {
+    id: reservation.id,
+    eventId: reservation.event_id,
+    carId: reservation.car_id,
+    carSnapshot: {
+      id: reservation.car_id,
+      model: reservation.car_model || "",
+      body: reservation.car_body || "",
+      year: reservation.car_year || "",
+      color: reservation.car_color || "",
+      nickname: reservation.car_nickname || "",
+    },
+    arrival: reservation.arrival || "",
+    crew: Number(reservation.crew || 1),
+    accommodation: reservation.accommodation || "",
+    showShine: reservation.show_shine || "Ne",
+    note: reservation.note || "",
+    status: reservation.status || "pending",
+    attendanceType: reservation.attendance_type || "",
+    accommodationUnits: Number(reservation.accommodation_units || 0),
+    amountDueCzk: Number(reservation.amount_due_czk || 0),
+    amountPaidCzk: Number(reservation.amount_paid_czk || 0),
+    paymentStatus: reservation.payment_status || "unpaid",
+    paidAt: reservation.paid_at || null,
+    submittedAt: reservation.submitted_at || null,
+    createdAt: reservation.created_at || null,
+    updatedAt: reservation.updated_at || null,
+  };
+}
+
 function decodeBase64UrlText(value) { return new TextDecoder().decode(decodeBase64UrlBytes(value)); }
 function decodeBase64UrlBytes(value) {
   const normalized = value.replace(/-/g, "+").replace(/_/g, "/");
@@ -438,7 +614,7 @@ function cors(response, origin) {
   if (!origin || !ALLOWED_ORIGINS.has(origin)) return response;
   const headers = new Headers(response.headers);
   headers.set("Access-Control-Allow-Origin", origin);
-  headers.set("Access-Control-Allow-Methods", "GET, POST, PATCH, DELETE, OPTIONS");
+  headers.set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
   headers.set("Access-Control-Allow-Headers", "Authorization, Content-Type");
   headers.append("Vary", "Origin");
   return new Response(response.body, { status: response.status, statusText: response.statusText, headers });

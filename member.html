@@ -76,23 +76,24 @@
 </article>
 <div class="overview-grid">
 <article class="points-card"><div class="card-label"><span>12 UNITED POINTS</span><small>ODměna / United Merch</small></div><div class="points-gauge"><div class="points-sign"><span data-points="">0</span><small>/ 12</small></div><div class="points-track" data-points-track=""></div></div><p data-points-copy="">Za ověřené účasti a výsledky sbíráš body. Dvanáctka odemyká odměnu do United Merch.</p><button class="text-action" data-jump="rewards">Jak body fungují →</button></article>
-<article class="reservation-mini"><div class="card-label"><span>AKTUÁLNÍ REZERVACE</span><small data-reservation-status="">Žádná aktivní</small></div><div class="reservation-visual"><span class="reservation-year" data-res-year="">—</span><div><b data-res-title="">Příští United</b><small data-res-car="">Vyber auto z garáže při potvrzení rezervace.</small></div></div><button class="member-secondary" data-jump="reservation">Otevřít rezervaci</button></article>
+<article class="reservation-mini"><div class="card-label"><span>AKTUÁLNÍ REZERVACE</span><small data-reservation-status="">Načítám stav</small></div><div class="reservation-visual"><span class="reservation-year" data-res-year="">—</span><div><b data-res-title="">Příští United</b><small data-res-car="">Vyber auto z garáže při odeslání rezervace.</small></div></div><button class="member-secondary" data-jump="reservation">Otevřít rezervaci</button></article>
 </div>
 <article class="badges-preview"><div class="section-row-head"><div><span class="member-kicker">BADGES</span><h2>Tvoje United stopy.</h2></div><button class="text-action" data-jump="rewards">Všechny odměny →</button></div><div class="badge-row" data-badges-preview=""></div></article>
 </section>
 <section class="member-section" data-member-panel="reservation">
 <div class="member-section-head"><div><span class="member-kicker">AKTUÁLNÍ UNITED</span><h2>Rezervace &amp; auto.</h2><p>Konkrétní auto se uloží k rezervaci jako snapshot. Když ho později upravíš v garáži, historie rezervace zůstane správně.</p></div><span class="member-chip">MEMBER PRIORITY</span></div>
 <div class="reservation-workbench">
-<article class="reservation-card-large"><div class="reservation-state"><i></i><span data-reservation-state-label="">Bez aktivní rezervace</span></div><div class="reservation-large-year" data-reservation-year="">—</div><h3 data-reservation-title="">Příští E36 United</h3><p data-reservation-description="">Až se otevře registrace, tady uvidíš potvrzení, ubytování, posádku i auto napárované z garáže.</p><div class="reservation-summary" data-reservation-summary=""></div></article>
+<article class="reservation-card-large"><div class="reservation-state"><i></i><span data-reservation-state-label="">Načítám serverový stav</span></div><div class="reservation-large-year" data-reservation-year="">—</div><h3 data-reservation-title="">Příští E36 United</h3><p data-reservation-description="">Ověřuji, zda je registrace otevřená a jestli už máš uloženou rezervaci.</p><div class="reservation-summary" data-reservation-summary=""></div></article>
 <form class="reservation-form" data-reservation-form="">
 <div class="form-title"><span>REZERVAČNÍ SNAPSHOT</span><b>Připravit / upravit přehled</b></div>
 <label><span>Auto z garáže</span><select data-car-select="" name="carId"></select></label>
 <div class="form-grid-two"><label><span>Příjezd</span><select data-member-arrival="" name="arrival"><option>Pátek</option><option>Sobota</option><option>Jen na otočku</option></select></label><label><span>Posádka</span><input max="8" min="1" name="crew" type="number" value="2"/></label></div>
 <label data-member-sleep-field=""><span>Ubytování</span><select name="sleep"><option>Chatka</option><option>Stan</option><option>Bez ubytování</option></select></label>
+<label><span>Počet ubytovacích míst</span><input max="2" min="0" name="accommodationUnits" required="" type="number" value="1"/></label>
 <label><span>Show &amp; Shine</span><select name="showshine"><option value="Ne">Ne</option><option value="Možná">Možná</option><option value="Ano">Ano</option></select></label>
 <label><span>Poznámka pro United tým</span><textarea name="note" placeholder="Příjezd později, speciální požadavek…" rows="3"></textarea></label>
-<button class="member-primary" data-reservation-submit="" type="submit">Uložit a poslat potvrzení <span>→</span></button>
-<div class="reservation-mail-state" data-reservation-mail-state=""><i></i><span>Rezervace je platná až po potvrzení odkazu v e-mailu.</span></div>
+<button class="member-primary" data-reservation-submit="" type="submit">Uložit rezervaci na server <span>→</span></button>
+<div class="reservation-mail-state" data-reservation-mail-state=""><i></i><span>Po odeslání bude mít rezervace serverový stav PENDING.</span></div>
 </form>
 </div>
 </section>
