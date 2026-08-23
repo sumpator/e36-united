@@ -513,9 +513,10 @@ function renderPlannerHandoff(){
   if(waiting){title.textContent='TVŮJ PLÁN JE PŘIPRAVENÝ';copy.textContent='Výběr z Weekend Planneru jsme uložili. Jakmile spustíme rezervace na další United, dokončíš ho tady.'}
   else if(closed){title.textContent='Tvůj nový plán jsme zachovali.';copy.textContent='Skutečná rezervace zůstává beze změny a její stav má vždy přednost.'}
   else if(plannerHandoffChoice==='kept'){title.textContent='Současná rezervace zůstává.';copy.textContent='Tvůj nový výběr jsme zachovali, ale do formuláře jsme ho nepřenesli.'}
+  else if(!data.reservation){title.textContent='Výběr z Weekend Planneru máme.';copy.textContent='Údaje jsme předvyplnili. Zkontroluj je níže a odešli rezervaci.'}
   else{title.textContent='Výběr z Weekend Planneru máme.';copy.textContent='Příjezd, ubytování a posádku jsme přenesli. Zkontroluj detaily a rezervaci odešli.'}
   renderPlannerHandoffRecap(recap,activePlannerHandoff);
-  next.hidden=Boolean(data.reservation);continueButton.disabled=closed;continueButton.setAttribute('aria-disabled',String(closed));nextCopy.textContent=closed?'Rezervace na další United ještě nejsou spuštěné.':'Tvůj plán je připravený k dokončení.';
+  next.hidden=!waiting;continueButton.disabled=true;continueButton.setAttribute('aria-disabled','true');nextCopy.textContent='Rezervace na další United ještě nejsou spuštěné.';
   decision.hidden=closed||!(data.reservation&&plannerHandoffChoice==='pending');
   carPrompt.hidden=closed||!(plannerHandoffApplied&&!data.cars.length);
   approved.hidden=closed||!(plannerHandoffApplied&&data.reservation?.status==='approved');
@@ -542,12 +543,6 @@ function clearPlannerHandoff(){
 $('[data-planner-handoff-use]')?.addEventListener('click',()=>{applyPlannerHandoffToForm();toast('Nový plán je připravený ve formuláři. Zkontroluj ho a rezervaci odešli.')});
 $('[data-planner-handoff-keep]')?.addEventListener('click',()=>{plannerHandoffChoice='kept';plannerHandoffApplied=false;renderReservation();renderPlannerHandoff();toast('Současná rezervace zůstala beze změny.')});
 $('[data-planner-handoff-overview]')?.addEventListener('click',()=>openSection('overview'));
-$('[data-planner-handoff-continue]')?.addEventListener('click',()=>{
-  if(!activePlannerHandoff||!reservationState.registrationOpen||data.reservation)return;
-  if(!plannerHandoffApplied)applyPlannerHandoffToForm();
-  if(!data.cars.length){returnToReservationAfterCar=true;openCarModal();return}
-  reservationForm?.scrollIntoView({behavior:'smooth',block:'start'});reservationForm?.elements?.carId?.focus();
-});
 
 const reservationStatusNames={pending:'Čeká na schválení',approved:'Schválena',rejected:'Zamítnuta',cancelled:'Zrušena'};
 const reservationStatusLoudNames={pending:'ČEKÁ NA SCHVÁLENÍ',approved:'SCHVÁLENA',rejected:'ZAMÍTNUTA',cancelled:'ZRUŠENA'};
