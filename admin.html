@@ -7,7 +7,7 @@
   <meta content="#090a0c" name="theme-color"/>
   <title>United Admin | E36 United</title>
   <link href="styles.css?v=20260823-admin1" rel="stylesheet"/>
-  <link href="admin.css?v=20260823-admin1" rel="stylesheet"/>
+  <link href="admin.css?v=20260823-admin2" rel="stylesheet"/>
 </head>
 <body class="admin-page">
   <header class="site-header scrolled admin-header">
@@ -55,7 +55,7 @@
             <article><span>Rezervace</span><strong data-kpi-reservations>0</strong><small data-capacity-reservations>kapacita —</small></article>
             <article><span>Lidé</span><strong data-kpi-people>0</strong><small>celkem osob</small></article>
             <article><span>Auta</span><strong data-kpi-cars>0</strong><small>v rezervacích</small></article>
-            <article class="admin-kpi-pending"><span>Čeká na schválení</span><strong data-kpi-pending>0</strong><small>pending</small></article>
+            <article aria-label="Otevřít žádosti čekající na schválení" class="admin-kpi-pending" data-open-pending role="button" tabindex="0"><span>Čeká na schválení</span><strong data-kpi-pending>0</strong><small>Otevřít žádosti</small></article>
             <article><span>Zaplaceno / nezaplaceno</span><strong class="admin-kpi-split" data-kpi-payments>0 / 0</strong><small>počet rezervací</small></article>
           </section>
 
@@ -93,6 +93,13 @@
 
           <section class="admin-reservations">
             <div class="admin-section-head"><div><span class="admin-kicker">RESERVATIONS</span><h2>Rezervace členů.</h2></div><span class="admin-count" data-reservation-count>0 záznamů</span></div>
+            <div aria-label="Filtrovat rezervace podle stavu" class="admin-reservation-tabs" data-reservation-tabs role="tablist">
+              <button aria-selected="true" class="admin-reservation-tab is-active" data-reservation-filter="pending" role="tab" type="button">Žádosti <b data-reservation-filter-count="pending">0</b></button>
+              <button aria-selected="false" class="admin-reservation-tab" data-reservation-filter="approved" role="tab" type="button">Schválené <b data-reservation-filter-count="approved">0</b></button>
+              <button aria-selected="false" class="admin-reservation-tab" data-reservation-filter="rejected" role="tab" type="button">Zamítnuté <b data-reservation-filter-count="rejected">0</b></button>
+              <button aria-selected="false" class="admin-reservation-tab" data-reservation-filter="cancelled" role="tab" type="button">Zrušené <b data-reservation-filter-count="cancelled">0</b></button>
+              <button aria-selected="false" class="admin-reservation-tab" data-reservation-filter="all" role="tab" type="button">Všechny <b data-reservation-filter-count="all">0</b></button>
+            </div>
             <div class="admin-reservation-list" data-reservation-list></div>
           </section>
         </div>
@@ -100,6 +107,6 @@
     </section>
   </main>
   <div aria-live="polite" class="admin-toast" data-toast role="status"></div>
-  <script src="admin.js?v=20260823-admin1" type="module"></script>
+  <script src="admin.js?v=20260823-admin2" type="module"></script>
 </body>
 </html>

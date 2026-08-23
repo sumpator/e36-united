@@ -10,6 +10,9 @@ const money=new Intl.NumberFormat('cs-CZ',{style:'currency',currency:'CZK',maxim
 const dateTime=new Intl.DateTimeFormat('cs-CZ',{dateStyle:'medium',timeStyle:'short'});
 let currentUser=null;
 let loading=false;
+let reservationItems=[];
+let reservationFilter='pending';
+const reservationFilterLabels={pending:'Žádosti',approved:'Schválené',rejected:'Zamítnuté',cancelled:'Zrušené',all:'Všechny'};
 
 const app=initializeApp(firebaseConfig);
 const auth=getAuth(app);
@@ -84,11 +87,30 @@ function renderOverview(payload){
   $('[data-booking-gap]').textContent=formatMoney(Math.max(0,commitment-collected));
 }
 
-function renderReservations(payload){
-  const reservations=Array.isArray(payload.reservations)?payload.reservations:[];
-  $('[data-reservation-count]').textContent=`${reservations.length} ${reservations.length===1?'záznam':reservations.length>1&&reservations.length<5?'záznamy':'záznamů'}`;
+function recordsLabel(count){return `${count} ${count===1?'záznam':count>1&&count<5?'záznamy':'záznamů'}`}
+function renderReservationTabs(){
+  $$('[data-reservation-filter]').forEach(button=>{
+    const filter=button.dataset.reservationFilter;
+    const count=filter==='all'?reservationItems.length:reservationItems.filter(item=>item.status===filter).length;
+    const counter=$(`[data-reservation-filter-count="${filter}"]`,button);
+    if(counter)counter.textContent=count;
+    const active=filter===reservationFilter;
+    button.classList.toggle('is-active',active);button.setAttribute('aria-selected',String(active));button.tabIndex=active?0:-1;
+  });
+}
+function reservationActions(item){
+  const actions=[
+    {status:'pending',label:'Vrátit k posouzení',className:'pending'},
+    {status:'approved',label:'Schválit',className:'approve'},
+    {status:'rejected',label:'Zamítnout',className:'reject'},
+  ];
+  return actions.filter(action=>action.status!==item.status).map(action=>`<button class="admin-button ${action.className}" data-review-action="${action.status}" type="button">${action.label}</button>`).join('');
+}
+function renderReservationList(){
+  const reservations=reservationFilter==='all'?reservationItems:reservationItems.filter(item=>item.status===reservationFilter);
+  $('[data-reservation-count]').textContent=reservationFilter==='all'?recordsLabel(reservations.length):`${recordsLabel(reservations.length)} z ${reservationItems.length}`;
   const list=$('[data-reservation-list]');
-  if(!reservations.length){list.innerHTML='<div class="admin-empty">Pro tento event zatím nejsou žádné rezervace.</div>';return}
+  if(!reservations.length){list.innerHTML=`<div class="admin-empty">V záložce ${escapeHtml(reservationFilterLabels[reservationFilter].toLowerCase())} nejsou žádné rezervace.</div>`;return}
   list.innerHTML=reservations.map(item=>{
     const member=item.member||{};const car=item.carSnapshot||{};
     const memberTitle=member.nickname||member.name||member.email||'United member';
@@ -106,10 +128,16 @@ function renderReservations(payload){
       </div>
       <div class="admin-reservation-detail">
         <p class="admin-reservation-note">${escapeHtml(note)}${review?`<br/><small>${escapeHtml(review)}</small>`:''}</p>
-        <div class="admin-review"><input maxlength="1000" data-review-note placeholder="Krátká admin poznámka (hlavně při zamítnutí)" value="${escapeHtml(item.reviewNote||'')}"/><button class="admin-button approve" data-review-action="approved">Schválit</button><button class="admin-button reject" data-review-action="rejected">Zamítnout</button></div>
+        <div class="admin-review"><input maxlength="1000" data-review-note placeholder="Krátká admin poznámka (hlavně při zamítnutí)" value="${escapeHtml(item.reviewNote||'')}"/><div class="admin-review-actions">${reservationActions(item)}</div></div>
       </div>
     </article>`;
   }).join('');
+}
+function renderReservations(payload){reservationItems=Array.isArray(payload.reservations)?payload.reservations:[];renderReservationTabs();renderReservationList()}
+function setReservationFilter(filter,scroll=false){
+  if(!reservationFilterLabels[filter])return;
+  reservationFilter=filter;renderReservationTabs();renderReservationList();
+  if(scroll)$('[data-reservation-tabs]')?.scrollIntoView({behavior:'smooth',block:'start'});
 }
 
 async function loadAdminData(){
@@ -121,10 +149,15 @@ async function loadAdminData(){
 }
 
 async function updateReservation(card,status){
-  const button=card.querySelector(`[data-review-action="${status}"]`);const note=$('[data-review-note]',card)?.value||'';
-  button.disabled=true;
-  try{await apiRequest(`/api/admin/reservations/${encodeURIComponent(card.dataset.reservationId)}`,{method:'PATCH',body:{status,reviewNote:note}});toast(status==='approved'?'Rezervace byla schválena.':'Rezervace byla zamítnuta.');await loadAdminData()}
-  catch(error){if(error.status===403){setDenied();return}toast(error.message||'Rezervaci se nepodařilo změnit.')}finally{button.disabled=false}
+  const button=card.querySelector(`[data-review-action="${status}"]`);const note=$('[data-review-note]',card)?.value||'';const reservationId=card.dataset.reservationId;
+  if(button)button.disabled=true;
+  try{
+    await apiRequest(`/api/admin/reservations/${encodeURIComponent(reservationId)}`,{method:'PATCH',body:{status,reviewNote:note}});
+    const reservation=reservationItems.find(item=>item.id===reservationId);if(reservation){reservation.status=status;reservation.reviewNote=note;renderReservationTabs();renderReservationList()}
+    const messages={pending:'Rezervace byla vrácena k posouzení.',approved:'Rezervace byla schválena.',rejected:'Rezervace byla zamítnuta.'};toast(messages[status]||'Stav rezervace byl změněn.');
+    await loadAdminData();
+  }
+  catch(error){if(error.status===403){setDenied();return}toast(error.message||'Rezervaci se nepodařilo změnit.')}finally{if(button)button.disabled=false}
 }
 
 $('[data-login-form]').addEventListener('submit',async event=>{
@@ -136,12 +169,16 @@ $('[data-login-form]').addEventListener('submit',async event=>{
 document.addEventListener('click',event=>{
   const logout=event.target.closest('[data-logout]');if(logout){signOut(auth);return}
   const refresh=event.target.closest('[data-refresh]');if(refresh){loadAdminData();return}
+  const filter=event.target.closest('[data-reservation-filter]');if(filter){setReservationFilter(filter.dataset.reservationFilter);return}
+  const pending=event.target.closest('[data-open-pending]');if(pending){setReservationFilter('pending',true);return}
   const action=event.target.closest('[data-review-action]');if(action){const card=action.closest('[data-reservation-id]');if(card)updateReservation(card,action.dataset.reviewAction)}
 });
+document.addEventListener('keydown',event=>{if((event.key==='Enter'||event.key===' ')&&event.target.closest('[data-open-pending]')){event.preventDefault();setReservationFilter('pending',true)}});
 
 onAuthStateChanged(auth,user=>{
   currentUser=user;
   if(!user){setView('auth');$('[data-admin-account]').textContent='';return}
+  reservationFilter='pending';
   $('[data-admin-account]').textContent=user.email||user.uid;
   loadAdminData();
 });
