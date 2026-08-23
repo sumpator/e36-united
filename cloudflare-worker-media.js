@@ -158,15 +158,34 @@ async function findCurrentReservation(env, memberId, eventId) {
   `).bind(memberId, eventId).first();
 }
 
+async function findLatestReservation(env, memberId) {
+  return await env.DB.prepare(`
+    SELECT
+      r.id, r.member_id, r.event_id, r.car_id,
+      r.car_model, r.car_body, r.car_year, r.car_color, r.car_nickname,
+      r.arrival, r.crew, r.accommodation, r.show_shine, r.note, r.status,
+      r.attendance_type, r.accommodation_units,
+      r.amount_due_czk, r.amount_paid_czk, r.payment_status,
+      r.paid_at, r.submitted_at, r.created_at, r.updated_at,
+      e.registration_status AS event_registration_status
+    FROM reservations r
+    JOIN events e ON e.id = r.event_id
+    WHERE r.member_id = ?
+    ORDER BY e.year DESC
+    LIMIT 1
+  `).bind(memberId).first();
+}
+
 async function getCurrentReservation(env, auth, origin) {
   const event = await getOpenEvent(env);
   if (!event) {
+    const reservation = await findLatestReservation(env, auth.uid);
     return json({
       ok: true,
       registrationOpen: false,
-      event: null,
-      reservation: null,
-      message: "Registrace na žádný event aktuálně není otevřená.",
+      event: reservation ? { id: reservation.event_id, registrationStatus: reservation.event_registration_status } : null,
+      reservation: reservation ? publicReservation(reservation) : null,
+      message: reservation ? "Registrace je uzavřená. Zobrazuje se poslední uložená rezervace." : "Registrace na žádný event aktuálně není otevřená.",
     }, 200, origin);
   }
 
@@ -200,7 +219,7 @@ async function putCurrentReservation(request, env, auth, origin) {
   const note = clean(body.note).slice(0, 1000);
   const crew = Number(body.crew);
   const attendanceType = clean(body.attendanceType);
-  const accommodationUnits = body.accommodationUnits;
+  const accommodationUnits = accommodation === "Bez ubytování" || attendanceType === "day_visit" ? 0 : body.accommodationUnits;
 
   if (!carId) return json({ ok: false, error: "car_required", message: "Vyber auto z garáže." }, 400, origin);
   if (!["Pátek", "Sobota", "Jen na otočku"].includes(arrival)) return json({ ok: false, error: "invalid_arrival", message: "Vyber platný příjezd." }, 400, origin);

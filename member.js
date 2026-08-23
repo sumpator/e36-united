@@ -417,12 +417,13 @@ function renderHistory(){const grid=$('[data-history-grid]');grid.innerHTML=data
 const reservationForm=$('[data-reservation-form]');
 const arrivalSelect=reservationForm?.elements?.arrival;
 const sleepField=$('[data-member-sleep-field]');
-function syncMemberSleep(){if(!reservationForm||!arrivalSelect||!sleepField)return;const dayPass=arrivalSelect.value==='Jen na otočku',crew=Math.max(1,Math.min(8,Number(reservationForm.elements.crew.value)||1)),units=reservationForm.elements.accommodationUnits;sleepField.hidden=dayPass;if(dayPass)reservationForm.elements.sleep.value='Bez ubytování';if(units){units.max=String(crew);if(Number(units.value)>crew)units.value=String(crew)}}
+function syncMemberSleep(){if(!reservationForm||!arrivalSelect||!sleepField)return;const dayPass=arrivalSelect.value==='Jen na otočku',crew=Math.max(1,Math.min(8,Number(reservationForm.elements.crew.value)||1)),units=reservationForm.elements.accommodationUnits,unitsField=units?.closest('label');sleepField.hidden=dayPass;if(dayPass){reservationForm.elements.sleep.value='Bez ubytování';if(units)units.value='0'}if(units){units.max=String(crew);if(Number(units.value)>crew)units.value=String(crew);units.disabled=dayPass||!reservationState.registrationOpen}if(unitsField)unitsField.hidden=dayPass}
 arrivalSelect?.addEventListener('change',syncMemberSleep);reservationForm?.elements?.crew?.addEventListener('input',syncMemberSleep);syncMemberSleep();
 
 function renderReservation(){
   const r=data.reservation,miniStatus=$('[data-reservation-status]'),year=$('[data-res-year]'),title=$('[data-res-title]'),car=$('[data-res-car]'),mailState=$('[data-reservation-mail-state]');
   const submit=$('[data-reservation-submit]');
+  if(reservationForm){for(const field of reservationForm.elements)field.disabled=!reservationState.registrationOpen;syncMemberSleep()}
   if(submit)submit.disabled=!reservationState.registrationOpen;
   if(!r){
     const open=reservationState.registrationOpen;
