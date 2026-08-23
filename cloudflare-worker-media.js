@@ -47,6 +47,27 @@ export default {
         const auth = await verifyFirebaseRequest(request);
         if (!auth) return json({ ok: false, authenticated: false, error: "Unauthorized" }, 401, origin);
 
+        if (url.pathname.startsWith("/api/admin/")) {
+          const admin = await requireAdmin(env, auth);
+          if (!admin) {
+            return json({ ok: false, error: "admin_forbidden", message: "Nemáš oprávnění pro United Admin" }, 403, origin);
+          }
+
+          if (url.pathname === "/api/admin/overview" && request.method === "GET") {
+            return await getAdminOverview(env, origin);
+          }
+          if (url.pathname === "/api/admin/reservations" && request.method === "GET") {
+            return await getAdminReservations(env, origin);
+          }
+
+          const adminReservationMatch = url.pathname.match(/^\/api\/admin\/reservations\/([^/]+)$/);
+          if (adminReservationMatch && request.method === "PATCH") {
+            return await patchAdminReservation(request, env, auth, decodeURIComponent(adminReservationMatch[1]), origin);
+          }
+
+          return json({ ok: false, error: "not_found", message: "Admin endpoint neexistuje." }, 404, origin);
+        }
+
         if (url.pathname === "/api/bootstrap" && request.method === "POST") return await bootstrapMember(request, env, auth, origin);
         if (url.pathname === "/api/me" && request.method === "GET") return await getMember(env, auth, origin);
 
@@ -80,6 +101,248 @@ export default {
     }
   },
 };
+
+async function requireAdmin(env, auth) {
+  const member = await env.DB.prepare(`
+    SELECT id, role, status
+    FROM members
+    WHERE id = ?
+  `).bind(auth.uid).first();
+
+  return member?.role === "admin" && member?.status === "active" ? member : null;
+}
+
+async function getLatestAdminEvent(env) {
+  return await env.DB.prepare(`
+    SELECT
+      id, year, registration_status,
+      accommodation_capacity, reservation_capacity,
+      booking_commitment_czk, booking_due_at, booking_paid_czk
+    FROM events
+    ORDER BY year DESC
+    LIMIT 1
+  `).first();
+}
+
+function publicAdminEvent(event) {
+  if (!event) return null;
+  return {
+    id: event.id,
+    year: Number(event.year || 0),
+    registrationStatus: event.registration_status || "",
+    accommodationCapacity: Number(event.accommodation_capacity || 0),
+    reservationCapacity: Number(event.reservation_capacity || 0),
+    bookingCommitmentCzk: Number(event.booking_commitment_czk || 0),
+    bookingDueAt: event.booking_due_at || null,
+    bookingPaidCzk: Number(event.booking_paid_czk || 0),
+  };
+}
+
+async function getAdminOverview(env, origin) {
+  const event = await getLatestAdminEvent(env);
+  if (!event) {
+    return json({ ok: true, event: null, overview: emptyAdminOverview() }, 200, origin);
+  }
+
+  const totals = await env.DB.prepare(`
+    SELECT
+      COUNT(*) AS reservation_count,
+      COALESCE(SUM(crew), 0) AS people_count,
+      COUNT(DISTINCT CASE WHEN car_id IS NOT NULL THEN car_id END) AS car_count,
+      COALESCE(SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END), 0) AS status_pending,
+      COALESCE(SUM(CASE WHEN status = 'approved' THEN 1 ELSE 0 END), 0) AS status_approved,
+      COALESCE(SUM(CASE WHEN status = 'rejected' THEN 1 ELSE 0 END), 0) AS status_rejected,
+      COALESCE(SUM(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END), 0) AS status_cancelled,
+      COALESCE(SUM(CASE WHEN attendance_type = 'full_weekend' THEN 1 ELSE 0 END), 0) AS attendance_full_weekend,
+      COALESCE(SUM(CASE WHEN attendance_type = 'saturday_only' THEN 1 ELSE 0 END), 0) AS attendance_saturday_only,
+      COALESCE(SUM(CASE WHEN attendance_type = 'day_visit' THEN 1 ELSE 0 END), 0) AS attendance_day_visit,
+      COALESCE(SUM(CASE WHEN show_shine = 'Ano' THEN 1 ELSE 0 END), 0) AS show_shine_yes,
+      COALESCE(SUM(CASE WHEN show_shine = 'Ne' THEN 1 ELSE 0 END), 0) AS show_shine_no,
+      COALESCE(SUM(CASE WHEN show_shine = 'Možná' THEN 1 ELSE 0 END), 0) AS show_shine_maybe,
+      COALESCE(SUM(accommodation_units), 0) AS accommodation_units,
+      COALESCE(SUM(CASE WHEN accommodation = 'Chatka' THEN 1 ELSE 0 END), 0) AS accommodation_cabin,
+      COALESCE(SUM(CASE WHEN accommodation = 'Stan' THEN 1 ELSE 0 END), 0) AS accommodation_tent,
+      COALESCE(SUM(CASE WHEN accommodation = 'Bez ubytování' THEN 1 ELSE 0 END), 0) AS accommodation_none,
+      COALESCE(SUM(CASE WHEN payment_status = 'paid' THEN 1 ELSE 0 END), 0) AS payment_paid,
+      COALESCE(SUM(CASE WHEN payment_status = 'unpaid' THEN 1 ELSE 0 END), 0) AS payment_unpaid,
+      COALESCE(SUM(CASE WHEN payment_status = 'overdue' THEN 1 ELSE 0 END), 0) AS payment_overdue,
+      COALESCE(SUM(CASE WHEN payment_status = 'early_paid' THEN 1 ELSE 0 END), 0) AS payment_early_paid,
+      COALESCE(SUM(CASE WHEN payment_status = 'refunded' THEN 1 ELSE 0 END), 0) AS payment_refunded,
+      COALESCE(SUM(amount_due_czk), 0) AS amount_due_czk,
+      COALESCE(SUM(amount_paid_czk), 0) AS amount_paid_czk
+    FROM reservations
+    WHERE event_id = ?
+  `).bind(event.id).first();
+
+  return json({ ok: true, event: publicAdminEvent(event), overview: mapAdminOverview(totals) }, 200, origin);
+}
+
+function emptyAdminOverview() {
+  return mapAdminOverview({});
+}
+
+function mapAdminOverview(row = {}) {
+  return {
+    reservations: Number(row.reservation_count || 0),
+    people: Number(row.people_count || 0),
+    cars: Number(row.car_count || 0),
+    statuses: {
+      pending: Number(row.status_pending || 0),
+      approved: Number(row.status_approved || 0),
+      rejected: Number(row.status_rejected || 0),
+      cancelled: Number(row.status_cancelled || 0),
+    },
+    attendance: {
+      fullWeekend: Number(row.attendance_full_weekend || 0),
+      saturdayOnly: Number(row.attendance_saturday_only || 0),
+      dayVisit: Number(row.attendance_day_visit || 0),
+    },
+    showShine: {
+      yes: Number(row.show_shine_yes || 0),
+      no: Number(row.show_shine_no || 0),
+      maybe: Number(row.show_shine_maybe || 0),
+    },
+    accommodation: {
+      units: Number(row.accommodation_units || 0),
+      cabin: Number(row.accommodation_cabin || 0),
+      tent: Number(row.accommodation_tent || 0),
+      none: Number(row.accommodation_none || 0),
+    },
+    payments: {
+      paid: Number(row.payment_paid || 0),
+      unpaid: Number(row.payment_unpaid || 0),
+      overdue: Number(row.payment_overdue || 0),
+      earlyPaid: Number(row.payment_early_paid || 0),
+      refunded: Number(row.payment_refunded || 0),
+      amountDueCzk: Number(row.amount_due_czk || 0),
+      amountPaidCzk: Number(row.amount_paid_czk || 0),
+    },
+  };
+}
+
+async function getAdminReservations(env, origin) {
+  const event = await getLatestAdminEvent(env);
+  if (!event) return json({ ok: true, event: null, reservations: [] }, 200, origin);
+
+  const rows = await env.DB.prepare(`
+    SELECT
+      r.id, r.car_id, r.car_model, r.car_body, r.car_year, r.car_color, r.car_nickname,
+      r.attendance_type, r.arrival, r.crew, r.accommodation, r.accommodation_units,
+      r.show_shine, r.note, r.status, r.payment_status,
+      r.amount_due_czk, r.amount_paid_czk,
+      r.submitted_at, r.updated_at, r.reviewed_at, r.review_note,
+      m.name AS member_name, m.nickname AS member_nickname,
+      m.email AS member_email, m.member_code
+    FROM reservations r
+    JOIN members m ON m.id = r.member_id
+    WHERE r.event_id = ?
+    ORDER BY
+      CASE r.status WHEN 'pending' THEN 0 WHEN 'rejected' THEN 1 WHEN 'approved' THEN 2 ELSE 3 END,
+      r.submitted_at DESC,
+      r.updated_at DESC
+  `).bind(event.id).all();
+
+  return json({
+    ok: true,
+    event: publicAdminEvent(event),
+    reservations: (rows.results || []).map(publicAdminReservation),
+  }, 200, origin);
+}
+
+function publicAdminReservation(reservation) {
+  return {
+    id: reservation.id,
+    member: {
+      name: reservation.member_name || "",
+      nickname: reservation.member_nickname || "",
+      email: reservation.member_email || "",
+      memberCode: reservation.member_code || "",
+    },
+    carSnapshot: {
+      id: reservation.car_id,
+      model: reservation.car_model || "",
+      body: reservation.car_body || "",
+      year: reservation.car_year || "",
+      color: reservation.car_color || "",
+      nickname: reservation.car_nickname || "",
+    },
+    attendanceType: reservation.attendance_type || "",
+    arrival: reservation.arrival || "",
+    crew: Number(reservation.crew || 0),
+    accommodation: reservation.accommodation || "",
+    accommodationUnits: Number(reservation.accommodation_units || 0),
+    showShine: reservation.show_shine || "Ne",
+    note: reservation.note || "",
+    status: reservation.status || "pending",
+    paymentStatus: reservation.payment_status || "unpaid",
+    amountDueCzk: Number(reservation.amount_due_czk || 0),
+    amountPaidCzk: Number(reservation.amount_paid_czk || 0),
+    submittedAt: reservation.submitted_at || null,
+    updatedAt: reservation.updated_at || null,
+    reviewedAt: reservation.reviewed_at || null,
+    reviewNote: reservation.review_note || "",
+  };
+}
+
+async function patchAdminReservation(request, env, auth, reservationId, origin) {
+  let body = {};
+  try {
+    body = await request.json();
+    if (!body || typeof body !== "object" || Array.isArray(body)) throw new Error("Invalid JSON object");
+  } catch {
+    return json({ ok: false, error: "invalid_json", message: "Požadavek nemá platný JSON." }, 400, origin);
+  }
+
+  const allowedKeys = new Set(["status", "reviewNote"]);
+  if (Object.keys(body).some(key => !allowedKeys.has(key))) {
+    return json({ ok: false, error: "invalid_fields", message: "Lze změnit pouze stav a admin poznámku." }, 400, origin);
+  }
+
+  const status = clean(body.status);
+  const reviewNote = clean(body.reviewNote).slice(0, 1000);
+  if (!["pending", "approved", "rejected", "cancelled"].includes(status)) {
+    return json({ ok: false, error: "invalid_status", message: "Neplatný stav rezervace." }, 400, origin);
+  }
+
+  const reservation = await env.DB.prepare(`
+    SELECT id, status, review_note
+    FROM reservations
+    WHERE id = ?
+    LIMIT 1
+  `).bind(reservationId).first();
+  if (!reservation) return json({ ok: false, error: "reservation_not_found", message: "Rezervace nebyla nalezena." }, 404, origin);
+
+  const oldState = JSON.stringify({ status: reservation.status, reviewNote: reservation.review_note || "" });
+  const newState = JSON.stringify({ status, reviewNote });
+  const actionId = crypto.randomUUID();
+
+  const results = await env.DB.batch([
+    env.DB.prepare(`
+      UPDATE reservations
+      SET status = ?, review_note = ?, reviewed_by = ?, reviewed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `).bind(status, reviewNote || null, auth.uid, reservationId),
+    env.DB.prepare(`
+      INSERT INTO admin_actions (
+        id, admin_member_id, action_type, entity_type, entity_id,
+        old_state_json, new_state_json, note
+      )
+      VALUES (?, ?, 'reservation_status_changed', 'reservation', ?, ?, ?, ?)
+    `).bind(actionId, auth.uid, reservationId, oldState, newState, reviewNote || null),
+  ]);
+
+  if (!results[0]?.meta?.changes) throw new Error("Reservation was not updated");
+
+  return json({
+    ok: true,
+    reservation: {
+      id: reservationId,
+      status,
+      reviewNote,
+      reviewedBy: auth.uid,
+    },
+  }, 200, origin);
+}
 
 async function bootstrapMember(request, env, auth, origin) {
   if (!auth.email) return json({ ok: false, error: "Firebase account has no email" }, 400, origin);
@@ -195,7 +458,7 @@ async function getCurrentReservation(env, auth, origin) {
     registrationOpen: true,
     event: { id: event.id, registrationStatus: event.registration_status },
     reservation: reservation ? publicReservation(reservation) : null,
-    message: reservation ? "Rezervace byla načtena ze serveru." : "Registrace je otevřená, ale zatím nemáš rezervaci.",
+    message: reservation ? "Rezervace byla načtena." : "Registrace je otevřená, ale zatím nemáš rezervaci.",
   }, 200, origin);
 }
 
@@ -290,7 +553,7 @@ async function putCurrentReservation(request, env, auth, origin) {
     registrationOpen: true,
     event: { id: event.id, registrationStatus: event.registration_status },
     reservation: publicReservation(reservation),
-    message: "Rezervace byla uložena na server a čeká na schválení.",
+    message: "Rezervace byla uložena a čeká na schválení.",
   }, 200, origin);
 }
 

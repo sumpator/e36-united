@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="utf-8"/>
+  <meta content="width=device-width,initial-scale=1" name="viewport"/>
+  <meta content="noindex,nofollow" name="robots"/>
+  <meta content="#090a0c" name="theme-color"/>
+  <title>United Admin | E36 United</title>
+  <link href="styles.css?v=20260823-admin1" rel="stylesheet"/>
+  <link href="admin.css?v=20260823-admin1" rel="stylesheet"/>
+</head>
+<body class="admin-page">
+  <header class="site-header scrolled admin-header">
+    <div class="container nav">
+      <a aria-label="E36 United – domů" class="brand" href="index.html"><span class="brand-mark"><img alt="" src="https://static.wixstatic.com/media/595239_e98c154b89304202a35b84993c3ddef4~mv2.png/v1/fill/w_61%2Ch_58%2Cal_c%2Cq_85%2Cusm_0.66_1.00_0.01%2Cenc_avif%2Cquality_auto/UsingleWhite.png"/></span><span>E36 UNITED</span></a>
+      <nav aria-label="Navigace United Admin" class="admin-top-nav"><a href="member.html">Můj United</a><a href="index.html">Web</a></nav>
+    </div>
+  </header>
+
+  <main class="admin-main">
+    <section class="admin-gate" data-auth-view>
+      <div class="admin-gate-mark">E36<br/><span>UNITED</span></div>
+      <div class="admin-gate-panel">
+        <span class="admin-kicker">UNITED CONTROL ROOM</span>
+        <h1>United Admin.</h1>
+        <p>Přihlas se svým United účtem. Přístup následně ověří server podle členské role.</p>
+        <form class="admin-login" data-login-form>
+          <label><span>E-mail</span><input autocomplete="email" name="email" required type="email"/></label>
+          <label><span>Heslo</span><input autocomplete="current-password" minlength="6" name="password" required type="password"/></label>
+          <button class="admin-button admin-button--primary" type="submit">Přihlásit <span>→</span></button>
+        </form>
+        <p class="admin-gate-status" data-auth-status></p>
+      </div>
+    </section>
+
+    <section class="admin-denied" data-denied-view hidden>
+      <span class="admin-kicker">ACCESS DENIED</span>
+      <h1>Nemáš oprávnění pro United Admin</h1>
+      <p>Přihlášený účet nemá aktivní administrátorský přístup.</p>
+      <button class="admin-button" data-logout>Odhlásit účet</button>
+    </section>
+
+    <section class="admin-app" data-admin-view hidden>
+      <div class="admin-hero">
+        <div class="container admin-hero-inner">
+          <div><span class="admin-kicker">UNITED CONTROL ROOM</span><h1>Event <em data-event-year>—</em></h1><p data-event-state>Načítám aktuální přehled…</p></div>
+          <div class="admin-hero-actions"><span data-admin-account></span><button class="admin-button" data-refresh>Obnovit data</button><button class="admin-button" data-logout>Odhlásit</button></div>
+        </div>
+      </div>
+
+      <div class="container admin-shell">
+        <div class="admin-loading" data-loading hidden><i></i><span>Načítám United data…</span></div>
+        <div data-dashboard-content>
+          <section class="admin-kpis" aria-label="Hlavní ukazatele">
+            <article><span>Rezervace</span><strong data-kpi-reservations>0</strong><small data-capacity-reservations>kapacita —</small></article>
+            <article><span>Lidé</span><strong data-kpi-people>0</strong><small>celkem osob</small></article>
+            <article><span>Auta</span><strong data-kpi-cars>0</strong><small>v rezervacích</small></article>
+            <article class="admin-kpi-pending"><span>Čeká na schválení</span><strong data-kpi-pending>0</strong><small>pending</small></article>
+            <article><span>Zaplaceno / nezaplaceno</span><strong class="admin-kpi-split" data-kpi-payments>0 / 0</strong><small>počet rezervací</small></article>
+          </section>
+
+          <section class="admin-insights">
+            <article class="admin-panel">
+              <div class="admin-panel-head"><div><span class="admin-kicker">ATTENDANCE</span><h2>Typ účasti</h2></div></div>
+              <div class="admin-bars">
+                <div><span>Full weekend</span><b data-attendance-full>0</b><i><em data-bar-full></em></i></div>
+                <div><span>Sobota</span><b data-attendance-saturday>0</b><i><em data-bar-saturday></em></i></div>
+                <div><span>Day visit</span><b data-attendance-day>0</b><i><em data-bar-day></em></i></div>
+              </div>
+            </article>
+            <article class="admin-panel">
+              <div class="admin-panel-head"><div><span class="admin-kicker">SHOW &amp; SHINE</span><h2>Zájem posádek</h2></div></div>
+              <div class="admin-donut-row"><div class="admin-ring" data-show-ring><span data-show-total>0</span></div><dl><div><dt>Ano</dt><dd data-show-yes>0</dd></div><div><dt>Možná</dt><dd data-show-maybe>0</dd></div><div><dt>Ne</dt><dd data-show-no>0</dd></div></dl></div>
+            </article>
+            <article class="admin-panel">
+              <div class="admin-panel-head"><div><span class="admin-kicker">ACCOMMODATION</span><h2>Ubytování</h2></div><strong data-accommodation-occupancy>0 / —</strong></div>
+              <div class="admin-capacity"><i><em data-accommodation-bar></em></i><small>rezervovaná místa / kapacita</small></div>
+              <dl class="admin-mini-stats"><div><dt>Chatka</dt><dd data-accommodation-cabin>0</dd></div><div><dt>Stan</dt><dd data-accommodation-tent>0</dd></div><div><dt>Bez ubytování</dt><dd data-accommodation-none>0</dd></div></dl>
+            </article>
+          </section>
+
+          <section class="booking-block">
+            <div class="booking-heading"><span class="admin-kicker">BOOKING COMMITMENT</span><h2>United závazek za ubytování.</h2><p>Reálný přehled závazku, vybraných peněz a částky k předfinancování.</p></div>
+            <div class="booking-primary"><small>Závazek United</small><strong data-booking-commitment>0 Kč</strong><span>Splatnost <b data-booking-due>—</b></span></div>
+            <div class="booking-grid">
+              <div><small>Kapacita</small><b data-booking-capacity>—</b></div>
+              <div><small>Rezervovaná místa</small><b data-booking-reserved>0</b></div>
+              <div><small>Vybrané peníze</small><b data-booking-collected>0 Kč</b></div>
+              <div><small>Booking paid</small><b data-booking-paid>0 Kč</b></div>
+            </div>
+            <div class="booking-gap"><span>United musí předfinancovat</span><strong data-booking-gap>0 Kč</strong></div>
+          </section>
+
+          <section class="admin-reservations">
+            <div class="admin-section-head"><div><span class="admin-kicker">RESERVATIONS</span><h2>Rezervace členů.</h2></div><span class="admin-count" data-reservation-count>0 záznamů</span></div>
+            <div class="admin-reservation-list" data-reservation-list></div>
+          </section>
+        </div>
+      </div>
+    </section>
+  </main>
+  <div aria-live="polite" class="admin-toast" data-toast role="status"></div>
+  <script src="admin.js?v=20260823-admin1" type="module"></script>
+</body>
+</html>
