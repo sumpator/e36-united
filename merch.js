@@ -1,3 +1,5 @@
+import { firebaseConfig } from './firebase-config.js?v=20260823-auth2';
+
 (() => {
 const qs=(s,r=document)=>r.querySelector(s), qsa=(s,r=document)=>[...r.querySelectorAll(s)];
 const products={
@@ -23,4 +25,17 @@ qsa('[data-product-open]').forEach(btn=>btn.addEventListener('click',()=>{
 }));
 function updateMail(){if(!active||!modal)return;const p=products[active],size=qs('[data-merch-sizes] .is-active',modal)?.textContent||'';const a=qs('[data-merch-interest]',modal);a.href=`mailto:united@e36united.cz?subject=${encodeURIComponent('E36 United merch – '+p.title)}&body=${encodeURIComponent('Mám zájem o '+p.title+' / '+p.subtitle+' / varianta '+size+'.\n\nProsím dejte mi vědět, až bude Drop 01 spuštěný.')}`;}
 qsa('[data-merch-filter]').forEach(btn=>btn.addEventListener('click',()=>{const f=btn.dataset.merchFilter;qsa('[data-merch-filter]').forEach(x=>x.classList.toggle('is-active',x===btn));qsa('[data-merch-product]').forEach(card=>{card.hidden=f!=='all'&&card.dataset.category!==f;});}));
+
+const memberBenefit=qs('[data-member-merch-benefit]');
+if(memberBenefit){
+  void (async()=>{
+    try{
+      const appMod=await import('https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js');
+      const authMod=await import('https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js');
+      const app=appMod.getApps().length?appMod.getApps()[0]:appMod.initializeApp(firebaseConfig);
+      const auth=authMod.getAuth(app);await authMod.setPersistence(auth,authMod.browserLocalPersistence);
+      authMod.onAuthStateChanged(auth,user=>{memberBenefit.hidden=!user});
+    }catch(error){memberBenefit.hidden=true;console.debug('United member benefit state is unavailable.',error)}
+  })();
+}
 })();

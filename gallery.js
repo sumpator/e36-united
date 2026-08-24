@@ -4,6 +4,38 @@ const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelect
 const apiBase=(portalConfig.apiBaseUrl||'https://api.e36united.cz').replace(/\/$/,'');
 let auth=null,currentUser=null,member=null;
 
+function initGalleryNavigation(){
+  const videoSection=$('.gallery-video-section'),hero=$('.gallery-hero');
+  if(!videoSection||!hero)return;
+  videoSection.id='videos';
+  const items=[['videos','01','Videa'],['official-photos','02','Ofiko fotky'],['user-photos','03','User fotky'],['nahraj-fotky','04','Nahrát foto']]
+    .map(([id,index,label])=>({id,index,label,section:document.getElementById(id)})).filter(item=>item.section);
+  if(!items.length)return;
+  const wrap=document.createElement('div');wrap.className='gallery-media-nav-wrap';
+  const nav=document.createElement('nav');nav.className='container gallery-media-nav';nav.setAttribute('aria-label','Sekce galerie');
+  items.forEach((item,index)=>{
+    const link=document.createElement('a');link.href=`#${item.id}`;link.dataset.galleryNav=item.id;link.classList.toggle('is-active',index===0);link.innerHTML=`<span>${item.index}</span>${item.label}`;
+    link.addEventListener('click',event=>{event.preventDefault();item.section.scrollIntoView({behavior:'smooth',block:'start'});history.replaceState(null,'',`#${item.id}`)});
+    nav.append(link);item.link=link;
+  });
+  wrap.append(nav);hero.after(wrap);
+  let activeId='';
+  const setActive=id=>{
+    if(id===activeId)return;activeId=id;
+    items.forEach(item=>{
+    const active=item.id===id;item.link.classList.toggle('is-active',active);
+    if(active){item.link.setAttribute('aria-current','location');item.link.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'})}
+    else item.link.removeAttribute('aria-current');
+    });
+  };
+  const updateActive=()=>{
+    const probe=Math.min(innerHeight*.38,300);let active=items[0];
+    items.forEach(item=>{const rect=item.section.getBoundingClientRect();if(rect.top<=probe)active=item});
+    setActive(active.id);
+  };
+  updateActive();window.addEventListener('scroll',updateActive,{passive:true});window.addEventListener('resize',updateActive,{passive:true});
+}
+
 function setUploadStatus(message,type=''){
   const el=$('[data-upload-status]');if(!el)return;
   el.textContent=message;el.classList.remove('is-success','is-error','is-info');
@@ -125,3 +157,4 @@ form?.addEventListener('submit',async event=>{
 
 loadApprovedGallery();
 initAuth();
+initGalleryNavigation();

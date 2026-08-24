@@ -192,3 +192,32 @@ body:not(.member-authenticated) [data-app-view]{display:none!important}
 /* Reservation price stays secondary until its detail is expanded. */
 .reservation-price-preview{gap:7px;padding:13px 14px;border-color:rgba(105,175,255,.16);background:rgba(77,163,255,.035);box-shadow:none}.reservation-price-head{min-width:0;padding:0;border:0;font-size:12px}.reservation-price-head span{min-width:0;overflow-wrap:anywhere}.reservation-price-estimate{padding-top:7px;border-top:1px solid rgba(255,255,255,.07)}.reservation-price-estimate span{color:#879baa}.reservation-price-estimate b{color:#7ec4ff!important;font-size:15px!important}.reservation-price-details{min-width:0}.reservation-price-details summary{display:inline-flex;align-items:center;min-height:32px;padding:5px 0;color:#73bfff;font-size:11px;font-weight:850;cursor:pointer;list-style:none}.reservation-price-details summary::-webkit-details-marker{display:none}.reservation-price-details summary:hover{color:#b7ddff}.reservation-price-details .price-detail-hide{display:none}.reservation-price-details[open] .price-detail-show{display:none}.reservation-price-details[open] .price-detail-hide{display:inline}.reservation-price-breakdown{display:grid;gap:8px;margin-top:5px;padding-top:11px;border-top:1px solid rgba(105,175,255,.16)}.reservation-price-breakdown>div{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;color:#9aabba;font-size:11px}.reservation-price-breakdown>div span{min-width:0;overflow-wrap:anywhere}.reservation-price-breakdown>div b{flex:0 0 auto;color:#e8f2fb;font-size:11px;white-space:nowrap}.reservation-price-breakdown>small{color:#677d91;font-size:10px;line-height:1.45}.reservation-price-breakdown .reservation-price-total{margin-top:2px;padding-top:9px}.reservation-price-breakdown .reservation-price-total b{font-size:16px!important}
 @media(max-width:700px){.reservation-price-estimate{align-items:center!important;flex-direction:row!important}.reservation-price-details summary{min-height:38px}.reservation-price-breakdown>div{gap:9px}}
+
+/* 2026-08-24: one readable visual language for badges and member perks. */
+.overview-grid .points-card{grid-column:1/-1;}
+.badge{position:relative;min-height:154px;padding:14px;justify-content:flex-start;gap:12px;border-color:rgba(108,181,244,.18);background:linear-gradient(145deg,rgba(77,163,255,.055),#0a0d11 62%);}
+.badge-icon{width:46px;height:46px;flex:0 0 46px;border-color:rgba(105,184,255,.3);background:rgba(77,163,255,.1);color:#8dccff;}
+.badge-icon svg,.perk i svg{width:24px;height:24px;display:block;}
+.badge-copy{display:grid;gap:4px;min-width:0;}
+.member-app .badge-copy b{font-size:13px;line-height:1.2;color:#f2f7fb;}
+.member-app .badge-copy small{font-size:10.5px;line-height:1.45;color:#8e9ca9;}
+.badge-status{width:max-content;margin-top:auto;padding:5px 7px;border:1px solid rgba(100,218,153,.25);border-radius:999px;background:rgba(61,190,119,.08);color:#73dda2;font:900 7.5px/1 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.12em;}
+.badge.is-locked{opacity:1;filter:none;border-color:rgba(255,255,255,.1);background:linear-gradient(145deg,rgba(255,255,255,.025),#090c10 65%);}
+.badge.is-locked .badge-icon{border-color:rgba(255,255,255,.13);background:rgba(255,255,255,.035);color:#73808c;}
+.badge.is-locked .badge-status{border-color:rgba(255,255,255,.12);background:rgba(255,255,255,.035);color:#8c98a3;}
+.badge.is-locked .badge-copy b{color:#d6dde4;}
+.badge.is-locked .badge-copy small{color:#7f8b96;}
+.perk{min-height:68px;grid-template-columns:46px minmax(0,1fr) auto;gap:12px;padding:11px 12px;border-color:rgba(101,181,249,.16);background:linear-gradient(120deg,rgba(77,163,255,.045),#090c10);}
+.perk i{width:44px;height:44px;border:1px solid rgba(105,184,255,.28);border-radius:12px;background:rgba(77,163,255,.09);color:#87caff;}
+.member-app .perk b{font-size:12.5px;line-height:1.25;color:#eef5fb;}
+.member-app .perk small{margin-top:3px;font-size:10.5px;line-height:1.4;color:#8795a2;}
+.perk>span{padding:5px 7px;border:1px solid rgba(100,218,153,.22);border-radius:999px;background:rgba(61,190,119,.07);color:#73dda2!important;}
+.perk.is-locked{opacity:1;filter:none;border-color:rgba(255,255,255,.09);}
+.perk.is-locked i{border-color:rgba(255,255,255,.12);background:rgba(255,255,255,.03);color:#717e89;}
+.perk.is-locked>span{border-color:rgba(255,255,255,.11);background:rgba(255,255,255,.03);color:#89949f!important;}
+@media(max-width:560px){
+  .badge{min-height:148px;}
+  .perk{grid-template-columns:42px minmax(0,1fr);}
+  .perk i{width:40px;height:40px;}
+  .perk>span{grid-column:2;justify-self:start;}
+}

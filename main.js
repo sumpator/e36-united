@@ -4,7 +4,7 @@ const qsa = (selector, root = document) => [...root.querySelectorAll(selector)];
 const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 const coreStyles = qs('link[href^="styles.css"]');
-if (coreStyles && !coreStyles.href.includes('v=20260822-21')) coreStyles.href = 'styles.css?v=20260822-21';
+if (coreStyles && !coreStyles.href.includes('v=20260824-ux2')) coreStyles.href = 'styles.css?v=20260824-ux2';
 
 /* Temporary rebuild notice — homepage only. */
 const heroContent = qs('.home-page .hero-content');
@@ -33,6 +33,32 @@ navLinks.forEach(a => a.addEventListener('click', () => {
 document.body.classList.remove('menu-open');
 menuBtn?.setAttribute('aria-expanded', 'false');
 }));
+
+/* Homepage navigation follows the section currently in view. */
+const homeNavSections = [
+  { id:'experience', link:qs('.home-page .nav-links a[href="#experience"]') },
+  { id:'show-shine', link:qs('.home-page .nav-links a[href="#show-shine"]') },
+  { id:'planer', link:qs('.home-page .nav-links a[href="#planer"]') }
+].filter(item => item.link && document.getElementById(item.id));
+const updateHomeNavActive = () => {
+  if (!homeNavSections.length) return;
+  const probe = Math.min(window.innerHeight * .34, 300);
+  let active = null;
+  for (const item of homeNavSections) {
+    const section = document.getElementById(item.id);
+    const rect = section.getBoundingClientRect();
+    if (rect.top <= probe && rect.bottom > probe) active = item;
+  }
+  homeNavSections.forEach(item => {
+    const selected = item === active;
+    item.link.classList.toggle('active', selected);
+    if (selected) item.link.setAttribute('aria-current', 'location');
+    else item.link.removeAttribute('aria-current');
+  });
+};
+updateHomeNavActive();
+window.addEventListener('scroll', updateHomeNavActive, { passive:true });
+window.addEventListener('resize', updateHomeNavActive, { passive:true });
 
 const navMore = qs('.nav-more');
 const navMoreToggle = qs('.nav-more-toggle');
@@ -558,6 +584,9 @@ let plannerAccommodationOptions = [];
 let updatePlanner = () => {};
 let setPlannerChoice = () => {};
 let memberPlannerMode = false;
+const plannerNights = () => plannerState.arrival === 'Pátek' ? (plannerState.departure === 'Sobota' ? 1 : Number(plannerEventData?.fullWeekendNights ?? 2)) : plannerState.arrival === 'Sobota' ? Number(plannerEventData?.saturdayOnlyNights ?? 1) : 0;
+const plannerNightLabel = count => count === 1 ? '1 noc' : `${count} noci`;
+const plannerStayLabel = () => plannerState.arrival === 'Jen na otočku' ? 'Jen na otočku' : `${plannerState.arrival} → ${plannerState.departure}`;
 
 if (planner) {
 const groups = qsa('[data-choice-group]', planner);
@@ -612,9 +641,6 @@ const plannerEscapeHtml = value => String(value||'').replace(/[&<>'"]/g,char=>({
 const plannerAccommodationKind = () => plannerState.sleep === 'Chatka' ? 'cabin' : plannerState.sleep === 'Stan' ? 'tent' : null;
 const matchingPlannerAccommodation = () => plannerAccommodationOptions.filter(option => option.active && option.kind === plannerAccommodationKind());
 const selectedPlannerAccommodation = () => matchingPlannerAccommodation().find(option => option.id === plannerState.accommodationOptionId) || null;
-const plannerNights = () => plannerState.arrival === 'Pátek' ? (plannerState.departure === 'Sobota' ? 1 : Number(plannerEventData?.fullWeekendNights ?? 2)) : plannerState.arrival === 'Sobota' ? Number(plannerEventData?.saturdayOnlyNights ?? 1) : 0;
-const plannerNightLabel = count => count === 1 ? '1 noc' : `${count} noci`;
-const plannerStayLabel = () => plannerState.arrival === 'Jen na otočku' ? 'Jen na otočku' : `${plannerState.arrival} → ${plannerState.departure}`;
 const plannerAccommodationPrice = option => {
   const people=plannerState.accommodationUnits,unitCount=Math.ceil(people/Math.max(1,Number(option?.capacityPerUnit||1))),nights=plannerNights();
   const base=unitCount*Number(option?.unitPriceCzk||0)*nights,person=people*Number(option?.personPriceCzk||0),bedding=people*Number(option?.beddingFeePerPersonCzk||0),cityTax=people*nights*Number(option?.cityTaxPerPersonPerNightCzk||0);
@@ -779,7 +805,9 @@ renderPlannerPrice(needsAccommodation);
 document.dispatchEvent(new CustomEvent('e36:planner',{detail:{...plannerState}}));
 };
 
-staySlider?.addEventListener('input', () => applyStayPreset(staySlider.value));
+const handleStaySlider = () => applyStayPreset(staySlider.value);
+staySlider?.addEventListener('input', handleStaySlider);
+staySlider?.addEventListener('change', handleStaySlider);
 stayButtons.forEach(button => button.addEventListener('click', () => applyStayPreset(button.dataset.stayIndex)));
 
 groups.forEach(group => {
@@ -1025,6 +1053,7 @@ sleep: qs('[data-timeline-step="sleep"]', unitedMap),
 people: qs('[data-timeline-step="people"]', unitedMap),
 showshine: qs('[data-timeline-step="showshine"]', unitedMap)
 };
+const timelineProgress = qs('[data-timeline-progress]', unitedMap);
 
 const flowAssets = {
 day: {
@@ -1140,10 +1169,27 @@ if (mapPeople) mapPeople.textContent = label;
 };
 
 const renderPreview = state => {
+const dayPass = state.arrival === 'Jen na otočku';
 const day = flowAssets.day[state.arrival] || flowAssets.day['Pátek'];
 const sleep = flowAssets.sleep[state.sleep] || flowAssets.sleep['Chatka'];
 const show = flowAssets.show[state.showshine] || flowAssets.show['Jedu se podívat'];
 const liveOption = plannerAccommodationOptions.find(option=>option.id===state.accommodationOptionId);
+
+unitedMap.classList.toggle('is-day-pass', dayPass);
+if (previewCards.sleep) previewCards.sleep.hidden = dayPass;
+if (timelineSteps.sleep) timelineSteps.sleep.hidden = dayPass;
+const visibleKeys = dayPass ? ['arrival','people','showshine'] : ['arrival','sleep','people','showshine'];
+visibleKeys.forEach((key,index) => {
+  const cardIndex = qs('.preview-choice-index', previewCards[key] || document);
+  const stepIndex = qs(':scope > span', timelineSteps[key] || document);
+  const label = String(index + 1).padStart(2,'0');
+  if (cardIndex) cardIndex.textContent = label;
+  if (stepIndex) stepIndex.textContent = label;
+});
+if (timelineProgress) {
+  timelineProgress.style.transform = 'scaleX(1)';
+  timelineProgress.dataset.visibleSteps = String(visibleKeys.length);
+}
 
 swapImage(flowDayImage, day);
 swapImage(flowSleepImage, sleep);
