@@ -221,3 +221,19 @@ body:not(.member-authenticated) [data-app-view]{display:none!important}
   .perk i{width:40px;height:40px;}
   .perk>span{grid-column:2;justify-self:start;}
 }
+
+/* 2026-08-25 — compact United Reservation Pass. */
+.reservation-workbench{align-items:start}
+.member-app .reservation-card-large[data-reservation-card]{height:390px;min-height:390px;align-self:start;padding:20px}
+.member-app .reservation-card-large .reservation-state{width:min(100%,410px);min-height:70px;padding:10px 13px;border-radius:14px}
+.member-app .reservation-card-large .reservation-state>small{font-size:7px}
+.member-app .reservation-card-large .reservation-state i{width:28px;height:28px;flex-basis:28px;font-size:16px}
+.member-app .reservation-card-large .reservation-state strong{font-size:clamp(18px,2vw,24px)}
+.member-app .reservation-card-large .reservation-large-year{margin-top:14px;font-size:82px}
+.member-app .reservation-card-large h3{margin:10px 0 3px;font-size:24px}
+.member-app .reservation-card-large>p{max-width:430px;margin:0;font-size:11px;line-height:1.45}
+.member-app .reservation-card-large .reservation-summary{left:20px;right:20px;bottom:18px;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+.member-app .reservation-card-large .reservation-summary div{min-width:0;padding:8px 9px}.member-app .reservation-card-large .reservation-summary b{display:block;overflow:hidden;font-size:10px;text-overflow:ellipsis;white-space:nowrap}
+.reservation-card-large.has-car-photo .reservation-card-overlay{background:linear-gradient(180deg,rgba(4,7,10,.32),rgba(4,7,10,.58) 47%,rgba(4,7,10,.96) 78%,#06080b 100%),linear-gradient(90deg,rgba(4,7,10,.74),rgba(4,7,10,.12) 74%)}
+@media(max-width:700px){.member-app .reservation-card-large[data-reservation-card]{height:auto;min-height:480px}.member-app .reservation-card-large .reservation-large-year{margin-top:20px;font-size:76px}.member-app .reservation-card-large .reservation-summary{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:420px){.member-app .reservation-card-large[data-reservation-card]{min-height:500px}.member-app .reservation-card-large .reservation-summary{grid-template-columns:1fr 1fr}.member-app .reservation-card-large .reservation-summary b{white-space:normal}}

@@ -15,6 +15,8 @@ let selectedEventId='';
 let accommodationItems=[];
 let reservationItems=[];
 let reservationFilter='pending';
+let selectedReservationId=null;
+let reservationDrawerReturnFocus=null;
 let galleryItems=[];
 let galleryFilter='pending';
 let selectedGalleryId=null;
@@ -33,6 +35,7 @@ function setView(name){
   $('[data-auth-view]').hidden=name!=='auth';
   $('[data-denied-view]').hidden=name!=='denied';
   $('[data-admin-view]').hidden=name!=='admin';
+  if(name==='admin')requestAnimationFrame(updateAdminNavActive);
 }
 function toast(message){const el=$('[data-toast]');el.textContent=message;el.classList.add('is-visible');clearTimeout(toast.timer);toast.timer=setTimeout(()=>el.classList.remove('is-visible'),3200)}
 function escapeHtml(value=''){return String(value).replace(/[&<>'"]/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[char]))}
@@ -43,6 +46,12 @@ function statusLabel(status){return({pending:'Čeká',approved:'Schválená',rej
 function galleryStatusLabel(status){return({pending:'Čeká na schválení',approved:'Schválena',rejected:'Zamítnuta'})[status]||status||'—'}
 function paymentLabel(status){return({paid:'Zaplaceno',unpaid:'Nezaplaceno',overdue:'Po splatnosti',early_paid:'Zaplaceno předem',refunded:'Vráceno'})[status]||status||'—'}
 function attendanceLabel(type){return({full_weekend:'Full weekend',saturday_only:'Sobota',day_visit:'Day visit'})[type]||type||'—'}
+function attendanceShortLabel(item){
+  if(item.attendanceType==='full_weekend')return item.arrival==='Pátek'?'Pá → Ne':'Full weekend';
+  if(item.attendanceType==='saturday_only')return 'Sobota';
+  if(item.attendanceType==='day_visit')return 'Na otočku';
+  return item.arrival||'—';
+}
 
 async function apiRequest(path,{method='GET',body,retry=true}={}){
   if(!currentUser)throw new Error('Přihlášení vypršelo.');
@@ -67,7 +76,7 @@ async function apiMedia(path,{retry=true}={}){
 }
 
 function setLoading(active){loading=active;$('[data-loading]').hidden=!active;$$('[data-refresh], [data-review-action], [data-gallery-action], [data-accommodation-save], [data-event-settings-form] button').forEach(button=>button.disabled=active);const selector=$('[data-event-select]');if(selector)selector.disabled=active||adminEvents.length<2}
-function setDenied(){closeGalleryLightbox();setView('denied')}
+function setDenied(){closeGalleryLightbox();closeReservationDrawer();setView('denied')}
 function setBar(selector,value,total){$(selector).style.width=`${total?Math.min(100,(numeric(value)/total)*100):0}%`}
 
 function renderEventSelector(){
@@ -168,26 +177,55 @@ function renderReservationList(){
     const member=item.member||{};const car=item.carSnapshot||{};
     const accommodationSnapshot=item.accommodationSnapshot||null;
     const memberTitle=member.nickname||member.name||member.email||'United member';
-    const carTitle=[car.nickname,car.model].filter(Boolean).join(' · ')||'Auto bez názvu';
-    const note=item.note||'Bez poznámky člena.';
-    const review=item.reviewNote?`Poslední admin poznámka: ${item.reviewNote}`:'';
-    return `<article class="admin-reservation" data-reservation-id="${escapeHtml(item.id)}">
-      <div class="admin-reservation-main">
-        <div><h3>${escapeHtml(memberTitle)}</h3><p>${escapeHtml(member.name)} · ${escapeHtml(member.memberCode)}<br/>${escapeHtml(member.email)}</p></div>
-        <div><h3>${escapeHtml(carTitle)}</h3><p>${escapeHtml([car.body,car.year,car.color].filter(Boolean).join(' · '))}</p></div>
-        <div class="admin-reservation-cell"><span>Příjezd / účast</span><b>${escapeHtml(item.arrival||'—')}</b><small>${escapeHtml(attendanceLabel(item.attendanceType))}</small></div>
-        <div class="admin-reservation-cell"><span>Posádka / ubytování</span><b>${numeric(item.crew)} osob</b><small>${accommodationSnapshot?`${numeric(accommodationSnapshot.peopleCount)} osob · ${numeric(accommodationSnapshot.unitCount)}× ${escapeHtml(accommodationSnapshot.optionName)} · ${escapeHtml(formatMoney(accommodationSnapshot.totalCzk))}`:`${escapeHtml(item.accommodation||'—')} · ${numeric(item.accommodationUnits)} osob · cena —`}</small></div>
-        <div class="admin-reservation-cell"><span>Show &amp; Shine</span><b>${escapeHtml(item.showShine||'Ne')}</b><small>${escapeHtml(paymentLabel(item.paymentStatus))} · ${escapeHtml(formatMoney(item.amountPaidCzk))} / ${escapeHtml(formatMoney(item.amountDueCzk))}</small></div>
-        <div class="admin-reservation-cell"><span>Stav</span><small class="admin-badge admin-badge--${escapeHtml(item.status)}">${escapeHtml(statusLabel(item.status))}</small><small>${escapeHtml(formatDate(item.updatedAt||item.submittedAt))}</small></div>
-      </div>
-      <div class="admin-reservation-detail">
-        <p class="admin-reservation-note">${escapeHtml(note)}${review?`<br/><small>${escapeHtml(review)}</small>`:''}</p>
-        <div class="admin-review"><input maxlength="1000" data-review-note placeholder="Krátká admin poznámka (hlavně při zamítnutí)" value="${escapeHtml(item.reviewNote||'')}"/><div class="admin-review-actions">${reservationActions(item)}</div></div>
-      </div>
+    const carModel=[car.body,car.model].filter(Boolean).join(' · ')||'Auto bez údajů';
+    const accommodation=accommodationSnapshot?`${numeric(accommodationSnapshot.unitCount)}× ${accommodationSnapshot.optionName}`:item.accommodation||'Bez ubytování';
+    const total=numeric(item.amountDueCzk)||numeric(accommodationSnapshot?.totalCzk);
+    return `<article class="admin-reservation admin-reservation--compact" data-reservation-id="${escapeHtml(item.id)}">
+      <button aria-label="Otevřít detail rezervace ${escapeHtml(memberTitle)}" class="admin-reservation-row" data-reservation-open="${escapeHtml(item.id)}" type="button">
+        <span class="admin-reservation-member"><strong>${escapeHtml(memberTitle)}</strong><small>${escapeHtml(member.name||'Jméno neuvedeno')} · ${escapeHtml(member.email||'E-mail neuveden')}</small></span>
+        <span><small>AUTO</small><b>${escapeHtml(carModel)}</b></span>
+        <span><small>POBYT</small><b>${escapeHtml(attendanceShortLabel(item))} · ${numeric(item.crew)} ${numeric(item.crew)===1?'osoba':'osob'}</b></span>
+        <span><small>UBYTOVÁNÍ</small><b>${escapeHtml(accommodation)}</b></span>
+        <span class="admin-reservation-money"><small>CELKEM</small><b>${escapeHtml(formatMoney(total))}</b></span>
+        <span><small>PLATBA</small><i class="admin-badge admin-payment--${escapeHtml(item.paymentStatus||'unpaid')}">${escapeHtml(paymentLabel(item.paymentStatus))}</i></span>
+        <span><small>REZERVACE</small><i class="admin-badge admin-badge--${escapeHtml(item.status)}">${escapeHtml(statusLabel(item.status))}</i></span>
+        <span class="admin-reservation-open-label">Detail <b>→</b></span>
+      </button>
     </article>`;
   }).join('');
 }
-function renderReservations(payload){reservationItems=Array.isArray(payload.reservations)?payload.reservations:[];renderReservationTabs();renderReservationList()}
+function renderReservationDrawer(){
+  const item=reservationItems.find(reservation=>reservation.id===selectedReservationId);
+  if(!item){closeReservationDrawer();return}
+  const member=item.member||{},car=item.carSnapshot||{},snapshot=item.accommodationSnapshot||null;
+  const accommodation=snapshot?`${numeric(snapshot.peopleCount)} ${numeric(snapshot.peopleCount)===1?'osoba':'osob'} · ${numeric(snapshot.unitCount)}× ${snapshot.optionName}`:`${item.accommodation||'Bez ubytování'} · ${numeric(item.accommodationUnits)} osob`;
+  $('[data-reservation-drawer-content]').innerHTML=`<article class="admin-reservation-drawer-card" data-reservation-id="${escapeHtml(item.id)}">
+    <header><span class="admin-kicker">RESERVATION DETAIL</span><h2 id="admin-reservation-drawer-title">${escapeHtml(member.nickname||member.name||'United member')}</h2><p>${escapeHtml(member.name||'Jméno neuvedeno')} · ${escapeHtml(member.email||'E-mail neuveden')}</p><div><small class="admin-badge admin-badge--${escapeHtml(item.status)}">${escapeHtml(statusLabel(item.status))}</small><small class="admin-badge admin-payment--${escapeHtml(item.paymentStatus||'unpaid')}">${escapeHtml(paymentLabel(item.paymentStatus))}</small></div></header>
+    <div class="admin-reservation-drawer-grid">
+      <section><small>ČLEN</small><b>${escapeHtml(member.name||'—')}</b><span>${escapeHtml(member.nickname||'Bez přezdívky')} · ${escapeHtml(member.memberCode||'Bez kódu')}</span><span>${escapeHtml(member.email||'—')}</span></section>
+      <section><small>AUTO</small><b>${escapeHtml([car.body,car.model].filter(Boolean).join(' · ')||'—')}</b><span>${escapeHtml([car.nickname,car.year,car.color].filter(Boolean).join(' · ')||'Bez dalších údajů')}</span></section>
+      <section><small>POBYT</small><b>${escapeHtml(attendanceShortLabel(item))} · ${numeric(item.crew)} ${numeric(item.crew)===1?'osoba':'osob'}</b><span>${escapeHtml(attendanceLabel(item.attendanceType))} · příjezd ${escapeHtml(item.arrival||'—')}</span></section>
+      <section><small>UBYTOVÁNÍ</small><b>${escapeHtml(accommodation)}</b><span>${snapshot?`${numeric(snapshot.nights)} ${numeric(snapshot.nights)===1?'noc':'noci'} · ${escapeHtml(formatMoney(snapshot.totalCzk))}`:'Cena není ve snapshotu'}</span></section>
+      <section><small>SHOW &amp; SHINE</small><b>${escapeHtml(item.showShine||'Ne')}</b><span>Účast v soutěži</span></section>
+      <section><small>PLATBA</small><b>${escapeHtml(paymentLabel(item.paymentStatus))}</b><span>${escapeHtml(formatMoney(item.amountPaidCzk))} zaplaceno / ${escapeHtml(formatMoney(item.amountDueCzk))} celkem</span></section>
+      <section><small>ODESLÁNO</small><b>${escapeHtml(formatDate(item.submittedAt))}</b><span>Aktualizováno ${escapeHtml(formatDate(item.updatedAt))}</span></section>
+      <section><small>POSOUZENO</small><b>${escapeHtml(formatDate(item.reviewedAt))}</b><span>${escapeHtml(item.reviewNote||'Bez admin poznámky')}</span></section>
+    </div>
+    <div class="admin-reservation-drawer-notes"><div><small>POZNÁMKA ČLENA</small><p>${escapeHtml(item.note||'Bez poznámky člena.')}</p></div></div>
+    <div class="admin-review admin-reservation-drawer-review"><input maxlength="1000" data-review-note placeholder="Krátká admin poznámka (hlavně při zamítnutí)" value="${escapeHtml(item.reviewNote||'')}"/><div class="admin-review-actions">${reservationActions(item)}</div></div>
+  </article>`;
+}
+function openReservationDrawer(id,source){
+  if(!reservationItems.some(item=>item.id===id))return;
+  selectedReservationId=id;reservationDrawerReturnFocus=source||document.activeElement;renderReservationDrawer();
+  $('[data-reservation-drawer]').hidden=false;document.body.classList.add('admin-overlay-open');
+  $('[data-reservation-drawer-close]:not(.admin-reservation-drawer-backdrop)')?.focus();
+}
+function closeReservationDrawer(){
+  const drawer=$('[data-reservation-drawer]');if(drawer)drawer.hidden=true;selectedReservationId=null;document.body.classList.remove('admin-overlay-open');
+  if(reservationDrawerReturnFocus?.isConnected)reservationDrawerReturnFocus.focus();reservationDrawerReturnFocus=null;
+}
+function renderReservations(payload){reservationItems=Array.isArray(payload.reservations)?payload.reservations:[];renderReservationTabs();renderReservationList();if(selectedReservationId)renderReservationDrawer()}
 function setReservationFilter(filter,scroll=false){
   if(!reservationFilterLabels[filter])return;
   reservationFilter=filter;renderReservationTabs();renderReservationList();
@@ -272,19 +310,22 @@ function galleryActions(item){
   ];
   return actions.filter(action=>action.status!==item.status).map(action=>`<button class="admin-button ${action.className}" data-gallery-action="${action.status}" type="button">${action.label}</button>`).join('');
 }
+function galleryQuickActions(item){
+  const actions=[{status:'pending',label:'Vrátit k posouzení',icon:'↺',className:'pending'},{status:'approved',label:'Schválit',icon:'✓',className:'approve'},{status:'rejected',label:'Zamítnout',icon:'×',className:'reject'}];
+  return actions.filter(action=>action.status!==item.status).map(action=>`<button aria-label="${action.label}" class="admin-gallery-quick ${action.className}" data-gallery-action="${action.status}" title="${action.label}" type="button">${action.icon}</button>`).join('');
+}
 function galleryIdentity(item){const member=item.member||{};return member.nickname||member.name||member.email||'United member'}
 function galleryMeta(item){const member=item.member||{};return [member.name,member.memberCode,member.email].filter(Boolean).join(' · ')}
 function galleryCard(item){
+  const member=item.member||{};
   return `<article class="admin-gallery-card" data-gallery-id="${escapeHtml(item.id)}">
     <button aria-label="Otevřít náhled fotografie od ${escapeHtml(galleryIdentity(item))}" class="admin-gallery-image" data-gallery-preview="${escapeHtml(item.id)}" type="button">
       <img alt="Fotografie od ${escapeHtml(galleryIdentity(item))}" data-gallery-media="${escapeHtml(item.id)}"/>
       <span>Otevřít náhled</span>
     </button>
     <div class="admin-gallery-card-body">
-      <div class="admin-gallery-card-head"><div><h3>${escapeHtml(galleryIdentity(item))}</h3><p>${escapeHtml(galleryMeta(item))}</p></div><small class="admin-badge admin-badge--${escapeHtml(item.status)}">${escapeHtml(galleryStatusLabel(item.status))}</small></div>
-      <p class="admin-gallery-caption">${escapeHtml(item.caption||'Bez popisku.')}</p>
-      <small class="admin-gallery-date">Nahráno ${escapeHtml(formatDate(item.createdAt))}</small>
-      <div class="admin-gallery-review"><textarea data-gallery-review-note maxlength="1000" placeholder="Krátká admin poznámka">${escapeHtml(item.reviewNote||'')}</textarea><div class="admin-review-actions">${galleryActions(item)}</div></div>
+      <div class="admin-gallery-card-head"><div><h3>${escapeHtml(galleryIdentity(item))}</h3><p>${escapeHtml(member.name||'Jméno neuvedeno')}</p></div></div>
+      <div class="admin-gallery-card-controls"><small class="admin-badge admin-badge--${escapeHtml(item.status)}">${escapeHtml(galleryStatusLabel(item.status))}</small><div class="admin-gallery-quick-actions">${galleryQuickActions(item)}</div></div>
     </div>
   </article>`;
 }
@@ -346,10 +387,11 @@ function renderGalleryLightbox(){
   content.innerHTML=`<article class="admin-gallery-lightbox-card" data-gallery-id="${escapeHtml(item.id)}">
     <div class="admin-gallery-lightbox-media"><img alt="Fotografie od ${escapeHtml(galleryIdentity(item))}" data-gallery-media="${escapeHtml(item.id)}"/></div>
     <div class="admin-gallery-lightbox-info">
-      <span class="admin-kicker">FOTOGRAFIE ČLENA</span><h2 id="admin-gallery-lightbox-title">${escapeHtml(galleryIdentity(item))}</h2><p>${escapeHtml(galleryMeta(item))}</p>
+      <span class="admin-kicker">FOTOGRAFIE ČLENA</span><h2 id="admin-gallery-lightbox-title">${escapeHtml(galleryIdentity(item))}</h2>
+      <div class="admin-gallery-member-meta"><p><small>JMÉNO</small><b>${escapeHtml(item.member?.name||'—')}</b></p><p><small>E-MAIL</small><b>${escapeHtml(item.member?.email||'—')}</b></p><p><small>MEMBER CODE</small><b>${escapeHtml(item.member?.memberCode||'—')}</b></p></div>
       <small class="admin-badge admin-badge--${escapeHtml(item.status)}">${escapeHtml(galleryStatusLabel(item.status))}</small>
       <p class="admin-gallery-caption">${escapeHtml(item.caption||'Bez popisku.')}</p><small class="admin-gallery-date">Nahráno ${escapeHtml(formatDate(item.createdAt))}</small>
-      <div class="admin-gallery-review"><textarea data-gallery-review-note maxlength="1000" placeholder="Krátká admin poznámka">${escapeHtml(item.reviewNote||'')}</textarea><div class="admin-review-actions">${galleryActions(item)}</div></div>
+      <div class="admin-gallery-review"><label><span>ADMIN POZNÁMKA</span><textarea data-gallery-review-note maxlength="1000" placeholder="Krátká admin poznámka">${escapeHtml(item.reviewNote||'')}</textarea></label><div class="admin-review-actions">${galleryActions(item)}</div></div>
     </div>
   </article>`;
   hydrateGalleryMedia(content);
@@ -396,7 +438,7 @@ async function updateReservation(card,status){
   if(button)button.disabled=true;
   try{
     await apiRequest(`/api/admin/reservations/${encodeURIComponent(reservationId)}`,{method:'PATCH',body:{status,reviewNote:note}});
-    const reservation=reservationItems.find(item=>item.id===reservationId);if(reservation){reservation.status=status;reservation.reviewNote=note;renderReservationTabs();renderReservationList()}
+    const reservation=reservationItems.find(item=>item.id===reservationId);if(reservation){reservation.status=status;reservation.reviewNote=note;renderReservationTabs();renderReservationList();renderReservationDrawer()}
     const messages={pending:'Rezervace byla vrácena k posouzení.',approved:'Rezervace byla schválena.',rejected:'Rezervace byla zamítnuta.'};toast(messages[status]||'Stav rezervace byl změněn.');
     await loadEventData();
   }
@@ -404,7 +446,7 @@ async function updateReservation(card,status){
 }
 
 async function updateGallery(container,status){
-  const submissionId=container.dataset.galleryId;const note=$('[data-gallery-review-note]',container)?.value||'';
+  const submissionId=container.dataset.galleryId;const currentItem=galleryItems.find(photo=>photo.id===submissionId);const noteField=$('[data-gallery-review-note]',container);const note=noteField?noteField.value:(currentItem?.reviewNote||'');
   $$('[data-gallery-action]',container).forEach(button=>button.disabled=true);
   try{
     await apiRequest(`/api/admin/gallery/${encodeURIComponent(submissionId)}`,{method:'PATCH',body:{status,reviewNote:note}});
@@ -416,8 +458,22 @@ async function updateGallery(container,status){
 
 function jumpToSection(section){
   const target=section==='dashboard'?$('.admin-kpis'):$(`[data-admin-section="${section}"]`);
+  setAdminNavActive(section);
   target?.scrollIntoView({behavior:'smooth',block:'start'});
 }
+
+function setAdminNavActive(section){
+  $$('[data-admin-jump]').forEach(button=>{const active=button.dataset.adminJump===section;button.classList.toggle('is-active',active);if(active)button.setAttribute('aria-current','location');else button.removeAttribute('aria-current')});
+}
+function updateAdminNavActive(){
+  if($('[data-admin-view]')?.hidden)return;
+  const sections=[['dashboard',$('.admin-kpis')],['reservations',$('[data-admin-section="reservations"]')],['accommodation',$('[data-admin-section="accommodation"]')],['gallery',$('[data-admin-section="gallery"]')],['settings',$('[data-admin-section="settings"]')]].filter(([,element])=>element).sort((a,b)=>a[1].offsetTop-b[1].offsetTop);
+  const probe=Math.min(innerHeight*.28,220);let active=sections[0]?.[0]||'dashboard';
+  sections.forEach(([id,element])=>{if(element.getBoundingClientRect().top<=probe)active=id});setAdminNavActive(active);
+}
+let adminNavFrame=0;
+window.addEventListener('scroll',()=>{if(adminNavFrame)return;adminNavFrame=requestAnimationFrame(()=>{adminNavFrame=0;updateAdminNavActive()})},{passive:true});
+window.addEventListener('resize',updateAdminNavActive,{passive:true});
 
 $('[data-login-form]').addEventListener('submit',async event=>{
   event.preventDefault();const button=$('button[type="submit"]',event.currentTarget);const form=new FormData(event.currentTarget);button.disabled=true;$('[data-auth-status]').textContent='';
@@ -447,12 +503,15 @@ document.addEventListener('click',event=>{
   const pending=event.target.closest('[data-open-pending]');if(pending){setReservationFilter('pending',true);return}
   const galleryPending=event.target.closest('[data-open-gallery-pending]');if(galleryPending){setGalleryFilter('pending',true);return}
   const galleryFilterButton=event.target.closest('[data-gallery-filter]');if(galleryFilterButton){setGalleryFilter(galleryFilterButton.dataset.galleryFilter);return}
+  const reservationOpen=event.target.closest('[data-reservation-open]');if(reservationOpen){openReservationDrawer(reservationOpen.dataset.reservationOpen,reservationOpen);return}
+  if(event.target.closest('[data-reservation-drawer-close]')){closeReservationDrawer();return}
   const preview=event.target.closest('[data-gallery-preview]');if(preview){openGalleryLightbox(preview.dataset.galleryPreview,preview);return}
   if(event.target.closest('[data-gallery-lightbox-close]')){closeGalleryLightbox();return}
   const galleryAction=event.target.closest('[data-gallery-action]');if(galleryAction){const card=galleryAction.closest('[data-gallery-id]');if(card)updateGallery(card,galleryAction.dataset.galleryAction);return}
   const action=event.target.closest('[data-review-action]');if(action){const card=action.closest('[data-reservation-id]');if(card)updateReservation(card,action.dataset.reviewAction)}
 });
 document.addEventListener('keydown',event=>{
+  if(event.key==='Escape'&&!$('[data-reservation-drawer]').hidden){closeReservationDrawer();return}
   if(event.key==='Escape'&&!$('[data-gallery-lightbox]').hidden){closeGalleryLightbox();return}
   if((event.key==='Enter'||event.key===' ')&&event.target.closest('[data-open-pending]')){event.preventDefault();setReservationFilter('pending',true)}
   if((event.key==='Enter'||event.key===' ')&&event.target.closest('[data-open-gallery-pending]')){event.preventDefault();setGalleryFilter('pending',true)}
@@ -460,7 +519,7 @@ document.addEventListener('keydown',event=>{
 
 onAuthStateChanged(auth,user=>{
   currentUser=user;
-  if(!user){closeGalleryLightbox();releaseGalleryMedia();galleryItems=[];reservationItems=[];accommodationItems=[];adminEvents=[];selectedEventId='';setView('auth');$('[data-admin-account]').textContent='';return}
+  if(!user){closeGalleryLightbox();closeReservationDrawer();releaseGalleryMedia();galleryItems=[];reservationItems=[];accommodationItems=[];adminEvents=[];selectedEventId='';setView('auth');$('[data-admin-account]').textContent='';return}
   reservationFilter='pending';galleryFilter='pending';
   $('[data-admin-account]').textContent=user.email||user.uid;
   loadAdminData();

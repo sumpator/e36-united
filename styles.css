@@ -1196,3 +1196,8 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid rgba(
   .merch-page .merch-hero-logo-shell{width:108%;max-width:550px;}
 }
 .member-merch-callout[hidden]{display:none!important;}
+
+/* 2026-08-25 — let the United U dominate the hero without enlarging its orbits. */
+@media(min-width:901px){.merch-page .merch-hero-logo-shell{width:145%;max-width:740px;height:auto;aspect-ratio:1}}
+@media(max-width:900px){.merch-page .merch-hero-logo-shell{width:122%;height:auto;max-width:none}}
+@media(max-width:680px){.merch-page .merch-hero-logo-shell{width:118%}}
