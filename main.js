@@ -577,6 +577,16 @@ const plannerSection = planner.closest('[data-event-start]');
 const departureGroup = qs('[data-choice-group="departure"]', planner);
 const departureStep = qs('[data-planner-departure-step]', planner);
 const plannerStayNote = qs('[data-planner-stay-note]', planner);
+const staySlider = qs('[data-stay-slider]', planner);
+const stayTitle = qs('[data-stay-title]', planner);
+const stayMeta = qs('[data-stay-meta]', planner);
+const stayButtons = qsa('[data-stay-index]', planner);
+const stayPresets = [
+  {arrival:'Pátek',departure:'Sobota',title:'Pátek → Sobota',meta:'1 noc · odjezd v sobotu'},
+  {arrival:'Pátek',departure:'Neděle',title:'Pátek → Neděle',meta:'2 noci · celý víkend'},
+  {arrival:'Sobota',departure:'Neděle',title:'Sobota → Neděle',meta:'1 noc · hlavní program + noc'},
+  {arrival:'Jen na otočku',departure:'Stejný den',title:'Jen na otočku',meta:'0 nocí · bez ubytování'}
+];
 const sleepGroup = qs('[data-choice-group="sleep"]', planner);
 const sleepStep = sleepGroup?.closest('.planner-step');
 const sleepPreviewCard = qs('[data-preview-card="sleep"]', planner);
@@ -643,6 +653,48 @@ const renderPlannerPrice = (needsAccommodation) => {
   const priceDetails=qs('[data-planner-price-details]',plannerPricePreview);if(priceDetails)priceDetails.open=detailOpen;
 };
 
+const currentStayIndex = () => {
+  const idx = stayPresets.findIndex(preset => preset.arrival === plannerState.arrival && preset.departure === plannerState.departure);
+  return idx >= 0 ? idx : (plannerState.arrival === 'Jen na otočku' ? 3 : 1);
+};
+const syncStayPicker = () => {
+  const index = currentStayIndex();
+  const preset = stayPresets[index];
+  if (staySlider) {
+    staySlider.value = String(index);
+    staySlider.style.setProperty('--stay-progress', `${index / (stayPresets.length - 1) * 100}%`);
+  }
+  stayButtons.forEach((button,buttonIndex) => {
+    const active = buttonIndex === index;
+    button.classList.toggle('is-active', active);
+    button.setAttribute('aria-pressed', String(active));
+  });
+  if (stayTitle) stayTitle.textContent = preset.title;
+  if (stayMeta) stayMeta.textContent = preset.meta;
+};
+const applyStayPreset = rawIndex => {
+  const index = Math.max(0, Math.min(stayPresets.length - 1, Number(rawIndex) || 0));
+  const preset = stayPresets[index];
+  const wasDayPass = plannerState.arrival === 'Jen na otočku';
+  plannerState.arrival = preset.arrival;
+  plannerState.departure = preset.departure;
+  if (preset.arrival === 'Jen na otočku') {
+    if (plannerState.sleep !== 'Bez ubytování') lastOvernightSleep = plannerState.sleep;
+    plannerState.sleep = 'Bez ubytování';
+    plannerState.accommodationUnits = 0;
+    plannerState.partialAccommodation = false;
+    plannerState.accommodationOptionId = null;
+    qsa('.choice', sleepGroup || planner).forEach(c => c.classList.toggle('is-active', c.dataset.value === 'Bez ubytování'));
+  } else if (wasDayPass && plannerState.sleep === 'Bez ubytování') {
+    plannerState.sleep = lastOvernightSleep || 'Chatka';
+    plannerState.accommodationUnits = plannerState.people;
+    plannerState.partialAccommodation = false;
+    qsa('.choice', sleepGroup || planner).forEach(c => c.classList.toggle('is-active', c.dataset.value === plannerState.sleep));
+  }
+  renderPlannerAccommodationOptions();
+  updatePlanner();
+};
+
 setPlannerChoice = (key, value) => {
 const group = qs(`[data-choice-group="${key}"]`, planner);
 if (!group) return;
@@ -695,6 +747,7 @@ if (departureGroup) {
 }
 const nights = plannerNights();
 if (plannerStayNote) plannerStayNote.textContent = dayPass ? 'Bez nocování' : `${plannerNightLabel(nights)} · odjezd v ${plannerState.departure === 'Sobota' ? 'sobotu' : 'neděli'}`;
+syncStayPicker();
 const needsAccommodation = !dayPass && plannerState.sleep !== 'Bez ubytování';
 plannerState.partialAccommodation=needsAccommodation&&Boolean(partialAccommodationInput?.checked);
 plannerState.accommodationUnits = needsAccommodation ? (plannerState.partialAccommodation?Math.max(1,Math.min(plannerState.people,Number(plannerState.accommodationUnits)||plannerState.people)):plannerState.people) : 0;
@@ -725,6 +778,9 @@ if (code) code.textContent = `U36–${slug(plannerState.arrival,'P')}${slug(plan
 renderPlannerPrice(needsAccommodation);
 document.dispatchEvent(new CustomEvent('e36:planner',{detail:{...plannerState}}));
 };
+
+staySlider?.addEventListener('input', () => applyStayPreset(staySlider.value));
+stayButtons.forEach(button => button.addEventListener('click', () => applyStayPreset(button.dataset.stayIndex)));
 
 groups.forEach(group => {
 qsa('.choice', group).forEach(choice => choice.addEventListener('click', () => {

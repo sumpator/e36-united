@@ -1101,3 +1101,37 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid rgba(
   .merch-principles b,.merch-principles p{font-size:13px;}
 }
 \n\n/* ===== 2026-08-24 content2 — overlap, merch scale, stay/departure ===== */\n/* O nás: never let a fixed image height force a 16:10 card wider than its grid track. */\n.history-section .timeline-content{grid-template-columns:minmax(0,1fr) minmax(0,1.08fr);gap:30px;}\n.history-section .timeline-copy,.history-section .timeline-photo{min-width:0;max-width:100%;}\n.history-section .history-layout .timeline-photo{width:100%;min-width:0;min-height:0;aspect-ratio:16/10;}\n@media(max-width:1180px) and (min-width:981px){\n  .history-section .timeline-content{grid-template-columns:1fr;gap:20px;}\n  .history-section .history-layout .timeline-entry:nth-child(even) .timeline-copy,.history-section .history-layout .timeline-entry:nth-child(even) .timeline-photo{order:initial;}\n  .history-section .history-layout .timeline-photo{aspect-ratio:16/9;}\n}\n\n/* Merch: the U emblem should visually match the full height of the left hero block. */\n.merch-page .merch-hero-grid{align-items:stretch;}\n.merch-page .merch-hero-art{width:100%;max-width:none;height:100%;min-height:520px;align-self:stretch;aspect-ratio:auto;overflow:visible;transform:none;}\n.merch-page .merch-hero-logo-shell{width:auto;height:94%;max-width:96%;aspect-ratio:1;align-self:center;justify-self:center;}\n.merch-page .merch-hero-logo{width:100%;height:100%;max-height:none;}\n@media(max-width:1180px){.merch-page .merch-hero-art{min-height:500px;transform:none}.merch-page .merch-hero-logo-shell{height:92%;width:auto}}\n@media(max-width:900px){.merch-page .merch-hero-grid{align-items:center}.merch-page .merch-hero-art{width:min(620px,94vw);height:auto;min-height:0;aspect-ratio:1;margin:18px auto 0}.merch-page .merch-hero-logo-shell{width:94%;height:auto;aspect-ratio:1}}\n@media(max-width:680px){.merch-page .merch-hero-logo-shell{width:92%;height:auto}.merch-page .merch-hero-logo{max-height:none}}\n\n/* Planner: departure is the human input; nights are derived from it. */\n.planner-step--departure .choice-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));}\n.planner-step--departure .choice{width:100%;}\n.planner-stay-note{display:block;margin-top:9px;color:#83bff2;font-size:10px;font-weight:760;letter-spacing:.02em;}\n.planner-step--departure .choice[hidden]{display:none!important;}\n@media(max-width:680px){.planner-stay-note{font-size:10.5px}.planner-step--departure .choice-row{grid-template-columns:1fr 1fr}}\n
+
+/* ===== 2026-08-24 stay slider — one decision for arrival + departure ===== */
+.planner-step--stay{padding-bottom:22px!important;}
+.stay-slider{--stay-accent:#75bfff;display:grid;gap:13px;}
+.stay-slider-current{display:flex;align-items:baseline;justify-content:space-between;gap:14px;padding:0 1px;}
+.stay-slider-current strong{font-size:16px;letter-spacing:-.025em;color:#f5f8fb;}
+.stay-slider-current small{color:#83bff2;font-size:10px;font-weight:760;white-space:nowrap;}
+.stay-slider-control{position:relative;padding:3px 7px 0;}
+.stay-slider-control input[type="range"]{--stay-progress:33.333%;position:relative;z-index:2;width:100%;height:28px;margin:0;appearance:none;-webkit-appearance:none;background:transparent;cursor:pointer;outline:none;}
+.stay-slider-control input[type="range"]::-webkit-slider-runnable-track{height:4px;border-radius:999px;background:linear-gradient(90deg,var(--stay-accent) 0 var(--stay-progress),rgba(255,255,255,.12) var(--stay-progress) 100%);}
+.stay-slider-control input[type="range"]::-moz-range-track{height:4px;border-radius:999px;background:rgba(255,255,255,.12);}
+.stay-slider-control input[type="range"]::-moz-range-progress{height:4px;border-radius:999px;background:var(--stay-accent);}
+.stay-slider-control input[type="range"]::-webkit-slider-thumb{appearance:none;-webkit-appearance:none;width:20px;height:20px;margin-top:-8px;border:5px solid #0c0f13;border-radius:50%;background:#fff;box-shadow:0 0 0 2px var(--stay-accent),0 4px 18px rgba(0,0,0,.38);transition:transform .18s ease;}
+.stay-slider-control input[type="range"]::-moz-range-thumb{width:12px;height:12px;border:5px solid #0c0f13;border-radius:50%;background:#fff;box-shadow:0 0 0 2px var(--stay-accent),0 4px 18px rgba(0,0,0,.38);}
+.stay-slider-control input[type="range"]:focus-visible::-webkit-slider-thumb{box-shadow:0 0 0 2px var(--stay-accent),0 0 0 6px rgba(117,191,255,.18);}
+.stay-slider-control input[type="range"]:active::-webkit-slider-thumb{transform:scale(1.12);}
+.stay-slider-ticks{position:absolute;z-index:1;left:14px;right:14px;top:12px;display:flex;justify-content:space-between;pointer-events:none;}
+.stay-slider-ticks i{width:8px;height:8px;border:2px solid #0c0f13;border-radius:50%;background:#39434d;box-shadow:0 0 0 1px rgba(255,255,255,.12);}
+.stay-slider-options{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;}
+.stay-slider-options button{min-width:0;padding:9px 4px;border:1px solid rgba(255,255,255,.08);border-radius:10px;background:rgba(255,255,255,.018);color:#77828d;text-align:center;cursor:pointer;transition:border-color .18s ease,background .18s ease,color .18s ease,transform .18s ease;}
+.stay-slider-options button:hover{color:#cfe8ff;border-color:rgba(117,191,255,.28);}
+.stay-slider-options button.is-active{color:#08111a;border-color:#fff;background:#fff;box-shadow:0 9px 24px rgba(0,0,0,.18);}
+.stay-slider-options b{display:block;font-size:10px;letter-spacing:.035em;white-space:nowrap;}
+.stay-slider-options small{display:block;margin-top:2px;font-size:8px;font-weight:750;opacity:.72;white-space:nowrap;}
+@media(max-width:680px){
+  .stay-slider{gap:11px;}
+  .stay-slider-current{align-items:flex-start;flex-direction:column;gap:2px;}
+  .stay-slider-current strong{font-size:15px;}
+  .stay-slider-current small{font-size:10px;white-space:normal;}
+  .stay-slider-options{gap:4px;}
+  .stay-slider-options button{padding:8px 2px;border-radius:8px;}
+  .stay-slider-options b{font-size:8.5px;letter-spacing:0;}
+  .stay-slider-options small{font-size:7px;}
+}
