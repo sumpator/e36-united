@@ -376,7 +376,7 @@ const img = qs('[data-category-thumb]', card);
 const winner = qs('[data-category-winner]', card);
 if (img) {
 img.src = cat.thumb;
-img.alt = `${cat.temporary ? 'Referenční vůz' : 'Vítěz'} Show & Shine — ${cat.label}`;
+img.alt = `${cat.temporary ? 'Ukázka kategorie' : 'Vítěz'} Show & Shine — ${cat.label}`;
 }
 if (winner) winner.textContent = cat.winnerName || 'Vítěz 2026';
 const badge = qs('.winner-photo i', card);
@@ -460,19 +460,19 @@ if (showcaseIndex) {
 if (showcaseAward) showcaseAward.textContent = ['z3','mpower'].includes(key) ? 'TOP 1' : 'TOP 3';
 if (showcaseImage && category.thumb) {
   showcaseImage.style.opacity = '.2';
-  showcaseImage.alt = `${category.label} — ${category.temporary ? 'referenční vůz' : 'vítězný vůz'} Show & Shine`;
+  showcaseImage.alt = `${category.label} — ${category.temporary ? 'ukázka kategorie' : 'vítězný vůz'} Show & Shine`;
   showcaseImage.onload = () => { showcaseImage.style.opacity = '1'; };
   showcaseImage.src = category.thumb;
   window.setTimeout(() => { showcaseImage.style.opacity = '1'; }, 420);
 }
-if (hudCar) hudCar.textContent = `${category.code || category.label.toUpperCase()} / ${category.temporary ? 'REFERENCE BODY' : 'WINNER 2026'}`;
+if (hudCar) hudCar.textContent = `${category.code || category.label.toUpperCase()} / ${category.temporary ? 'CATEGORY SAMPLE' : 'WINNER 2026'}`;
 stage.classList.remove('is-detail','is-tracking','is-settled');
 stage.classList.toggle('is-switching', !instant && !reduceMotion);
 
 const applyImage = () => {
 if (overviewImg && category.overview) {
 overviewImg.src = category.overview;
-overviewImg.alt = category.temporary ? `${category.label} — referenční vůz pro Show & Shine` : `${category.label} — vítězný vůz Show & Shine 2026`;
+overviewImg.alt = category.temporary ? `${category.label} — ukázka kategorie Show & Shine` : `${category.label} — vítězný vůz Show & Shine 2026`;
 }
 setInspection('fit',{instant:true});
 };
@@ -950,13 +950,13 @@ showshine: qs('[data-timeline-step="showshine"]', unitedMap)
 const flowAssets = {
 day: {
 'Pátek': {
-image:'https://static.wixstatic.com/media/595239_dabd7051ed494297b10d7009a4136814~mv2.jpeg/v1/fill/w_1000%2Ch_720%2Cal_c%2Cq_88%2Cenc_avif%2Cquality_auto/595239_dabd7051ed494297b10d7009a4136814~mv2.jpeg',
+image:'assets/images/program/friday.webp',
 alt:'Páteční komunita E36 United',
 title:'Pátek · komunita',
 copy:'První večer, seznamování, auta a hlavně lidi.'
 },
 'Sobota': {
-image:'https://static.wixstatic.com/media/595239_ef82600a8c944b88aba5032ee9886f25~mv2.jpg/v1/fill/w_1000%2Ch_720%2Cal_c%2Cq_88%2Cenc_avif%2Cquality_auto/595239_ef82600a8c944b88aba5032ee9886f25~mv2.jpg',
+image:'assets/images/program/saturday.webp',
 alt:'Sobotní auta a Show and Shine E36 United',
 title:'Sobota · auta',
 copy:'Hlavní plocha, nejvíc E36 a centrum celého programu.'
@@ -1001,14 +1001,14 @@ copy:'Tvoje E36 jde na plochu. Z návštěvy se stává soutěžní víkend.',
 badge:'COMPETE'
 },
 'Jedu se podívat': {
-image:'https://static.wixstatic.com/media/595239_ef82600a8c944b88aba5032ee9886f25~mv2.jpg/v1/fill/w_1000%2Ch_720%2Cal_c%2Cq_88%2Cenc_avif%2Cquality_auto/595239_ef82600a8c944b88aba5032ee9886f25~mv2.jpg',
+image:'assets/images/program/saturday.webp',
 alt:'Návštěva Show and Shine E36 United',
 title:'Jedu se podívat',
 copy:'Sobotní highlight: auta, komunita a hlavní plocha.',
 badge:'WATCH'
 },
 'Možná': {
-image:'https://static.wixstatic.com/media/595239_dabd7051ed494297b10d7009a4136814~mv2.jpeg/v1/fill/w_1000%2Ch_720%2Cal_c%2Cq_88%2Cenc_avif%2Cquality_auto/595239_dabd7051ed494297b10d7009a4136814~mv2.jpeg',
+image:'assets/images/program/friday.webp',
 alt:'Show and Shine E36 United – rozhodnu se později',
 title:'Možná',
 copy:'Necháváš si otevřená vrátka. Rozhodnutí můžeš upřesnit později.',
