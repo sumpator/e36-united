@@ -915,16 +915,24 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid rgba(
   .judging-criterion b{font-size:13px}
   .judging-criterion small{display:block;font-size:10.5px}
 }
-\n\n/* v20 — day-pass Live Summary has three real milestones */\n.weekend-preview.is-day-pass .weekend-timeline--v8{grid-template-columns:repeat(3,minmax(0,1fr))!important;}\n.weekend-preview.is-day-pass .weekend-timeline--v8 .weekend-timeline-line{left:16.666%!important;right:16.666%!important;}\n.weekend-preview.is-day-pass .weekend-timeline--v8 [data-timeline-step="sleep"]{display:none!important;}\n@media(max-width:680px){\n  .weekend-preview.is-day-pass .weekend-timeline--v8{grid-template-columns:repeat(3,minmax(0,1fr))!important;}\n  .weekend-preview.is-day-pass .weekend-timeline--v8 .weekend-timeline-line{left:16.666%!important;right:16.666%!important;}\n}\n
+
+/* v20 — day-pass Live Summary has three real milestones */
+.weekend-preview.is-day-pass .weekend-timeline--v8{grid-template-columns:repeat(3,minmax(0,1fr))!important;}
+.weekend-preview.is-day-pass .weekend-timeline--v8 .weekend-timeline-line{left:16.666%!important;right:16.666%!important;}
+.weekend-preview.is-day-pass .weekend-timeline--v8 [data-timeline-step="sleep"]{display:none!important;}
+@media(max-width:680px){
+  .weekend-preview.is-day-pass .weekend-timeline--v8{grid-template-columns:repeat(3,minmax(0,1fr))!important;}
+  .weekend-preview.is-day-pass .weekend-timeline--v8 .weekend-timeline-line{left:16.666%!important;right:16.666%!important;}
+}
 
 /* United Merch hero — integrated dominant U emblem */
 .merch-page .merch-hero{background:
   radial-gradient(900px 620px at 79% 43%,rgba(29,116,220,.095),transparent 66%),
   linear-gradient(90deg,rgba(7,9,11,0) 47%,rgba(12,22,35,.16) 100%);
 }
-.merch-page .merch-hero-grid{grid-template-columns:minmax(0,.88fr) minmax(520px,1.12fr);gap:24px;align-items:center}
+.merch-page .merch-hero-grid{grid-template-columns:minmax(0,.92fr) minmax(500px,1.08fr);gap:clamp(20px,3vw,42px);align-items:center}
 .merch-page .merch-hero-art{
-  width:112%;max-width:690px;justify-self:center;transform:translateX(2%);
+  width:min(112%,690px);max-width:690px;justify-self:center;aspect-ratio:1;transform:none;
   overflow:visible;border:0;border-radius:0;background:transparent;box-shadow:none;isolation:isolate;
 }
 .merch-page .merch-hero-art:after{
@@ -937,7 +945,7 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid rgba(
   box-shadow:0 0 52px rgba(50,142,231,.035);
 }
 .merch-page .merch-hero-logo-shell{
-  position:relative;z-index:3;width:128%;aspect-ratio:1;display:grid;place-items:center;pointer-events:none;
+  position:relative;z-index:3;width:min(116%,600px);max-width:600px;aspect-ratio:1;display:grid;place-items:center;pointer-events:none;
   filter:drop-shadow(0 42px 58px rgba(0,0,0,.38));
 }
 .merch-page .merch-hero-logo{
@@ -954,22 +962,22 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid rgba(
 @keyframes merchLogoFloat{0%,100%{transform:scale(1.03) translateY(0)}50%{transform:scale(1.045) translateY(-5px)}}
 @media(max-width:1180px){
   .merch-page .merch-hero-grid{grid-template-columns:minmax(0,.94fr) minmax(430px,1.06fr);gap:18px}
-  .merch-page .merch-hero-art{width:108%;transform:translateX(1%)}
-  .merch-page .merch-hero-logo-shell{width:123%}
+  .merch-page .merch-hero-art{width:min(100%,620px);justify-self:end;transform:none}
+  .merch-page .merch-hero-logo-shell{width:min(105%,560px);max-width:560px}
 }
 @media(max-width:900px){
   .merch-page .merch-hero-grid{grid-template-columns:1fr;gap:18px}
   .merch-page .merch-hero-art{width:min(620px,90vw);margin:18px auto 0;transform:none}
-  .merch-page .merch-hero-logo-shell{width:118%}
+  .merch-page .merch-hero-logo-shell{width:min(94%,560px);max-width:560px}
 }
 @media(max-width:760px){
   .merch-page .merch-hero-art{width:min(500px,96vw);margin:12px auto 0}
-  .merch-page .merch-hero-logo-shell{width:116%}
+  .merch-page .merch-hero-logo-shell{width:94%;max-width:none}
   .merch-page .merch-hero-art>small{bottom:3.5%}
 }
 @media(max-width:430px){
-  .merch-page .merch-hero-art{width:min(420px,96vw)}
-  .merch-page .merch-hero-logo-shell{width:114%}
+  .merch-page .merch-hero-art{width:min(420px,92vw)}
+  .merch-page .merch-hero-logo-shell{width:94%}
 }
 @media(prefers-reduced-motion:reduce){.merch-page .merch-hero-logo{animation:none}}
 
@@ -1066,10 +1074,7 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid rgba(
 .footer-bottom--united{display:flex;justify-content:space-between;gap:18px;margin-top:36px;padding-top:18px;border-top:1px solid rgba(255,255,255,.08);color:#8595a4;font-size:11.5px;}
 .footer-bottom--united>a{color:#9fb3c5;}
 
-/* Merch: logo is a signature, not the hero itself. Remove the low-value ticker and balance principle copy. */
-.merch-page .merch-hero-art{overflow:hidden;}
-.merch-page .merch-hero-logo-shell{width:82%;max-width:420px;}
-.merch-page .merch-hero-logo{max-height:290px;object-fit:contain;}
+/* Merch principle copy. */
 .merch-principles b,.merch-principles p{font-size:14px;line-height:1.45;}
 .merch-principles p{color:#a6b1bb;}
 
@@ -1096,11 +1101,26 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid rgba(
   .footer-top--united{grid-template-columns:1fr;gap:27px;}
   .footer-social-links{display:flex;flex-wrap:wrap;gap:12px 18px;}
   .footer-bottom--united{align-items:flex-start;flex-direction:column;margin-top:28px;}
-  .merch-page .merch-hero-logo-shell{width:74%;}
-  .merch-page .merch-hero-logo{max-height:230px;}
   .merch-principles b,.merch-principles p{font-size:13px;}
 }
-\n\n/* ===== 2026-08-24 content2 — overlap, merch scale, stay/departure ===== */\n/* O nás: never let a fixed image height force a 16:10 card wider than its grid track. */\n.history-section .timeline-content{grid-template-columns:minmax(0,1fr) minmax(0,1.08fr);gap:30px;}\n.history-section .timeline-copy,.history-section .timeline-photo{min-width:0;max-width:100%;}\n.history-section .history-layout .timeline-photo{width:100%;min-width:0;min-height:0;aspect-ratio:16/10;}\n@media(max-width:1180px) and (min-width:981px){\n  .history-section .timeline-content{grid-template-columns:1fr;gap:20px;}\n  .history-section .history-layout .timeline-entry:nth-child(even) .timeline-copy,.history-section .history-layout .timeline-entry:nth-child(even) .timeline-photo{order:initial;}\n  .history-section .history-layout .timeline-photo{aspect-ratio:16/9;}\n}\n\n/* Merch: the U emblem should visually match the full height of the left hero block. */\n.merch-page .merch-hero-grid{align-items:stretch;}\n.merch-page .merch-hero-art{width:100%;max-width:none;height:100%;min-height:520px;align-self:stretch;aspect-ratio:auto;overflow:visible;transform:none;}\n.merch-page .merch-hero-logo-shell{width:auto;height:94%;max-width:96%;aspect-ratio:1;align-self:center;justify-self:center;}\n.merch-page .merch-hero-logo{width:100%;height:100%;max-height:none;}\n@media(max-width:1180px){.merch-page .merch-hero-art{min-height:500px;transform:none}.merch-page .merch-hero-logo-shell{height:92%;width:auto}}\n@media(max-width:900px){.merch-page .merch-hero-grid{align-items:center}.merch-page .merch-hero-art{width:min(620px,94vw);height:auto;min-height:0;aspect-ratio:1;margin:18px auto 0}.merch-page .merch-hero-logo-shell{width:94%;height:auto;aspect-ratio:1}}\n@media(max-width:680px){.merch-page .merch-hero-logo-shell{width:92%;height:auto}.merch-page .merch-hero-logo{max-height:none}}\n\n/* Planner: departure is the human input; nights are derived from it. */\n.planner-step--departure .choice-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));}\n.planner-step--departure .choice{width:100%;}\n.planner-stay-note{display:block;margin-top:9px;color:#83bff2;font-size:10px;font-weight:760;letter-spacing:.02em;}\n.planner-step--departure .choice[hidden]{display:none!important;}\n@media(max-width:680px){.planner-stay-note{font-size:10.5px}.planner-step--departure .choice-row{grid-template-columns:1fr 1fr}}\n
+
+/* ===== 2026-08-24 content2 — overlap and stay/departure ===== */
+/* O nás: never let a fixed image height force a 16:10 card wider than its grid track. */
+.history-section .timeline-content{grid-template-columns:minmax(0,1fr) minmax(0,1.08fr);gap:30px;}
+.history-section .timeline-copy,.history-section .timeline-photo{min-width:0;max-width:100%;}
+.history-section .history-layout .timeline-photo{width:100%;min-width:0;min-height:0;aspect-ratio:16/10;}
+@media(max-width:1180px) and (min-width:981px){
+  .history-section .timeline-content{grid-template-columns:1fr;gap:20px;}
+  .history-section .history-layout .timeline-entry:nth-child(even) .timeline-copy,.history-section .history-layout .timeline-entry:nth-child(even) .timeline-photo{order:initial;}
+  .history-section .history-layout .timeline-photo{aspect-ratio:16/9;}
+}
+
+/* Planner: departure is the human input; nights are derived from it. */
+.planner-step--departure .choice-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));}
+.planner-step--departure .choice{width:100%;}
+.planner-stay-note{display:block;margin-top:9px;color:#83bff2;font-size:10px;font-weight:760;letter-spacing:.02em;}
+.planner-step--departure .choice[hidden]{display:none!important;}
+@media(max-width:680px){.planner-stay-note{font-size:10.5px}.planner-step--departure .choice-row{grid-template-columns:1fr 1fr}}
 
 /* ===== 2026-08-24 stay slider — one decision for arrival + departure ===== */
 .planner-step--stay{padding-bottom:22px!important;}
@@ -1190,14 +1210,4 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid rgba(
   .youtube-channel-card{min-height:280px;}
 }
 
-/* Merch: grow the signature U on desktop without changing the orbit composition. */
-@media(min-width:901px){
-  .merch-page .merch-hero-art{overflow:visible;}
-  .merch-page .merch-hero-logo-shell{width:108%;max-width:550px;}
-}
 .member-merch-callout[hidden]{display:none!important;}
-
-/* 2026-08-25 — let the United U dominate the hero without enlarging its orbits. */
-@media(min-width:901px){.merch-page .merch-hero-logo-shell{width:145%;max-width:740px;height:auto;aspect-ratio:1}}
-@media(max-width:900px){.merch-page .merch-hero-logo-shell{width:122%;height:auto;max-width:none}}
-@media(max-width:680px){.merch-page .merch-hero-logo-shell{width:118%}}

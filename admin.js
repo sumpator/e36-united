@@ -27,6 +27,8 @@ const galleryMediaPromises=new Map();
 const galleryMediaTokens=new Map();
 const reservationFilterLabels={pending:'Žádosti',approved:'Schválené',rejected:'Zamítnuté',cancelled:'Zrušené',all:'Všechny'};
 const galleryFilterLabels={pending:'Žádosti',approved:'Schválené',rejected:'Zamítnuté',all:'Všechny'};
+const adminCollapseStorageKey='e36UnitedAdmin.collapsedSections.v1';
+const adminCollapsePreferences=readAdminCollapsePreferences();
 
 const app=initializeApp(firebaseConfig);
 const auth=getAuth(app);
@@ -54,6 +56,44 @@ function attendanceShortLabel(item){
   if(item.attendanceType==='saturday_only')return 'Sobota';
   if(item.attendanceType==='day_visit')return 'Na otočku';
   return item.arrival||'—';
+}
+
+function readAdminCollapsePreferences(){
+  try{
+    const value=JSON.parse(localStorage.getItem(adminCollapseStorageKey)||'{}');
+    return value&&typeof value==='object'&&!Array.isArray(value)?value:{};
+  }catch{return{}}
+}
+function hasAdminCollapsePreference(section){return Object.prototype.hasOwnProperty.call(adminCollapsePreferences,section)}
+function setAdminSectionCollapsed(section,collapsed,{persist=false,animate=true}={}){
+  const container=$(`[data-admin-collapsible="${section}"]`);
+  const button=$(`[data-admin-collapse-toggle="${section}"]`,container||document);
+  const body=button?.getAttribute('aria-controls')?document.getElementById(button.getAttribute('aria-controls')):null;
+  if(!container||!button||!body)return;
+  body.getAnimations?.().forEach(animation=>animation.cancel());
+  if(!animate){container.classList.toggle('is-collapsed',collapsed);body.style.maxHeight=collapsed?'0px':'none'}
+  else if(collapsed){
+    body.style.maxHeight=`${body.scrollHeight}px`;body.offsetHeight;
+    container.classList.add('is-collapsed');body.style.maxHeight='0px';
+  }else{
+    container.classList.remove('is-collapsed');body.style.maxHeight='0px';body.offsetHeight;
+    body.style.maxHeight=`${body.scrollHeight}px`;
+    body.addEventListener('transitionend',()=>{if(!container.classList.contains('is-collapsed'))body.style.maxHeight='none'},{once:true});
+  }
+  button.setAttribute('aria-expanded',String(!collapsed));
+  const label=$('span',button);if(label)label.textContent=collapsed?'Rozbalit':'Sbalit';
+  body.setAttribute('aria-hidden',String(collapsed));
+  if(persist){
+    adminCollapsePreferences[section]=collapsed;
+    try{localStorage.setItem(adminCollapseStorageKey,JSON.stringify(adminCollapsePreferences))}catch{}
+  }
+}
+function initializeAdminCollapsibles(){
+  $$('[data-admin-collapsible]').forEach(container=>{
+    const section=container.dataset.adminCollapsible;
+    const collapsed=hasAdminCollapsePreference(section)?!!adminCollapsePreferences[section]:container.dataset.defaultCollapsed==='true';
+    setAdminSectionCollapsed(section,collapsed,{animate:false});
+  });
 }
 
 async function apiRequest(path,{method='GET',body,retry=true}={}){
@@ -151,6 +191,10 @@ function renderOverview(payload){
   $('[data-payment-total-due]').textContent=formatMoney(payments.amountDueCzk);$('[data-payment-total-paid]').textContent=formatMoney(payments.amountPaidCzk);$('[data-payment-total-remaining]').textContent=formatMoney(payments.amountRemainingCzk);
   $('[data-payment-count-unpaid]').textContent=numeric(payments.unpaid);$('[data-payment-count-underpaid]').textContent=numeric(payments.underpaid);$('[data-payment-count-paid]').textContent=numeric(payments.paid);$('[data-payment-count-overpaid]').textContent=numeric(payments.overpaid);$('[data-payment-count-overdue]').textContent=numeric(payments.overdue);
   const testWarning=$('[data-admin-payment-test]');if(testWarning)testWarning.hidden=!event?.paymentTestMode;
+  if(!hasAdminCollapsePreference('booking')){
+    const hasFinanceData=commitment>0||collected>0||paid>0||numeric(payments.amountDueCzk)>0||numeric(payments.amountPaidCzk)>0;
+    setAdminSectionCollapsed('booking',!hasFinanceData,{animate:false});
+  }
 }
 
 function recordsLabel(count){return `${count} ${count===1?'záznam':count>1&&count<5?'záznamy':'záznamů'}`}
@@ -478,6 +522,7 @@ async function updateGallery(container,status){
 
 function jumpToSection(section){
   const target=section==='dashboard'?$('.admin-kpis'):$(`[data-admin-section="${section}"]`);
+  if(section!=='dashboard')setAdminSectionCollapsed(section,false,{persist:true});
   setAdminNavActive(section);
   target?.scrollIntoView({behavior:'smooth',block:'start'});
 }
@@ -518,6 +563,7 @@ document.addEventListener('submit',event=>{
 document.addEventListener('click',event=>{
   const logout=event.target.closest('[data-logout]');if(logout){signOut(auth);return}
   const refresh=event.target.closest('[data-refresh]');if(refresh){loadAdminData();return}
+  const collapse=event.target.closest('[data-admin-collapse-toggle]');if(collapse){const section=collapse.dataset.adminCollapseToggle;setAdminSectionCollapsed(section,collapse.getAttribute('aria-expanded')==='true',{persist:true});return}
   const jump=event.target.closest('[data-admin-jump]');if(jump){jumpToSection(jump.dataset.adminJump);return}
   const filter=event.target.closest('[data-reservation-filter]');if(filter){setReservationFilter(filter.dataset.reservationFilter);return}
   const pending=event.target.closest('[data-open-pending]');if(pending){setReservationFilter('pending',true);return}
@@ -538,6 +584,8 @@ document.addEventListener('keydown',event=>{
   if((event.key==='Enter'||event.key===' ')&&event.target.closest('[data-open-pending]')){event.preventDefault();setReservationFilter('pending',true)}
   if((event.key==='Enter'||event.key===' ')&&event.target.closest('[data-open-gallery-pending]')){event.preventDefault();setGalleryFilter('pending',true)}
 });
+
+initializeAdminCollapsibles();
 
 onAuthStateChanged(auth,user=>{
   currentUser=user;

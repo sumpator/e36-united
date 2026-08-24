@@ -7,7 +7,7 @@
   <meta content="#090a0c" name="theme-color"/>
   <title>United Admin | E36 United</title>
   <link href="styles.css?v=20260823-admin1" rel="stylesheet"/>
-  <link href="admin.css?v=20260826-payment1" rel="stylesheet"/>
+  <link href="admin.css?v=20260827-collapse1" rel="stylesheet"/>
 </head>
 <body class="admin-page">
   <header class="site-header scrolled admin-header">
@@ -88,29 +88,32 @@
             </article>
           </section>
 
-          <section class="booking-block">
-            <div class="booking-heading"><span class="admin-kicker">BOOKING COMMITMENT</span><h2>United závazek za ubytování.</h2><p>Reálný přehled závazku, vybraných peněz a částky k předfinancování.</p></div>
-            <div class="booking-primary"><small>Závazek United</small><strong data-booking-commitment>0 Kč</strong><span>Splatnost <b data-booking-due>—</b></span></div>
-            <div class="booking-grid">
-              <div><small>Kapacita</small><b data-booking-capacity>—</b></div>
-              <div><small>Rezervovaná místa</small><b data-booking-reserved>0</b></div>
-              <div><small>Vybrané peníze</small><b data-booking-collected>0 Kč</b></div>
-              <div><small>Booking paid</small><b data-booking-paid>0 Kč</b></div>
-            </div>
-            <div class="booking-gap"><span>United musí předfinancovat</span><strong data-booking-gap>0 Kč</strong></div>
-            <div class="admin-payment-overview">
-              <div class="payment-test-warning" data-admin-payment-test hidden>TESTOVACÍ PLATBA – NEPLAŤTE</div>
-              <div class="admin-payment-totals"><span><small>PŘEDEPSÁNO</small><b data-payment-total-due>0 Kč</b></span><span><small>UHRAZENO</small><b data-payment-total-paid>0 Kč</b></span><span><small>ZBÝVÁ</small><b data-payment-total-remaining>0 Kč</b></span></div>
-              <div class="admin-payment-counts"><span>Nezaplaceno <b data-payment-count-unpaid>0</b></span><span>Částečně <b data-payment-count-underpaid>0</b></span><span>Zaplaceno <b data-payment-count-paid>0</b></span><span>Přeplatek <b data-payment-count-overpaid>0</b></span><span>Po splatnosti <b data-payment-count-overdue>0</b></span></div>
+          <section class="booking-block admin-collapsible is-collapsed" data-admin-collapsible="booking" data-default-collapsed="true">
+            <div class="admin-collapsible-head booking-heading"><div><span class="admin-kicker">BOOKING COMMITMENT</span><h2>United závazek za ubytování.</h2><p>Reálný přehled závazku, vybraných peněz a částky k předfinancování.</p></div><button aria-controls="admin-booking-content" aria-expanded="false" class="admin-collapse-toggle" data-admin-collapse-toggle="booking" type="button"><span>Rozbalit</span><i aria-hidden="true"></i></button></div>
+            <div aria-hidden="true" class="admin-collapsible-body booking-collapse-body" id="admin-booking-content">
+              <div class="booking-primary"><small>Závazek United</small><strong data-booking-commitment>0 Kč</strong><span>Splatnost <b data-booking-due>—</b></span></div>
+              <div class="booking-grid">
+                <div><small>Kapacita</small><b data-booking-capacity>—</b></div>
+                <div><small>Rezervovaná místa</small><b data-booking-reserved>0</b></div>
+                <div><small>Vybrané peníze</small><b data-booking-collected>0 Kč</b></div>
+                <div><small>Booking paid</small><b data-booking-paid>0 Kč</b></div>
+              </div>
+              <div class="booking-gap"><span>United musí předfinancovat</span><strong data-booking-gap>0 Kč</strong></div>
+              <div class="admin-payment-overview">
+                <div class="payment-test-warning" data-admin-payment-test hidden>TESTOVACÍ PLATBA – NEPLAŤTE</div>
+                <div class="admin-payment-totals"><span><small>PŘEDEPSÁNO</small><b data-payment-total-due>0 Kč</b></span><span><small>UHRAZENO</small><b data-payment-total-paid>0 Kč</b></span><span><small>ZBÝVÁ</small><b data-payment-total-remaining>0 Kč</b></span></div>
+                <div class="admin-payment-counts"><span>Nezaplaceno <b data-payment-count-unpaid>0</b></span><span>Částečně <b data-payment-count-underpaid>0</b></span><span>Zaplaceno <b data-payment-count-paid>0</b></span><span>Přeplatek <b data-payment-count-overpaid>0</b></span><span>Po splatnosti <b data-payment-count-overdue>0</b></span></div>
+              </div>
             </div>
           </section>
 
-          <section class="admin-event-accommodation" data-admin-section="accommodation">
-            <div class="admin-section-head"><div><span class="admin-kicker">EVENT ACCOMMODATION</span><h2>Ubytování a kapacity.</h2><p>Fyzické jednotky, jejich obsazenost a ceník vybraného ročníku.</p></div><span class="admin-count" data-accommodation-option-count>0 možností</span></div>
-            <div class="admin-accommodation-grid" data-accommodation-list></div>
-            <details class="admin-config-card admin-accommodation-create">
-              <summary>+ Přidat typ ubytování</summary>
-              <form class="admin-config-form" data-accommodation-create-form>
+          <section class="admin-event-accommodation admin-collapsible" data-admin-collapsible="accommodation" data-admin-section="accommodation">
+            <div class="admin-section-head"><div><span class="admin-kicker">EVENT ACCOMMODATION</span><h2>Ubytování a kapacity.</h2><p>Fyzické jednotky, jejich obsazenost a ceník vybraného ročníku.</p></div><div class="admin-section-actions"><span class="admin-count" data-accommodation-option-count>0 možností</span><button aria-controls="admin-accommodation-content" aria-expanded="true" class="admin-collapse-toggle" data-admin-collapse-toggle="accommodation" type="button"><span>Sbalit</span><i aria-hidden="true"></i></button></div></div>
+            <div aria-hidden="false" class="admin-collapsible-body" id="admin-accommodation-content">
+              <div class="admin-accommodation-grid" data-accommodation-list></div>
+              <details class="admin-config-card admin-accommodation-create">
+                <summary>+ Přidat typ ubytování</summary>
+                <form class="admin-config-form" data-accommodation-create-form>
                 <label class="admin-field admin-field--wide"><span>Název</span><input maxlength="80" name="name" placeholder="Např. Chatka A" required/></label>
                 <label class="admin-field"><span>Druh</span><select name="kind"><option value="cabin">Chatka</option><option value="tent">Stan</option></select></label>
                 <label class="admin-field"><span>Kapacita</span><select name="inventoryMode"><option value="limited">Omezená</option><option value="unlimited">Bez omezení</option></select></label>
@@ -122,13 +125,14 @@
                 <label class="admin-field"><span>Taxa / osobu / noc (Kč)</span><input min="0" name="cityTaxPerPersonPerNightCzk" required type="number" value="0"/></label>
                 <label class="admin-check"><input checked name="active" type="checkbox"/><span>Aktivní nabídka</span></label>
                 <button class="admin-button admin-button--primary" type="submit">Přidat ubytování <span>→</span></button>
-              </form>
-            </details>
+                </form>
+              </details>
+            </div>
           </section>
 
-          <section class="admin-event-settings" data-admin-section="settings">
-            <div class="admin-section-head"><div><span class="admin-kicker">EVENT SETTINGS</span><h2>Nastavení eventu.</h2><p>Změny platí jen pro vybraný ročník a zapisují se do admin auditu.</p></div></div>
-            <form class="admin-config-card admin-config-form" data-event-settings-form>
+          <section class="admin-event-settings admin-collapsible" data-admin-collapsible="settings" data-admin-section="settings">
+            <div class="admin-section-head"><div><span class="admin-kicker">EVENT SETTINGS</span><h2>Nastavení eventu.</h2><p>Změny platí jen pro vybraný ročník a zapisují se do admin auditu.</p></div><button aria-controls="admin-settings-content" aria-expanded="true" class="admin-collapse-toggle" data-admin-collapse-toggle="settings" type="button"><span>Sbalit</span><i aria-hidden="true"></i></button></div>
+            <div aria-hidden="false" class="admin-collapsible-body" id="admin-settings-content"><form class="admin-config-card admin-config-form" data-event-settings-form>
               <label class="admin-field"><span>Rezervace</span><select name="registrationStatus"><option value="open">Otevřené</option><option value="closed">Uzavřené</option></select></label>
               <label class="admin-field"><span>Kapacita rezervací</span><input min="0" name="reservationCapacity" required type="number"/></label>
               <label class="admin-field"><span>Nocí · full weekend</span><input max="14" min="0" name="fullWeekendNights" required type="number"/></label>
@@ -138,30 +142,30 @@
               <label class="admin-field"><span>Booking paid (Kč)</span><input min="0" name="bookingPaidCzk" required type="number"/></label>
               <label class="admin-check admin-field--wide"><input name="isCurrent" type="checkbox"/><span>Použít jako aktuální event pro web a členské rezervace</span></label>
               <button class="admin-button admin-button--primary" type="submit">Uložit nastavení <span>→</span></button>
-            </form>
+            </form></div>
           </section>
 
-          <section class="admin-reservations" data-admin-section="reservations">
-            <div class="admin-section-head"><div><span class="admin-kicker">RESERVATIONS</span><h2>Rezervace členů.</h2></div><span class="admin-count" data-reservation-count>0 záznamů</span></div>
-            <div aria-label="Filtrovat rezervace podle stavu" class="admin-reservation-tabs" data-reservation-tabs role="tablist">
+          <section class="admin-reservations admin-collapsible" data-admin-collapsible="reservations" data-admin-section="reservations">
+            <div class="admin-section-head"><div><span class="admin-kicker">RESERVATIONS</span><h2>Rezervace členů.</h2></div><div class="admin-section-actions"><span class="admin-count" data-reservation-count>0 záznamů</span><button aria-controls="admin-reservations-content" aria-expanded="true" class="admin-collapse-toggle" data-admin-collapse-toggle="reservations" type="button"><span>Sbalit</span><i aria-hidden="true"></i></button></div></div>
+            <div aria-hidden="false" class="admin-collapsible-body" id="admin-reservations-content"><div aria-label="Filtrovat rezervace podle stavu" class="admin-reservation-tabs" data-reservation-tabs role="tablist">
               <button aria-selected="true" class="admin-reservation-tab is-active" data-reservation-filter="pending" role="tab" type="button">Žádosti <b data-reservation-filter-count="pending">0</b></button>
               <button aria-selected="false" class="admin-reservation-tab" data-reservation-filter="approved" role="tab" type="button">Schválené <b data-reservation-filter-count="approved">0</b></button>
               <button aria-selected="false" class="admin-reservation-tab" data-reservation-filter="rejected" role="tab" type="button">Zamítnuté <b data-reservation-filter-count="rejected">0</b></button>
               <button aria-selected="false" class="admin-reservation-tab" data-reservation-filter="cancelled" role="tab" type="button">Zrušené <b data-reservation-filter-count="cancelled">0</b></button>
               <button aria-selected="false" class="admin-reservation-tab" data-reservation-filter="all" role="tab" type="button">Všechny <b data-reservation-filter-count="all">0</b></button>
             </div>
-            <div class="admin-reservation-list" data-reservation-list></div>
+            <div class="admin-reservation-list" data-reservation-list></div></div>
           </section>
 
-          <section class="admin-gallery" data-admin-section="gallery">
-            <div class="admin-section-head"><div><span class="admin-kicker">GALLERY MODERATION</span><h2>Fotky od členů.</h2></div><span class="admin-count" data-gallery-count>0 fotografií</span></div>
-            <div aria-label="Filtrovat fotografie podle stavu" class="admin-reservation-tabs" data-gallery-tabs role="tablist">
+          <section class="admin-gallery admin-collapsible" data-admin-collapsible="gallery" data-admin-section="gallery">
+            <div class="admin-section-head"><div><span class="admin-kicker">GALLERY MODERATION</span><h2>Fotky od členů.</h2></div><div class="admin-section-actions"><span class="admin-count" data-gallery-count>0 fotografií</span><button aria-controls="admin-gallery-content" aria-expanded="true" class="admin-collapse-toggle" data-admin-collapse-toggle="gallery" type="button"><span>Sbalit</span><i aria-hidden="true"></i></button></div></div>
+            <div aria-hidden="false" class="admin-collapsible-body" id="admin-gallery-content"><div aria-label="Filtrovat fotografie podle stavu" class="admin-reservation-tabs" data-gallery-tabs role="tablist">
               <button aria-selected="true" class="admin-reservation-tab is-active" data-gallery-filter="pending" role="tab" type="button">Žádosti <b data-gallery-filter-count="pending">0</b></button>
               <button aria-selected="false" class="admin-reservation-tab" data-gallery-filter="approved" role="tab" type="button">Schválené <b data-gallery-filter-count="approved">0</b></button>
               <button aria-selected="false" class="admin-reservation-tab" data-gallery-filter="rejected" role="tab" type="button">Zamítnuté <b data-gallery-filter-count="rejected">0</b></button>
               <button aria-selected="false" class="admin-reservation-tab" data-gallery-filter="all" role="tab" type="button">Všechny <b data-gallery-filter-count="all">0</b></button>
             </div>
-            <div class="admin-gallery-grid" data-gallery-list></div>
+            <div class="admin-gallery-grid" data-gallery-list></div></div>
           </section>
         </div>
       </div>
@@ -182,6 +186,6 @@
     </aside>
   </div>
   <div aria-live="polite" class="admin-toast" data-toast role="status"></div>
-  <script src="admin.js?v=20260826-payment1" type="module"></script>
+  <script src="admin.js?v=20260827-collapse1" type="module"></script>
 </body>
 </html>
