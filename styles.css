@@ -1290,3 +1290,70 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid rgba(
 .planner-accommodation-card:disabled strong,.planner-accommodation-card:disabled span,.planner-accommodation-card:disabled b{color:#6f7881}
 .planner-accommodation-empty{padding:12px;border:1px dashed rgba(105,184,255,.18);border-radius:11px;color:#94a9bb;font-size:10.5px;line-height:1.45}
 @media(max-width:600px){.planner-accommodation-cards{grid-template-columns:1fr}.planner-accommodation-card{padding:12px}.planner-accommodation-card strong{font-size:12px}}
+
+/* Weekend Planner contextual desktop: one continuous builder, one useful preview per decision. */
+.planner-context-preview{display:none}
+.planner-actionbar-recap{display:flex;flex-wrap:wrap;align-items:center;gap:7px;margin-top:9px}
+.planner-actionbar-recap span{display:inline-flex;align-items:center;min-height:29px;padding:4px 9px;border:1px solid rgba(105,184,255,.13);border-radius:999px;background:rgba(77,163,255,.035);color:#a9bdce;font-size:12px;line-height:1.2}
+
+@media(min-width:1100px){
+  .planner-workspace{grid-template-columns:1fr;gap:0;padding:14px}
+  .planner-controls--v8{padding:0 26px!important}
+  .weekend-preview--v8{display:none!important}
+  .planner-controls--v8 .planner-main-step{display:grid;grid-template-columns:minmax(0,1.62fr) minmax(350px,1fr);column-gap:32px;align-items:start;padding:24px 0}
+  .planner-controls--v8 .planner-main-step[hidden]{display:none!important}
+  .planner-controls--v8 .planner-main-step>:not(.planner-context-preview){grid-column:1;min-width:0}
+  .planner-controls--v8 .planner-main-step>.planner-step-head{grid-column:1;margin-bottom:15px}
+  .planner-controls--v8 .planner-main-step>.planner-context-preview{grid-column:2;grid-row:1 / span 12}
+  .planner-context-preview{position:relative;isolation:isolate;display:flex;min-width:0;min-height:190px;height:100%;overflow:hidden;border-left:1px solid rgba(105,184,255,.17);border-radius:3px 16px 16px 3px;background:radial-gradient(circle at 78% 16%,rgba(77,163,255,.14),transparent 45%),#090d12;box-shadow:inset 0 0 0 1px rgba(255,255,255,.045)}
+  .planner-context-preview--media>img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;filter:saturate(.88) brightness(.72) contrast(1.05);transition:opacity .3s ease,filter .3s ease}
+  .planner-context-preview--media:hover>img{filter:saturate(.96) brightness(.77) contrast(1.04)}
+  .planner-context-shade{position:absolute;z-index:1;inset:0;background:linear-gradient(180deg,rgba(5,8,11,.04),rgba(5,8,11,.24) 42%,rgba(5,8,11,.94)),linear-gradient(90deg,rgba(5,8,11,.25),transparent 70%)}
+  .planner-context-copy{position:relative;z-index:2;align-self:end;width:100%;padding:22px 23px}
+  .planner-context-copy>span{display:block;color:#85caff;font:900 10px/1 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.13em}
+  .planner-context-copy>strong{display:block;margin-top:9px;color:#f6f9fc;font-size:clamp(24px,2.1vw,31px);line-height:1;letter-spacing:-.04em}
+  .planner-context-copy>b{display:block;margin-top:8px;color:#dce8f2;font-size:15px;line-height:1.3}
+  .planner-context-copy>small,.planner-context-copy>em{display:block;margin-top:6px;color:#b3c1ce;font-size:13px;line-height:1.35;font-style:normal}
+  .planner-context-copy>em{color:#89caff;font-weight:800}
+  .planner-context-preview--sleep.is-empty>img{display:none}
+  .planner-context-preview--sleep.is-empty::before{content:'→';position:absolute;right:25px;top:15px;color:rgba(112,190,255,.16);font-size:92px;font-weight:200;line-height:1}
+  .planner-context-preview--crew{min-height:180px;display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-rows:1fr auto auto;align-items:end;padding:22px 23px;background:radial-gradient(circle at 82% 20%,rgba(77,163,255,.18),transparent 42%),linear-gradient(145deg,#0b1016,#080b0f)}
+  .planner-context-crew-icons{grid-column:1;grid-row:1;align-self:center;display:flex;align-items:end;gap:7px;min-height:54px}
+  .planner-context-person{position:relative;width:20px;height:38px;flex:0 0 20px;border-radius:10px 10px 5px 5px;background:linear-gradient(180deg,#93d0ff,#387db6);box-shadow:0 0 17px rgba(77,163,255,.22)}
+  .planner-context-person::before{content:'';position:absolute;left:4px;top:-10px;width:12px;height:12px;border-radius:50%;background:#b8deff}
+  .planner-context-person.is-ghost{opacity:.13;filter:saturate(.35)}
+  .planner-context-crew-number{grid-column:2;grid-row:1 / 4;align-self:center;color:#86c9ff;font-size:clamp(64px,6vw,88px);font-weight:950;line-height:.8;letter-spacing:-.08em;text-shadow:0 0 35px rgba(77,163,255,.22)}
+  .planner-context-preview--crew>strong{grid-column:1;grid-row:2;color:#f5f8fb;font-size:20px;line-height:1.15}
+  .planner-context-preview--crew>small{grid-column:1;grid-row:3;margin-top:6px;color:#9bafc0;font-size:13px;line-height:1.3}
+  .planner-accommodation-card{padding:14px}
+  .planner-accommodation-card strong{font-size:15px}
+  .planner-accommodation-card span,.planner-accommodation-card b{font-size:12px}
+  .planner-accommodation-card small{font-size:12px}
+  .planner-accommodation-option>small{font-size:12px}
+  .planner-partial-toggle span{font-size:12px}
+  .stay-slider-current strong{font-size:17px}
+  .stay-slider-current small{font-size:13px}
+  .stay-slider-options b,.stay-slider-options small{font-size:12px}
+  .planner-price-title{font-size:13px}
+  .planner-price-title small{font-size:10px}
+  .planner-price-details summary{font-size:12px}
+  .planner-price-breakdown>div{font-size:12px}
+  .planner-price-breakdown>small{font-size:12px}
+  .planner-actionbar--v8{grid-template-columns:minmax(0,1.2fr) minmax(390px,.8fr)!important}
+  .planner-actionbar-copy>small{margin-top:9px}
+}
+
+@media(max-width:1099px){
+  .planner-context-preview{display:none!important}
+  .planner-workspace{grid-template-columns:1fr}
+  .planner-controls--v8{order:1}
+  .weekend-preview--v8{order:2;width:100%}
+  .planner-actionbar-recap span{font-size:11px}
+  .weekend-preview-grid--v8 .preview-choice-copy small{font-size:10px}
+  .weekend-preview-grid--v8 .preview-choice-copy [data-preview-accommodation-units]{font-size:9px}
+}
+
+@media(max-width:600px){
+  .planner-actionbar-recap{gap:5px}
+  .planner-actionbar-recap span{min-height:26px;padding:3px 7px;font-size:10px}
+}
