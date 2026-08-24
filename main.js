@@ -582,10 +582,10 @@ const stayTitle = qs('[data-stay-title]', planner);
 const stayMeta = qs('[data-stay-meta]', planner);
 const stayButtons = qsa('[data-stay-index]', planner);
 const stayPresets = [
-  {arrival:'Pátek',departure:'Sobota',title:'Pátek → Sobota',meta:'1 noc · odjezd v sobotu'},
-  {arrival:'Pátek',departure:'Neděle',title:'Pátek → Neděle',meta:'2 noci · celý víkend'},
-  {arrival:'Sobota',departure:'Neděle',title:'Sobota → Neděle',meta:'1 noc · hlavní program + noc'},
-  {arrival:'Jen na otočku',departure:'Stejný den',title:'Jen na otočku',meta:'0 nocí · bez ubytování'}
+  {arrival:'Pátek',departure:'Neděle',title:'Celý víkend',meta:'Pátek → Neděle · 2 noci'},
+  {arrival:'Pátek',departure:'Sobota',title:'Pátek → Sobota',meta:'1 noc · páteční start + sobotní program'},
+  {arrival:'Sobota',departure:'Neděle',title:'Sobota → Neděle',meta:'1 noc · hlavní den + noc'},
+  {arrival:'Jen na otočku',departure:'Stejný den',title:'Na otočku',meta:'Bez noclehu'}
 ];
 const sleepGroup = qs('[data-choice-group="sleep"]', planner);
 const sleepStep = sleepGroup?.closest('.planner-step');
@@ -655,7 +655,7 @@ const renderPlannerPrice = (needsAccommodation) => {
 
 const currentStayIndex = () => {
   const idx = stayPresets.findIndex(preset => preset.arrival === plannerState.arrival && preset.departure === plannerState.departure);
-  return idx >= 0 ? idx : (plannerState.arrival === 'Jen na otočku' ? 3 : 1);
+  return idx >= 0 ? idx : (plannerState.arrival === 'Jen na otočku' ? 3 : 0);
 };
 const syncStayPicker = () => {
   const index = currentStayIndex();
