@@ -1211,3 +1211,82 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid rgba(
 }
 
 .member-merch-callout[hidden]{display:none!important;}
+
+/* Weekend Planner: four primary decisions, one supporting live summary. */
+.planner-workspace{grid-template-columns:minmax(0,1.35fr) minmax(360px,.85fr);gap:16px}
+.planner-controls--v8{padding:10px 24px!important}
+.planner-controls--v8 .planner-main-step{padding:20px 0;border-color:rgba(255,255,255,.085)}
+.planner-controls--v8 .planner-main-step>.planner-step-head{display:grid;grid-template-columns:38px minmax(0,1fr);align-items:center;gap:12px;margin-bottom:13px}
+.planner-controls--v8 .planner-main-step>.planner-step-head>span{width:38px;height:30px;display:grid;place-items:center;border:1px solid rgba(99,178,248,.22);border-radius:9px;background:rgba(77,163,255,.055);color:#78c2ff;font:900 9px/1 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.11em}
+.planner-controls--v8 .planner-main-step>.planner-step-head>b{font-size:16px;line-height:1.2;letter-spacing:-.015em}
+.planner-controls--v8 .choice-row .choice{min-height:48px;padding:9px 10px;font-size:12px;transition:border-color .18s ease,background .18s ease,color .18s ease,box-shadow .18s ease,transform .18s ease}
+.planner-controls--v8 .choice-row .choice.is-active{box-shadow:0 8px 24px rgba(0,0,0,.2),0 0 0 1px rgba(117,191,255,.15)}
+.stay-slider-current small,.stay-slider-options small{color:#71869a;opacity:.88}
+.planner-substep,.planner-step--partial-accommodation{margin:12px 0 0;padding:0!important;border:0!important}
+.planner-substep-head{display:flex;align-items:baseline;gap:10px;margin-bottom:8px}
+.planner-substep-head span{color:#5f87a9;font:900 8px/1 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.12em}
+.planner-substep-head b{color:#b9c9d8;font-size:12px}
+.planner-substep--option,.planner-substep--units{padding:12px!important;border:1px solid rgba(105,175,255,.11)!important;border-radius:13px!important;background:rgba(77,163,255,.025)}
+.planner-partial-toggle{padding:10px 12px;border-color:rgba(105,175,255,.11);background:rgba(77,163,255,.025)}
+.planner-partial-toggle span{font-size:10.5px}
+.planner-price-preview{grid-template-columns:minmax(0,1fr) auto;align-items:center;column-gap:18px;row-gap:2px;margin:10px 0;padding:12px 14px}
+.planner-price-title{display:grid!important;justify-items:start!important;gap:3px!important;font-size:12px}
+.planner-price-title small{color:#6f8498;font-size:8px;line-height:1.2;letter-spacing:.1em;text-transform:uppercase}
+.planner-price-estimate{padding:0!important;border:0!important}
+.planner-price-estimate b{font-size:17px!important;white-space:nowrap}
+.planner-price-details{grid-column:1/-1}
+.planner-price-details summary{min-height:25px;padding:3px 0}
+.weekend-preview--v8{align-self:start;padding:16px!important;background:radial-gradient(circle at 78% 7%,rgba(77,163,255,.065),transparent 35%),#0a0d11!important}
+.weekend-preview-head--v8{margin-bottom:10px!important}
+.weekend-preview-head--v8 h3{font-size:28px!important}
+.weekend-preview-grid--v8{gap:8px!important}
+.weekend-preview-grid--v8 .preview-choice-media,.weekend-preview-grid--v8 .preview-crew-stage{height:108px!important}
+.weekend-preview-grid--v8 .preview-choice-copy{min-height:76px;padding:11px 12px 12px}
+.weekend-preview-grid--v8 .preview-choice-copy b{margin-top:4px;font-size:14px}
+.weekend-preview-grid--v8 .preview-choice-copy small{margin-top:3px;font-size:8.5px}
+.weekend-timeline--v8{margin-top:9px;padding-top:13px!important}
+.weekend-timeline--v8 .weekend-timeline-line{top:27px}
+.weekend-timeline--v8 .weekend-timeline-step>span{margin-bottom:5px}
+.weekend-timeline--v8 .weekend-timeline-step>i{margin-bottom:6px}
+.planner-status--v8{border-color:rgba(242,189,93,.13);background:rgba(242,189,93,.025);color:#c2b496}
+
+@media(max-width:1100px) and (min-width:901px){
+  .planner-workspace{grid-template-columns:minmax(0,1.3fr) minmax(340px,.8fr)}
+  .planner-controls--v8{padding-inline:18px!important}
+}
+@media(max-width:900px){
+  .planner-workspace{grid-template-columns:1fr}
+  .planner-controls--v8{order:1}
+  .weekend-preview--v8{order:2;width:100%}
+}
+@media(max-width:600px){
+  .planner-controls--v8{padding:5px 13px!important}
+  .planner-controls--v8 .planner-main-step{padding:16px 0}
+  .planner-controls--v8 .planner-main-step>.planner-step-head{grid-template-columns:34px minmax(0,1fr);gap:10px;margin-bottom:11px}
+  .planner-controls--v8 .planner-main-step>.planner-step-head>span{width:34px;height:28px}
+  .planner-controls--v8 .planner-main-step>.planner-step-head>b{font-size:14px}
+  .planner-controls--v8 .choice-row .choice{min-height:44px;padding:7px 5px;font-size:10px}
+  .planner-price-preview{grid-template-columns:minmax(0,1fr) auto;padding:11px 12px}
+  .planner-price-title{align-items:start!important;gap:2px!important}
+  .planner-price-estimate{align-items:center!important}
+  .planner-price-estimate b{font-size:15px!important}
+  .weekend-preview-grid--v8 .preview-choice-media,.weekend-preview-grid--v8 .preview-crew-stage{height:84px!important}
+  .weekend-preview-grid--v8 .preview-choice-copy{min-height:70px;padding:9px}
+  .weekend-timeline--v8{margin-top:7px;padding-top:11px!important}
+}
+
+/* Event-driven accommodation variants stay inside step 02. */
+.planner-accommodation-option{display:grid;gap:9px}
+.planner-accommodation-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(190px,100%),1fr));gap:8px}
+.planner-accommodation-card{position:relative;min-width:0;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:5px 12px;padding:13px;border:1px solid rgba(255,255,255,.1);border-radius:12px;background:rgba(255,255,255,.018);color:#dce8f3;text-align:left;cursor:pointer;transition:border-color .18s ease,background .18s ease,box-shadow .18s ease,transform .18s ease}
+.planner-accommodation-card:hover:not(:disabled){transform:translateY(-1px);border-color:rgba(105,184,255,.38);background:rgba(77,163,255,.06)}
+.planner-accommodation-card.is-active{border-color:rgba(105,184,255,.65);background:linear-gradient(135deg,rgba(77,163,255,.13),rgba(77,163,255,.035));box-shadow:inset 3px 0 #65b7ff,0 10px 28px rgba(0,0,0,.18)}
+.planner-accommodation-card strong{min-width:0;color:#f4f8fb;font-size:13px;line-height:1.2;overflow-wrap:anywhere}
+.planner-accommodation-card span{grid-column:1;color:#8799aa;font-size:9.5px;line-height:1.3}
+.planner-accommodation-card b{grid-column:1;color:#87caff;font-size:10px;line-height:1.35;font-weight:850}
+.planner-accommodation-card small{grid-column:2;grid-row:1/4;align-self:start;padding:4px 6px;border:1px solid rgba(105,184,255,.16);border-radius:999px;color:#7d9fbc;background:rgba(77,163,255,.035);font:850 7px/1 ui-monospace,SFMono-Regular,Menlo,monospace;text-transform:uppercase;white-space:nowrap}
+.planner-accommodation-card.is-active small{color:#a9d7ff;border-color:rgba(105,184,255,.3)}
+.planner-accommodation-card:disabled{cursor:not-allowed;filter:saturate(.5)}
+.planner-accommodation-card:disabled strong,.planner-accommodation-card:disabled span,.planner-accommodation-card:disabled b{color:#6f7881}
+.planner-accommodation-empty{padding:12px;border:1px dashed rgba(105,184,255,.18);border-radius:11px;color:#94a9bb;font-size:10.5px;line-height:1.45}
+@media(max-width:600px){.planner-accommodation-cards{grid-template-columns:1fr}.planner-accommodation-card{padding:12px}.planner-accommodation-card strong{font-size:12px}}
