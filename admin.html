@@ -7,7 +7,7 @@
   <meta content="#090a0c" name="theme-color"/>
   <title>United Admin | E36 United</title>
   <link href="styles.css?v=20260823-admin1" rel="stylesheet"/>
-  <link href="admin.css?v=20260825-compact1" rel="stylesheet"/>
+  <link href="admin.css?v=20260826-payment1" rel="stylesheet"/>
 </head>
 <body class="admin-page">
   <header class="site-header scrolled admin-header">
@@ -98,6 +98,11 @@
               <div><small>Booking paid</small><b data-booking-paid>0 Kč</b></div>
             </div>
             <div class="booking-gap"><span>United musí předfinancovat</span><strong data-booking-gap>0 Kč</strong></div>
+            <div class="admin-payment-overview">
+              <div class="payment-test-warning" data-admin-payment-test hidden>TESTOVACÍ PLATBA – NEPLAŤTE</div>
+              <div class="admin-payment-totals"><span><small>PŘEDEPSÁNO</small><b data-payment-total-due>0 Kč</b></span><span><small>UHRAZENO</small><b data-payment-total-paid>0 Kč</b></span><span><small>ZBÝVÁ</small><b data-payment-total-remaining>0 Kč</b></span></div>
+              <div class="admin-payment-counts"><span>Nezaplaceno <b data-payment-count-unpaid>0</b></span><span>Částečně <b data-payment-count-underpaid>0</b></span><span>Zaplaceno <b data-payment-count-paid>0</b></span><span>Přeplatek <b data-payment-count-overpaid>0</b></span><span>Po splatnosti <b data-payment-count-overdue>0</b></span></div>
+            </div>
           </section>
 
           <section class="admin-event-accommodation" data-admin-section="accommodation">
@@ -177,6 +182,6 @@
     </aside>
   </div>
   <div aria-live="polite" class="admin-toast" data-toast role="status"></div>
-  <script src="admin.js?v=20260825-compact1" type="module"></script>
+  <script src="admin.js?v=20260826-payment1" type="module"></script>
 </body>
 </html>

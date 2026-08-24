@@ -12,6 +12,7 @@ const IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 const MAX_GALLERY_DAILY = 24;
 const MAX_CAR_PHOTOS = 3;
+const MAX_PAYMENT_CZK = 10_000_000;
 
 let jwksCache = { keys: [], expiresAt: 0 };
 
@@ -86,6 +87,11 @@ export default {
             return await patchAdminGallery(request, env, auth, decodeURIComponent(adminGalleryMatch[1]), origin);
           }
 
+          const adminReservationPaymentMatch = url.pathname.match(/^\/api\/admin\/reservations\/([^/]+)\/payment$/);
+          if (adminReservationPaymentMatch && request.method === "PATCH") {
+            return await patchAdminReservationPayment(request, env, auth, decodeURIComponent(adminReservationPaymentMatch[1]), origin);
+          }
+
           const adminReservationMatch = url.pathname.match(/^\/api\/admin\/reservations\/([^/]+)$/);
           if (adminReservationMatch && request.method === "PATCH") {
             return await patchAdminReservation(request, env, auth, decodeURIComponent(adminReservationMatch[1]), origin);
@@ -153,7 +159,10 @@ const EVENT_SELECT = `
     id, year, registration_status, is_current,
     accommodation_capacity, reservation_capacity,
     full_weekend_nights, saturday_only_nights,
-    booking_commitment_czk, booking_due_at, booking_paid_czk
+    booking_commitment_czk, booking_due_at, booking_paid_czk,
+    currency, payment_deadline,
+    payment_recipient_name, payment_account_display, payment_iban,
+    payment_message_prefix, payment_test_mode
   FROM events
 `;
 
@@ -191,6 +200,9 @@ function publicAdminEvent(event) {
     bookingCommitmentCzk: Number(event.booking_commitment_czk || 0),
     bookingDueAt: event.booking_due_at || null,
     bookingPaidCzk: Number(event.booking_paid_czk || 0),
+    currency: event.currency || "CZK",
+    paymentDeadline: event.payment_deadline || null,
+    paymentTestMode: event.payment_test_mode !== 0,
   };
 }
 
@@ -230,15 +242,18 @@ async function getAdminOverview(env, url, origin) {
       COALESCE(SUM(CASE WHEN status IN ('pending', 'approved') AND accommodation = 'Chatka' THEN accommodation_units ELSE 0 END), 0) AS accommodation_cabin,
       COALESCE(SUM(CASE WHEN status IN ('pending', 'approved') AND accommodation = 'Stan' THEN accommodation_units ELSE 0 END), 0) AS accommodation_tent,
       COALESCE(SUM(CASE WHEN status IN ('pending', 'approved') AND accommodation = 'Bez ubytování' THEN 1 ELSE 0 END), 0) AS accommodation_none,
-      COALESCE(SUM(CASE WHEN status IN ('pending', 'approved') AND payment_status = 'paid' THEN 1 ELSE 0 END), 0) AS payment_paid,
-      COALESCE(SUM(CASE WHEN status IN ('pending', 'approved') AND payment_status = 'unpaid' THEN 1 ELSE 0 END), 0) AS payment_unpaid,
-      COALESCE(SUM(CASE WHEN status IN ('pending', 'approved') AND payment_status = 'overdue' THEN 1 ELSE 0 END), 0) AS payment_overdue,
-      COALESCE(SUM(CASE WHEN status IN ('pending', 'approved') AND payment_status = 'early_paid' THEN 1 ELSE 0 END), 0) AS payment_early_paid,
-      COALESCE(SUM(CASE WHEN status IN ('pending', 'approved') AND payment_status = 'refunded' THEN 1 ELSE 0 END), 0) AS payment_refunded,
+      COALESCE(SUM(CASE WHEN status IN ('pending', 'approved') AND amount_due_czk > 0 AND amount_paid_czk = 0 THEN 1 ELSE 0 END), 0) AS payment_unpaid,
+      COALESCE(SUM(CASE WHEN status IN ('pending', 'approved') AND amount_due_czk > 0 AND amount_paid_czk > 0 AND amount_paid_czk < amount_due_czk THEN 1 ELSE 0 END), 0) AS payment_underpaid,
+      COALESCE(SUM(CASE WHEN status IN ('pending', 'approved') AND amount_due_czk > 0 AND amount_paid_czk = amount_due_czk THEN 1 ELSE 0 END), 0) AS payment_paid,
+      COALESCE(SUM(CASE WHEN status IN ('pending', 'approved') AND amount_due_czk > 0 AND amount_paid_czk > amount_due_czk THEN 1 ELSE 0 END), 0) AS payment_overpaid,
+      COALESCE(SUM(CASE WHEN status IN ('pending', 'approved') AND amount_due_czk <= 0 THEN 1 ELSE 0 END), 0) AS payment_not_required,
+      COALESCE(SUM(CASE WHEN status IN ('pending', 'approved') AND amount_due_czk > amount_paid_czk AND e.payment_deadline IS NOT NULL AND date(e.payment_deadline) < date('now') THEN 1 ELSE 0 END), 0) AS payment_overdue,
       COALESCE(SUM(CASE WHEN status IN ('pending', 'approved') THEN amount_due_czk ELSE 0 END), 0) AS amount_due_czk,
-      COALESCE(SUM(CASE WHEN status IN ('pending', 'approved') THEN amount_paid_czk ELSE 0 END), 0) AS amount_paid_czk
-    FROM reservations
-    WHERE event_id = ?
+      COALESCE(SUM(CASE WHEN status IN ('pending', 'approved') THEN amount_paid_czk ELSE 0 END), 0) AS amount_paid_czk,
+      COALESCE(SUM(CASE WHEN status IN ('pending', 'approved') THEN MAX(amount_due_czk - amount_paid_czk, 0) ELSE 0 END), 0) AS amount_remaining_czk
+    FROM reservations r
+    JOIN events e ON e.id = r.event_id
+    WHERE r.event_id = ?
   `).bind(event.id).first();
 
   return json({ ok: true, event: publicAdminEvent(event), overview: { ...mapAdminOverview(totals), gallery } }, 200, origin);
@@ -296,11 +311,13 @@ function mapAdminOverview(row = {}) {
     payments: {
       paid: Number(row.payment_paid || 0),
       unpaid: Number(row.payment_unpaid || 0),
+      underpaid: Number(row.payment_underpaid || 0),
+      overpaid: Number(row.payment_overpaid || 0),
+      notRequired: Number(row.payment_not_required || 0),
       overdue: Number(row.payment_overdue || 0),
-      earlyPaid: Number(row.payment_early_paid || 0),
-      refunded: Number(row.payment_refunded || 0),
       amountDueCzk: Number(row.amount_due_czk || 0),
       amountPaidCzk: Number(row.amount_paid_czk || 0),
+      amountRemainingCzk: Number(row.amount_remaining_czk || 0),
     },
   };
 }
@@ -318,9 +335,12 @@ async function getAdminReservations(env, url, origin) {
     SELECT
       r.id, r.car_id, r.car_model, r.car_body, r.car_year, r.car_color, r.car_nickname,
       r.attendance_type, r.arrival, r.crew, r.accommodation, r.accommodation_units,
-      r.show_shine, r.note, r.status, r.payment_status,
+      r.show_shine, r.note, r.status, r.payment_status, r.payment_vs, r.paid_at,
       r.amount_due_czk, r.amount_paid_czk,
       r.submitted_at, r.updated_at, r.reviewed_at, r.review_note,
+      e.year AS event_year, e.currency AS payment_currency, e.payment_deadline,
+      e.payment_recipient_name, e.payment_account_display, e.payment_iban,
+      e.payment_message_prefix, e.payment_test_mode,
       ra.option_id AS accommodation_option_id,
       ra.option_name AS accommodation_option_name,
       ra.kind AS accommodation_option_kind,
@@ -340,6 +360,7 @@ async function getAdminReservations(env, url, origin) {
       m.email AS member_email, m.member_code
     FROM reservations r
     JOIN members m ON m.id = r.member_id
+    JOIN events e ON e.id = r.event_id
     LEFT JOIN reservation_accommodation ra ON ra.reservation_id = r.id
     WHERE r.event_id = ?
     ORDER BY
@@ -347,6 +368,10 @@ async function getAdminReservations(env, url, origin) {
       r.submitted_at DESC,
       r.updated_at DESC
   `).bind(event.id).all();
+
+  for (const reservation of rows.results || []) {
+    if (!reservation.payment_vs) reservation.payment_vs = await ensureReservationPaymentVs(env, reservation.id, reservation.event_year);
+  }
 
   return json({
     ok: true,
@@ -381,13 +406,14 @@ function publicAdminReservation(reservation) {
     showShine: reservation.show_shine || "Ne",
     note: reservation.note || "",
     status: reservation.status || "pending",
-    paymentStatus: reservation.payment_status || "unpaid",
+    paymentStatus: paymentStatusFor(reservation.amount_due_czk, reservation.amount_paid_czk),
     amountDueCzk: Number(reservation.amount_due_czk || 0),
     amountPaidCzk: Number(reservation.amount_paid_czk || 0),
     submittedAt: reservation.submitted_at || null,
     updatedAt: reservation.updated_at || null,
     reviewedAt: reservation.reviewed_at || null,
     reviewNote: reservation.review_note || "",
+    payment: reservationPayment(reservation, { admin: true }),
   };
 }
 
@@ -764,6 +790,85 @@ async function patchAdminReservation(request, env, auth, reservationId, origin) 
   }, 200, origin);
 }
 
+async function patchAdminReservationPayment(request, env, auth, reservationId, origin) {
+  const parsed = await readJsonObject(request, origin);
+  if (parsed.response) return parsed.response;
+  const body = parsed.body;
+  if (Object.keys(body).length !== 1 || !("amountPaidCzk" in body)) {
+    return json({ ok: false, error: "invalid_fields", message: "Lze změnit pouze skutečně uhrazenou částku." }, 400, origin);
+  }
+
+  const amountPaidCzk = Number(body.amountPaidCzk);
+  if (!Number.isInteger(amountPaidCzk) || amountPaidCzk < 0 || amountPaidCzk > MAX_PAYMENT_CZK) {
+    return json({ ok: false, error: "invalid_amount_paid", message: `Uhrazená částka musí být celé číslo od 0 do ${MAX_PAYMENT_CZK} Kč.` }, 400, origin);
+  }
+
+  let reservation = await findReservationPayment(env, reservationId);
+  if (!reservation) return json({ ok: false, error: "reservation_not_found", message: "Rezervace nebyla nalezena." }, 404, origin);
+  if (!reservation.payment_vs) {
+    await ensureReservationPaymentVs(env, reservation.id, reservation.event_year);
+    reservation = await findReservationPayment(env, reservationId);
+  }
+
+  const amountDueCzk = Number(reservation.amount_due_czk || 0);
+  const paymentStatus = paymentStatusFor(amountDueCzk, amountPaidCzk);
+  if (Number(reservation.amount_paid_czk || 0) === amountPaidCzk && reservation.payment_status === paymentStatus) {
+    return json({ ok: true, unchanged: true, reservation: { id: reservationId, payment: reservationPayment(reservation, { admin: true }) } }, 200, origin);
+  }
+
+  const oldState = {
+    amountDueCzk,
+    amountPaidCzk: Number(reservation.amount_paid_czk || 0),
+    paymentStatus: paymentStatusFor(amountDueCzk, Number(reservation.amount_paid_czk || 0)),
+    paidAt: reservation.paid_at || null,
+  };
+  const newState = { amountDueCzk, amountPaidCzk, paymentStatus };
+  const writeToken = createWriteToken();
+  const actionId = crypto.randomUUID();
+  const note = `Uhrazená částka změněna z ${oldState.amountPaidCzk} Kč na ${amountPaidCzk} Kč.`;
+
+  const results = await env.DB.batch([
+    env.DB.prepare(`
+      UPDATE reservations
+      SET amount_paid_czk = ?, payment_status = ?,
+          payment_confirmed_by = ?, payment_confirmed_at = CURRENT_TIMESTAMP,
+          paid_at = CASE
+            WHEN ? IN ('paid', 'overpaid') THEN COALESCE(paid_at, CURRENT_TIMESTAMP)
+            ELSE NULL
+          END,
+          updated_at = ?
+      WHERE id = ?
+    `).bind(amountPaidCzk, paymentStatus, auth.uid, paymentStatus, writeToken, reservationId),
+    env.DB.prepare(`
+      INSERT INTO admin_actions (
+        id, admin_member_id, action_type, entity_type, entity_id,
+        old_state_json, new_state_json, note, created_at
+      )
+      SELECT ?, ?, 'reservation_payment_update', 'reservation', ?, ?, ?, ?, CURRENT_TIMESTAMP
+      FROM reservations WHERE id = ? AND updated_at = ?
+    `).bind(actionId, auth.uid, reservationId, JSON.stringify(oldState), JSON.stringify(newState), note, reservationId, writeToken),
+  ]);
+  if (!results[0]?.meta?.changes || !results[1]?.meta?.changes) throw new Error("Payment update was not persisted atomically");
+
+  reservation = await findReservationPayment(env, reservationId);
+  return json({ ok: true, reservation: { id: reservationId, payment: reservationPayment(reservation, { admin: true }) } }, 200, origin);
+}
+
+async function findReservationPayment(env, reservationId) {
+  return await env.DB.prepare(`
+    SELECT
+      r.id, r.status, r.amount_due_czk, r.amount_paid_czk, r.payment_status,
+      r.payment_vs, r.paid_at,
+      e.year AS event_year, e.currency AS payment_currency, e.payment_deadline,
+      e.payment_recipient_name, e.payment_account_display, e.payment_iban,
+      e.payment_message_prefix, e.payment_test_mode
+    FROM reservations r
+    JOIN events e ON e.id = r.event_id
+    WHERE r.id = ?
+    LIMIT 1
+  `).bind(reservationId).first();
+}
+
 async function getAdminGallery(env, origin) {
   const rows = await env.DB.prepare(`
     SELECT
@@ -927,9 +1032,12 @@ async function findCurrentReservation(env, memberId, eventId) {
       r.car_model, r.car_body, r.car_year, r.car_color, r.car_nickname,
       r.arrival, r.crew, r.accommodation, r.show_shine, r.note, r.status,
       r.attendance_type, r.accommodation_units,
-      r.amount_due_czk, r.amount_paid_czk, r.payment_status,
+      r.amount_due_czk, r.amount_paid_czk, r.payment_status, r.payment_vs,
       r.paid_at, r.submitted_at, r.created_at, r.updated_at,
       e.year AS event_year, e.registration_status AS event_registration_status,
+      e.currency AS payment_currency, e.payment_deadline,
+      e.payment_recipient_name, e.payment_account_display, e.payment_iban,
+      e.payment_message_prefix, e.payment_test_mode,
       ra.option_id AS accommodation_option_id,
       ra.option_name AS accommodation_option_name,
       ra.kind AS accommodation_option_kind,
@@ -960,9 +1068,12 @@ async function findLatestReservation(env, memberId) {
       r.car_model, r.car_body, r.car_year, r.car_color, r.car_nickname,
       r.arrival, r.crew, r.accommodation, r.show_shine, r.note, r.status,
       r.attendance_type, r.accommodation_units,
-      r.amount_due_czk, r.amount_paid_czk, r.payment_status,
+      r.amount_due_czk, r.amount_paid_czk, r.payment_status, r.payment_vs,
       r.paid_at, r.submitted_at, r.created_at, r.updated_at,
       e.year AS event_year, e.registration_status AS event_registration_status,
+      e.currency AS payment_currency, e.payment_deadline,
+      e.payment_recipient_name, e.payment_account_display, e.payment_iban,
+      e.payment_message_prefix, e.payment_test_mode,
       ra.option_id AS accommodation_option_id,
       ra.option_name AS accommodation_option_name,
       ra.kind AS accommodation_option_kind,
@@ -990,7 +1101,11 @@ async function findLatestReservation(env, memberId) {
 async function getCurrentReservation(env, auth, origin) {
   const event = await getCurrentEvent(env);
   if (!event) {
-    const reservation = await findLatestReservation(env, auth.uid);
+    let reservation = await findLatestReservation(env, auth.uid);
+    if (reservation && !reservation.payment_vs) {
+      await ensureReservationPaymentVs(env, reservation.id, reservation.event_year);
+      reservation = await findLatestReservation(env, auth.uid);
+    }
     return json({
       ok: true,
       registrationOpen: false,
@@ -1001,7 +1116,11 @@ async function getCurrentReservation(env, auth, origin) {
     }, 200, origin);
   }
 
-  const reservation = await findCurrentReservation(env, auth.uid, event.id);
+  let reservation = await findCurrentReservation(env, auth.uid, event.id);
+  if (reservation && !reservation.payment_vs) {
+    await ensureReservationPaymentVs(env, reservation.id, reservation.event_year);
+    reservation = await findCurrentReservation(env, auth.uid, event.id);
+  }
   const options = await listMemberAccommodationOptions(env, event.id, reservation);
   return json({
     ok: true,
@@ -1188,12 +1307,28 @@ async function putCurrentReservation(request, env, auth, origin) {
       )
     `).bind(auth.uid, event.id, writeToken));
   }
+  statements.push(env.DB.prepare(`
+    UPDATE reservations
+    SET payment_status = CASE
+          WHEN amount_due_czk <= 0 THEN 'not_required'
+          WHEN amount_paid_czk <= 0 THEN 'unpaid'
+          WHEN amount_paid_czk < amount_due_czk THEN 'underpaid'
+          WHEN amount_paid_czk = amount_due_czk THEN 'paid'
+          ELSE 'overpaid'
+        END,
+        paid_at = CASE
+          WHEN amount_due_czk > 0 AND amount_paid_czk >= amount_due_czk THEN COALESCE(paid_at, CURRENT_TIMESTAMP)
+          ELSE NULL
+        END
+    WHERE member_id = ? AND event_id = ? AND updated_at = ?
+  `).bind(auth.uid, event.id, writeToken));
   const results = await env.DB.batch(statements);
   if (!results[0]?.meta?.changes) {
     if (option) return accommodationCapacityConflict(option.name, origin);
     return json({ ok: false, error: "registration_closed", message: "Rezervace byly mezitím uzavřeny. Rezervace nebyla uložena." }, 409, origin);
   }
 
+  await ensureReservationPaymentVs(env, reservationId, event.year);
   const reservation = await findCurrentReservation(env, auth.uid, event.id);
   if (!reservation) throw new Error("Reservation was not found after upsert");
 
@@ -1498,6 +1633,118 @@ function publicMember(member) {
   };
 }
 
+function paymentStatusFor(amountDueCzk, amountPaidCzk) {
+  const due = Math.max(0, Number(amountDueCzk || 0));
+  const paid = Math.max(0, Number(amountPaidCzk || 0));
+  if (due <= 0) return "not_required";
+  if (paid <= 0) return "unpaid";
+  if (paid < due) return "underpaid";
+  if (paid === due) return "paid";
+  return "overpaid";
+}
+
+function isPaymentOverdue(deadline, amountDueCzk, amountPaidCzk, now = new Date()) {
+  if (!deadline || Number(amountPaidCzk || 0) >= Number(amountDueCzk || 0)) return false;
+  const normalized = /^\d{4}-\d{2}-\d{2}$/.test(String(deadline)) ? `${deadline}T23:59:59Z` : String(deadline);
+  const dueDate = new Date(normalized);
+  return !Number.isNaN(dueDate.getTime()) && now.getTime() > dueDate.getTime();
+}
+
+function spaydDate(value) {
+  const match = String(value || "").match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return match ? `${match[1]}${match[2]}${match[3]}` : "";
+}
+
+function spaydText(value, maxLength = 60) {
+  return clean(value).replace(/\*/g, " ").replace(/\s+/g, " ").slice(0, maxLength);
+}
+
+function buildSpayd({ iban, amountCzk, currency = "CZK", variableSymbol, message, deadline }) {
+  const normalizedIban = clean(iban).replace(/\s+/g, "").toUpperCase();
+  const date = spaydDate(deadline);
+  if (!normalizedIban || !/^\d{1,10}$/.test(String(variableSymbol || "")) || Number(amountCzk || 0) <= 0) return null;
+  const fields = [
+    "SPD", "1.0", `ACC:${normalizedIban}`, `AM:${Number(amountCzk).toFixed(2)}`,
+    `CC:${spaydText(currency || "CZK", 3).toUpperCase()}`, `X-VS:${variableSymbol}`,
+    `MSG:${spaydText(message)}`,
+  ];
+  if (date) fields.push(`DT:${date}`);
+  return fields.join("*");
+}
+
+function reservationPayment(reservation, { admin = false } = {}) {
+  if (!reservation || (!admin && reservation.status !== "approved")) return null;
+  const amountDueCzk = Math.max(0, Number(reservation.amount_due_czk || 0));
+  const amountPaidCzk = Math.max(0, Number(reservation.amount_paid_czk || 0));
+  const remainingCzk = Math.max(0, amountDueCzk - amountPaidCzk);
+  const variableSymbol = clean(reservation.payment_vs);
+  const messagePrefix = spaydText(reservation.payment_message_prefix);
+  const message = [messagePrefix, variableSymbol].filter(Boolean).join(" ");
+  const configurationReady = !!(
+    reservation.payment_recipient_name && reservation.payment_account_display &&
+    reservation.payment_iban && variableSymbol
+  );
+  const spayd = configurationReady && reservation.status === "approved" && remainingCzk > 0
+    ? buildSpayd({
+        iban: reservation.payment_iban,
+        amountCzk: remainingCzk,
+        currency: reservation.payment_currency || "CZK",
+        variableSymbol,
+        message,
+        deadline: reservation.payment_deadline,
+      })
+    : null;
+  return {
+    amountDueCzk,
+    amountPaidCzk,
+    remainingCzk,
+    status: paymentStatusFor(amountDueCzk, amountPaidCzk),
+    overdue: isPaymentOverdue(reservation.payment_deadline, amountDueCzk, amountPaidCzk),
+    variableSymbol: variableSymbol || null,
+    recipientName: reservation.payment_recipient_name || null,
+    accountDisplay: reservation.payment_account_display || null,
+    iban: reservation.payment_iban || null,
+    currency: reservation.payment_currency || "CZK",
+    message: message || null,
+    deadline: reservation.payment_deadline || null,
+    testMode: Number(reservation.payment_test_mode) !== 0,
+    configurationReady,
+    spayd,
+    paidAt: reservation.paid_at || null,
+  };
+}
+
+function randomPaymentSuffix() {
+  const range = 1_000_000;
+  const limit = Math.floor(0x100000000 / range) * range;
+  const values = new Uint32Array(1);
+  do crypto.getRandomValues(values); while (values[0] >= limit);
+  return String(values[0] % range).padStart(6, "0");
+}
+
+async function ensureReservationPaymentVs(env, reservationId, eventYear) {
+  const existing = await env.DB.prepare("SELECT payment_vs FROM reservations WHERE id = ? LIMIT 1").bind(reservationId).first();
+  if (existing?.payment_vs) return existing.payment_vs;
+  const year = String(Math.max(0, Math.min(9999, Number(eventYear || 0)))).padStart(4, "0");
+  for (let attempt = 0; attempt < 12; attempt += 1) {
+    const candidate = `${year}${randomPaymentSuffix()}`;
+    const collision = await env.DB.prepare("SELECT id FROM reservations WHERE payment_vs = ? LIMIT 1").bind(candidate).first();
+    if (collision) continue;
+    try {
+      const result = await env.DB.prepare("UPDATE reservations SET payment_vs = ? WHERE id = ? AND payment_vs IS NULL").bind(candidate, reservationId).run();
+      if (result?.meta?.changes) return candidate;
+    } catch (error) {
+      const current = await env.DB.prepare("SELECT payment_vs FROM reservations WHERE id = ? LIMIT 1").bind(reservationId).first();
+      if (current?.payment_vs) return current.payment_vs;
+      if (!String(error?.message || error).toLowerCase().includes("unique")) throw error;
+      continue;
+    }
+    const current = await env.DB.prepare("SELECT payment_vs FROM reservations WHERE id = ? LIMIT 1").bind(reservationId).first();
+    if (current?.payment_vs) return current.payment_vs;
+  }
+  throw new Error("Unable to allocate a unique payment variable symbol");
+}
+
 function publicReservation(reservation) {
   return {
     id: reservation.id,
@@ -1523,7 +1770,8 @@ function publicReservation(reservation) {
     accommodationSnapshot: mapAccommodationSnapshot(reservation),
     amountDueCzk: Number(reservation.amount_due_czk || 0),
     amountPaidCzk: Number(reservation.amount_paid_czk || 0),
-    paymentStatus: reservation.payment_status || "unpaid",
+    payment: reservationPayment(reservation),
+    paymentStatus: paymentStatusFor(reservation.amount_due_czk, reservation.amount_paid_czk),
     paidAt: reservation.paid_at || null,
     submittedAt: reservation.submitted_at || null,
     createdAt: reservation.created_at || null,

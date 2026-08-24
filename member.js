@@ -1,4 +1,5 @@
 import { firebaseConfig, portalConfig } from './firebase-config.js?v=20260823-auth2';
+import qrcode from './vendor/qrcode-generator.mjs';
 
 const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
 const firebaseReady=Boolean(firebaseConfig?.apiKey&&firebaseConfig?.projectId&&firebaseConfig?.appId&&!String(firebaseConfig.apiKey).startsWith('PASTE_')&&!String(firebaseConfig.projectId).startsWith('PASTE_'));
@@ -251,6 +252,16 @@ function normalizeAccommodationSnapshot(source){
     baseTotalCzk:Number(source.baseTotalCzk||0),personTotalCzk:Number(source.personTotalCzk||0),beddingTotalCzk:Number(source.beddingTotalCzk||0),cityTaxTotalCzk:Number(source.cityTaxTotalCzk||0),totalCzk:Number(source.totalCzk||0),
   };
 }
+function normalizePayment(source){
+  if(!source||typeof source!=='object')return null;
+  return {
+    amountDueCzk:Number(source.amountDueCzk||0),amountPaidCzk:Number(source.amountPaidCzk||0),remainingCzk:Number(source.remainingCzk||0),
+    status:String(source.status||'unpaid'),overdue:source.overdue===true,variableSymbol:source.variableSymbol?String(source.variableSymbol):'',
+    recipientName:String(source.recipientName||''),accountDisplay:String(source.accountDisplay||''),iban:String(source.iban||''),currency:String(source.currency||'CZK'),
+    message:String(source.message||''),deadline:String(source.deadline||''),testMode:source.testMode!==false,configurationReady:source.configurationReady===true,
+    spayd:source.spayd?String(source.spayd):'',paidAt:String(source.paidAt||''),
+  };
+}
 function normalizeReservation(source){
   if(!source)return null;
   const snapshot=source.carSnapshot||{};
@@ -279,6 +290,8 @@ function normalizeReservation(source){
     status:source.status||'pending',
     paymentStatus:source.paymentStatus||'unpaid',
     amountDueCzk:Number(source.amountDueCzk||0),
+    amountPaidCzk:Number(source.amountPaidCzk||0),
+    payment:normalizePayment(source.payment),
     submittedAt:source.submittedAt||'',
     updatedAt:source.updatedAt||'',
   };
@@ -745,6 +758,24 @@ function renderSavedReservationPrice(reservation){
   container.innerHTML=`<div><span>CENA UBYTOVÁNÍ</span><b>${esc(snapshot.peopleCount)} ${snapshot.peopleCount===1?'osoba':'osob'} · ${esc(snapshot.unitCount)}× ${esc(snapshot.optionName)}</b></div>${rows.map(([label,value])=>`<small><span>${esc(label)}</span><b>${esc(formatCzk(value))}</b></small>`).join('')}<strong><span>CELKEM</span><b>${esc(formatCzk(snapshot.totalCzk))}</b></strong>`;
 }
 
+function paymentLabel(status){return({unpaid:'Čeká na platbu',underpaid:'Částečně zaplaceno',paid:'Zaplaceno',overpaid:'Přeplatek',not_required:'Bez platby'})[status]||'Platba'}
+function paymentQrSvg(spayd){
+  if(!spayd)return '';
+  try{const qr=qrcode(0,'M');qr.addData(spayd,'Byte');qr.make();return qr.createSvgTag({cellSize:4,margin:8,scalable:true})}
+  catch(error){console.error('QR payment render failed',error);return ''}
+}
+function renderReservationPayment(reservation){
+  const container=$('[data-member-payment]');if(!container)return;
+  const payment=reservation?.payment;
+  if(reservation?.status!=='approved'||!payment){container.hidden=true;container.innerHTML='';return}
+  container.hidden=false;
+  if(!payment.configurationReady){container.innerHTML='<div class="member-payment-copy"><span class="member-kicker">PLATBA</span><h3>Platební údaje připravujeme.</h3><p>Jakmile budou kompletní, uvidíš je bezpečně tady u své schválené rezervace.</p></div>';return}
+  const qr=paymentQrSvg(payment.spayd),settled=payment.remainingCzk<=0;
+  const deadline=payment.deadline?new Intl.DateTimeFormat('cs-CZ',{dateStyle:'long'}).format(new Date(`${payment.deadline}T12:00:00`)):'—';
+  container.className=`member-payment-card payment-status-${esc(payment.status)}`;
+  container.innerHTML=`${payment.testMode?'<div class="payment-test-warning">TESTOVACÍ PLATBA – NEPLAŤTE</div>':''}<div class="member-payment-layout"><div class="member-payment-copy"><span class="member-kicker">PLATBA REZERVACE</span><h3>${esc(settled?'Platba je vyrovnaná.':'Dokonči svoji rezervaci platbou.')}</h3><p>${esc(paymentLabel(payment.status))}${payment.overdue?' · po splatnosti':''}</p><dl><div><dt>Celkem</dt><dd>${esc(formatCzk(payment.amountDueCzk))}</dd></div><div><dt>Zaplaceno</dt><dd>${esc(formatCzk(payment.amountPaidCzk))}</dd></div><div class="member-payment-remaining"><dt>Zbývá uhradit</dt><dd>${esc(formatCzk(payment.remainingCzk))}</dd></div><div><dt>Příjemce</dt><dd>${esc(payment.recipientName)}</dd></div><div><dt>Účet</dt><dd>${esc(payment.accountDisplay)}</dd></div><div><dt>Variabilní symbol</dt><dd>${esc(payment.variableSymbol)}</dd></div><div><dt>Zpráva</dt><dd>${esc(payment.message)}</dd></div><div><dt>Splatnost</dt><dd>${esc(deadline)}</dd></div></dl></div>${qr?`<div class="member-payment-qr"><div>${qr}</div><strong>Naskenuj v bankovní aplikaci</strong><small>QR obsahuje zbývající částku, VS, zprávu a splatnost.</small></div>`:''}</div>`;
+}
+
 function renderReservation(){
   const r=data.reservation,miniStatus=$('[data-reservation-status]'),year=$('[data-res-year]'),title=$('[data-res-title]'),car=$('[data-res-car]'),mailState=$('[data-reservation-mail-state]');
   const submit=$('[data-reservation-submit]');
@@ -752,7 +783,7 @@ function renderReservation(){
   const buttonLabels={pending:'Uložit změny',approved:'Upravit rezervaci',rejected:'Upravit a znovu odeslat',cancelled:'Obnovit rezervaci'};
   const buttonLabel=!reservationState.registrationOpen?'REGISTRACE JE UZAVŘENÁ':r?(buttonLabels[r.status]||'Uložit změny'):'Odeslat rezervaci';
   if(submit){submit.disabled=!reservationState.registrationOpen;if(!submit.dataset.originalHtml)submit.innerHTML=`${buttonLabel} <span>→</span>`}
-  setReservationCardStatus(r?.status);renderReservationOverview(r);renderReservationCarPhoto(r);renderSavedReservationPrice(r);renderReservationFormCopy(r);renderPlannerHandoff();
+  setReservationCardStatus(r?.status);renderReservationOverview(r);renderReservationCarPhoto(r);renderSavedReservationPrice(r);renderReservationPayment(r);renderReservationFormCopy(r);renderPlannerHandoff();
   if(!r){
     const open=reservationState.registrationOpen,waiting=isPlannerWaitingState(),eventYear=reservationState.event?.year||waiting&&activePlannerHandoff.eventYear||'NEXT';
     if(miniStatus)miniStatus.textContent=waiting?'Plán připravený':open?'Bez rezervace':'Registrace zavřená';if(year)year.textContent=eventYear;if(title)title.textContent=waiting?'Tvůj plán je připravený':`United ${eventYear}`;if(car)car.textContent=waiting?'Dokončíš ho tady, jakmile spustíme rezervace.':open?'Vyber auto z garáže a odešli rezervaci.':'Aktuálně není otevřená registrace.';

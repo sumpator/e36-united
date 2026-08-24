@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 
 const migration = readFileSync(new URL('../D1-event-accommodation-v1.sql', import.meta.url), 'utf8');
+const paymentMigration = readFileSync(new URL('../D1-reservation-payments-v1.sql', import.meta.url), 'utf8');
 const workerSource = readFileSync(new URL('../cloudflare-worker-media.js', import.meta.url), 'utf8');
 const workerModule = await import(`data:text/javascript;base64,${Buffer.from(`${workerSource}\nexport { putCurrentReservation, patchAdminReservation, createAdminAccommodation, patchAdminAccommodation, patchAdminEvent, getAdminReservations, calculateAccommodationPricing };`).toString('base64')}`);
 
@@ -17,7 +18,8 @@ function database(events = [{ id: 'event-2026', year: 2026, status: 'open' }]) {
       reservation_capacity INTEGER NOT NULL DEFAULT 0,
       booking_commitment_czk INTEGER NOT NULL DEFAULT 0,
       booking_due_at TEXT,
-      booking_paid_czk INTEGER NOT NULL DEFAULT 0
+      booking_paid_czk INTEGER NOT NULL DEFAULT 0,
+      currency TEXT NOT NULL DEFAULT 'CZK', payment_deadline TEXT
     );
     CREATE TABLE reservations (
       id TEXT PRIMARY KEY, member_id TEXT NOT NULL, event_id TEXT NOT NULL,
@@ -41,6 +43,7 @@ function database(events = [{ id: 'event-2026', year: 2026, status: 'open' }]) {
   const insertEvent = db.prepare('INSERT INTO events (id, year, registration_status) VALUES (?, ?, ?)');
   for (const event of events) insertEvent.run(event.id, event.year, event.status || 'closed');
   db.exec(migration);
+  db.exec(paymentMigration);
   return db;
 }
 

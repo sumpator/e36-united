@@ -1,4 +1,5 @@
 import { firebaseConfig, portalConfig } from './firebase-config.js?v=20260823-auth2';
+import qrcode from './vendor/qrcode-generator.mjs';
 
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js';
 import { getAuth, setPersistence, browserLocalPersistence, onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js';
@@ -44,7 +45,9 @@ function formatMoney(value){return money.format(numeric(value))}
 function formatDate(value,withTime=true){if(!value)return '—';const normalized=/Z$|[+-]\d\d:\d\d$/.test(value)?value:`${value.replace(' ','T')}Z`;const date=new Date(normalized);if(Number.isNaN(date.getTime()))return value;return withTime?dateTime.format(date):new Intl.DateTimeFormat('cs-CZ',{dateStyle:'medium'}).format(date)}
 function statusLabel(status){return({pending:'Čeká',approved:'Schválená',rejected:'Zamítnutá',cancelled:'Zrušená'})[status]||status||'—'}
 function galleryStatusLabel(status){return({pending:'Čeká na schválení',approved:'Schválena',rejected:'Zamítnuta'})[status]||status||'—'}
-function paymentLabel(status){return({paid:'Zaplaceno',unpaid:'Nezaplaceno',overdue:'Po splatnosti',early_paid:'Zaplaceno předem',refunded:'Vráceno'})[status]||status||'—'}
+function paymentLabel(status){return({paid:'Zaplaceno',unpaid:'Nezaplaceno',underpaid:'Částečně',overpaid:'Přeplatek',not_required:'Bez platby',overdue:'Po splatnosti',early_paid:'Zaplaceno',refunded:'Vráceno'})[status]||status||'—'}
+function itemPayment(item){return item?.payment||{amountDueCzk:numeric(item?.amountDueCzk),amountPaidCzk:numeric(item?.amountPaidCzk),remainingCzk:Math.max(0,numeric(item?.amountDueCzk)-numeric(item?.amountPaidCzk)),status:item?.paymentStatus||'unpaid',overdue:false}}
+function paymentQrSvg(spayd){if(!spayd)return '';try{const qr=qrcode(0,'M');qr.addData(spayd,'Byte');qr.make();return qr.createSvgTag({cellSize:4,margin:8,scalable:true})}catch(error){console.error('QR payment render failed',error);return ''}}
 function attendanceLabel(type){return({full_weekend:'Full weekend',saturday_only:'Sobota',day_visit:'Day visit'})[type]||type||'—'}
 function attendanceShortLabel(item){
   if(item.attendanceType==='full_weekend')return item.arrival==='Pátek'?'Pá → Ne':'Full weekend';
@@ -118,7 +121,7 @@ function renderOverview(payload){
   $('[data-kpi-people]').textContent=numeric(overview.people);
   $('[data-kpi-cars]').textContent=numeric(overview.cars);
   $('[data-kpi-pending]').textContent=numeric(statuses.pending);
-  $('[data-kpi-payments]').textContent=`${numeric(payments.paid)+numeric(payments.earlyPaid)} / ${numeric(payments.unpaid)+numeric(payments.overdue)}`;
+  $('[data-kpi-payments]').textContent=`${numeric(payments.paid)} / ${numeric(payments.unpaid)+numeric(payments.underpaid)}`;
   $('[data-kpi-gallery-pending]').textContent=numeric(gallery.pending);
   $('[data-gallery-nav-count]').textContent=numeric(gallery.pending);
   $('[data-capacity-reservations]').textContent=event?.reservationCapacity?`kapacita ${event.reservationCapacity}`:'kapacita —';
@@ -145,6 +148,9 @@ function renderOverview(payload){
   $('[data-booking-capacity]').textContent=accommodationCapacity||'—';$('[data-booking-reserved]').textContent=numeric(accommodation.units);
   $('[data-booking-collected]').textContent=formatMoney(collected);$('[data-booking-paid]').textContent=formatMoney(paid);
   $('[data-booking-gap]').textContent=formatMoney(Math.max(0,commitment-collected));
+  $('[data-payment-total-due]').textContent=formatMoney(payments.amountDueCzk);$('[data-payment-total-paid]').textContent=formatMoney(payments.amountPaidCzk);$('[data-payment-total-remaining]').textContent=formatMoney(payments.amountRemainingCzk);
+  $('[data-payment-count-unpaid]').textContent=numeric(payments.unpaid);$('[data-payment-count-underpaid]').textContent=numeric(payments.underpaid);$('[data-payment-count-paid]').textContent=numeric(payments.paid);$('[data-payment-count-overpaid]').textContent=numeric(payments.overpaid);$('[data-payment-count-overdue]').textContent=numeric(payments.overdue);
+  const testWarning=$('[data-admin-payment-test]');if(testWarning)testWarning.hidden=!event?.paymentTestMode;
 }
 
 function recordsLabel(count){return `${count} ${count===1?'záznam':count>1&&count<5?'záznamy':'záznamů'}`}
@@ -179,7 +185,7 @@ function renderReservationList(){
     const memberTitle=member.nickname||member.name||member.email||'United member';
     const carModel=[car.body,car.model].filter(Boolean).join(' · ')||'Auto bez údajů';
     const accommodation=accommodationSnapshot?`${numeric(accommodationSnapshot.unitCount)}× ${accommodationSnapshot.optionName}`:item.accommodation||'Bez ubytování';
-    const total=numeric(item.amountDueCzk)||numeric(accommodationSnapshot?.totalCzk);
+    const total=numeric(item.amountDueCzk)||numeric(accommodationSnapshot?.totalCzk),payment=itemPayment(item);
     return `<article class="admin-reservation admin-reservation--compact" data-reservation-id="${escapeHtml(item.id)}">
       <button aria-label="Otevřít detail rezervace ${escapeHtml(memberTitle)}" class="admin-reservation-row" data-reservation-open="${escapeHtml(item.id)}" type="button">
         <span class="admin-reservation-member"><strong>${escapeHtml(memberTitle)}</strong><small>${escapeHtml(member.name||'Jméno neuvedeno')} · ${escapeHtml(member.email||'E-mail neuveden')}</small></span>
@@ -187,7 +193,7 @@ function renderReservationList(){
         <span><small>POBYT</small><b>${escapeHtml(attendanceShortLabel(item))} · ${numeric(item.crew)} ${numeric(item.crew)===1?'osoba':'osob'}</b></span>
         <span><small>UBYTOVÁNÍ</small><b>${escapeHtml(accommodation)}</b></span>
         <span class="admin-reservation-money"><small>CELKEM</small><b>${escapeHtml(formatMoney(total))}</b></span>
-        <span><small>PLATBA</small><i class="admin-badge admin-payment--${escapeHtml(item.paymentStatus||'unpaid')}">${escapeHtml(paymentLabel(item.paymentStatus))}</i></span>
+        <span><small>PLATBA</small><i class="admin-badge admin-payment--${escapeHtml(payment.status)}">${escapeHtml(payment.overdue&&payment.remainingCzk>0?'Po splatnosti':paymentLabel(payment.status))}</i></span>
         <span><small>REZERVACE</small><i class="admin-badge admin-badge--${escapeHtml(item.status)}">${escapeHtml(statusLabel(item.status))}</i></span>
         <span class="admin-reservation-open-label">Detail <b>→</b></span>
       </button>
@@ -198,9 +204,9 @@ function renderReservationDrawer(){
   const item=reservationItems.find(reservation=>reservation.id===selectedReservationId);
   if(!item){closeReservationDrawer();return}
   const member=item.member||{},car=item.carSnapshot||{},snapshot=item.accommodationSnapshot||null;
-  const accommodation=snapshot?`${numeric(snapshot.peopleCount)} ${numeric(snapshot.peopleCount)===1?'osoba':'osob'} · ${numeric(snapshot.unitCount)}× ${snapshot.optionName}`:`${item.accommodation||'Bez ubytování'} · ${numeric(item.accommodationUnits)} osob`;
+  const accommodation=snapshot?`${numeric(snapshot.peopleCount)} ${numeric(snapshot.peopleCount)===1?'osoba':'osob'} · ${numeric(snapshot.unitCount)}× ${snapshot.optionName}`:`${item.accommodation||'Bez ubytování'} · ${numeric(item.accommodationUnits)} osob`,payment=itemPayment(item),qr=paymentQrSvg(payment.spayd);
   $('[data-reservation-drawer-content]').innerHTML=`<article class="admin-reservation-drawer-card" data-reservation-id="${escapeHtml(item.id)}">
-    <header><span class="admin-kicker">RESERVATION DETAIL</span><h2 id="admin-reservation-drawer-title">${escapeHtml(member.nickname||member.name||'United member')}</h2><p>${escapeHtml(member.name||'Jméno neuvedeno')} · ${escapeHtml(member.email||'E-mail neuveden')}</p><div><small class="admin-badge admin-badge--${escapeHtml(item.status)}">${escapeHtml(statusLabel(item.status))}</small><small class="admin-badge admin-payment--${escapeHtml(item.paymentStatus||'unpaid')}">${escapeHtml(paymentLabel(item.paymentStatus))}</small></div></header>
+    <header><span class="admin-kicker">RESERVATION DETAIL</span><h2 id="admin-reservation-drawer-title">${escapeHtml(member.nickname||member.name||'United member')}</h2><p>${escapeHtml(member.name||'Jméno neuvedeno')} · ${escapeHtml(member.email||'E-mail neuveden')}</p><div><small class="admin-badge admin-badge--${escapeHtml(item.status)}">${escapeHtml(statusLabel(item.status))}</small><small class="admin-badge admin-payment--${escapeHtml(payment.status)}">${escapeHtml(payment.overdue&&payment.remainingCzk>0?'Po splatnosti':paymentLabel(payment.status))}</small></div></header>
     <div class="admin-reservation-drawer-grid">
       <section><small>ČLEN</small><b>${escapeHtml(member.name||'—')}</b><span>${escapeHtml(member.nickname||'Bez přezdívky')} · ${escapeHtml(member.memberCode||'Bez kódu')}</span><span>${escapeHtml(member.email||'—')}</span></section>
       <section><small>AUTO</small><b>${escapeHtml([car.body,car.model].filter(Boolean).join(' · ')||'—')}</b><span>${escapeHtml([car.nickname,car.year,car.color].filter(Boolean).join(' · ')||'Bez dalších údajů')}</span></section>
@@ -211,6 +217,7 @@ function renderReservationDrawer(){
       <section><small>ODESLÁNO</small><b>${escapeHtml(formatDate(item.submittedAt))}</b><span>Aktualizováno ${escapeHtml(formatDate(item.updatedAt))}</span></section>
       <section><small>POSOUZENO</small><b>${escapeHtml(formatDate(item.reviewedAt))}</b><span>${escapeHtml(item.reviewNote||'Bez admin poznámky')}</span></section>
     </div>
+    <section class="admin-payment-editor">${payment.testMode?'<div class="payment-test-warning">TESTOVACÍ PLATBA – NEPLAŤTE</div>':''}<div class="admin-payment-editor-grid"><div><span class="admin-kicker">PAYMENT</span><h3>${escapeHtml(payment.overdue&&payment.remainingCzk>0?'Platba po splatnosti':paymentLabel(payment.status))}</h3><dl><div><dt>Celkem</dt><dd>${escapeHtml(formatMoney(payment.amountDueCzk))}</dd></div><div><dt>Zaplaceno</dt><dd>${escapeHtml(formatMoney(payment.amountPaidCzk))}</dd></div><div><dt>Zbývá</dt><dd>${escapeHtml(formatMoney(payment.remainingCzk))}</dd></div><div><dt>VS</dt><dd>${escapeHtml(payment.variableSymbol||'—')}</dd></div><div><dt>Účet</dt><dd>${escapeHtml(payment.accountDisplay||'—')}</dd></div><div><dt>Splatnost</dt><dd>${escapeHtml(formatDate(payment.deadline,false))}</dd></div></dl><label><span>SKUTEČNĚ UHRAZENO (KČ)</span><input data-payment-amount max="10000000" min="0" step="1" type="number" value="${numeric(payment.amountPaidCzk)}"/></label><div class="admin-payment-actions"><button class="admin-button admin-button--primary" data-payment-save type="button">Uložit platbu <span>→</span></button><button class="admin-button" data-payment-full type="button">Označit plně uhrazeno</button></div></div>${qr?`<div class="admin-payment-qr"><div>${qr}</div><small>${escapeHtml(payment.message||'')}</small></div>`:''}</div></section>
     <div class="admin-reservation-drawer-notes"><div><small>POZNÁMKA ČLENA</small><p>${escapeHtml(item.note||'Bez poznámky člena.')}</p></div></div>
     <div class="admin-review admin-reservation-drawer-review"><input maxlength="1000" data-review-note placeholder="Krátká admin poznámka (hlavně při zamítnutí)" value="${escapeHtml(item.reviewNote||'')}"/><div class="admin-review-actions">${reservationActions(item)}</div></div>
   </article>`;
@@ -445,6 +452,19 @@ async function updateReservation(card,status){
   catch(error){if(error.status===403){setDenied();return}toast(error.message||'Rezervaci se nepodařilo změnit.')}finally{if(button)button.disabled=false}
 }
 
+async function updateReservationPayment(card,markFull=false){
+  const reservationId=card.dataset.reservationId,item=reservationItems.find(entry=>entry.id===reservationId),payment=itemPayment(item),input=$('[data-payment-amount]',card);
+  const amountPaidCzk=markFull?numeric(payment.amountDueCzk):Number(input?.value);
+  if(!Number.isInteger(amountPaidCzk)||amountPaidCzk<0||amountPaidCzk>10000000){toast('Zadej celou uhrazenou částku od 0 do 10 000 000 Kč.');input?.focus();return}
+  $$('[data-payment-save], [data-payment-full]',card).forEach(button=>button.disabled=true);
+  try{
+    const payload=await apiRequest(`/api/admin/reservations/${encodeURIComponent(reservationId)}/payment`,{method:'PATCH',body:{amountPaidCzk}});
+    if(item&&payload?.reservation?.payment){item.payment=payload.reservation.payment;item.paymentStatus=item.payment.status;item.amountPaidCzk=item.payment.amountPaidCzk;renderReservationList();renderReservationDrawer()}
+    toast(markFull?'Platba byla označena jako plně uhrazená.':'Uhrazená částka byla uložena.');await loadEventData();
+  }catch(error){if(error.status===403){setDenied();return}toast(error.message||'Platbu se nepodařilo uložit.')}
+  finally{$$('[data-payment-save], [data-payment-full]',card).forEach(button=>button.disabled=false)}
+}
+
 async function updateGallery(container,status){
   const submissionId=container.dataset.galleryId;const currentItem=galleryItems.find(photo=>photo.id===submissionId);const noteField=$('[data-gallery-review-note]',container);const note=noteField?noteField.value:(currentItem?.reviewNote||'');
   $$('[data-gallery-action]',container).forEach(button=>button.disabled=true);
@@ -505,6 +525,8 @@ document.addEventListener('click',event=>{
   const galleryFilterButton=event.target.closest('[data-gallery-filter]');if(galleryFilterButton){setGalleryFilter(galleryFilterButton.dataset.galleryFilter);return}
   const reservationOpen=event.target.closest('[data-reservation-open]');if(reservationOpen){openReservationDrawer(reservationOpen.dataset.reservationOpen,reservationOpen);return}
   if(event.target.closest('[data-reservation-drawer-close]')){closeReservationDrawer();return}
+  const paymentSave=event.target.closest('[data-payment-save]');if(paymentSave){const card=paymentSave.closest('[data-reservation-id]');if(card)updateReservationPayment(card);return}
+  const paymentFull=event.target.closest('[data-payment-full]');if(paymentFull){const card=paymentFull.closest('[data-reservation-id]');if(card)updateReservationPayment(card,true);return}
   const preview=event.target.closest('[data-gallery-preview]');if(preview){openGalleryLightbox(preview.dataset.galleryPreview,preview);return}
   if(event.target.closest('[data-gallery-lightbox-close]')){closeGalleryLightbox();return}
   const galleryAction=event.target.closest('[data-gallery-action]');if(galleryAction){const card=galleryAction.closest('[data-gallery-id]');if(card)updateGallery(card,galleryAction.dataset.galleryAction);return}
