@@ -52,7 +52,9 @@ function validatePlannerHandoff(candidate){
   if(candidate.arrival!=='Jen na otočku'&&candidate.accommodation!=='Bez ubytování'&&units<1)return null;
   const eventId=candidate.eventId==null?null:String(candidate.eventId);if(eventId!==null&&!/^[a-z0-9_-]{1,128}$/i.test(eventId))return null;
   const accommodationOptionId=candidate.accommodationOptionId==null?null:String(candidate.accommodationOptionId);if(accommodationOptionId!==null&&!/^[a-z0-9_-]{1,128}$/i.test(accommodationOptionId))return null;
-  return {version:1,draftId,source:'weekend-planner',eventYear,eventId,createdAt:new Date(createdAt).toISOString(),expiresAt:new Date(expiresAt).toISOString(),arrival:candidate.arrival,attendanceType:candidate.attendanceType,accommodation:candidate.accommodation,accommodationOptionId,accommodationUnits:units,crew,showShine:candidate.showShine};
+  const fallbackDeparture=candidate.arrival==='Jen na otočku'?'Stejný den':'Neděle',departure=String(candidate.departure||fallbackDeparture),nights=Number(candidate.nights??(candidate.arrival==='Pátek'?2:candidate.arrival==='Sobota'?1:0));
+  const validStay=candidate.arrival==='Pátek'?(['Sobota','Neděle'].includes(departure)&&[1,2].includes(nights)):candidate.arrival==='Sobota'?(departure==='Neděle'&&nights===1):(departure==='Stejný den'&&nights===0);if(!validStay)return null;
+  return {version:1,draftId,source:'weekend-planner',eventYear,eventId,createdAt:new Date(createdAt).toISOString(),expiresAt:new Date(expiresAt).toISOString(),arrival:candidate.arrival,departure,nights,attendanceType:candidate.attendanceType,accommodation:candidate.accommodation,accommodationOptionId,accommodationUnits:units,crew,showShine:candidate.showShine};
 }
 function cleanupPlannerHandoffs(){
   try{for(let index=localStorage.length-1;index>=0;index--){const key=localStorage.key(index);if(!key?.startsWith(plannerHandoffPrefix))continue;let valid=null;try{valid=validatePlannerHandoff(JSON.parse(localStorage.getItem(key)||'null'))}catch{}if(!valid)localStorage.removeItem(key)}}
@@ -616,7 +618,8 @@ function renderPlannerHandoffRecap(container,handoff){
   const handoffOption=reservationState.accommodationOptions.find(option=>option.id===handoff.accommodationOptionId),optionName=handoffOption?.name||handoff.accommodation;
   const units=handoff.accommodationUnits,accommodation=units?`${optionName} / ${units} ${units===1?'osoba':units<=4?'osoby':'osob'}`:handoff.accommodation;
   const crew=`${handoff.crew} ${handoff.crew===1?'osoba':handoff.crew<=4?'osoby':'osob'}`;
-  container.replaceChildren(...[handoff.arrival,accommodation,crew,`Show & Shine: ${handoff.showShine}`].map(value=>{const chip=document.createElement('span');chip.textContent=value;return chip}));
+  const stay=handoff.arrival==='Jen na otočku'?handoff.arrival:`${handoff.arrival} → ${handoff.departure} · ${handoff.nights} ${handoff.nights===1?'noc':'noci'}`;
+  container.replaceChildren(...[stay,accommodation,crew,`Show & Shine: ${handoff.showShine}`].map(value=>{const chip=document.createElement('span');chip.textContent=value;return chip}));
 }
 function renderPlannerHandoff(){
   const banner=$('[data-planner-handoff]'),section=$('[data-reservation-section]'),workbench=$('[data-reservation-workbench]');if(!banner)return;
@@ -647,6 +650,12 @@ function applyPlannerHandoffToForm(){
   if(accommodationPartialInput)accommodationPartialInput.checked=handoff.accommodationUnits>0&&handoff.accommodationUnits<handoff.crew;
   renderAccommodationOptionChoices(handoff.accommodationOptionId||'');
   if(reservationForm.elements.showshine)reservationForm.elements.showshine.value=handoff.showShine;
+  if(reservationForm.elements.note&&handoff.arrival!=='Jen na otočku'){
+    const marker='[Weekend Planner] Odjezd:';
+    const current=String(reservationForm.elements.note.value||'').split('\n').filter(line=>!line.startsWith(marker)).join('\n').trim();
+    const stayNote=`${marker} ${handoff.departure} · ${handoff.nights} ${handoff.nights===1?'noc':'noci'}`;
+    reservationForm.elements.note.value=current?`${stayNote}\n${current}`:stayNote;
+  }
   syncMemberSleep();
   const selectedCar=data.cars.length===1?data.cars[0]:(data.cars.find(car=>car.primary)||data.cars[0]||null);
   if(selectedCar&&reservationForm.elements.carId)reservationForm.elements.carId.value=selectedCar.id;
