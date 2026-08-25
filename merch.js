@@ -1,4 +1,5 @@
 import { firebaseConfig, portalConfig } from './firebase-config.js?v=20260823-auth2';
+import { initUnitedAuth } from './united-auth.js?v=20260825-phase-a1';
 
 export function deriveMemberBenefit(localData={},config=portalConfig){
   const history=Array.isArray(localData.history)?localData.history:[],bonuses=Array.isArray(localData.bonuses)?localData.bonuses:[],pointRules=config.points;
@@ -43,27 +44,28 @@ qsa('[data-merch-filter]').forEach(btn=>btn.addEventListener('click',()=>{const 
 
 const memberBenefit=qs('[data-member-merch-benefit]');
 if(memberBenefit){
-  const anonymousState=qs('[data-benefit-anonymous]',memberBenefit),memberState=qs('[data-benefit-member]',memberBenefit);
-  const renderAnonymous=()=>{memberBenefit.dataset.benefitState='anonymous';memberBenefit.removeAttribute('aria-busy');anonymousState.hidden=false;memberState.hidden=true};
+  const loadingState=qs('[data-benefit-loading]',memberBenefit),anonymousState=qs('[data-benefit-anonymous]',memberBenefit),memberState=qs('[data-benefit-member]',memberBenefit);
+  const setVisible=target=>[loadingState,anonymousState,memberState].forEach(element=>{if(element)element.hidden=element!==target});
+  const renderLoading=()=>{memberBenefit.dataset.benefitState='loading';memberBenefit.setAttribute('aria-busy','true');setVisible(loadingState);if(loadingState){qs('strong',loadingState).textContent='Ověřuji tvoje United ID…';qs('small',loadingState).textContent='Členský stav se načítá.';qs('[data-benefit-retry]',loadingState).hidden=true}};
+  const renderAnonymous=()=>{memberBenefit.dataset.benefitState='anonymous';memberBenefit.removeAttribute('aria-busy');setVisible(anonymousState)};
+  const renderError=()=>{memberBenefit.dataset.benefitState='error';memberBenefit.removeAttribute('aria-busy');setVisible(loadingState);if(loadingState){qs('strong',loadingState).textContent='Členský stav se nepodařilo ověřit.';qs('small',loadingState).textContent='Tvoje session nebyla změněna. Zkontroluj připojení a zkus to znovu.';qs('[data-benefit-retry]',loadingState).hidden=false}};
   const renderMember=user=>{
     let localData={};
     try{localData=JSON.parse(localStorage.getItem(`${portalConfig.memberLocalPrefix||'e36UnitedMemberLocalV20'}:${user.uid}`)||'{}')}catch(error){console.debug('United Progress local data is unavailable.',error)}
-    const progress=deriveMemberBenefit(localData);memberBenefit.dataset.benefitState='member';memberBenefit.removeAttribute('aria-busy');anonymousState.hidden=true;memberState.hidden=false;
+    const progress=deriveMemberBenefit(localData);memberBenefit.dataset.benefitState='member';memberBenefit.removeAttribute('aria-busy');setVisible(memberState);
     qs('[data-benefit-points]',memberState).textContent=progress.points;
     const progressBar=qs('[data-benefit-progress]',memberState);progressBar.setAttribute('aria-valuemax',String(progress.threshold));progressBar.setAttribute('aria-valuenow',String(progress.points));progressBar.querySelector('i').style.width=`${Math.min(100,progress.points/progress.threshold*100)}%`;
     qs('[data-benefit-next]',memberState).textContent=progress.remaining?`Ještě ${progress.remaining} ${progress.remaining===1?'bod':'bodů'} do United Merch odměny.`:'United Merch odměna je odemčená.';
     qs('[data-benefit-perk]',memberState).textContent=progress.unlocked.at(-1)||'Zatím bez odemčené výhody';
     qs('[data-benefit-perk-count]',memberState).textContent=progress.unlocked.length?`${progress.unlocked.length} ${progress.unlocked.length===1?'aktivní výhoda':'aktivní výhody'}`:'První výhoda se odemkne ověřenou účastí.';
   };
-  memberBenefit.setAttribute('aria-busy','true');
-  void (async()=>{
-    try{
-      const appMod=await import('https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js');
-      const authMod=await import('https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js');
-      const app=appMod.getApps().length?appMod.getApps()[0]:appMod.initializeApp(firebaseConfig);
-      const auth=authMod.getAuth(app);await authMod.setPersistence(auth,authMod.browserLocalPersistence);
-      authMod.onAuthStateChanged(auth,user=>user?renderMember(user):renderAnonymous());
-    }catch(error){renderAnonymous();console.debug('United member benefit state is unavailable.',error)}
-  })();
+  renderLoading();
+  const authController=initUnitedAuth({config:firebaseConfig,onStateChange:state=>{
+    if(state.status==='loading')renderLoading();
+    else if(state.status==='authenticated')renderMember(state.user);
+    else if(state.status==='anonymous')renderAnonymous();
+    else{renderError();console.debug('United member benefit state is unavailable.',state.error)}
+  }});
+  qs('[data-benefit-retry]',memberBenefit)?.addEventListener('click',()=>authController.retry());
 }
 })();

@@ -1,8 +1,9 @@
 import { firebaseConfig, portalConfig } from './firebase-config.js?v=20260823-auth2';
+import { initUnitedAuth } from './united-auth.js?v=20260825-phase-a1';
 
 const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
 const apiBase=(portalConfig.apiBaseUrl||'https://api.e36united.cz').replace(/\/$/,'');
-let auth=null,currentUser=null,member=null;
+let auth=null,currentUser=null,member=null,authController=null;
 
 function initGalleryNavigation(){
   const videoSection=$('.gallery-video-section'),hero=$('.gallery-hero');
@@ -41,9 +42,19 @@ function setUploadStatus(message,type=''){
   el.textContent=message;el.classList.remove('is-success','is-error','is-info');
   if(type)el.classList.add(`is-${type}`);
 }
-function setAuthState(){
+function setAuthState(state=currentUser?'authenticated':'anonymous'){
   const box=$('[data-gallery-auth-state]'),submit=$('[data-upload-submit]');if(!box)return;
-  if(currentUser){
+  box.classList.remove('is-authenticated','is-error','is-loading');
+  if(state==='loading'){
+    box.classList.add('is-loading');
+    box.innerHTML='<span class="gallery-auth-dot"></span><div><b>Kontroluji přihlášení…</b><small>Počkám na potvrzený stav Firebase session.</small></div>';
+    if(submit)submit.disabled=true;
+  }else if(state==='error'){
+    box.classList.add('is-error');
+    box.innerHTML='<span class="gallery-auth-dot"></span><div><b>Přihlášení se nepodařilo ověřit</b><small>Tvoje session nebyla změněna. Zkontroluj připojení a zkus to znovu.</small><button data-gallery-auth-retry type="button">Zkusit znovu →</button></div>';
+    $('[data-gallery-auth-retry]',box)?.addEventListener('click',()=>authController?.retry());
+    if(submit)submit.disabled=true;
+  }else if(currentUser){
     box.classList.add('is-authenticated');
     box.innerHTML=`<span class="gallery-auth-dot"></span><div><b>${escapeHtml(member?.nickname||member?.name||currentUser.displayName||'United member')}</b><small>${escapeHtml(currentUser.email||'')} · nahrávání je aktivní</small></div>`;
     if(submit)submit.disabled=false;
@@ -110,19 +121,21 @@ async function loadApprovedGallery(){
 }
 
 async function initAuth(){
-  try{
-    const appMod=await import('https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js');
-    const authMod=await import('https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js');
-    const app=appMod.getApps().length?appMod.getApps()[0]:appMod.initializeApp(firebaseConfig);
-    auth=authMod.getAuth(app);await authMod.setPersistence(auth,authMod.browserLocalPersistence);
-    authMod.onAuthStateChanged(auth,async user=>{
-      currentUser=user;member=null;
-      if(user){
-        try{const payload=await authorizedFetch('/api/me');member=payload?.member||null}catch(error){console.warn('Member profile unavailable on gallery page',error)}
-      }
-      setAuthState();
-    });
-  }catch(error){console.error('Gallery auth init failed',error);setAuthState();}
+  setAuthState('loading');
+  authController=initUnitedAuth({config:firebaseConfig,onStateChange:async state=>{
+    if(state.context)auth=state.context.auth;
+    if(state.status==='loading'){setAuthState('loading');return}
+    if(state.status==='error'){console.error('Gallery auth init failed',state.error);setAuthState('error');return}
+    currentUser=state.user;member=null;
+    if(state.status==='authenticated'){
+      const observedUser=state.user;
+      try{const payload=await authorizedFetch('/api/me');if(currentUser!==observedUser)return;member=payload?.member||null}
+      catch(error){console.warn('Member profile unavailable on gallery page',error)}
+    }
+    if(state.status==='authenticated'&&currentUser!==state.user)return;
+    setAuthState(state.status);
+  }});
+  await authController.ready;
 }
 
 const form=$('[data-upload-form]'),input=$('[data-upload-input]'),dropzone=$('[data-upload-dropzone]');
