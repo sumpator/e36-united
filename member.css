@@ -242,3 +242,54 @@ body:not(.member-authenticated) [data-app-view]{display:none!important}
 .payment-test-warning{padding:13px 20px;border-bottom:1px solid rgba(255,183,77,.35);background:repeating-linear-gradient(135deg,rgba(255,164,46,.19) 0 12px,rgba(255,164,46,.11) 12px 24px);color:#ffd28b;text-align:center;font:950 12px/1.2 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.11em}
 .member-payment-layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(230px,.38fr);gap:26px;padding:26px}.member-payment-copy h3{margin:10px 0 5px;font-size:clamp(27px,3vw,42px);line-height:.94;letter-spacing:-.045em}.member-payment-copy>p{margin:0 0 20px;color:#8fc5ff;font-weight:850}.member-payment-copy dl{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1px;margin:0;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.08)}.member-payment-copy dl>div{min-width:0;padding:12px 14px;background:#0b1016}.member-payment-copy dt{color:#6f7e8d;font:850 8px/1.2 ui-monospace,monospace;letter-spacing:.1em;text-transform:uppercase}.member-payment-copy dd{margin:6px 0 0;color:#eef6ff;font-weight:850;overflow-wrap:anywhere}.member-payment-copy .member-payment-remaining{background:rgba(77,163,255,.08)}.member-payment-remaining dd{color:#87c5ff;font-size:20px}.member-payment-qr{display:grid;align-content:center;justify-items:center;gap:9px;padding:16px;border:1px solid rgba(255,255,255,.09);border-radius:17px;background:rgba(255,255,255,.025);text-align:center}.member-payment-qr>div{width:min(100%,220px);padding:9px;border-radius:12px;background:#fff}.member-payment-qr svg{display:block;width:100%;height:auto}.member-payment-qr strong{font-size:12px}.member-payment-qr small{max-width:220px;color:#71808f;font-size:9px;line-height:1.45}.payment-status-paid,.payment-status-not_required{border-color:rgba(98,214,168,.3)}.payment-status-paid .member-payment-copy>p,.payment-status-not_required .member-payment-copy>p{color:#7ed8ad}.payment-status-underpaid{border-color:rgba(255,183,77,.32)}.payment-status-underpaid .member-payment-copy>p{color:#ffc66d}.payment-status-overpaid{border-color:rgba(154,128,255,.34)}
 @media(max-width:760px){.member-payment-layout{grid-template-columns:1fr;padding:18px}.member-payment-copy dl{grid-template-columns:1fr}.member-payment-qr{padding:14px}.payment-test-warning{padding-inline:12px;font-size:10px}.member-payment-copy h3{font-size:30px}}
+
+/* ===== Mobile portal navigation + United Progress ===== */
+.member-portal-nav{position:sticky;top:105px;z-index:40;align-self:start}
+.member-portal-nav .member-sidebar{position:static;top:auto}
+.united-progress-primary{margin-top:12px}
+.progress-collections{margin-top:12px;overflow:hidden;border:1px solid rgba(255,255,255,.09);border-radius:20px;background:linear-gradient(145deg,rgba(255,255,255,.035),rgba(255,255,255,.012))}
+.progress-collections .badges-all,.progress-collections .perks-card{margin:0;border:0;border-radius:0;background:transparent}
+.progress-collections .perks-card{border-top:1px solid rgba(255,255,255,.08)}
+.progress-collections .perks-list{grid-template-columns:repeat(2,minmax(0,1fr))}
+.progress-collections .section-row-head h3{margin:7px 0 0;font-size:27px;letter-spacing:-.035em}
+
+@media(max-width:1050px){
+  .member-portal-nav{top:82px;margin-inline:calc((100vw - 100%)/-2)}
+  .member-portal-nav .portal-nav-viewport{background:rgba(9,11,14,.95)}
+  .member-portal-nav .member-sidebar{display:flex;margin:0;padding:7px 34px 7px max(20px,calc((100vw - var(--container))/2));overflow-x:auto;border:0;border-radius:0;background:transparent;box-shadow:none;scroll-snap-type:x proximity;scroll-padding-inline:20px;scrollbar-width:none;-webkit-overflow-scrolling:touch;overscroll-behavior-inline:contain}
+  .member-portal-nav .member-sidebar::-webkit-scrollbar{display:none}
+  .member-portal-nav .member-nav-item{flex:0 0 auto;min-width:max-content;min-height:48px;padding-inline:15px;scroll-snap-align:start}
+  .member-portal-nav .member-nav-shop{margin-top:0;padding-top:0;border-top:0;border-radius:12px}
+  .history-year{min-height:132px;overflow:hidden;isolation:isolate}
+  .history-year-number{position:absolute;z-index:0;top:12px;right:-4px;color:rgba(132,178,216,.1);font-size:58px;pointer-events:none}
+  .history-year.is-attended .history-year-number{color:rgba(125,196,255,.12)}
+  .history-year-status{z-index:1}
+}
+
+@media(max-width:700px){
+  .member-portal-nav{top:74px}
+  .member-app .points-ledger{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+  .member-app .ledger-item{min-width:0;padding:12px 9px}
+  .member-app .ledger-item span{min-height:24px;font-size:8px;line-height:1.45}
+  .member-app .ledger-item b{margin:5px 0 2px;font-size:20px}
+  .member-app .ledger-item small{font-size:9.5px;line-height:1.35}
+  .united-progress-head{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:14px;align-items:end}
+  .united-progress-head>div:first-child{min-width:0}
+  .united-progress-head .reward-score{align-self:start}
+  .united-progress-head .reward-score span{font-size:42px}
+  .progress-collections .badges-all,.progress-collections .perks-card{padding:16px}
+  .progress-collections .perks-list{grid-template-columns:1fr}
+  .progress-collections .badge-cabinet{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .history-year{min-height:126px;padding:14px}
+  .history-year-number{top:11px;right:-3px;font-size:52px}
+  .history-year-status{left:14px;right:14px;bottom:13px;align-items:flex-end}
+  .history-year-status>div{position:relative;z-index:1;max-width:calc(100% - 34px)}
+  .history-year-status small{display:block;margin-top:4px;text-align:left;font-size:10px;line-height:1.35}
+}
+
+@media(max-width:430px){
+  .member-app .ledger-item span{font-size:7.5px}
+  .member-app .ledger-item small{font-size:8.5px}
+  .united-progress-head{grid-template-columns:1fr}
+  .united-progress-head .reward-score{justify-self:start}
+}

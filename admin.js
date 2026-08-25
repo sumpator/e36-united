@@ -1,5 +1,6 @@
 import { firebaseConfig, portalConfig } from './firebase-config.js?v=20260823-auth2';
 import qrcode from './vendor/qrcode-generator.mjs';
+import { initPortalNavigation } from './portal-navigation.js?v=20260825-mobile1';
 
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js';
 import { getAuth, setPersistence, browserLocalPersistence, onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js';
@@ -22,6 +23,7 @@ let galleryItems=[];
 let galleryFilter='pending';
 let selectedGalleryId=null;
 let lightboxReturnFocus=null;
+let adminPortalNavigation=null;
 const galleryMediaUrls=new Map();
 const galleryMediaPromises=new Map();
 const galleryMediaTokens=new Map();
@@ -529,16 +531,18 @@ function jumpToSection(section){
 
 function setAdminNavActive(section){
   $$('[data-admin-jump]').forEach(button=>{const active=button.dataset.adminJump===section;button.classList.toggle('is-active',active);if(active)button.setAttribute('aria-current','location');else button.removeAttribute('aria-current')});
+  adminPortalNavigation?.sync(section);
 }
 function updateAdminNavActive(){
   if($('[data-admin-view]')?.hidden)return;
-  const sections=[['dashboard',$('.admin-kpis')],['reservations',$('[data-admin-section="reservations"]')],['accommodation',$('[data-admin-section="accommodation"]')],['gallery',$('[data-admin-section="gallery"]')],['settings',$('[data-admin-section="settings"]')]].filter(([,element])=>element).sort((a,b)=>a[1].offsetTop-b[1].offsetTop);
+  const sections=[['dashboard',$('.admin-kpis')],['reservations',$('[data-admin-section="reservations"]')],['gallery',$('[data-admin-section="gallery"]')],['accommodation',$('[data-admin-section="accommodation"]')],['settings',$('[data-admin-section="settings"]')]].filter(([,element])=>element).sort((a,b)=>a[1].offsetTop-b[1].offsetTop);
   const probe=Math.min(innerHeight*.28,220);let active=sections[0]?.[0]||'dashboard';
   sections.forEach(([id,element])=>{if(element.getBoundingClientRect().top<=probe)active=id});setAdminNavActive(active);
 }
 let adminNavFrame=0;
 window.addEventListener('scroll',()=>{if(adminNavFrame)return;adminNavFrame=requestAnimationFrame(()=>{adminNavFrame=0;updateAdminNavActive()})},{passive:true});
 window.addEventListener('resize',updateAdminNavActive,{passive:true});
+adminPortalNavigation=initPortalNavigation({root:$('[data-portal-nav="admin"]'),onSelect:jumpToSection});
 
 $('[data-login-form]').addEventListener('submit',async event=>{
   event.preventDefault();const button=$('button[type="submit"]',event.currentTarget);const form=new FormData(event.currentTarget);button.disabled=true;$('[data-auth-status]').textContent='';

@@ -6,8 +6,8 @@
   <meta content="noindex,nofollow" name="robots"/>
   <meta content="#090a0c" name="theme-color"/>
   <title>United Admin | E36 United</title>
-  <link href="styles.css?v=20260823-admin1" rel="stylesheet"/>
-  <link href="admin.css?v=20260827-collapse1" rel="stylesheet"/>
+  <link href="styles.css?v=20260825-mobile1" rel="stylesheet"/>
+  <link href="admin.css?v=20260825-mobile1" rel="stylesheet"/>
 </head>
 <body class="admin-page">
   <header class="site-header scrolled admin-header">
@@ -52,13 +52,31 @@
       <div class="container admin-shell">
         <div class="admin-loading" data-loading hidden><i></i><span>Načítám United data…</span></div>
         <div data-dashboard-content>
-          <nav aria-label="Sekce United Admin" class="admin-section-nav">
-            <button data-admin-jump="dashboard" type="button">Přehled</button>
-            <button data-admin-jump="reservations" type="button">Rezervace <b data-reservation-nav-count>0</b></button>
-            <button data-admin-jump="accommodation" type="button">Ubytování</button>
-            <button data-admin-jump="gallery" type="button">Fotky <b data-gallery-nav-count>0</b></button>
-            <button data-admin-jump="settings" type="button">Nastavení</button>
-          </nav>
+          <div class="admin-portal-nav portal-nav-shell" data-portal-nav="admin">
+            <div class="portal-nav-viewport">
+              <nav aria-label="Sekce United Admin" class="admin-section-nav" data-portal-tablist>
+                <button data-admin-jump="dashboard" data-portal-target="dashboard" type="button">Přehled</button>
+                <button data-admin-jump="reservations" data-portal-target="reservations" type="button">Rezervace <b data-reservation-nav-count>0</b></button>
+                <button data-admin-jump="gallery" data-portal-target="gallery" type="button">Fotky <b data-gallery-nav-count>0</b></button>
+                <button data-admin-jump="accommodation" data-portal-target="accommodation" type="button">Ubytování</button>
+                <button data-admin-jump="settings" data-portal-target="settings" type="button">Nastavení</button>
+              </nav>
+            </div>
+            <button aria-controls="admin-mobile-menu" aria-expanded="false" class="portal-menu-button" data-portal-menu-open type="button"><span>MENU</span><i aria-hidden="true"></i></button>
+            <div class="portal-nav-sheet" data-portal-sheet hidden id="admin-mobile-menu">
+              <button aria-label="Zavřít menu" class="portal-nav-sheet-backdrop" data-portal-sheet-close type="button"></button>
+              <div aria-labelledby="admin-mobile-menu-title" aria-modal="true" class="portal-nav-sheet-dialog" data-portal-sheet-dialog role="dialog" tabindex="-1">
+                <div class="portal-nav-sheet-head"><div><small>NAVIGACE</small><h2 id="admin-mobile-menu-title">United Admin</h2></div><button aria-label="Zavřít menu" data-portal-sheet-close type="button">×</button></div>
+                <nav aria-label="Všechny sekce United Admin" class="portal-nav-sheet-list">
+                  <button class="is-active" data-portal-target="dashboard" type="button"><span>01</span><b>Přehled</b></button>
+                  <button data-portal-target="reservations" type="button"><span>02</span><b>Rezervace</b></button>
+                  <button data-portal-target="gallery" type="button"><span>03</span><b>Fotky</b></button>
+                  <button data-portal-target="accommodation" type="button"><span>04</span><b>Ubytování</b></button>
+                  <button data-portal-target="settings" type="button"><span>05</span><b>Nastavení</b></button>
+                </nav>
+              </div>
+            </div>
+          </div>
           <section class="admin-kpis" aria-label="Hlavní ukazatele">
             <article><span>Rezervace</span><strong data-kpi-reservations>0</strong><small data-capacity-reservations>kapacita —</small></article>
             <article><span>Lidé</span><strong data-kpi-people>0</strong><small>celkem osob</small></article>
@@ -68,24 +86,52 @@
             <article aria-label="Otevřít fotografie čekající na schválení" class="admin-kpi-gallery" data-open-gallery-pending role="button" tabindex="0"><span>Fotky ke schválení</span><strong data-kpi-gallery-pending>0</strong><small>Otevřít žádosti</small></article>
           </section>
 
-          <section class="admin-insights">
-            <article class="admin-panel">
-              <div class="admin-panel-head"><div><span class="admin-kicker">ATTENDANCE</span><h2>Typ účasti</h2></div></div>
-              <div class="admin-bars">
-                <div><span>Full weekend</span><b data-attendance-full>0</b><i><em data-bar-full></em></i></div>
-                <div><span>Sobota</span><b data-attendance-saturday>0</b><i><em data-bar-saturday></em></i></div>
-                <div><span>Day visit</span><b data-attendance-day>0</b><i><em data-bar-day></em></i></div>
-              </div>
-            </article>
-            <article class="admin-panel">
-              <div class="admin-panel-head"><div><span class="admin-kicker">SHOW &amp; SHINE</span><h2>Zájem posádek</h2></div></div>
-              <div class="admin-donut-row"><div class="admin-ring" data-show-ring><span data-show-total>0</span></div><dl><div><dt>Ano</dt><dd data-show-yes>0</dd></div><div><dt>Možná</dt><dd data-show-maybe>0</dd></div><div><dt>Ne</dt><dd data-show-no>0</dd></div></dl></div>
-            </article>
-            <article class="admin-panel">
-              <div class="admin-panel-head"><div><span class="admin-kicker">ACCOMMODATION</span><h2>Ubytování</h2></div><strong data-accommodation-occupancy>0 / —</strong></div>
-              <div class="admin-capacity"><i><em data-accommodation-bar></em></i><small>rezervovaná místa / kapacita</small></div>
-              <dl class="admin-mini-stats"><div><dt>Chatka</dt><dd data-accommodation-cabin>0</dd></div><div><dt>Stan</dt><dd data-accommodation-tent>0</dd></div><div><dt>Bez ubytování</dt><dd data-accommodation-none>0</dd></div></dl>
-            </article>
+          <section class="admin-overview-details admin-collapsible is-collapsed" data-admin-collapsible="overview" data-default-collapsed="true">
+            <div class="admin-collapsible-head admin-overview-details-head"><div><span class="admin-kicker">OVERVIEW DETAIL</span><h2>Detail přehledu.</h2></div><button aria-controls="admin-overview-content" aria-expanded="false" class="admin-collapse-toggle" data-admin-collapse-toggle="overview" type="button"><span>Rozbalit</span><i aria-hidden="true"></i></button></div>
+            <div aria-hidden="true" class="admin-collapsible-body" id="admin-overview-content">
+              <section class="admin-insights">
+                <article class="admin-panel">
+                  <div class="admin-panel-head"><div><span class="admin-kicker">ATTENDANCE</span><h2>Typ účasti</h2></div></div>
+                  <div class="admin-bars">
+                    <div><span>Full weekend</span><b data-attendance-full>0</b><i><em data-bar-full></em></i></div>
+                    <div><span>Sobota</span><b data-attendance-saturday>0</b><i><em data-bar-saturday></em></i></div>
+                    <div><span>Day visit</span><b data-attendance-day>0</b><i><em data-bar-day></em></i></div>
+                  </div>
+                </article>
+                <article class="admin-panel">
+                  <div class="admin-panel-head"><div><span class="admin-kicker">SHOW &amp; SHINE</span><h2>Zájem posádek</h2></div></div>
+                  <div class="admin-donut-row"><div class="admin-ring" data-show-ring><span data-show-total>0</span></div><dl><div><dt>Ano</dt><dd data-show-yes>0</dd></div><div><dt>Možná</dt><dd data-show-maybe>0</dd></div><div><dt>Ne</dt><dd data-show-no>0</dd></div></dl></div>
+                </article>
+                <article class="admin-panel">
+                  <div class="admin-panel-head"><div><span class="admin-kicker">ACCOMMODATION</span><h2>Ubytování</h2></div><strong data-accommodation-occupancy>0 / —</strong></div>
+                  <div class="admin-capacity"><i><em data-accommodation-bar></em></i><small>rezervovaná místa / kapacita</small></div>
+                  <dl class="admin-mini-stats"><div><dt>Chatka</dt><dd data-accommodation-cabin>0</dd></div><div><dt>Stan</dt><dd data-accommodation-tent>0</dd></div><div><dt>Bez ubytování</dt><dd data-accommodation-none>0</dd></div></dl>
+                </article>
+              </section>
+            </div>
+          </section>
+
+          <section class="admin-reservations admin-collapsible" data-admin-collapsible="reservations" data-admin-section="reservations">
+            <div class="admin-section-head"><div><span class="admin-kicker">RESERVATIONS</span><h2>Rezervace členů.</h2></div><div class="admin-section-actions"><span class="admin-count" data-reservation-count>0 záznamů</span><button aria-controls="admin-reservations-content" aria-expanded="true" class="admin-collapse-toggle" data-admin-collapse-toggle="reservations" type="button"><span>Sbalit</span><i aria-hidden="true"></i></button></div></div>
+            <div aria-hidden="false" class="admin-collapsible-body" id="admin-reservations-content"><div aria-label="Filtrovat rezervace podle stavu" class="admin-reservation-tabs" data-reservation-tabs role="tablist">
+              <button aria-selected="true" class="admin-reservation-tab is-active" data-reservation-filter="pending" role="tab" type="button">Žádosti <b data-reservation-filter-count="pending">0</b></button>
+              <button aria-selected="false" class="admin-reservation-tab" data-reservation-filter="approved" role="tab" type="button">Schválené <b data-reservation-filter-count="approved">0</b></button>
+              <button aria-selected="false" class="admin-reservation-tab" data-reservation-filter="rejected" role="tab" type="button">Zamítnuté <b data-reservation-filter-count="rejected">0</b></button>
+              <button aria-selected="false" class="admin-reservation-tab" data-reservation-filter="cancelled" role="tab" type="button">Zrušené <b data-reservation-filter-count="cancelled">0</b></button>
+              <button aria-selected="false" class="admin-reservation-tab" data-reservation-filter="all" role="tab" type="button">Všechny <b data-reservation-filter-count="all">0</b></button>
+            </div>
+            <div class="admin-reservation-list" data-reservation-list></div></div>
+          </section>
+
+          <section class="admin-gallery admin-collapsible" data-admin-collapsible="gallery" data-admin-section="gallery">
+            <div class="admin-section-head"><div><span class="admin-kicker">GALLERY MODERATION</span><h2>Fotky od členů.</h2></div><div class="admin-section-actions"><span class="admin-count" data-gallery-count>0 fotografií</span><button aria-controls="admin-gallery-content" aria-expanded="true" class="admin-collapse-toggle" data-admin-collapse-toggle="gallery" type="button"><span>Sbalit</span><i aria-hidden="true"></i></button></div></div>
+            <div aria-hidden="false" class="admin-collapsible-body" id="admin-gallery-content"><div aria-label="Filtrovat fotografie podle stavu" class="admin-reservation-tabs" data-gallery-tabs role="tablist">
+              <button aria-selected="true" class="admin-reservation-tab is-active" data-gallery-filter="pending" role="tab" type="button">Žádosti <b data-gallery-filter-count="pending">0</b></button>
+              <button aria-selected="false" class="admin-reservation-tab" data-gallery-filter="approved" role="tab" type="button">Schválené <b data-gallery-filter-count="approved">0</b></button>
+              <button aria-selected="false" class="admin-reservation-tab" data-gallery-filter="rejected" role="tab" type="button">Zamítnuté <b data-gallery-filter-count="rejected">0</b></button>
+              <button aria-selected="false" class="admin-reservation-tab" data-gallery-filter="all" role="tab" type="button">Všechny <b data-gallery-filter-count="all">0</b></button>
+            </div>
+            <div class="admin-gallery-grid" data-gallery-list></div></div>
           </section>
 
           <section class="booking-block admin-collapsible is-collapsed" data-admin-collapsible="booking" data-default-collapsed="true">
@@ -145,28 +191,6 @@
             </form></div>
           </section>
 
-          <section class="admin-reservations admin-collapsible" data-admin-collapsible="reservations" data-admin-section="reservations">
-            <div class="admin-section-head"><div><span class="admin-kicker">RESERVATIONS</span><h2>Rezervace členů.</h2></div><div class="admin-section-actions"><span class="admin-count" data-reservation-count>0 záznamů</span><button aria-controls="admin-reservations-content" aria-expanded="true" class="admin-collapse-toggle" data-admin-collapse-toggle="reservations" type="button"><span>Sbalit</span><i aria-hidden="true"></i></button></div></div>
-            <div aria-hidden="false" class="admin-collapsible-body" id="admin-reservations-content"><div aria-label="Filtrovat rezervace podle stavu" class="admin-reservation-tabs" data-reservation-tabs role="tablist">
-              <button aria-selected="true" class="admin-reservation-tab is-active" data-reservation-filter="pending" role="tab" type="button">Žádosti <b data-reservation-filter-count="pending">0</b></button>
-              <button aria-selected="false" class="admin-reservation-tab" data-reservation-filter="approved" role="tab" type="button">Schválené <b data-reservation-filter-count="approved">0</b></button>
-              <button aria-selected="false" class="admin-reservation-tab" data-reservation-filter="rejected" role="tab" type="button">Zamítnuté <b data-reservation-filter-count="rejected">0</b></button>
-              <button aria-selected="false" class="admin-reservation-tab" data-reservation-filter="cancelled" role="tab" type="button">Zrušené <b data-reservation-filter-count="cancelled">0</b></button>
-              <button aria-selected="false" class="admin-reservation-tab" data-reservation-filter="all" role="tab" type="button">Všechny <b data-reservation-filter-count="all">0</b></button>
-            </div>
-            <div class="admin-reservation-list" data-reservation-list></div></div>
-          </section>
-
-          <section class="admin-gallery admin-collapsible" data-admin-collapsible="gallery" data-admin-section="gallery">
-            <div class="admin-section-head"><div><span class="admin-kicker">GALLERY MODERATION</span><h2>Fotky od členů.</h2></div><div class="admin-section-actions"><span class="admin-count" data-gallery-count>0 fotografií</span><button aria-controls="admin-gallery-content" aria-expanded="true" class="admin-collapse-toggle" data-admin-collapse-toggle="gallery" type="button"><span>Sbalit</span><i aria-hidden="true"></i></button></div></div>
-            <div aria-hidden="false" class="admin-collapsible-body" id="admin-gallery-content"><div aria-label="Filtrovat fotografie podle stavu" class="admin-reservation-tabs" data-gallery-tabs role="tablist">
-              <button aria-selected="true" class="admin-reservation-tab is-active" data-gallery-filter="pending" role="tab" type="button">Žádosti <b data-gallery-filter-count="pending">0</b></button>
-              <button aria-selected="false" class="admin-reservation-tab" data-gallery-filter="approved" role="tab" type="button">Schválené <b data-gallery-filter-count="approved">0</b></button>
-              <button aria-selected="false" class="admin-reservation-tab" data-gallery-filter="rejected" role="tab" type="button">Zamítnuté <b data-gallery-filter-count="rejected">0</b></button>
-              <button aria-selected="false" class="admin-reservation-tab" data-gallery-filter="all" role="tab" type="button">Všechny <b data-gallery-filter-count="all">0</b></button>
-            </div>
-            <div class="admin-gallery-grid" data-gallery-list></div></div>
-          </section>
         </div>
       </div>
     </section>
@@ -186,6 +210,6 @@
     </aside>
   </div>
   <div aria-live="polite" class="admin-toast" data-toast role="status"></div>
-  <script src="admin.js?v=20260827-collapse1" type="module"></script>
+  <script src="admin.js?v=20260825-mobile1" type="module"></script>
 </body>
 </html>

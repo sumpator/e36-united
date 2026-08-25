@@ -1,6 +1,21 @@
-import { firebaseConfig } from './firebase-config.js?v=20260823-auth2';
+import { firebaseConfig, portalConfig } from './firebase-config.js?v=20260823-auth2';
+
+export function deriveMemberBenefit(localData={},config=portalConfig){
+  const history=Array.isArray(localData.history)?localData.history:[],bonuses=Array.isArray(localData.bonuses)?localData.bonuses:[],pointRules=config.points;
+  const verified=history.filter(item=>item.attended&&item.verified).length,wins=history.filter(item=>item.attended&&item.verified&&item.winner).length;
+  const lifetime=history.reduce((total,item)=>total+(item.attended&&item.verified?pointRules.attendance:0)+(item.winner&&item.verified?pointRules.showShineWin:0),0)+bonuses.reduce((total,item)=>total+Number(item.points||0),0);
+  const points=Math.min(pointRules.rewardThreshold,lifetime),unlocked=[
+    ['Dřívější rezervace',verified>=1],
+    ['Členský United Merch',verified>=1],
+    ['United Merch odměna',points>=pointRules.rewardThreshold],
+    ['Komunitní hlasování',verified>=3],
+    ['Přednostní ubytování',verified>=5],
+  ].filter(([,active])=>active).map(([name])=>name);
+  return {points,lifetime,verified,wins,threshold:pointRules.rewardThreshold,remaining:Math.max(0,pointRules.rewardThreshold-points),unlocked};
+}
 
 (() => {
+if(typeof document==='undefined')return;
 const qs=(s,r=document)=>r.querySelector(s), qsa=(s,r=document)=>[...r.querySelectorAll(s)];
 const products={
  'tee-black':{title:'UNITED Tee',subtitle:'Black / heavyweight',sizes:['S','M','L','XL','XXL']},
@@ -28,14 +43,27 @@ qsa('[data-merch-filter]').forEach(btn=>btn.addEventListener('click',()=>{const 
 
 const memberBenefit=qs('[data-member-merch-benefit]');
 if(memberBenefit){
+  const anonymousState=qs('[data-benefit-anonymous]',memberBenefit),memberState=qs('[data-benefit-member]',memberBenefit);
+  const renderAnonymous=()=>{memberBenefit.dataset.benefitState='anonymous';memberBenefit.removeAttribute('aria-busy');anonymousState.hidden=false;memberState.hidden=true};
+  const renderMember=user=>{
+    let localData={};
+    try{localData=JSON.parse(localStorage.getItem(`${portalConfig.memberLocalPrefix||'e36UnitedMemberLocalV20'}:${user.uid}`)||'{}')}catch(error){console.debug('United Progress local data is unavailable.',error)}
+    const progress=deriveMemberBenefit(localData);memberBenefit.dataset.benefitState='member';memberBenefit.removeAttribute('aria-busy');anonymousState.hidden=true;memberState.hidden=false;
+    qs('[data-benefit-points]',memberState).textContent=progress.points;
+    const progressBar=qs('[data-benefit-progress]',memberState);progressBar.setAttribute('aria-valuemax',String(progress.threshold));progressBar.setAttribute('aria-valuenow',String(progress.points));progressBar.querySelector('i').style.width=`${Math.min(100,progress.points/progress.threshold*100)}%`;
+    qs('[data-benefit-next]',memberState).textContent=progress.remaining?`Ještě ${progress.remaining} ${progress.remaining===1?'bod':'bodů'} do United Merch odměny.`:'United Merch odměna je odemčená.';
+    qs('[data-benefit-perk]',memberState).textContent=progress.unlocked.at(-1)||'Zatím bez odemčené výhody';
+    qs('[data-benefit-perk-count]',memberState).textContent=progress.unlocked.length?`${progress.unlocked.length} ${progress.unlocked.length===1?'aktivní výhoda':'aktivní výhody'}`:'První výhoda se odemkne ověřenou účastí.';
+  };
+  memberBenefit.setAttribute('aria-busy','true');
   void (async()=>{
     try{
       const appMod=await import('https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js');
       const authMod=await import('https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js');
       const app=appMod.getApps().length?appMod.getApps()[0]:appMod.initializeApp(firebaseConfig);
       const auth=authMod.getAuth(app);await authMod.setPersistence(auth,authMod.browserLocalPersistence);
-      authMod.onAuthStateChanged(auth,user=>{memberBenefit.hidden=!user});
-    }catch(error){memberBenefit.hidden=true;console.debug('United member benefit state is unavailable.',error)}
+      authMod.onAuthStateChanged(auth,user=>user?renderMember(user):renderAnonymous());
+    }catch(error){renderAnonymous();console.debug('United member benefit state is unavailable.',error)}
   })();
 }
 })();

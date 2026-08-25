@@ -91,3 +91,47 @@
 .booking-collapse-body .booking-gap,.booking-collapse-body .admin-payment-overview{grid-column:1/-1}
 @media(max-width:720px){.admin-collapsible-head,.admin-section-head{align-items:flex-start}.admin-section-actions{width:100%;justify-content:space-between}.admin-collapse-toggle{min-width:100px}.booking-collapse-body{grid-template-columns:1fr;gap:18px}.booking-collapse-body .booking-gap,.booking-collapse-body .admin-payment-overview{grid-column:auto}}
 @media(prefers-reduced-motion:reduce){.admin-collapsible-body,.booking-collapse-body,.admin-collapse-toggle i{transition:none}}
+
+/* ===== Shared-priority Admin workspace and mobile navigator ===== */
+.admin-portal-nav{position:sticky;top:76px;z-index:12;margin:-32px 0 24px}
+.admin-portal-nav .admin-section-nav{position:static;top:auto;margin:0}
+.admin-overview-details{margin-top:12px;padding:18px 20px;border:1px solid var(--admin-line);background:rgba(14,18,23,.72)}
+.admin-overview-details-head h2{margin:6px 0 0;font-size:1.35rem}
+.admin-overview-details .admin-insights{margin-top:16px}
+.admin-overview-details.is-collapsed{padding-block:14px}
+.admin-reservations,.admin-gallery{margin-top:34px}
+.booking-block{margin-top:34px}
+
+@media(max-width:1050px){
+  .admin-portal-nav .portal-nav-viewport{border:1px solid var(--admin-line);border-right:0;background:rgba(9,10,12,.95)}
+  .admin-portal-nav .admin-section-nav{display:flex;gap:1px;overflow-x:auto;border:0;background:transparent;scroll-snap-type:x proximity;scroll-padding-inline:12px;scrollbar-width:none;-webkit-overflow-scrolling:touch;overscroll-behavior-inline:contain}
+  .admin-portal-nav .admin-section-nav::-webkit-scrollbar{display:none}
+  .admin-portal-nav .admin-section-nav button{flex:0 0 auto;min-height:48px;padding:0 16px;scroll-snap-align:start}
+}
+
+@media(max-width:720px){
+  .admin-portal-nav{top:70px;margin-inline:calc((100vw - 100%)/-2)}
+  .admin-portal-nav .admin-section-nav{margin:0;padding-left:8px;padding-right:34px}
+  .admin-portal-nav .admin-section-nav button{justify-content:center;padding-inline:13px}
+  .admin-kpis{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+  .admin-kpis article{min-width:0;min-height:98px;padding:11px}
+  .admin-kpis article>span,.admin-kpis small{font-size:.56rem;line-height:1.3;letter-spacing:.055em}
+  .admin-kpis strong,.admin-kpis .admin-kpi-split{font-size:1.65rem}
+  .admin-kpis .admin-kpi-pending{order:1}
+  .admin-kpis .admin-kpi-gallery{order:2}
+  .admin-kpis article:first-child{order:3}
+  .admin-kpis article:nth-child(2){order:4}
+  .admin-kpis article:nth-child(3){order:5}
+  .admin-kpis article:nth-child(5){order:6}
+  .admin-overview-details{padding:14px;margin-top:8px}
+  .admin-overview-details-head{align-items:center}
+  .admin-overview-details-head h2{font-size:1.1rem}
+  .admin-overview-details .admin-insights{gap:7px;margin-top:12px}
+  .admin-overview-details .admin-panel{min-height:0;padding:16px}
+  .admin-reservations,.admin-gallery,.booking-block{margin-top:28px}
+}
+
+@media(max-width:430px){
+  .admin-kpis article>span,.admin-kpis small{font-size:.52rem;letter-spacing:.035em}
+  .admin-kpis strong,.admin-kpis .admin-kpi-split{font-size:1.45rem}
+}

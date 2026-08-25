@@ -4,7 +4,7 @@ const qsa = (selector, root = document) => [...root.querySelectorAll(selector)];
 const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 const coreStyles = qs('link[href^="styles.css"]');
-if (coreStyles && !coreStyles.href.includes('v=20260828-context2')) coreStyles.href = 'styles.css?v=20260828-context2';
+if (coreStyles && !coreStyles.href.includes('v=20260825-mobile1')) coreStyles.href = 'styles.css?v=20260825-mobile1';
 
 /* Temporary rebuild notice — homepage only. */
 const heroContent = qs('.home-page .hero-content');

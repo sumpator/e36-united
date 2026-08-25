@@ -1,5 +1,6 @@
 import { firebaseConfig, portalConfig } from './firebase-config.js?v=20260823-auth2';
 import qrcode from './vendor/qrcode-generator.mjs';
+import { initPortalNavigation } from './portal-navigation.js?v=20260825-mobile1';
 
 const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
 const firebaseReady=Boolean(firebaseConfig?.apiKey&&firebaseConfig?.projectId&&firebaseConfig?.appId&&!String(firebaseConfig.apiKey).startsWith('PASTE_')&&!String(firebaseConfig.projectId).startsWith('PASTE_'));
@@ -338,7 +339,7 @@ async function openAuthenticatedSession(user,{quiet=false}={}){
   setMode('AUTH + PROFIL LIVE');
   showApp();
   await applyPlannerDraft();
-  if(requestedMemberPanel==='reservation')openSection('reservation');
+  if(['overview','reservation','garage','photos','history','rewards'].includes(requestedMemberPanel))openSection(requestedMemberPanel);
   if(!quiet)toast(`Přihlášen jako ${member.nickname||member.name}.`);
 }
 
@@ -467,7 +468,8 @@ function authOrApiError(error){return error?.status||error?.message==='api_netwo
 
 $$('.member-nav-item[data-member-section]').forEach(button=>button.addEventListener('click',()=>openSection(button.dataset.memberSection)));
 $$('[data-jump]').forEach(button=>button.addEventListener('click',()=>openSection(button.dataset.jump)));
-function openSection(id){$$('.member-nav-item[data-member-section]').forEach(button=>button.classList.toggle('is-active',button.dataset.memberSection===id));$$('[data-member-panel]').forEach(panel=>panel.classList.toggle('is-active',panel.dataset.memberPanel===id));if(innerWidth<700)window.scrollTo({top:82,behavior:'smooth'})}
+const memberPortalNavigation=initPortalNavigation({root:$('[data-portal-nav="member"]'),onSelect:openSection});
+function openSection(id){$$('.member-nav-item[data-member-section]').forEach(button=>button.classList.toggle('is-active',button.dataset.memberSection===id));$$('[data-member-panel]').forEach(panel=>panel.classList.toggle('is-active',panel.dataset.memberPanel===id));memberPortalNavigation?.sync(id);if(innerWidth<700)window.scrollTo({top:82,behavior:'smooth'})}
 
 const pictogram=body=>`<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${body}</svg>`;
 const badgeDefs=[
@@ -804,7 +806,7 @@ function renderReservation(){
   $('[data-reservation-summary]').innerHTML=`<div><small>AUTO</small><b>${esc(r.carSnapshot?.nickname||r.carSnapshot?.model||'—')}</b></div><div><small>POBYT</small><b>${esc(r.arrival||'—')} · ${esc(r.crew)} ${crewWord}</b></div><div><small>UBYTOVÁNÍ</small><b>${esc(accommodationSummary)}</b></div>${snapshot?`<div><small>CELKEM</small><b>${esc(formatCzk(snapshot.totalCzk))}</b></div>`:''}`;
   if(mailState){mailState.classList.toggle('is-confirmed',r.status==='approved');mailState.querySelector('span').textContent=description}
 }
-function renderRewards(){const p=points(),life=lifetimePoints();$('[data-reward-score]').textContent=p;const lock=$('[data-reward-lock]');lock.classList.toggle('is-unlocked',p>=12);lock.querySelector('span').textContent=p>=12?'UNLOCKED':'LOCKED';$('[data-reward-remaining]').textContent=p>=12?'United Merch reward je aktivní':`${12-p} bodů zbývá`;$('[data-points-ledger]').innerHTML=`<div class="ledger-item"><span>OVĚŘENÁ ÚČAST</span><b>+${portalConfig.points.attendance} body</b><small>Za každý potvrzený United.</small></div><div class="ledger-item"><span>SHOW & SHINE WIN</span><b>+${portalConfig.points.showShineWin} body</b><small>Po potvrzení výsledku organizátorem.</small></div><div class="ledger-item"><span>LIFETIME SCORE</span><b>${life} bodů</b><small>Celoživotní skóre se nemaže po rewardu.</small></div>`;const perks=[[pictogram('<path d="m13 2-7 11h5l-1 9 8-12h-5V2Z"/>'),'Dřívější rezervace','Členové získají dřívější přístup k rezervacím.',verified()>=1],[pictogram('<path d="M6 4h12l2 5-8 11L4 9l2-5Z"/><path d="m4 9 8 3 8-3"/>'),'Členský United Merch','Přístup k vybraným členským dropům.',verified()>=1],[pictogram('<circle cx="12" cy="12" r="9"/><path d="M8 9h2v6m-2 0h4m1-5.2c.4-.6 1-1 1.8-1 1.2 0 2.2.8 2.2 2 0 1.8-3.7 2.4-3.7 4.2H17"/>'),'United Merch odměna','Odměna po dosažení 12 / 12 bodů.',p>=12],[pictogram('<path d="M5 19V9m7 10V5m7 14v-7"/><path d="M3 19h18"/>'),'Komunitní hlasování','Hlasování o vybraných United aktivitách.',verified()>=3],[pictogram('<path d="M4 20V8l8-4 8 4v12"/><path d="M8 20v-7h8v7"/><path d="M7 10h10"/>'),'Přednostní ubytování','Dřívější přístup k vybranému ubytování.',verified()>=5]];$('[data-perks-list]').innerHTML=perks.map(x=>`<div class="perk ${x[3]?'':'is-locked'}"><i>${x[0]}</i><div><b>${x[1]}</b><small>${x[2]}</small></div><span>${x[3]?'ACTIVE':'LOCKED'}</span></div>`).join('')}
+function renderRewards(){const p=points(),life=lifetimePoints(),attendanceCount=verified(),winCount=data.history.filter(item=>item.attended&&item.verified&&item.winner).length,threshold=portalConfig.points.rewardThreshold;document.querySelectorAll('[data-reward-score]').forEach(element=>element.textContent=p);const lock=$('[data-reward-lock]');lock.classList.toggle('is-unlocked',p>=threshold);lock.querySelector('span').textContent=p>=threshold?'UNLOCKED':'LOCKED';$('[data-reward-remaining]').textContent=p>=threshold?'United Merch reward je aktivní':`${threshold-p} bodů zbývá`;$('[data-points-ledger]').innerHTML=`<div class="ledger-item"><span>OVĚŘENÁ ÚČAST</span><b>${attendanceCount}×</b><small>${portalConfig.points.attendance} body za potvrzený ročník.</small></div><div class="ledger-item"><span>SHOW & SHINE WIN</span><b>${winCount}×</b><small>${portalConfig.points.showShineWin} body za ověřenou výhru.</small></div><div class="ledger-item"><span>LIFETIME SCORE</span><b>${life}</b><small>bodů celkem</small></div>`;const perks=[[pictogram('<path d="m13 2-7 11h5l-1 9 8-12h-5V2Z"/>'),'Dřívější rezervace','Členové získají dřívější přístup k rezervacím.',attendanceCount>=1],[pictogram('<path d="M6 4h12l2 5-8 11L4 9l2-5Z"/><path d="m4 9 8 3 8-3"/>'),'Členský United Merch','Přístup k vybraným členským dropům.',attendanceCount>=1],[pictogram('<circle cx="12" cy="12" r="9"/><path d="M8 9h2v6m-2 0h4m1-5.2c.4-.6 1-1 1.8-1 1.2 0 2.2.8 2.2 2 0 1.8-3.7 2.4-3.7 4.2H17"/>'),'United Merch odměna','Odměna po dosažení 12 / 12 bodů.',p>=threshold],[pictogram('<path d="M5 19V9m7 10V5m7 14v-7"/><path d="M3 19h18"/>'),'Komunitní hlasování','Hlasování o vybraných United aktivitách.',attendanceCount>=3],[pictogram('<path d="M4 20V8l8-4 8 4v12"/><path d="M8 20v-7h8v7"/><path d="M7 10h10"/>'),'Přednostní ubytování','Dřívější přístup k vybranému ubytování.',attendanceCount>=5]];$('[data-perks-list]').innerHTML=perks.map(x=>`<div class="perk ${x[3]?'':'is-locked'}"><i>${x[0]}</i><div><b>${x[1]}</b><small>${x[2]}</small></div><span>${x[3]?'ACTIVE':'LOCKED'}</span></div>`).join('')}
 
 async function commit(message='Uloženo'){saveUserLocal();renderAll();toast(message)}
 
