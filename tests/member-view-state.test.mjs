@@ -4,7 +4,7 @@ import { deriveMemberHeroState, deriveOverviewState } from '../member-portal-sta
 
 test('hero: member without a car gets the branded garage CTA', () => {
   assert.deepEqual(deriveMemberHeroState({ cars: [] }), {
-    state: 'no-car', car: null, photoId: '', carText: 'Tvoje E36 sem patří.', cta: 'Přidej první auto do garáže →', since: null,
+    state: 'no-car', car: null, photoId: '', carText: 'Tvoje E36 sem patří.', cta: 'Přidat první auto →', since: null,
   });
 });
 
@@ -12,7 +12,7 @@ test('hero: primary car without a photo gets car identity and photo CTA', () => 
   const hero = deriveMemberHeroState({ cars: [{ id: 'car-1', primary: true, body: 'Coupé', model: '328i', nickname: 'Modrá' }], memberSince: 2022 });
   assert.equal(hero.state, 'no-photo');
   assert.equal(hero.carText, 'BMW E36 · Coupé · 328i · Modrá');
-  assert.equal(hero.cta, 'Přidej fotku svého auta →');
+  assert.equal(hero.cta, 'Přidat fotku auta →');
   assert.equal(hero.since, 2022);
 });
 
@@ -24,6 +24,7 @@ test('hero: primary car and its private photo win over other cars', () => {
   assert.equal(hero.car.id, 'primary');
   assert.equal(hero.photoId, 'private-primary-photo');
   assert.equal(hero.state, 'photo-loading');
+  assert.equal(hero.cta, '');
 });
 
 test('overview: closed registration without reservation has no false action', () => {
@@ -49,4 +50,6 @@ test('overview: approved reservation with remaining payment is actionable', () =
   const view = deriveOverviewState({ reservation: { status: 'approved', payment: { remainingCzk: 3600 } }, formatAmount: value => `${value} Kč` });
   assert.equal(view.label, 'ZBÝVÁ UHRADIT 3600 Kč');
   assert.match(view.copy, /Platební údaje/);
+  assert.equal(view.action, 'Přejít na platbu');
+  assert.equal(view.target, 'payments');
 });

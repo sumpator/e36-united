@@ -361,7 +361,7 @@ async function openAuthenticatedSession(user,{quiet=false}={}){
   setMode('AUTH + PROFIL LIVE');
   showApp();
   await applyPlannerDraft();
-  if(['overview','reservation','garage','club'].includes(requestedMemberPanel))openSection(requestedMemberPanel);
+  if(['overview','reservation','garage','payments','club','account'].includes(requestedMemberPanel))openSection(requestedMemberPanel);
   else if(['photos','history','rewards','points','badges','perks'].includes(requestedMemberPanel)){openSection('club');openClubTab(requestedMemberPanel==='rewards'?'points':requestedMemberPanel)}
   if(!quiet)toast(`Přihlášen jako ${member.nickname||member.name}.`);
 }
@@ -476,6 +476,14 @@ $('[data-logout]')?.addEventListener('click',async()=>{
   currentUser=null;resetMemberState();resetAuthForms();showAuth();setMode(firebase?'AUTH READY':'AUTH NEDOSTUPNÝ');authFlowActive=false;toast('Odhlášeno.');
 });
 
+$('[data-account-form]')?.addEventListener('submit',async event=>{
+  event.preventDefault();if(!currentUser)return toast('Nejdřív se přihlas.');
+  const form=event.currentTarget,button=form.querySelector('button[type="submit"]'),fd=new FormData(form);setButtonBusy(button,true,'Ukládám profil…');
+  try{const payload=await apiRequest('/api/bootstrap',{method:'POST',body:{name:String(fd.get('name')||'').trim(),nickname:String(fd.get('nickname')||'').trim(),phone:String(fd.get('phone')||'').trim()}});data.profile=normalizeMember(payload,currentUser);renderProfile();renderAccount();toast('Profil byl uložen.')}
+  catch(error){console.error('Member profile update failed',error);toast(apiError(error))}
+  finally{setButtonBusy(button,false)}
+});
+
 function authError(error){
   const code=String(error?.code||'');
   if(code.includes('invalid-credential')||code.includes('wrong-password')||code.includes('user-not-found'))return 'E-mail nebo heslo nesedí.';
@@ -521,7 +529,7 @@ function openSection(id){
   memberPortalNavigation?.sync(id);if(innerWidth<700)window.scrollTo({top:82,behavior:'smooth'});
 }
 $$('[data-club-tab]').forEach(button=>button.addEventListener('click',()=>openClubTab(button.dataset.clubTab,{scroll:true})));
-$('[data-member-hero-cta]')?.addEventListener('click',()=>{openSection('garage');requestAnimationFrame(()=>$('[data-primary-car-card]')?.scrollIntoView({behavior:'smooth',block:'center'}))});
+$('[data-member-hero-cta]')?.addEventListener('click',()=>{openSection('garage');if(!data.cars.length){openCarModal();return}requestAnimationFrame(()=>$('[data-primary-car-card]')?.scrollIntoView({behavior:'smooth',block:'center'}))});
 
 const pictogram=body=>`<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${body}</svg>`;
 const badgeDefs=[
@@ -542,27 +550,32 @@ function status(d=data){const count=verified(d);if(count>=5)return 'VETERAN';if(
 
 function renderMemberHero(){
   const hero=$('[data-member-hero]'),media=$('[data-member-hero-media]'),carCopy=$('[data-member-hero-car]'),cta=$('[data-member-hero-cta]'),sinceCopy=$('[data-member-hero-since]');if(!hero||!media||!carCopy||!cta)return;
-  const view=deriveMemberHeroState({cars:data.cars,memberSince:memberSince()}),car=view.car;if(sinceCopy)sinceCopy.textContent=`United od ${view.since||'—'}`;
+  const view=deriveMemberHeroState({cars:data.cars,memberSince:memberSince()}),car=view.car,attendedCopy=$('[data-member-hero-attended]');if(sinceCopy)sinceCopy.textContent=`UNITED OD ${view.since||'—'}`;if(attendedCopy)attendedCopy.textContent=`${attended()}× UNITED`;
   media.replaceChildren();memberHeroPhotoId='';
-  hero.dataset.heroState=view.state;carCopy.textContent=view.carText;cta.textContent=view.cta;if(!car||!view.photoId)return;
+  hero.dataset.heroState=view.state;carCopy.textContent=view.carText;cta.textContent=view.cta;cta.hidden=!view.cta;if(!car||!view.photoId)return;
   const photoId=view.photoId;memberHeroPhotoId=photoId;
   const img=document.createElement('img');img.alt='';img.decoding='async';media.append(img);
   void (async()=>{
     try{const url=await getPrivateCarPhotoUrl(photoId);if(memberHeroPhotoId!==photoId||!img.isConnected)return;img.src=url;await img.decode().catch(()=>{});if(memberHeroPhotoId===photoId)hero.dataset.heroState='photo'}
-    catch(error){if(memberHeroPhotoId===photoId){hero.dataset.heroState='no-photo';media.replaceChildren();cta.textContent='Přidej fotku svého auta →'}console.warn('Member hero photo unavailable',photoId,error)}
+    catch(error){if(memberHeroPhotoId===photoId){hero.dataset.heroState='no-photo';media.replaceChildren();cta.textContent='Přidat fotku auta →';cta.hidden=false}console.warn('Member hero photo unavailable',photoId,error)}
   })();
 }
 
-function renderAll(){renderProfile();renderPoints();renderBadges();renderGarage();renderHistory();renderReservation();renderRewards();renderMemberGallery()}
+function renderAll(){renderProfile();renderPoints();renderBadges();renderGarage();renderHistory();renderReservation();renderRewards();renderMemberGallery();renderAccount()}
 function renderProfile(){
   const p=data.profile||{},nick=p.nickname||p.name?.split(' ')[0]||'Driver';
   const nickEl=$('[data-member-nickname]');if(nickEl)nickEl.textContent=nick;
-  const nameEl=$('[data-card-name]');if(nameEl)nameEl.textContent=(p.name||'United Member').toUpperCase();
+  const nameEl=$('[data-card-name]');if(nameEl)nameEl.textContent=(p.name||'United Member').toUpperCase();const summaryNick=$('[data-summary-nickname]'),summaryName=$('[data-summary-name]');if(summaryNick)summaryNick.textContent=nick.toUpperCase();if(summaryName)summaryName.textContent=p.name||'United Member';
   const code=p.memberCode?String(p.memberCode).replace(/^EU-?/i,'').slice(-6):String((p.email||nick).split('').reduce((a,c)=>a+c.charCodeAt(0),0)%900+100);
   const idEl=$('[data-card-id]');if(idEl)idEl.textContent=code;
-  const accountEl=$('[data-member-account]');if(accountEl)accountEl.textContent=[p.email,p.memberCode,p.emailVerified?'e-mail ověřen':'e-mail neověřen'].filter(Boolean).join(' · ');
+  const summaryCode=$('[data-summary-member-code]');if(summaryCode)summaryCode.textContent=p.memberCode||`EU${code}`;
   const car=data.cars.find(c=>c.primary)||data.cars[0];const carEl=$('[data-card-car]');if(carEl)carEl.textContent=car?`${car.body} · ${car.model}${car.nickname?' · '+car.nickname:''}`:'BMW E36 · Garáž čeká na první auto';
   const sinceEl=$('[data-member-since]'),historySinceEl=$('[data-history-since]'),attendanceEl=$('[data-attendance-count]'),statusEl=$('[data-member-status]');if(sinceEl)sinceEl.textContent=memberSince()||'—';if(historySinceEl)historySinceEl.textContent=memberSince()||'—';if(attendanceEl)attendanceEl.textContent=attended();if(statusEl)statusEl.textContent=status();renderMemberHero();
+}
+function renderAccount(){
+  const profile=data.profile||{},form=$('[data-account-form]');
+  if(form){if(form.elements.name)form.elements.name.value=profile.name||'';if(form.elements.nickname)form.elements.nickname.value=profile.nickname||'';if(form.elements.phone)form.elements.phone.value=profile.phone||'';const email=$('[data-account-email]',form);if(email)email.value=profile.email||''}
+  const code=$('[data-account-member-code]'),since=$('[data-account-since]'),verification=$('[data-account-verification]');if(code)code.textContent=profile.memberCode||'—';if(since)since.textContent=memberSince()||'—';if(verification){verification.textContent=profile.emailVerified?'OVĚŘENÝ':'NEOVĚŘENÝ';verification.classList.toggle('is-verified',profile.emailVerified)}
 }
 function renderPoints(){const p=points(),overview=$('[data-overview-points]'),value=$('[data-points]'),track=$('[data-points-track]'),copy=$('[data-points-copy]');if(overview)overview.textContent=p;if(value)value.textContent=p;if(track)track.innerHTML=Array.from({length:12},(_,i)=>`<i class="${i<p?'is-on':''}"></i>`).join('');if(copy)copy.textContent=p>=12?'12 / 12. United Merch reward je odemčený.':`Ještě ${12-p} bodů a odemykáš United Merch reward.`}
 function renderBadges(){const unlocked=badgeDefs.filter(b=>b.test(data));const html=arr=>arr.map(b=>{const active=b.test(data);return `<div class="badge ${active?'':'is-locked'}"><span class="badge-icon">${b.icon}</span><div class="badge-copy"><b>${b.name}</b><small>${b.desc}</small></div><span class="badge-status">${active?'ACTIVE':'LOCKED'}</span></div>`}).join(''),preview=$('[data-badges-preview]'),cabinet=$('[data-badge-cabinet]');if(preview)preview.innerHTML=html((unlocked.length?unlocked:badgeDefs).slice(0,5));if(cabinet)cabinet.innerHTML=html(badgeDefs)}
@@ -571,7 +584,7 @@ function renderGarage(){
   if(!grid)return;
   pruneCarPhotoObjectUrls();
   if(!data.cars.length){grid.innerHTML='<div class="garage-empty"><div><b>Garáž je zatím prázdná.</b><br><small>Přidej svoje první E36. Fotku můžeš doplnit kdykoliv později.</small></div></div>';renderCarSelect();renderReservationCarPhoto(data.reservation);return}
-  grid.innerHTML=data.cars.map(c=>{const first=c.photos?.[0],photoCount=c.photos?.length||0;return `<article class="car-card" data-car-card="${esc(c.id)}" ${c.primary?'data-primary-car-card':''}><div class="car-photo">${first?`<img data-car-photo-id="${esc(first.id)}" alt="${esc(c.nickname||c.model)}">`:'<div class="car-photo-placeholder">E36</div>'}${c.primary?'<span class="car-primary">HLAVNÍ AUTO</span>':''}</div><div class="car-body"><small>${esc(c.body)} · ${esc(c.year||'')}</small><h3>${esc(c.nickname||c.model)}</h3><p>${esc(c.model)}${c.color?' · '+esc(c.color):''}</p><div class="car-actions"><button data-primary-car="${esc(c.id)}">${c.primary?'Hlavní':'Nastavit hlavní'}</button>${photoCount<3?`<label class="car-photo-add">Přidat fotku<input accept="image/jpeg,image/png,image/webp" data-car-photo-upload="${esc(c.id)}" multiple type="file"></label>`:''}<button data-delete-car="${esc(c.id)}">Odebrat</button></div></div></article>`}).join('');
+  grid.innerHTML=data.cars.map(c=>{const first=c.photos?.[0];return `<article class="car-card" data-car-card="${esc(c.id)}" ${c.primary?'data-primary-car-card':''}><div class="car-photo">${first?`<img data-car-photo-id="${esc(first.id)}" alt="${esc(c.nickname||c.model)}">`:'<div class="car-photo-placeholder">E36</div>'}${c.primary?'<span class="car-primary">HLAVNÍ AUTO</span>':''}</div><div class="car-body"><small>${esc(c.body)} · ${esc(c.year||'')}</small><h3>${esc(c.nickname||c.model)}</h3><p>${esc(c.model)}${c.color?' · '+esc(c.color):''}</p><div class="car-actions"><button data-primary-car="${esc(c.id)}">${c.primary?'Hlavní':'Nastavit hlavní'}</button>${first?'':`<label class="car-photo-add">Přidat fotku<input accept="image/jpeg,image/png,image/webp" data-car-photo-upload="${esc(c.id)}" type="file"></label>`}<button data-delete-car="${esc(c.id)}">Odebrat</button></div></div></article>`}).join('');
   $$('[data-primary-car]').forEach(button=>button.onclick=async()=>{try{await apiRequest(`/api/cars/${encodeURIComponent(button.dataset.primaryCar)}/primary`,{method:'POST'});data.cars=await loadCarsFromApi();renderGarage();renderProfile();toast('Hlavní auto změněno')}catch(error){console.error(error);toast(apiError(error))}});
   $$('[data-delete-car]').forEach(button=>button.onclick=async()=>{if(!confirm('Odebrat auto z garáže včetně jeho fotek?'))return;try{await apiRequest(`/api/cars/${encodeURIComponent(button.dataset.deleteCar)}`,{method:'DELETE'});data.cars=await loadCarsFromApi();renderGarage();renderProfile();toast('Auto odebráno')}catch(error){console.error(error);toast(apiError(error))}});
   $$('[data-car-photo-upload]').forEach(input=>input.onchange=()=>uploadCarPhotos(input.dataset.carPhotoUpload,[...input.files]));
@@ -588,7 +601,7 @@ async function hydrateCarPhotos(){
 }
 async function uploadCarPhotos(carId,files){
   const car=data.cars.find(item=>String(item.id)===String(carId));if(!car||!files.length)return;
-  const accepted=files.filter(file=>['image/jpeg','image/png','image/webp'].includes(file.type)&&file.size<=12*1024*1024),remaining=Math.max(0,3-(car.photos?.length||0)),selected=accepted.slice(0,remaining);if(!selected.length)return toast(remaining?'Vyber JPG, PNG nebo WebP do 12 MB.':'Auto už má maximální počet fotek.');
+  const accepted=files.filter(file=>['image/jpeg','image/png','image/webp'].includes(file.type)&&file.size<=12*1024*1024),selected=car.photos?.length?[]:accepted.slice(0,1);if(!selected.length)return toast(car.photos?.length?'Auto už má profilovou fotku.':'Vyber JPG, PNG nebo WebP do 12 MB.');
   try{
     for(let index=0;index<selected.length;index++){
       toast(`Nahrávám fotku auta ${index+1} / ${selected.length}…`);
@@ -596,7 +609,7 @@ async function uploadCarPhotos(carId,files){
       await apiRequestForm(`/api/cars/${encodeURIComponent(carId)}/photos`,upload);
     }
     data.cars=await loadCarsFromApi();renderGarage();renderProfile();toast(selected.length===1?'Fotka auta byla přidána.':'Fotky auta byly přidány.');
-  }catch(error){console.error('Car photo upload failed',error);toast(error?.status===409?'K autu lze uložit maximálně 3 fotky.':apiError(error))}
+  }catch(error){console.error('Car photo upload failed',error);toast(error?.status===409?'Fotku se nepodařilo uložit.':apiError(error))}
 }
 function preferredReservationCar(){return data.cars.find(car=>car.primary)||data.cars[0]||null}
 function ensureSelectedReservationCar(){
@@ -784,7 +797,7 @@ function renderReservationOverview(reservation){
   const open=reservationState.registrationOpen,waiting=isPlannerWaitingState();
   const eventYear=reservation?.year&&reservation.year!=='NEXT'?reservation.year:(reservationState.event?.year||waiting&&activePlannerHandoff.eventYear||new Date().getFullYear());
   const card=$('[data-reservation-overview-card]'),empty=$('[data-action-center-empty]'),emptyCopy=$('[data-action-center-empty-copy]'),event=$('[data-reservation-overview-event]'),label=$('[data-reservation-overview-label]'),copy=$('[data-reservation-overview-copy]'),action=$('[data-reservation-overview-action]');
-  const view=deriveOverviewState({reservation,registrationOpen:open,plannerWaiting:waiting,eventYear:reservationState.event?eventYear:null,formatAmount:formatCzk});if(card)card.hidden=!view.active;if(empty)empty.hidden=view.active;if(emptyCopy)emptyCopy.textContent=view.emptyCopy;
+  const view=deriveOverviewState({reservation,registrationOpen:open,plannerWaiting:waiting,eventYear:reservationState.event?eventYear:null,formatAmount:formatCzk});if(card){card.hidden=!view.active;card.dataset.jump=view.target||'reservation'}if(empty)empty.hidden=view.active;if(emptyCopy)emptyCopy.textContent=view.emptyCopy;
   if(event)event.textContent=`UNITED ${eventYear}`;
   if(label)label.textContent=view.label;if(copy)copy.textContent=view.copy;if(action)action.innerHTML=view.action?`${view.action} <b>→</b>`:'';
 }
@@ -836,15 +849,19 @@ function paymentQrSvg(spayd){
   catch(error){console.error('QR payment render failed',error);return ''}
 }
 function renderReservationPayment(reservation){
-  const container=$('[data-member-payment]');if(!container)return;
+  const container=$('[data-member-payment]'),paymentsList=$('[data-payments-list]');if(!container||!paymentsList)return;
   const payment=reservation?.payment;
-  if(reservation?.status!=='approved'||!payment){container.hidden=true;container.innerHTML='';return}
+  if(reservation?.status!=='approved'||!payment){container.hidden=true;container.innerHTML='';paymentsList.innerHTML='<article class="portal-empty-state"><span aria-hidden="true">✓</span><div><strong>Aktuálně nemáš žádnou platbu k řešení.</strong><p>Platební údaje se zobrazí pouze u skutečné schválené rezervace.</p></div></article>';return}
   container.hidden=false;
-  if(!payment.configurationReady){container.innerHTML='<div class="member-payment-copy"><span class="member-kicker">PLATBA</span><h3>Platební údaje připravujeme.</h3><p>Jakmile budou kompletní, uvidíš je bezpečně tady u své schválené rezervace.</p></div>';return}
-  const qr=paymentQrSvg(payment.spayd),settled=payment.remainingCzk<=0;
+  const statusCopy=`${paymentLabel(payment.status)}${payment.overdue?' · po splatnosti':''}`;
+  container.innerHTML=`<div><span class="member-kicker">PLATBA REZERVACE</span><strong>${esc(statusCopy)}</strong><small>${payment.configurationReady?`${esc(formatCzk(payment.remainingCzk))} zbývá uhradit`:'Platební údaje připravujeme.'}</small></div><button class="member-secondary" data-payment-open type="button">Přejít na platbu →</button>`;
+  $('[data-payment-open]',container)?.addEventListener('click',()=>openSection('payments'));
+  if(!payment.configurationReady){paymentsList.innerHTML='<article class="member-payment-card"><div class="member-payment-copy"><span class="member-kicker">PLATBA REZERVACE</span><h3>Platební údaje připravujeme.</h3><p>Jakmile budou kompletní, uvidíš je bezpečně tady u své schválené rezervace.</p></div></article>';return}
+  const settled=payment.remainingCzk<=0,qr=!settled&&payment.status!=='overpaid'?paymentQrSvg(payment.spayd):'';
   const deadline=payment.deadline?new Intl.DateTimeFormat('cs-CZ',{dateStyle:'long'}).format(new Date(`${payment.deadline}T12:00:00`)):'—';
-  container.className=`member-payment-card payment-status-${esc(payment.status)}`;
-  container.innerHTML=`${payment.testMode?'<div class="payment-test-warning">TESTOVACÍ PLATBA – NEPLAŤTE</div>':''}<div class="member-payment-layout"><div class="member-payment-copy"><span class="member-kicker">PLATBA REZERVACE</span><h3>${esc(settled?'Platba je vyrovnaná.':'Dokonči svoji rezervaci platbou.')}</h3><p>${esc(paymentLabel(payment.status))}${payment.overdue?' · po splatnosti':''}</p><dl><div><dt>Celkem</dt><dd>${esc(formatCzk(payment.amountDueCzk))}</dd></div><div><dt>Zaplaceno</dt><dd>${esc(formatCzk(payment.amountPaidCzk))}</dd></div><div class="member-payment-remaining"><dt>Zbývá uhradit</dt><dd>${esc(formatCzk(payment.remainingCzk))}</dd></div><div><dt>Příjemce</dt><dd>${esc(payment.recipientName)}</dd></div><div><dt>Účet</dt><dd>${esc(payment.accountDisplay)}</dd></div><div><dt>Variabilní symbol</dt><dd>${esc(payment.variableSymbol)}</dd></div><div><dt>Zpráva</dt><dd>${esc(payment.message)}</dd></div><div><dt>Splatnost</dt><dd>${esc(deadline)}</dd></div></dl></div>${qr?`<div class="member-payment-qr"><div>${qr}</div><strong>Naskenuj v bankovní aplikaci</strong><small>QR obsahuje zbývající částku, VS, zprávu a splatnost.</small></div>`:''}</div>`;
+  const eventLabel=reservation.year&&reservation.year!=='NEXT'?`E36 United ${reservation.year}`:reservation.title||'E36 United';
+  const paymentTitle=payment.status==='overpaid'?'Platba eviduje přeplatek.':settled?'Platba je vyrovnaná.':'Dokonči svoji rezervaci platbou.';
+  paymentsList.innerHTML=`<article class="member-payment-card payment-status-${esc(payment.status)}">${payment.testMode?'<div class="payment-test-warning">TESTOVACÍ PLATBA – NEPLAŤTE</div>':''}<div class="payment-item-head"><div><span class="member-kicker">REZERVACE / EVENT</span><h3>${esc(eventLabel)}</h3></div><span class="payment-status-pill">${esc(statusCopy)}</span></div><div class="member-payment-layout"><div class="member-payment-copy"><h4>${esc(paymentTitle)}</h4><dl><div><dt>Celkem</dt><dd>${esc(formatCzk(payment.amountDueCzk))}</dd></div><div><dt>Zaplaceno</dt><dd>${esc(formatCzk(payment.amountPaidCzk))}</dd></div><div class="member-payment-remaining"><dt>Zbývá uhradit</dt><dd>${esc(formatCzk(payment.remainingCzk))}</dd></div><div><dt>Příjemce</dt><dd>${esc(payment.recipientName)}</dd></div><div><dt>Účet</dt><dd>${esc(payment.accountDisplay)}</dd></div><div><dt>Variabilní symbol</dt><dd>${esc(payment.variableSymbol)}</dd></div><div><dt>Zpráva</dt><dd>${esc(payment.message)}</dd></div><div><dt>Splatnost</dt><dd>${esc(deadline)}</dd></div></dl></div>${qr?`<div class="member-payment-qr"><div>${qr}</div><strong>Naskenuj v bankovní aplikaci</strong><small>QR obsahuje zbývající částku, VS, zprávu a splatnost.</small></div>`:''}</div></article>`;
 }
 
 function renderReservation(){
@@ -875,7 +892,17 @@ function renderReservation(){
   $('[data-reservation-summary]').innerHTML=`<div><small>AUTO</small><b>${esc(r.carSnapshot?.nickname||r.carSnapshot?.model||'—')}</b></div><div><small>POBYT</small><b>${esc(r.arrival||'—')} · ${esc(r.crew)} ${crewWord}</b></div><div><small>UBYTOVÁNÍ</small><b>${esc(accommodationSummary)}</b></div>${snapshot?`<div><small>CELKEM</small><b>${esc(formatCzk(snapshot.totalCzk))}</b></div>`:''}`;
   if(mailState){mailState.classList.toggle('is-confirmed',r.status==='approved');mailState.querySelector('span').textContent=description}
 }
-function renderRewards(){const p=points(),life=lifetimePoints(),attendanceCount=verified(),winCount=data.history.filter(item=>item.attended&&item.verified&&item.winner).length,threshold=portalConfig.points.rewardThreshold;document.querySelectorAll('[data-reward-score]').forEach(element=>element.textContent=p);const lock=$('[data-reward-lock]');lock.classList.toggle('is-unlocked',p>=threshold);lock.querySelector('span').textContent=p>=threshold?'UNLOCKED':'LOCKED';$('[data-reward-remaining]').textContent=p>=threshold?'United Merch reward je aktivní':`${threshold-p} bodů zbývá`;$('[data-points-ledger]').innerHTML=`<div class="ledger-item"><span>OVĚŘENÁ ÚČAST</span><b>${attendanceCount}×</b><small>${portalConfig.points.attendance} body za potvrzený ročník.</small></div><div class="ledger-item"><span>SHOW & SHINE WIN</span><b>${winCount}×</b><small>${portalConfig.points.showShineWin} body za ověřenou výhru.</small></div><div class="ledger-item"><span>LIFETIME SCORE</span><b>${life}</b><small>bodů celkem</small></div>`;const perks=[[pictogram('<path d="m13 2-7 11h5l-1 9 8-12h-5V2Z"/>'),'Dřívější rezervace','Členové získají dřívější přístup k rezervacím.',attendanceCount>=1],[pictogram('<path d="M6 4h12l2 5-8 11L4 9l2-5Z"/><path d="m4 9 8 3 8-3"/>'),'Členský United Merch','Přístup k vybraným členským dropům.',attendanceCount>=1],[pictogram('<circle cx="12" cy="12" r="9"/><path d="M8 9h2v6m-2 0h4m1-5.2c.4-.6 1-1 1.8-1 1.2 0 2.2.8 2.2 2 0 1.8-3.7 2.4-3.7 4.2H17"/>'),'United Merch odměna','Odměna po dosažení 12 / 12 bodů.',p>=threshold],[pictogram('<path d="M5 19V9m7 10V5m7 14v-7"/><path d="M3 19h18"/>'),'Komunitní hlasování','Hlasování o vybraných United aktivitách.',attendanceCount>=3],[pictogram('<path d="M4 20V8l8-4 8 4v12"/><path d="M8 20v-7h8v7"/><path d="M7 10h10"/>'),'Přednostní ubytování','Dřívější přístup k vybranému ubytování.',attendanceCount>=5]];$('[data-perks-list]').innerHTML=perks.map(x=>`<div class="perk ${x[3]?'':'is-locked'}"><i>${x[0]}</i><div><b>${x[1]}</b><small>${x[2]}</small></div><span>${x[3]?'ACTIVE':'LOCKED'}</span></div>`).join('')}
+function renderRewards(){
+  const p=points(),life=lifetimePoints(),attendanceCount=verified(),winCount=data.history.filter(item=>item.attended&&item.verified&&item.winner).length,threshold=portalConfig.points.rewardThreshold,rules=portalConfig.points;
+  document.querySelectorAll('[data-reward-score]').forEach(element=>element.textContent=p);
+  const lock=$('[data-reward-lock]');lock.classList.toggle('is-unlocked',p>=threshold);lock.querySelector('span').textContent=p>=threshold?'UNLOCKED':'LOCKED';$('[data-reward-remaining]').textContent=p>=threshold?'United Merch reward je aktivní':`${threshold-p} bodů zbývá`;
+  const journey=$('[data-points-journey]'),journeyScore=$('[data-points-journey-score]'),journeyCopy=$('[data-points-journey-copy]'),journeyMarker=$('[data-points-journey-marker]'),progress=Math.min(100,p/threshold*100);
+  if(journey){journey.setAttribute('aria-valuemax',String(threshold));journey.setAttribute('aria-valuenow',String(p));journey.style.setProperty('--points-progress',`${progress}%`)}if(journeyScore)journeyScore.textContent=p;if(journeyCopy)journeyCopy.textContent=p>=threshold?'United Merch reward je odemčený.':`${threshold-p} bodů do United Merch reward.`;if(journeyMarker)journeyMarker.textContent=String(p);
+  const pointsRules=$('[data-points-rules]');if(pointsRules)pointsRules.innerHTML=[['OVĚŘENÁ ÚČAST',rules.attendance],['SHOW & SHINE VÝHRA',rules.showShineWin],['COMMUNITY BONUS',rules.communityBonus],['UNITED MERCH REWARD',threshold]].map(([label,value],index)=>`<div><b>${index===3?'':'+'}${esc(value)}</b><span>${label}</span></div>`).join('');
+  $('[data-points-ledger]').innerHTML=`<div class="ledger-item"><span>OVĚŘENÁ ÚČAST</span><b>${attendanceCount}×</b><small>${rules.attendance} body za potvrzený ročník.</small></div><div class="ledger-item"><span>SHOW & SHINE WIN</span><b>${winCount}×</b><small>${rules.showShineWin} body za ověřenou výhru.</small></div><div class="ledger-item"><span>LIFETIME SCORE</span><b>${life}</b><small>bodů celkem</small></div>`;
+  const perks=[[pictogram('<path d="m13 2-7 11h5l-1 9 8-12h-5V2Z"/>'),'Dřívější rezervace','Členové získají dřívější přístup k rezervacím.',attendanceCount>=1],[pictogram('<path d="M6 4h12l2 5-8 11L4 9l2-5Z"/><path d="m4 9 8 3 8-3"/>'),'Členský United Merch','Přístup k vybraným členským dropům.',attendanceCount>=1],[pictogram('<circle cx="12" cy="12" r="9"/><path d="M8 9h2v6m-2 0h4m1-5.2c.4-.6 1-1 1.8-1 1.2 0 2.2.8 2.2 2 0 1.8-3.7 2.4-3.7 4.2H17"/>'),'United Merch odměna','Odměna po dosažení 12 / 12 bodů.',p>=threshold],[pictogram('<path d="M5 19V9m7 10V5m7 14v-7"/><path d="M3 19h18"/>'),'Komunitní hlasování','Hlasování o vybraných United aktivitách.',attendanceCount>=3],[pictogram('<path d="M4 20V8l8-4 8 4v12"/><path d="M8 20v-7h8v7"/><path d="M7 10h10"/>'),'Přednostní ubytování','Dřívější přístup k vybranému ubytování.',attendanceCount>=5]];
+  $('[data-perks-list]').innerHTML=perks.map(x=>`<div class="perk ${x[3]?'':'is-locked'}"><i>${x[0]}</i><div><b>${x[1]}</b><small>${x[2]}</small></div><span>${x[3]?'ACTIVE':'LOCKED'}</span></div>`).join('');
+}
 
 async function commit(message='Uloženo'){saveUserLocal();renderAll();toast(message)}
 
@@ -912,7 +939,7 @@ $$('[data-close-car]').forEach(button=>button.addEventListener('click',()=>{carM
 $('[data-car-form]')?.addEventListener('submit',async event=>{
   event.preventDefault();
   if(!currentUser)return toast('Nejdřív se přihlas.');
-  const form=event.currentTarget,button=form.querySelector('button[type="submit"]'),fd=new FormData(form),files=[...form.elements.photos.files].slice(0,3);
+  const form=event.currentTarget,button=form.querySelector('button[type="submit"]'),fd=new FormData(form),files=[...form.elements.photos.files].slice(0,1);
   setButtonBusy(button,true,'Ukládám auto…');
   try{
     const created=await apiRequest('/api/cars',{method:'POST',body:{nickname:fd.get('nickname'),body:fd.get('body'),model:fd.get('model'),year:fd.get('year'),color:fd.get('color'),primary:fd.get('primary')==='on'}});
@@ -927,7 +954,7 @@ $('[data-car-form]')?.addEventListener('submit',async event=>{
     if(activePlannerHandoff&&plannerHandoffApplied){renderReservation();applyPlannerHandoffToForm()}
     else if(returnToReservationAfterCar)openSection('reservation');
     returnToReservationAfterCar=false;toast(files.length?'Auto i fotky jsou uložené v Můj United.':'Auto je uložené v Můj United.');
-  }catch(error){console.error('Car upload failed',error);toast(error?.status===409?'K autu lze uložit maximálně 3 fotky.':apiError(error))}
+  }catch(error){console.error('Car upload failed',error);toast(error?.status===409?'Profilovou fotku se nepodařilo uložit.':apiError(error))}
   finally{setButtonBusy(button,false)}
 });
 async function compressImageBlob(file,max=1800,quality=.82){return new Promise((resolve,reject)=>{const img=new Image(),reader=new FileReader();reader.onload=()=>img.src=reader.result;reader.onerror=reject;img.onload=()=>{const scale=Math.min(1,max/Math.max(img.width,img.height)),canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(img.width*scale));canvas.height=Math.max(1,Math.round(img.height*scale));canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);canvas.toBlob(blob=>blob?resolve(blob):reject(new Error('image_compression_failed')),'image/jpeg',quality)};reader.readAsDataURL(file)})}

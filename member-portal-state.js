@@ -5,16 +5,16 @@ export function selectPrimaryCar(cars = []) {
 export function deriveMemberHeroState({ cars = [], memberSince = null } = {}) {
   const car = selectPrimaryCar(cars);
   if (!car) {
-    return { state: 'no-car', car: null, photoId: '', carText: 'Tvoje E36 sem patří.', cta: 'Přidej první auto do garáže →', since: memberSince || null };
+    return { state: 'no-car', car: null, photoId: '', carText: 'Tvoje E36 sem patří.', cta: 'Přidat první auto →', since: memberSince || null };
   }
-  const carText = ['BMW E36', car.body, car.model, car.nickname].filter(Boolean).join(' · ');
+  const carText = ['BMW E36', car.body, car.model, car.nickname, car.color].filter(Boolean).join(' · ');
   const photoId = car.photos?.[0]?.id ? String(car.photos[0].id) : '';
   return {
     state: photoId ? 'photo-loading' : 'no-photo',
     car,
     photoId,
     carText,
-    cta: photoId ? 'Otevřít garáž →' : 'Přidej fotku svého auta →',
+    cta: photoId ? '' : 'Přidat fotku auta →',
     since: memberSince || null,
   };
 }
@@ -37,7 +37,8 @@ export function deriveOverviewState({ reservation = null, registrationOpen = fal
     active: true,
     label: reservation.status === 'approved' && remaining > 0 ? `ZBÝVÁ UHRADIT ${formatAmount(remaining)}` : labels[reservation.status] || 'AKTUÁLNÍ REZERVACE',
     copy: reservation.status === 'approved' && remaining > 0 ? 'Rezervace je schválená. Platební údaje najdeš v detailu Sraz & Ubytování.' : copies[reservation.status] || 'Otevři detail aktuální rezervace.',
-    action: 'Otevřít rezervaci',
+    action: reservation.status === 'approved' && remaining > 0 ? 'Přejít na platbu' : 'Otevřít rezervaci',
+    target: reservation.status === 'approved' && remaining > 0 ? 'payments' : 'reservation',
     emptyCopy: '',
   };
 }

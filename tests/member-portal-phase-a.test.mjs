@@ -14,12 +14,11 @@ const galleryHtml = read('galerie.html');
 const galleryJs = read('gallery.js');
 const authStatesCss = read('auth-states.css');
 
-test('Phase A main navigation contains only meaningful sections in target order', () => {
+test('Phase A.1 main navigation contains seven real destinations in target order', () => {
   const sidebar = memberHtml.slice(memberHtml.indexOf('<aside class="member-sidebar"'), memberHtml.indexOf('</aside>'));
   const labels = [...sidebar.matchAll(/<b>([^<]+)<\/b>/g)].map(match => match[1].replace('&amp;', '&'));
-  assert.deepEqual(labels, ['Přehled', 'Sraz & Ubytování', 'Garáž', 'United Club', 'United Merch']);
-  assert.ok(!sidebar.includes('Platby'));
-  assert.ok(!sidebar.includes('Účet'));
+  assert.deepEqual(labels, ['Přehled', 'Sraz & Ubytování', 'Garáž', 'Platby', 'United Merch', 'United Club', 'Účet']);
+  for (const panel of ['overview', 'reservation', 'garage', 'payments', 'club', 'account']) assert.match(memberHtml, new RegExp(`data-member-panel="${panel}"`));
 });
 
 test('initial auth markup is loading, not anonymous', () => {
@@ -66,8 +65,8 @@ test('hero follows primary car and the authorized private-photo path', () => {
   assert.match(memberJs, /URL\.revokeObjectURL/);
   assert.match(memberJs, /carPhotoRequestGeneration/);
   assert.match(memberJs, /stale_car_photo_request/);
-  assert.match(memberStateJs, /Přidej fotku svého auta/);
-  assert.match(memberStateJs, /Přidej první auto do garáže/);
+  assert.match(memberStateJs, /Přidat fotku auta/);
+  assert.match(memberStateJs, /Přidat první auto/);
 });
 
 test('community submissions stay available without being presented as car photos', () => {
@@ -78,9 +77,10 @@ test('community submissions stay available without being presented as car photos
 });
 
 test('responsive hero and hybrid mobile navigation invariants remain explicit', () => {
-  assert.match(memberCss, /member-logged-hero[^}]*min-height:380px/);
-  assert.match(memberCss, /@media\(max-width:1050px\)[\s\S]*min-height:310px/);
-  assert.match(memberCss, /@media\(max-width:700px\)[\s\S]*min-height:285px/);
+  assert.match(memberCss, /Member Portal Phase A\.1/);
+  assert.match(memberCss, /member-logged-hero[^}]*min-height:340px/);
+  assert.match(memberCss, /@media\(max-width:1050px\)[\s\S]*min-height:290px/);
+  assert.match(memberCss, /@media\(max-width:700px\)[\s\S]*min-height:270px/);
   assert.match(memberCss, /overflow-wrap:anywhere/);
   assert.match(memberCss, /object-fit:cover/);
   assert.match(portalNavigationJs, /scrollIntoView/);
