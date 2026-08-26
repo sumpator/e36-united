@@ -15,13 +15,34 @@ function panel(name, nextName) {
   return html.slice(start, end);
 }
 
-test('hero is identity-only and keeps CTA exclusively for onboarding fallbacks', () => {
+test('hero keeps identity and onboarding CTA while exposing secondary desktop logout', () => {
   const hero = html.slice(html.indexOf('data-member-hero='), html.indexOf('<div class="container member-shell">'));
+  const copy = hero.slice(hero.indexOf('<div class="member-logged-copy"'), hero.indexOf('<div class="member-logged-actions'));
   assert.match(hero, /UNITED MEMBER/);
   assert.match(hero, /data-member-hero-attended/);
-  assert.doesNotMatch(hero, /data-logout|data-sync-state|data-member-account|e-mail|Member ID|Otevřít garáž/i);
+  assert.match(hero, /member-logged-actions member-logged-actions--desktop/);
+  assert.match(hero, /member-hero-logout" data-logout=""/);
+  assert.match(css, /\.member-logged-actions--desktop\{position:absolute;right:0;top:24px/);
+  assert.doesNotMatch(copy, /data-logout|data-sync-state|data-member-account|e-mail|Member ID|Otevřít garáž/i);
   assert.match(js, /cta\.hidden=!view\.cta/);
   assert.match(js, /cta\.hidden=false/);
+});
+
+test('mobile auth is compact while desktop auth content and tab behavior remain intact', () => {
+  assert.match(html, /auth-copy-desktop">Historie srazů, tvoje auta, rezervace, body, badges a členské výhody na jednom místě/);
+  assert.match(html, /auth-copy-mobile">Tvůj profil, auta a srazy na jednom místě/);
+  for (const proof of ['12 / 12', 'GARAGE', 'PERKS']) assert.match(html, new RegExp(proof));
+  assert.match(html, /BMW E36 COMMUNITY ACCESS/);
+  assert.match(css, /\.member-auth\{grid-template-columns:minmax\(0,1\.12fr\) minmax\(430px,\.88fr\)/);
+  assert.match(css, /\.member-auth-media\{min-height:680px/);
+  assert.match(css, /\.auth-copy-mobile\{display:none\}/);
+  assert.match(css, /\.member-auth\{min-height:auto;gap:0;padding:0\}/);
+  assert.match(css, /@media\(max-width:620px\)\{[\s\S]*?\.member-auth-media\{min-height:210px/);
+  assert.match(css, /auth-visual-kicker>span:last-child,\.auth-proof,\.auth-panel-top,\.auth-panel-intro,\.demo-hint,\.auth-trust-row\{display:none\}/);
+  assert.match(css, /\.auth-copy-desktop\{display:none\}\.auth-copy-mobile\{display:inline\}/);
+  assert.match(css, /\.auth-tabs button\{min-width:0;min-height:52px/);
+  assert.match(css, /\.auth-form input\{min-height:48px/);
+  assert.match(js, /\$\$\('\[data-auth-tab\]'\)\.forEach\(btn=>btn\.addEventListener\('click',\(\)=>activateAuthTab\(btn\.dataset\.authTab\)\)\)/);
 });
 
 test('Member Summary renders real profile identity and progress data', () => {

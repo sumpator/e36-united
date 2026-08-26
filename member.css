@@ -327,3 +327,29 @@ body:not(.member-authenticated) [data-app-view]{display:none!important}
 @media(max-width:700px){.member-logged-hero,.member-logged-hero-inner{min-height:270px}.member-logged-hero-inner{padding-top:34px;padding-bottom:22px}.member-logged-copy h1{font-size:clamp(39px,11.5vw,53px)}.member-logged-copy .member-hero-car{font-size:14px;line-height:1.35}.member-hero-meta{flex-direction:row;gap:9px;font-size:10px}.member-hero-meta span+span{padding-left:9px;border-left:1px solid rgba(255,255,255,.2)}.member-summary{grid-template-columns:repeat(2,minmax(0,1fr))}.member-summary-primary{grid-column:1/-1;grid-row:auto}.member-summary>div{padding:15px}.member-summary-primary strong{font-size:27px}.member-summary-primary span{font-size:13px}.member-summary>div>b{font-size:14px}.reservation-payment-brief{align-items:stretch;flex-direction:column}.reservation-payment-brief .member-secondary{width:100%}.payment-item-head{align-items:flex-start;flex-direction:column;padding:20px 18px 0}.member-account-side{grid-template-columns:1fr}.account-logout{grid-column:auto}.points-journey{padding:19px}.points-journey-head{align-items:flex-start;flex-direction:column}.points-journey-head>span{font-size:13px}.points-rules{grid-template-columns:1fr 1fr}.united-club-tabs{display:none}.united-club-panel{display:block!important;animation:none}.united-club-panel+.united-club-panel{margin-top:34px;padding-top:34px;border-top:1px solid rgba(255,255,255,.11)}.portal-empty-state{align-items:flex-start;flex-direction:column;padding:22px}}
 @media(max-width:430px){.member-logged-hero,.member-logged-hero-inner{min-height:255px}.member-logged-copy h1{font-size:39px}.member-summary{grid-template-columns:1fr 1fr}.member-summary>div:last-child{grid-column:1/-1}.member-account-card .form-grid-two{grid-template-columns:1fr}.points-rules{grid-template-columns:1fr}.payment-status-pill{font-size:11px}}
 @media(prefers-reduced-motion:reduce){.member-section.is-active,.united-club-panel,.member-logged-hero[data-hero-state="photo"] .member-logged-hero-bg img{animation:none!important}.points-journey-track>i,.points-journey-track>b,.member-account-card input,.account-logout{transition:none!important}}
+
+/* Targeted auth access polish: desktop composition stays intact; compact flow is mobile-only. */
+.auth-copy-mobile{display:none}.member-logged-actions--desktop{position:absolute;right:0;top:24px;padding-bottom:0}.member-hero-logout{min-height:40px;padding:0 13px;background:rgba(7,11,16,.5);color:#b9c4ce;backdrop-filter:blur(10px)}.member-hero-logout:hover{border-color:rgba(255,255,255,.23);color:#fff;background:rgba(255,255,255,.07)}
+@media(max-width:700px){.member-logged-actions--desktop{display:none}}
+@media(max-width:620px){
+  .member-auth{min-height:auto;gap:0;padding:0}
+  .member-auth-media{min-height:210px;border-inline:0;border-top:0;border-radius:0 0 22px 22px}
+  .member-auth-photo{background-position:center 44%}
+  .member-auth-copy{left:20px;right:20px;bottom:22px}
+  .auth-visual-kicker>span:last-child,.auth-proof,.auth-panel-top,.auth-panel-intro,.demo-hint,.auth-trust-row{display:none}
+  .member-auth-copy h1{margin:10px 0 9px;font-size:clamp(36px,10.5vw,42px);line-height:.86}
+  .member-auth-copy>p{margin:0;max-width:330px;font-size:13px;line-height:1.4}
+  .auth-copy-desktop{display:none}.auth-copy-mobile{display:inline}
+  .member-auth-panel{margin:0;padding:0 12px 24px}
+  .member-auth-panel-inner{min-width:0;width:100%;padding:14px 12px 20px;border-radius:0 0 22px 22px}
+  .auth-tabs{gap:5px;margin:0 0 17px;padding:5px;border-radius:15px}
+  .auth-tabs button{min-width:0;min-height:52px;padding:8px 9px;grid-template-columns:21px minmax(0,1fr);gap:6px}
+  .auth-tabs button b{font-size:12px;white-space:nowrap}.auth-tabs button small{display:none}
+  .auth-form{gap:11px}
+  .auth-heading h2{font-size:30px}.auth-heading p{margin-bottom:4px;font-size:12px;line-height:1.4}
+  .auth-form label{gap:6px}.auth-form label>span{font-size:9px}
+  .auth-form input{min-height:48px;padding-inline:13px;font-size:16px}
+  .password-field button{top:6px;min-width:36px;min-height:36px}
+  .auth-form .member-primary{min-height:50px;margin-top:0}
+  .auth-link{min-height:44px;display:inline-flex;align-items:center}
+}

@@ -53,7 +53,19 @@ test('mobile menu adds unnumbered logout after Merch and reuses the shared logou
   assert.match(memberJs, /onSuccess:\(\)=>\{memberPortalNavigation\?\.close/);
   assert.match(memberJs, /Tvoje přihlášení zůstalo aktivní/);
   assert.match(memberJs, /\$\$\('\[data-logout\]'\)\.forEach\(button=>button\.addEventListener\('click',logoutMember\)\)/);
-  assert.equal((memberHtml.match(/data-logout=""/g)||[]).length,2);
+});
+
+test('desktop hero, mobile menu and Account expose shared logout outside the sidebar', () => {
+  const heroStart = memberHtml.indexOf('data-member-hero=');
+  const hero = memberHtml.slice(heroStart, memberHtml.indexOf('<div class="container member-shell">', heroStart));
+  const sidebarStart = memberHtml.indexOf('<aside class="member-sidebar"');
+  const sidebar = memberHtml.slice(sidebarStart, memberHtml.indexOf('</aside>', sidebarStart));
+  const account = memberHtml.slice(memberHtml.indexOf('data-member-panel="account"'));
+  assert.match(hero, /member-logged-actions member-logged-actions--desktop[^>]*>[\s\S]*?data-logout=""/);
+  assert.doesNotMatch(sidebar, /data-logout/);
+  assert.match(account, /account-logout" data-logout=""/);
+  assert.equal((memberHtml.match(/data-logout=""/g)||[]).length,3);
+  assert.match(memberJs, /\$\$\('\[data-logout\]'\)\.forEach\(button=>button\.addEventListener\('click',logoutMember\)\)/);
 });
 
 test('initial auth markup is loading, not anonymous', () => {
