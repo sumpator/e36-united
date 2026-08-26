@@ -8,7 +8,7 @@
 <meta content="noindex,nofollow" name="robots"/>
 <meta content="#090a0c" name="theme-color"/>
 <link href="styles.css?v=20260825-mobile1" rel="stylesheet"/>
-<link href="member.css?v=20260826-phase-a1" rel="stylesheet"/>
+<link href="member.css?v=20260826-nav-ux" rel="stylesheet"/>
 </head>
 <body class="member-page">
 <header class="site-header scrolled member-header">
@@ -68,9 +68,10 @@
 <button class="member-nav-item" data-member-section="reservation" data-portal-target="reservation"><span>02</span><b>Sraz &amp; Ubytování</b><i aria-hidden="true" class="member-nav-reservation-status is-status-none" data-reservation-nav-status=""></i></button>
 <button class="member-nav-item" data-member-section="garage" data-portal-target="garage"><span>03</span><b>Garáž</b></button>
 <button class="member-nav-item" data-member-section="payments" data-portal-target="payments"><span>04</span><b>Platby</b></button>
-<a class="member-nav-item member-nav-external" href="merch.html"><span>05</span><b>United Merch</b></a>
-<button class="member-nav-item" data-member-section="club" data-portal-target="club"><span>06</span><b>United Club</b></button>
+<button class="member-nav-item" data-member-section="club" data-portal-target="club"><span>05</span><b>United Club</b></button>
+<button class="member-nav-item" data-member-section="photos" data-portal-target="photos"><span>06</span><b>Moje fotky</b></button>
 <button class="member-nav-item" data-member-section="account" data-portal-target="account"><span>07</span><b>Účet</b></button>
+<a class="member-nav-item member-nav-external member-nav-shop" href="merch.html"><b>United Merch</b></a>
 </aside>
 </div>
 <button aria-controls="member-mobile-menu" aria-expanded="false" class="portal-menu-button" data-portal-menu-open type="button"><span>MENU</span><i aria-hidden="true"></i></button>
@@ -83,9 +84,11 @@
 <button data-portal-target="reservation" type="button"><span>02</span><b>Sraz &amp; Ubytování</b></button>
 <button data-portal-target="garage" type="button"><span>03</span><b>Garáž</b></button>
 <button data-portal-target="payments" type="button"><span>04</span><b>Platby</b></button>
-<a href="merch.html"><span>05</span><b>United Merch</b></a>
-<button data-portal-target="club" type="button"><span>06</span><b>United Club</b></button>
+<button data-portal-target="club" type="button"><span>05</span><b>United Club</b></button>
+<button data-portal-target="photos" type="button"><span>06</span><b>Moje fotky</b></button>
 <button data-portal-target="account" type="button"><span>07</span><b>Účet</b></button>
+<span aria-hidden="true" class="portal-nav-sheet-divider"></span>
+<a class="portal-nav-sheet-external" href="merch.html"><b>United Merch ↗</b></a>
 </nav>
 </div>
 </div>
@@ -141,9 +144,25 @@
 <div class="member-payments-list" data-payments-list=""><article class="portal-empty-state"><span aria-hidden="true">✓</span><div><strong>Aktuálně nemáš žádnou platbu k řešení.</strong><p>Platební údaje se zobrazí pouze u skutečné schválené rezervace.</p></div></article></div>
 </section>
 <section class="member-section" data-member-panel="club">
-<div class="member-section-head united-club-head"><div><span class="member-kicker">UNITED CLUB</span><h2>Moje stopa v United.</h2><p>Historie účastí, body, badges, odemčené výhody a komunitní příspěvky na jednom místě.</p></div><div class="reward-score"><span data-reward-score="">0</span><small>/12 POINTS</small></div></div>
-<nav aria-label="Sekce United Club" class="united-club-tabs"><button class="is-active" data-club-tab="history" type="button">Historie</button><button data-club-tab="points" type="button">Points</button><button data-club-tab="badges" type="button">Badges</button><button data-club-tab="perks" type="button">Perks</button><button data-club-tab="photos" type="button">Moje fotky</button></nav>
-<div class="united-club-panel" data-club-panel="photos" hidden="">
+<div class="member-section-head united-club-head"><div><span class="member-kicker">UNITED CLUB</span><h2>Moje stopa v United.</h2><p>Historie účastí, body, badges a odemčené výhody na jednom místě.</p></div><div class="reward-score"><span data-reward-score="">0</span><small>/12 POINTS</small></div></div>
+<nav aria-label="Sekce United Club" class="united-club-tabs"><button class="is-active" data-club-tab="history" type="button">Historie</button><button data-club-tab="points" type="button">Points</button><button data-club-tab="badges" type="button">Badges</button><button data-club-tab="perks" type="button">Perks</button></nav>
+<div class="united-club-panel is-active" data-club-panel="history">
+<div class="member-section-head"><div><span class="member-kicker">MY UNITED HISTORY</span><h2>Kde už jsi byl?</h2><p>Starší účast si můžeš doplnit sám. Nejstarší označený ročník automaticky mění „United member since“. Body za zpětně přidanou účast se připíšou až po ověření organizátorem.</p></div><div class="history-since"><small>MEMBER SINCE</small><strong data-history-since="">—</strong></div></div>
+<div class="history-grid" data-history-grid=""></div>
+<div class="history-note"><i>i</i><p><b>Proč ověření?</b> Status „member since“ reaguje hned, ale body a výherní badges jsou odměny, proto je u historických záznamů potvrzuje United tým.</p></div>
+</div>
+<div class="united-club-panel" data-club-panel="progress" hidden="">
+<div class="member-section-head united-progress-head" data-club-anchor="points"><div><span class="member-kicker">UNITED POINTS</span><h2>United Points.</h2><p>Points ukazují, jak daleko jsi. Odznaky zachycují, co jsi dokázal. Výhody ukazují, co sis tím odemkl.</p></div></div>
+<article class="points-journey"><div class="points-journey-head"><div><small>TVŮJ PROGRESS</small><strong><span data-points-journey-score="">0</span> / 12 UNITED POINTS</strong></div><span data-points-journey-copy="">12 bodů do United Merch reward.</span></div><div aria-label="United Points journey" aria-valuemax="12" aria-valuemin="0" aria-valuenow="0" class="points-journey-track" data-points-journey="" role="progressbar"><i></i><b data-points-journey-marker=""></b><span>0</span><span>12 · REWARD</span></div><div class="points-rules" data-points-rules=""></div></article>
+<div class="points-ledger" data-points-ledger=""></div>
+<article class="reward-main united-progress-primary"><span class="member-kicker">12 / 12 REWARD</span><h3>United Merch unlock.</h3><p>Po naplnění aktivního 12bodového metru se odemkne členská odměna do United Merch. Přesná výše slevy může být nastavena pro konkrétní drop.</p><div class="reward-lock" data-reward-lock=""><span>LOCKED</span><b data-reward-remaining="">12 bodů zbývá</b></div><a class="member-secondary" href="merch.html">Otevřít United Merch ↗</a></article>
+<div class="progress-collections">
+<article class="badges-all" data-club-anchor="badges"><div class="section-row-head"><div><span class="member-kicker">ODZNAKY</span><h3>Co jsem dokázal.</h3></div></div><div class="badge-cabinet" data-badge-cabinet=""></div></article>
+<article class="perks-card" data-club-anchor="perks"><div class="section-row-head"><div><span class="member-kicker">VÝHODY</span><h3>Co mám odemčeno.</h3></div></div><div class="perks-list" data-perks-list=""></div></article>
+</div>
+</div>
+</section>
+<section class="member-section" data-member-panel="photos">
 <div class="member-section-head">
 <div><span class="member-kicker">MEMBER PHOTOS</span><h2>Moje fotky.</h2><p>Nahraj svoje fotky z United. Ve veřejné galerii se objeví až po schválení United týmem.</p></div>
 <span class="member-chip">UNITED · SCHVALOVÁNÍ</span>
@@ -172,21 +191,6 @@
 <div class="member-gallery-list" data-member-gallery-list=""></div>
 </div>
 </div>
-</div><div class="united-club-panel is-active" data-club-panel="history">
-<div class="member-section-head"><div><span class="member-kicker">MY UNITED HISTORY</span><h2>Kde už jsi byl?</h2><p>Starší účast si můžeš doplnit sám. Nejstarší označený ročník automaticky mění „United member since“. Body za zpětně přidanou účast se připíšou až po ověření organizátorem.</p></div><div class="history-since"><small>MEMBER SINCE</small><strong data-history-since="">—</strong></div></div>
-<div class="history-grid" data-history-grid=""></div>
-<div class="history-note"><i>i</i><p><b>Proč ověření?</b> Status „member since“ reaguje hned, ale body a výherní badges jsou odměny, proto je u historických záznamů potvrzuje United tým.</p></div>
-</div>
-<div class="united-club-panel" data-club-panel="progress" hidden="">
-<div class="member-section-head united-progress-head" data-club-anchor="points"><div><span class="member-kicker">UNITED POINTS</span><h2>Body, odznaky a výhody.</h2><p>Points ukazují, jak daleko jsi. Odznaky zachycují, co jsi dokázal. Výhody ukazují, co sis tím odemkl.</p></div></div>
-<article class="points-journey"><div class="points-journey-head"><div><small>TVŮJ PROGRESS</small><strong><span data-points-journey-score="">0</span> / 12 UNITED POINTS</strong></div><span data-points-journey-copy="">12 bodů do United Merch reward.</span></div><div aria-label="United Points journey" aria-valuemax="12" aria-valuemin="0" aria-valuenow="0" class="points-journey-track" data-points-journey="" role="progressbar"><i></i><b data-points-journey-marker=""></b><span>0</span><span>12 · REWARD</span></div><div class="points-rules" data-points-rules=""></div></article>
-<div class="points-ledger" data-points-ledger=""></div>
-<article class="reward-main united-progress-primary"><span class="member-kicker">12 / 12 REWARD</span><h3>United Merch unlock.</h3><p>Po naplnění aktivního 12bodového metru se odemkne členská odměna do United Merch. Přesná výše slevy může být nastavena pro konkrétní drop.</p><div class="reward-lock" data-reward-lock=""><span>LOCKED</span><b data-reward-remaining="">12 bodů zbývá</b></div><a class="member-secondary" href="merch.html">Otevřít United Merch ↗</a></article>
-<div class="progress-collections">
-<article class="badges-all" data-club-anchor="badges"><div class="section-row-head"><div><span class="member-kicker">ODZNAKY</span><h3>Co jsem dokázal.</h3></div></div><div class="badge-cabinet" data-badge-cabinet=""></div></article>
-<article class="perks-card" data-club-anchor="perks"><div class="section-row-head"><div><span class="member-kicker">VÝHODY</span><h3>Co mám odemčeno.</h3></div></div><div class="perks-list" data-perks-list=""></div></article>
-</div>
-</div>
 </section>
 <section class="member-section" data-member-panel="account">
 <div class="member-section-head"><div><span class="member-kicker">OSOBNÍ ÚDAJE</span><h2>Účet.</h2><p>Údaje spojené s tvým United ID. E-mail a jeho ověření spravuje Firebase, profilové údaje existující členské API.</p></div></div>
@@ -202,5 +206,5 @@
 </main>
 <div class="member-modal" data-car-modal="" hidden=""><div class="member-modal-backdrop" data-close-car=""></div><div class="member-modal-dialog"><button class="member-modal-close" data-close-car="">×</button><div class="member-section-head"><div><span class="member-kicker">MY GARAGE</span><h2>Přidat auto.</h2><p>Fotka není povinná. Pro profil auta používáme jednu privátní fotografii načítanou přes autorizovaný endpoint.</p></div></div><form class="car-form" data-car-form=""><div class="form-grid-two"><label><span>Název / přezdívka auta</span><input name="nickname" placeholder="Modrá mrcha" required=""/></label><label><span>Karoserie</span><select name="body"><option>Sedan</option><option>Coupé</option><option>Touring</option><option>Cabrio</option><option>Compact</option><option>Z3</option><option>///M Power</option></select></label></div><div class="form-grid-two"><label><span>Model / motor</span><input name="model" placeholder="328i / M52B28" required=""/></label><label><span>Rok</span><input max="2026" min="1990" name="year" placeholder="1996" type="number"/></label></div><div class="form-grid-two"><label><span>Barva</span><input name="color" placeholder="Estoril Blau"/></label><label><span>SPZ (volitelné)</span><input name="plate" placeholder="—"/></label></div><label><span>Profilová fotka · 1× JPG / PNG / WEBP</span><input accept="image/jpeg,image/png,image/webp" name="photos" type="file"/></label><label class="consent-line"><input name="primary" type="checkbox"/><span>Nastavit jako hlavní auto</span></label><button class="member-primary" type="submit">Přidat do garáže <span>→</span></button></form></div></div>
 <div aria-live="polite" class="member-toast" data-toast="" role="status"></div>
-<script src="member.js?v=20260826-phase-a1" type="module"></script>
+<script src="member.js?v=20260826-nav-ux" type="module"></script>
 </body></html>

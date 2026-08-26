@@ -361,8 +361,8 @@ async function openAuthenticatedSession(user,{quiet=false}={}){
   setMode('AUTH + PROFIL LIVE');
   showApp();
   await applyPlannerDraft();
-  if(['overview','reservation','garage','payments','club','account'].includes(requestedMemberPanel))openSection(requestedMemberPanel);
-  else if(['photos','history','rewards','points','badges','perks'].includes(requestedMemberPanel)){openSection('club');openClubTab(requestedMemberPanel==='rewards'?'points':requestedMemberPanel)}
+  if(['overview','reservation','garage','payments','club','photos','account'].includes(requestedMemberPanel))openSection(requestedMemberPanel);
+  else if(['history','rewards','points','badges','perks'].includes(requestedMemberPanel)){openSection('club');openClubTab(requestedMemberPanel==='rewards'?'points':requestedMemberPanel)}
   if(!quiet)toast(`Přihlášen jako ${member.nickname||member.name}.`);
 }
 
@@ -514,21 +514,24 @@ $$('.member-nav-item[data-member-section]').forEach(button=>button.addEventListe
 $$('[data-jump]').forEach(button=>button.addEventListener('click',()=>openSection(button.dataset.jump)));
 const memberPortalNavigation=initPortalNavigation({root:$('[data-portal-nav="member"]'),onSelect:openSection});
 let activeClubTab='history';
+const mobileClubQuery=window.matchMedia('(max-width: 700px)');
 function openClubTab(id,{scroll=false}={}){
-  const tab=['history','points','badges','perks','photos'].includes(id)?id:'history';activeClubTab=tab;
+  const tab=['history','points','badges','perks'].includes(id)?id:'history';activeClubTab=tab;
   $$('[data-club-tab]').forEach(button=>button.classList.toggle('is-active',button.dataset.clubTab===tab));
+  if(mobileClubQuery.matches){$$('[data-club-panel]').forEach(panel=>{panel.hidden=false;panel.classList.add('is-active')});return}
   const panelId=['points','badges','perks'].includes(tab)?'progress':tab;
   $$('[data-club-panel]').forEach(panel=>{const active=panel.dataset.clubPanel===panelId;panel.hidden=!active;panel.classList.toggle('is-active',active)});
   if(scroll&&['badges','perks'].includes(tab))requestAnimationFrame(()=>$(`[data-club-anchor="${tab}"]`)?.scrollIntoView({behavior:'smooth',block:'start'}));
 }
 function openSection(id){
-  const legacyClubTab={photos:'photos',history:'history',rewards:'points'}[id];if(legacyClubTab){id='club';openClubTab(legacyClubTab)}
+  const legacyClubTab={history:'history',rewards:'points'}[id];if(legacyClubTab){id='club';openClubTab(legacyClubTab)}
   $$('.member-nav-item[data-member-section]').forEach(button=>button.classList.toggle('is-active',button.dataset.memberSection===id));
   $$('[data-member-panel]').forEach(panel=>panel.classList.toggle('is-active',panel.dataset.memberPanel===id));
   if(id==='club')openClubTab(activeClubTab);
   memberPortalNavigation?.sync(id);if(innerWidth<700)window.scrollTo({top:82,behavior:'smooth'});
 }
 $$('[data-club-tab]').forEach(button=>button.addEventListener('click',()=>openClubTab(button.dataset.clubTab,{scroll:true})));
+mobileClubQuery.addEventListener('change',()=>openClubTab(activeClubTab));
 $('[data-member-hero-cta]')?.addEventListener('click',()=>{openSection('garage');if(!data.cars.length){openCarModal();return}requestAnimationFrame(()=>$('[data-primary-car-card]')?.scrollIntoView({behavior:'smooth',block:'center'}))});
 
 const pictogram=body=>`<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${body}</svg>`;

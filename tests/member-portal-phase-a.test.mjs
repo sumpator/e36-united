@@ -14,11 +14,32 @@ const galleryHtml = read('galerie.html');
 const galleryJs = read('gallery.js');
 const authStatesCss = read('auth-states.css');
 
-test('Phase A.1 main navigation contains seven real destinations in target order', () => {
+test('main navigation contains exactly seven internal panels in target order', () => {
   const sidebar = memberHtml.slice(memberHtml.indexOf('<aside class="member-sidebar"'), memberHtml.indexOf('</aside>'));
-  const labels = [...sidebar.matchAll(/<b>([^<]+)<\/b>/g)].map(match => match[1].replace('&amp;', '&'));
-  assert.deepEqual(labels, ['Přehled', 'Sraz & Ubytování', 'Garáž', 'Platby', 'United Merch', 'United Club', 'Účet']);
-  for (const panel of ['overview', 'reservation', 'garage', 'payments', 'club', 'account']) assert.match(memberHtml, new RegExp(`data-member-panel="${panel}"`));
+  const labels = [...sidebar.matchAll(/data-member-section="[^"]+"[^>]*>[\s\S]*?<b>([^<]+)<\/b>/g)].map(match => match[1].replace('&amp;', '&'));
+  assert.deepEqual(labels, ['Přehled', 'Sraz & Ubytování', 'Garáž', 'Platby', 'United Club', 'Moje fotky', 'Účet']);
+  for (const panel of ['overview', 'reservation', 'garage', 'payments', 'club', 'photos', 'account']) assert.match(memberHtml, new RegExp(`data-member-panel="${panel}"`));
+});
+
+test('United Merch is a separated external destination, never an internal panel', () => {
+  const sidebar = memberHtml.slice(memberHtml.indexOf('<aside class="member-sidebar"'), memberHtml.indexOf('</aside>'));
+  const sheet = memberHtml.slice(memberHtml.indexOf('<nav aria-label="Všechny sekce Můj United"'), memberHtml.indexOf('</nav>', memberHtml.indexOf('<nav aria-label="Všechny sekce Můj United"')));
+  assert.match(sidebar, /member-nav-external member-nav-shop" href="merch\.html"><b>United Merch<\/b>/);
+  assert.doesNotMatch(sidebar, /member-nav-external[^>]*>[\s\S]*?<span>\d{2}<\/span>/);
+  assert.doesNotMatch(memberHtml, /data-member-panel="merch"/);
+  assert.match(sheet, /portal-nav-sheet-divider/);
+  assert.match(sheet, /portal-nav-sheet-external" href="merch\.html"><b>United Merch ↗<\/b>/);
+  assert.match(memberCss, /@media\(max-width:1050px\)[^\n]*member-portal-nav \.member-nav-external\{display:none\}/);
+});
+
+test('mobile menu sheet keeps internal 01–07 before its Merch divider', () => {
+  const start = memberHtml.indexOf('<nav aria-label="Všechny sekce Můj United"');
+  const sheet = memberHtml.slice(start, memberHtml.indexOf('</nav>', start));
+  const divider = sheet.indexOf('portal-nav-sheet-divider');
+  const internal = sheet.slice(0, divider);
+  const labels = [...internal.matchAll(/data-portal-target="[^"]+"[^>]*>[\s\S]*?<b>([^<]+)<\/b>/g)].map(match => match[1].replace('&amp;', '&'));
+  assert.deepEqual(labels, ['Přehled', 'Sraz & Ubytování', 'Garáž', 'Platby', 'United Club', 'Moje fotky', 'Účet']);
+  assert.ok(divider > 0 && sheet.indexOf('United Merch ↗') > divider);
 });
 
 test('initial auth markup is loading, not anonymous', () => {
@@ -69,11 +90,25 @@ test('hero follows primary car and the authorized private-photo path', () => {
   assert.match(memberStateJs, /Přidat první auto/);
 });
 
-test('community submissions stay available without being presented as car photos', () => {
+test('community submissions keep the existing flow in their own main panel', () => {
   const club = memberHtml.slice(memberHtml.indexOf('data-member-panel="club"'), memberHtml.indexOf('</section>', memberHtml.indexOf('data-member-panel="club"')));
-  assert.match(club, /data-club-tab="photos"/);
-  assert.match(club, /fotky z United/i);
+  const photos = memberHtml.slice(memberHtml.indexOf('data-member-panel="photos"'), memberHtml.indexOf('data-member-panel="account"'));
+  assert.doesNotMatch(club, /Moje fotky|data-club-tab="photos"|data-member-gallery-form/);
+  assert.match(photos, /data-member-gallery-form/);
+  assert.match(photos, /fotky z United/i);
   assert.match(memberJs, /api\/gallery\/submissions/);
+});
+
+test('United Club keeps four desktop tabs and becomes one vertical mobile page', () => {
+  const clubStart = memberHtml.indexOf('data-member-panel="club"');
+  const club = memberHtml.slice(clubStart, memberHtml.indexOf('data-member-panel="photos"', clubStart));
+  const tabs = [...club.matchAll(/data-club-tab="([^"]+)"[^>]*>([^<]+)<\/button>/g)].map(match => [match[1], match[2]]);
+  assert.deepEqual(tabs, [['history', 'Historie'], ['points', 'Points'], ['badges', 'Badges'], ['perks', 'Perks']]);
+  assert.ok(club.indexOf('data-club-panel="history"') < club.indexOf('data-club-anchor="points"'));
+  assert.ok(club.indexOf('data-club-anchor="points"') < club.indexOf('data-club-anchor="badges"'));
+  assert.ok(club.indexOf('data-club-anchor="badges"') < club.indexOf('data-club-anchor="perks"'));
+  assert.match(memberCss, /@media\(max-width:700px\)[^\n]*\.united-club-tabs\{display:none\}/);
+  assert.match(memberJs, /mobileClubQuery\.matches[^\n]*panel\.hidden=false/);
 });
 
 test('responsive hero and hybrid mobile navigation invariants remain explicit', () => {
