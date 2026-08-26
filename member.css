@@ -329,8 +329,7 @@ body:not(.member-authenticated) [data-app-view]{display:none!important}
 @media(prefers-reduced-motion:reduce){.member-section.is-active,.united-club-panel,.member-logged-hero[data-hero-state="photo"] .member-logged-hero-bg img{animation:none!important}.points-journey-track>i,.points-journey-track>b,.member-account-card input,.account-logout{transition:none!important}}
 
 /* Targeted auth access polish: desktop composition stays intact; compact flow is mobile-only. */
-.auth-copy-mobile{display:none}.member-logged-actions--desktop{position:absolute;right:0;top:24px;padding-bottom:0}.member-hero-logout{min-height:40px;padding:0 13px;background:rgba(7,11,16,.5);color:#b9c4ce;backdrop-filter:blur(10px)}.member-hero-logout:hover{border-color:rgba(255,255,255,.23);color:#fff;background:rgba(255,255,255,.07)}
-@media(max-width:700px){.member-logged-actions--desktop{display:none}}
+.auth-copy-mobile{display:none}
 @media(max-width:620px){
   .member-auth{min-height:auto;gap:0;padding:0}
   .member-auth-media{min-height:210px;border-inline:0;border-top:0;border-radius:0 0 22px 22px}
@@ -353,3 +352,15 @@ body:not(.member-authenticated) [data-app-view]{display:none!important}
   .auth-form .member-primary{min-height:50px;margin-top:0}
   .auth-link{min-height:44px;display:inline-flex;align-items:center}
 }
+
+/* 2026-08-27: portal entry, sidebar session action and compact member identity. */
+.member-sidebar-logout{width:100%;min-height:44px;margin-top:10px;padding:0 14px;border:1px solid rgba(255,110,124,.18);border-radius:12px;background:rgba(255,77,97,.035);color:#d88f98;font-size:13px;font-weight:850;cursor:pointer;transition:border-color .18s ease,background .18s ease,color .18s ease}
+.member-sidebar-logout:hover{border-color:rgba(255,110,124,.34);background:rgba(255,77,97,.065);color:#f1a3ac}
+.member-summary>div{padding:19px}
+.member-summary-primary .member-summary-profile{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px 16px;margin-top:10px}
+.member-summary-primary .member-summary-profile>span{display:block;min-width:0;margin:0;color:#aebbc7;font-size:13px;line-height:1.35}
+.member-summary-primary .member-summary-profile small{color:#6f8090;font-size:8px;letter-spacing:.11em}
+.member-summary-primary .member-summary-profile b{display:block;margin-top:3px;color:#eef5fb;overflow-wrap:anywhere}
+@media(max-width:1050px){.member-sidebar-logout{display:none}}
+@media(max-width:700px){.member-summary>div{padding:15px}.member-summary-primary .member-summary-profile{gap:8px 12px}}
+@media(prefers-reduced-motion:reduce){.member-sidebar-logout{transition:none}}

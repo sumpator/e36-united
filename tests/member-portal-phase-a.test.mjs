@@ -55,17 +55,34 @@ test('mobile menu adds unnumbered logout after Merch and reuses the shared logou
   assert.match(memberJs, /\$\$\('\[data-logout\]'\)\.forEach\(button=>button\.addEventListener\('click',logoutMember\)\)/);
 });
 
-test('desktop hero, mobile menu and Account expose shared logout outside the sidebar', () => {
+test('desktop sidebar action, mobile menu and Account expose shared logout outside the bordered navigation card', () => {
   const heroStart = memberHtml.indexOf('data-member-hero=');
   const hero = memberHtml.slice(heroStart, memberHtml.indexOf('<div class="container member-shell">', heroStart));
+  const navStart = memberHtml.indexOf('<div class="member-portal-nav');
+  const nav = memberHtml.slice(navStart, memberHtml.indexOf('<div class="member-content">', navStart));
   const sidebarStart = memberHtml.indexOf('<aside class="member-sidebar"');
-  const sidebar = memberHtml.slice(sidebarStart, memberHtml.indexOf('</aside>', sidebarStart));
+  const sidebarEnd = memberHtml.indexOf('</aside>', sidebarStart);
+  const sidebar = memberHtml.slice(sidebarStart, sidebarEnd);
   const account = memberHtml.slice(memberHtml.indexOf('data-member-panel="account"'));
-  assert.match(hero, /member-logged-actions member-logged-actions--desktop[^>]*>[\s\S]*?data-logout=""/);
+  assert.doesNotMatch(hero, /data-logout|member-hero-logout/);
   assert.doesNotMatch(sidebar, /data-logout/);
+  assert.ok(nav.indexOf('member-sidebar-logout') > nav.indexOf('</aside>'));
+  assert.ok(nav.indexOf('member-sidebar-logout') < nav.indexOf('data-portal-menu-open'));
   assert.match(account, /account-logout" data-logout=""/);
   assert.equal((memberHtml.match(/data-logout=""/g)||[]).length,3);
+  assert.match(memberCss, /\.member-sidebar-logout\{width:100%;min-height:44px;margin-top:10px/);
+  assert.match(memberCss, /@media\(max-width:1050px\)\{\.member-sidebar-logout\{display:none\}\}/);
   assert.match(memberJs, /\$\$\('\[data-logout\]'\)\.forEach\(button=>button\.addEventListener\('click',logoutMember\)\)/);
+});
+
+test('authenticated entry always starts on Overview without planner or URL auto-navigation', () => {
+  assert.match(memberHtml, /member-nav-item is-active" data-member-section="overview"/);
+  assert.match(memberHtml, /member-section is-active" data-member-panel="overview"/);
+  assert.match(memberJs, /showApp\(\);\s*openSection\('overview'\);\s*await applyPlannerDraft/);
+  assert.doesNotMatch(memberJs, /requestedMemberPanel/);
+  assert.match(memberJs, /applyPlannerHandoffToForm\(\{navigate:false\}\)/);
+  const draftFlow = memberJs.slice(memberJs.indexOf('async function applyPlannerDraft'), memberJs.indexOf('const menuBtn='));
+  assert.doesNotMatch(draftFlow, /openSection\('reservation'\)/);
 });
 
 test('initial auth markup is loading, not anonymous', () => {

@@ -15,15 +15,11 @@ function panel(name, nextName) {
   return html.slice(start, end);
 }
 
-test('hero keeps identity and onboarding CTA while exposing secondary desktop logout', () => {
+test('hero keeps identity and onboarding CTA without session controls', () => {
   const hero = html.slice(html.indexOf('data-member-hero='), html.indexOf('<div class="container member-shell">'));
-  const copy = hero.slice(hero.indexOf('<div class="member-logged-copy"'), hero.indexOf('<div class="member-logged-actions'));
   assert.match(hero, /UNITED MEMBER/);
   assert.match(hero, /data-member-hero-attended/);
-  assert.match(hero, /member-logged-actions member-logged-actions--desktop/);
-  assert.match(hero, /member-hero-logout" data-logout=""/);
-  assert.match(css, /\.member-logged-actions--desktop\{position:absolute;right:0;top:24px/);
-  assert.doesNotMatch(copy, /data-logout|data-sync-state|data-member-account|e-mail|Member ID|Otevřít garáž/i);
+  assert.doesNotMatch(hero, /data-logout|member-logged-actions|member-hero-logout/);
   assert.match(js, /cta\.hidden=!view\.cta/);
   assert.match(js, /cta\.hidden=false/);
 });
@@ -48,8 +44,12 @@ test('mobile auth is compact while desktop auth content and tab behavior remain 
 test('Member Summary renders real profile identity and progress data', () => {
   const overview = panel('overview', 'reservation');
   for (const attribute of ['data-summary-nickname', 'data-summary-name', 'data-summary-member-code', 'data-member-since', 'data-attendance-count', 'data-member-status', 'data-overview-points']) assert.match(overview, new RegExp(attribute));
+  assert.match(overview, /member-summary-profile[\s\S]*?<small>JMÉNO<\/small><b data-summary-name/);
+  assert.match(overview, /<small>MEMBER ID<\/small><b data-summary-member-code/);
   assert.match(js, /summaryNick\.textContent=nick\.toUpperCase\(\)/);
+  assert.match(js, /summaryName\.textContent=p\.name\|\|'United Member'/);
   assert.match(js, /summaryCode\.textContent=p\.memberCode/);
+  assert.match(css, /\.member-summary>div\{padding:19px\}/);
 });
 
 test('Garage exposes Add Photo only when the car has no profile photo', () => {

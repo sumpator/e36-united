@@ -13,7 +13,6 @@ const plannerDraftKey=portalConfig.plannerDraftKey||'e36UnitedPlannerDraftV19';
 const plannerHandoffPrefix='e36UnitedPlannerHandoff:v1:';
 const memberUrlParams=new URLSearchParams(window.location.search);
 let pendingPlannerHandoffId=memberUrlParams.get('draft')||'';
-const requestedMemberPanel=memberUrlParams.get('panel')||'';
 const czkFormatter=new Intl.NumberFormat('cs-CZ',{style:'currency',currency:'CZK',maximumFractionDigits:0});
 
 let firebase=null;
@@ -357,9 +356,8 @@ async function openAuthenticatedSession(user,{quiet=false}={}){
   saveUserLocal();
   setMode('AUTH + PROFIL LIVE');
   showApp();
+  openSection('overview');
   await applyPlannerDraft(plannerDraftResult);
-  if(['overview','reservation','garage','payments','club','photos','account'].includes(requestedMemberPanel))openSection(requestedMemberPanel);
-  else if(['history','rewards','points','badges','perks'].includes(requestedMemberPanel)){openSection('club');openClubTab(requestedMemberPanel==='rewards'?'points':requestedMemberPanel)}
   if(!quiet)toast(`Přihlášen jako ${member.nickname||member.name}.`);
 }
 
@@ -755,7 +753,7 @@ function renderPlannerHandoff(){
   approved.hidden=closed||!(plannerHandoffApplied&&data.reservation?.status==='approved');
   const submit=$('[data-reservation-submit]');if(submit&&reservationState.registrationOpen)submit.disabled=plannerHandoffApplied&&!data.cars.length;
 }
-function applyPlannerHandoffToForm(){
+function applyPlannerHandoffToForm({navigate=true}={}){
   const handoff=activePlannerHandoff;if(!handoff||!reservationForm)return;
   if(reservationForm.elements.arrival)reservationForm.elements.arrival.value=handoff.arrival;
   if(reservationForm.elements.crew)reservationForm.elements.crew.value=handoff.crew;
@@ -773,7 +771,7 @@ function applyPlannerHandoffToForm(){
   syncMemberSleep();
   const selectedCar=data.cars.length===1?data.cars[0]:(data.cars.find(car=>car.primary)||data.cars[0]||null);
   if(selectedCar&&reservationForm.elements.carId)reservationForm.elements.carId.value=selectedCar.id;
-  plannerHandoffApplied=true;plannerHandoffChoice='applied';openSection('reservation');if(data.reservation)renderPlannerHandoff();else renderReservation();
+  plannerHandoffApplied=true;plannerHandoffChoice='applied';if(navigate)openSection('reservation');if(data.reservation)renderPlannerHandoff();else renderReservation();
 }
 function clearPlannerHandoff(){
   if(activePlannerHandoff?.draftId){try{localStorage.removeItem(`${plannerHandoffPrefix}${activePlannerHandoff.draftId}`)}catch(error){console.debug('Weekend Planner handoff could not be removed.',error)}}
@@ -1031,7 +1029,7 @@ async function applyPlannerDraft(serverResult={available:false,draft:null}){
   }
   if(handoff){
     activePlannerHandoff=handoff;plannerHandoffApplied=false;plannerHandoffChoice=data.reservation?'pending':'applied';
-    if(!data.reservation)applyPlannerHandoffToForm();else{openSection('reservation');renderPlannerHandoff()}
+    if(!data.reservation)applyPlannerHandoffToForm({navigate:false});else renderPlannerHandoff();
     return;
   }
   if(plannerDraftSyncState==='error'){renderReservationOverview(data.reservation);toast('Uložený plán teď nelze ověřit. Přihlášení i případný lokální plán zůstaly beze změny.');return}
@@ -1053,7 +1051,6 @@ async function applyPlannerDraft(serverResult={available:false,draft:null}){
     syncMemberSleep();
     const selectedCar=data.cars.find(c=>c.primary)||data.cars[0]||null;
     if(selectedCar&&reservationForm.elements.carId)reservationForm.elements.carId.value=selectedCar.id;
-    openSection('reservation');
     legacyPlannerDraftApplied=true;
     toast(selectedCar?'Výběr z Weekend Planneru je připravený. Zkontroluj ho a rezervaci odešli.':'Výběr z Weekend Planneru je připravený. Přidej auto a rezervaci odešli.');
   }catch(error){console.warn(error)}
