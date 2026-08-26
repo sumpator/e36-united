@@ -113,6 +113,11 @@ export default {
         if (url.pathname === "/api/bootstrap" && request.method === "POST") return await bootstrapMember(request, env, auth, origin);
         if (url.pathname === "/api/me" && request.method === "GET") return await getMember(env, auth, origin);
 
+        if (url.pathname === "/api/navigation-state" && request.method === "GET") return await getMemberNavigationState(env, auth, origin);
+        if (url.pathname === "/api/planner-draft" && request.method === "GET") return await getPlannerDraft(env, auth, origin);
+        if (url.pathname === "/api/planner-draft" && request.method === "PUT") return await putPlannerDraft(request, env, auth, origin);
+        if (url.pathname === "/api/planner-draft" && request.method === "DELETE") return await deletePlannerDraft(env, auth, url, origin);
+
         if (url.pathname === "/api/reservations/current" && request.method === "GET") return await getCurrentReservation(env, auth, origin);
         if (url.pathname === "/api/reservations/current" && request.method === "PUT") return await putCurrentReservation(request, env, auth, origin);
 
@@ -1134,6 +1139,105 @@ async function getCurrentReservation(env, auth, origin) {
   }, 200, origin);
 }
 
+function validatePlannerDraft(candidate, now = Date.now()) {
+  if (!candidate || candidate.version !== 1 || candidate.source !== "weekend-planner") return null;
+  const draftId = String(candidate.draftId || "");
+  const createdAt = Date.parse(candidate.createdAt), expiresAt = Date.parse(candidate.expiresAt);
+  const eventYear = Number(candidate.eventYear), crew = Number(candidate.crew), units = Number(candidate.accommodationUnits);
+  const lifetime = 7 * 24 * 60 * 60 * 1000;
+  const attendanceByArrival = { "Pátek": "full_weekend", "Sobota": "saturday_only", "Jen na otočku": "day_visit" };
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(draftId) || !Number.isFinite(createdAt) || !Number.isFinite(expiresAt) || expiresAt <= now || expiresAt <= createdAt || now - createdAt > lifetime || expiresAt - createdAt > lifetime) return null;
+  if (!Number.isInteger(eventYear) || eventYear < 2000 || eventYear > 2100) return null;
+  if (!attendanceByArrival[candidate.arrival] || candidate.attendanceType !== attendanceByArrival[candidate.arrival]) return null;
+  if (!["Chatka", "Stan", "Bez ubytování"].includes(candidate.accommodation) || !Number.isInteger(crew) || crew < 1 || crew > 8 || !Number.isInteger(units) || units < 0 || units > crew || !["Ano", "Ne", "Možná"].includes(candidate.showShine)) return null;
+  if ((candidate.arrival === "Jen na otočku" || candidate.accommodation === "Bez ubytování") && units !== 0) return null;
+  if (candidate.arrival !== "Jen na otočku" && candidate.accommodation !== "Bez ubytování" && units < 1) return null;
+  const eventId = candidate.eventId == null ? null : String(candidate.eventId);
+  const accommodationOptionId = candidate.accommodationOptionId == null ? null : String(candidate.accommodationOptionId);
+  if (eventId !== null && !/^[a-z0-9_-]{1,128}$/i.test(eventId)) return null;
+  if (accommodationOptionId !== null && !/^[a-z0-9_-]{1,128}$/i.test(accommodationOptionId)) return null;
+  const fallbackDeparture = candidate.arrival === "Jen na otočku" ? "Stejný den" : "Neděle";
+  const departure = String(candidate.departure || fallbackDeparture);
+  const nights = Number(candidate.nights ?? (candidate.arrival === "Pátek" ? 2 : candidate.arrival === "Sobota" ? 1 : 0));
+  const validStay = candidate.arrival === "Pátek"
+    ? (["Sobota", "Neděle"].includes(departure) && [1, 2].includes(nights))
+    : candidate.arrival === "Sobota" ? (departure === "Neděle" && nights === 1) : (departure === "Stejný den" && nights === 0);
+  if (!validStay) return null;
+  return { version: 1, draftId, source: "weekend-planner", eventYear, eventId, createdAt: new Date(createdAt).toISOString(), expiresAt: new Date(expiresAt).toISOString(), arrival: candidate.arrival, departure, nights, attendanceType: candidate.attendanceType, accommodation: candidate.accommodation, accommodationOptionId, accommodationUnits: units, crew, showShine: candidate.showShine };
+}
+
+function plannerDraftFromRow(row) {
+  if (!row?.payload_json) return null;
+  try {
+    const draft = validatePlannerDraft(JSON.parse(row.payload_json));
+    return draft ? { ...draft, serverUpdatedAt: row.updated_at || null } : null;
+  } catch { return null; }
+}
+
+async function findActivePlannerDraft(env, memberId) {
+  const now = new Date().toISOString();
+  return await env.DB.prepare(`
+    SELECT payload_json, updated_at
+    FROM member_planner_drafts
+    WHERE member_id = ? AND expires_at > ?
+    ORDER BY source_created_at DESC, updated_at DESC
+    LIMIT 1
+  `).bind(memberId, now).first();
+}
+
+async function getPlannerDraft(env, auth, origin) {
+  const row = await findActivePlannerDraft(env, auth.uid);
+  return json({ ok: true, draft: plannerDraftFromRow(row) }, 200, origin);
+}
+
+async function putPlannerDraft(request, env, auth, origin) {
+  let body;
+  try { body = await request.json(); }
+  catch { return json({ ok: false, error: "invalid_json", message: "Požadavek nemá platný JSON." }, 400, origin); }
+  const draft = validatePlannerDraft(body?.draft);
+  if (!draft || JSON.stringify(draft).length > 4096) return json({ ok: false, error: "invalid_planner_draft", message: "Plán z Weekend Planneru není platný." }, 400, origin);
+
+  const member = await env.DB.prepare("SELECT id FROM members WHERE id = ? LIMIT 1").bind(auth.uid).first();
+  if (!member) return json({ ok: false, error: "member_profile_required", message: "Nejdřív dokonči členský profil." }, 409, origin);
+  const event = draft.eventId
+    ? await env.DB.prepare("SELECT id, year FROM events WHERE id = ? LIMIT 1").bind(draft.eventId).first()
+    : await env.DB.prepare("SELECT id, year FROM events WHERE year = ? ORDER BY is_current DESC LIMIT 1").bind(draft.eventYear).first();
+  if (!event || Number(event.year) !== draft.eventYear) return json({ ok: false, error: "planner_event_not_found", message: "Plán neodpovídá známému United eventu." }, 400, origin);
+
+  const normalized = { ...draft, eventId: event.id };
+  const now = new Date().toISOString();
+  await env.DB.prepare(`
+    INSERT INTO member_planner_drafts (member_id, event_id, draft_id, payload_json, source_created_at, expires_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(member_id, event_id) DO UPDATE SET
+      draft_id = excluded.draft_id,
+      payload_json = excluded.payload_json,
+      source_created_at = excluded.source_created_at,
+      expires_at = excluded.expires_at,
+      updated_at = excluded.updated_at
+    WHERE member_planner_drafts.expires_at <= ? OR excluded.source_created_at > member_planner_drafts.source_created_at
+  `).bind(auth.uid, event.id, normalized.draftId, JSON.stringify(normalized), normalized.createdAt, normalized.expiresAt, now, now).run();
+  const authoritativeRow = await env.DB.prepare("SELECT payload_json, updated_at FROM member_planner_drafts WHERE member_id = ? AND event_id = ? LIMIT 1").bind(auth.uid, event.id).first();
+  const authoritative = plannerDraftFromRow(authoritativeRow);
+  return json({ ok: true, accepted: authoritative?.draftId === normalized.draftId, draft: authoritative }, 200, origin);
+}
+
+async function deletePlannerDraft(env, auth, url, origin) {
+  const eventId = clean(url.searchParams.get("eventId"));
+  if (!/^[a-z0-9_-]{1,128}$/i.test(eventId)) return json({ ok: false, error: "event_id_required" }, 400, origin);
+  const result = await env.DB.prepare("DELETE FROM member_planner_drafts WHERE member_id = ? AND event_id = ?").bind(auth.uid, eventId).run();
+  return json({ ok: true, deleted: Number(result?.meta?.changes || 0) > 0 }, 200, origin);
+}
+
+async function getMemberNavigationState(env, auth, origin) {
+  const now = new Date().toISOString();
+  const [reservation, planner] = await Promise.all([
+    env.DB.prepare("SELECT 1 AS found FROM reservations WHERE member_id = ? LIMIT 1").bind(auth.uid).first(),
+    env.DB.prepare("SELECT 1 AS found FROM member_planner_drafts WHERE member_id = ? AND expires_at > ? LIMIT 1").bind(auth.uid, now).first(),
+  ]);
+  return json({ ok: true, hasWaitingPlan: !!planner, hasReservation: !!reservation }, 200, origin);
+}
+
 async function putCurrentReservation(request, env, auth, origin) {
   const event = await getCurrentEvent(env);
   if (!event || event.registration_status !== "open") return json({ ok: false, error: "registration_closed", message: "Rezervace na aktuální event nejsou otevřené." }, 409, origin);
@@ -1322,6 +1426,14 @@ async function putCurrentReservation(request, env, auth, origin) {
         END
     WHERE member_id = ? AND event_id = ? AND updated_at = ?
   `).bind(auth.uid, event.id, writeToken));
+  statements.push(env.DB.prepare(`
+    DELETE FROM member_planner_drafts
+    WHERE member_id = ? AND event_id = ?
+      AND EXISTS (
+        SELECT 1 FROM reservations
+        WHERE member_id = ? AND event_id = ? AND updated_at = ?
+      )
+  `).bind(auth.uid, event.id, auth.uid, event.id, writeToken));
   const results = await env.DB.batch(statements);
   if (!results[0]?.meta?.changes) {
     if (option) return accommodationCapacityConflict(option.name, origin);

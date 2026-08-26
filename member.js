@@ -3,6 +3,7 @@ import qrcode from './vendor/qrcode-generator.mjs';
 import { initPortalNavigation } from './portal-navigation.js?v=20260825-mobile1';
 import { initUnitedAuth } from './united-auth.js?v=20260825-phase-a1';
 import { deriveMemberHeroState, deriveOverviewState } from './member-portal-state.js?v=20260825-phase-a1';
+import { newerPlannerDraft } from './planner-state.js?v=20260826-planner-sync';
 
 const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
 const apiBaseUrl=(portalConfig.apiBaseUrl||'https://api.e36united.cz').replace(/\/$/,'');
@@ -37,6 +38,8 @@ let plannerHandoffMemory=null;
 let activePlannerHandoff=null;
 let plannerHandoffChoice='none';
 let plannerHandoffApplied=false;
+let plannerDraftSyncState='idle';
+let legacyPlannerDraftApplied=false;
 let returnToReservationAfterCar=false;
 
 function decodePlannerHandoff(value){
@@ -122,7 +125,7 @@ function pruneCarPhotoObjectUrls(){
   for(const [id,url] of carPhotoObjectUrls){if(!activeIds.has(String(id))){URL.revokeObjectURL(url);carPhotoObjectUrls.delete(id)}}
   for(const id of carPhotoObjectUrlRequests.keys()){if(!activeIds.has(String(id)))carPhotoObjectUrlRequests.delete(id)}
 }
-function resetMemberState(){clearCarPhotoObjectUrls();memberGallery=[];reservationState={registrationOpen:false,event:null,message:'',accommodationOptions:[]};data=defaultData();renderAll()}
+function resetMemberState(){clearCarPhotoObjectUrls();memberGallery=[];reservationState={registrationOpen:false,event:null,message:'',accommodationOptions:[]};plannerDraftSyncState='idle';activePlannerHandoff=null;legacyPlannerDraftApplied=false;data=defaultData();renderAll()}
 function toast(msg){const el=$('[data-toast]');if(!el)return;el.textContent=msg;el.classList.add('is-visible');clearTimeout(toast.t);toast.t=setTimeout(()=>el.classList.remove('is-visible'),3200)}
 function esc(v=''){return String(v).replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]))}
 function uid(){return crypto?.randomUUID?.()||Math.random().toString(36).slice(2,10)}
@@ -330,6 +333,13 @@ async function loadCurrentReservation(){
   return normalizeReservation(payload?.reservation);
 }
 
+async function loadServerPlannerDraft(){
+  try{
+    const payload=await apiRequest('/api/planner-draft');
+    return {available:true,draft:validatePlannerHandoff(payload?.draft)};
+  }catch(error){console.warn('Planner draft API unavailable',error);return {available:false,draft:null,error}}
+}
+
 async function ensureMemberProfile(user){
   currentUser=user;
   let payload=await apiRequest('/api/me');
@@ -351,16 +361,17 @@ async function openAuthenticatedSession(user,{quiet=false}={}){
   currentUser=user;
   const member=await ensureMemberProfile(user);
   const local=loadUserLocal(user.uid);
-  const [cars,reservation]=await Promise.all([
+  const [cars,reservation,plannerDraftResult]=await Promise.all([
     loadCarsFromApi().catch(error=>{console.warn('Cars API unavailable',error);return []}),
     loadCurrentReservation(),
+    loadServerPlannerDraft(),
     loadMemberGallery().catch(error=>{console.warn('Gallery status unavailable',error);memberGallery=[];return []}),
   ]);
   data={...local,profile:member,cars,reservation};
   saveUserLocal();
   setMode('AUTH + PROFIL LIVE');
   showApp();
-  await applyPlannerDraft();
+  await applyPlannerDraft(plannerDraftResult);
   if(['overview','reservation','garage','payments','club','photos','account'].includes(requestedMemberPanel))openSection(requestedMemberPanel);
   else if(['history','rewards','points','badges','perks'].includes(requestedMemberPanel)){openSection('club');openClubTab(requestedMemberPanel==='rewards'?'points':requestedMemberPanel)}
   if(!quiet)toast(`Přihlášen jako ${member.nickname||member.name}.`);
@@ -470,11 +481,13 @@ $('[data-auth-retry]')?.addEventListener('click',async()=>{
   else await unitedAuth?.retry();
 });
 
-$('[data-logout]')?.addEventListener('click',async()=>{
+async function logoutMember(){
   authFlowActive=true;
+  memberPortalNavigation?.close({restoreFocus:false});
   try{if(firebase)await firebase.signOut(firebase.auth)}catch(error){console.warn('Firebase logout failed',error)}
   currentUser=null;resetMemberState();resetAuthForms();showAuth();setMode(firebase?'AUTH READY':'AUTH NEDOSTUPNÝ');authFlowActive=false;toast('Odhlášeno.');
-});
+}
+$$('[data-logout]').forEach(button=>button.addEventListener('click',logoutMember));
 
 $('[data-account-form]')?.addEventListener('submit',async event=>{
   event.preventDefault();if(!currentUser)return toast('Nejdřív se přihlas.');
@@ -777,6 +790,10 @@ function clearPlannerHandoff(){
   try{history.replaceState(null,'',`${url.pathname}${url.search}${url.hash}`)}catch(error){console.debug('Weekend Planner address cleanup is unavailable.',error)}
   pendingPlannerHandoffId='';plannerHandoffMemory=null;activePlannerHandoff=null;plannerHandoffChoice='none';plannerHandoffApplied=false;renderPlannerHandoff();
 }
+function clearLegacyPlannerDraft(){
+  try{localStorage.removeItem(plannerDraftKey);localStorage.removeItem('e36UnitedReservationDraftV20')}catch(error){console.debug('Starší Weekend Planner draft se nepodařilo odstranit.',error)}
+  legacyPlannerDraftApplied=false;
+}
 $('[data-planner-handoff-use]')?.addEventListener('click',()=>{applyPlannerHandoffToForm();toast('Nový plán je připravený ve formuláři. Zkontroluj ho a rezervaci odešli.')});
 $('[data-planner-handoff-keep]')?.addEventListener('click',()=>{plannerHandoffChoice='kept';plannerHandoffApplied=false;renderReservation();renderPlannerHandoff();toast('Současná rezervace zůstala beze změny.')});
 $('[data-planner-handoff-overview]')?.addEventListener('click',()=>openSection('overview'));
@@ -800,7 +817,7 @@ function renderReservationOverview(reservation){
   const open=reservationState.registrationOpen,waiting=isPlannerWaitingState();
   const eventYear=reservation?.year&&reservation.year!=='NEXT'?reservation.year:(reservationState.event?.year||waiting&&activePlannerHandoff.eventYear||new Date().getFullYear());
   const card=$('[data-reservation-overview-card]'),empty=$('[data-action-center-empty]'),emptyCopy=$('[data-action-center-empty-copy]'),event=$('[data-reservation-overview-event]'),label=$('[data-reservation-overview-label]'),copy=$('[data-reservation-overview-copy]'),action=$('[data-reservation-overview-action]');
-  const view=deriveOverviewState({reservation,registrationOpen:open,plannerWaiting:waiting,eventYear:reservationState.event?eventYear:null,formatAmount:formatCzk});if(card){card.hidden=!view.active;card.dataset.jump=view.target||'reservation'}if(empty)empty.hidden=view.active;if(emptyCopy)emptyCopy.textContent=view.emptyCopy;
+  const view=deriveOverviewState({reservation,registrationOpen:open,plannerWaiting:waiting,plannerUnavailable:plannerDraftSyncState==='error',eventYear:reservationState.event?eventYear:null,formatAmount:formatCzk});if(card){card.hidden=!view.active;card.dataset.jump=view.target||'reservation'}if(empty)empty.hidden=view.active;if(emptyCopy)emptyCopy.textContent=view.emptyCopy;
   if(event)event.textContent=`UNITED ${eventYear}`;
   if(label)label.textContent=view.label;if(copy)copy.textContent=view.copy;if(action)action.innerHTML=view.action?`${view.action} <b>→</b>`:'';
 }
@@ -927,7 +944,7 @@ reservationForm?.addEventListener('submit',async event=>{
     const payload=await apiRequest('/api/reservations/current',{method:'PUT',body:{carId:car.id,arrival,crew:+fd.get('crew'),attendanceType,accommodation:sleep,accommodationOptionId:accommodationOption?.id||null,accommodationUnits,showShine:fd.get('showshine'),note:fd.get('note')}});
     const reservation=normalizeReservation(payload?.reservation);if(!reservation)throw new Error('reservation_response_invalid');
     reservationState={registrationOpen:payload?.registrationOpen===true,event:payload?.event||reservationState.event,message:payload?.message||'',accommodationOptions:Array.isArray(payload?.accommodationOptions)?payload.accommodationOptions.map(normalizeAccommodationOption).filter(option=>option.id):reservationState.accommodationOptions};
-    data.reservation=reservation;if(activePlannerHandoff&&plannerHandoffApplied)clearPlannerHandoff();renderReservation();renderProfile();toast(payload?.message||'Rezervace byla uložena.');
+    data.reservation=reservation;if(activePlannerHandoff&&plannerHandoffApplied)clearPlannerHandoff();if(legacyPlannerDraftApplied)clearLegacyPlannerDraft();renderReservation();renderProfile();toast(payload?.message||'Rezervace byla uložena.');
   }catch(error){console.error('Reservation save failed',error);toast(apiError(error))}
   finally{setButtonBusy(button,false);renderReservation();if(activePlannerHandoff&&plannerHandoffApplied)applyPlannerHandoffToForm()}
 });
@@ -1010,14 +1027,23 @@ memberGalleryForm?.addEventListener('submit',async event=>{
   finally{setButtonBusy(button,false)}
 });
 
-async function applyPlannerDraft(){
+async function applyPlannerDraft(serverResult={available:false,draft:null}){
   if(!reservationForm||!currentUser)return;
-  const handoff=loadPlannerHandoff();
+  const localHandoff=loadPlannerHandoff(),serverHandoff=serverResult.draft;
+  let handoff=newerPlannerDraft(localHandoff,serverHandoff);
+  plannerDraftSyncState=serverResult.available?'ready':'error';
+  if(localHandoff&&handoff===localHandoff){
+    try{
+      const payload=await apiRequest('/api/planner-draft',{method:'PUT',body:{draft:localHandoff}});
+      handoff=validatePlannerHandoff(payload?.draft)||localHandoff;plannerDraftSyncState='ready';
+    }catch(error){console.warn('Planner handoff promotion failed; local fallback retained.',error);plannerDraftSyncState='error';handoff=localHandoff}
+  }
   if(handoff){
     activePlannerHandoff=handoff;plannerHandoffApplied=false;plannerHandoffChoice=data.reservation?'pending':'applied';
     if(!data.reservation)applyPlannerHandoffToForm();else{openSection('reservation');renderPlannerHandoff()}
     return;
   }
+  if(plannerDraftSyncState==='error'){renderReservationOverview(data.reservation);toast('Uložený plán teď nelze ověřit. Přihlášení i případný lokální plán zůstaly beze změny.');return}
   let raw=null;try{raw=localStorage.getItem(plannerDraftKey)||localStorage.getItem('e36UnitedReservationDraftV20')}catch(error){console.debug('Starší výběr z Weekend Planneru není dostupný.',error)}
   if(!raw)return;
   try{
@@ -1037,9 +1063,9 @@ async function applyPlannerDraft(){
     const selectedCar=data.cars.find(c=>c.primary)||data.cars[0]||null;
     if(selectedCar&&reservationForm.elements.carId)reservationForm.elements.carId.value=selectedCar.id;
     openSection('reservation');
-    localStorage.removeItem(plannerDraftKey);localStorage.removeItem('e36UnitedReservationDraftV20');
+    legacyPlannerDraftApplied=true;
     toast(selectedCar?'Výběr z Weekend Planneru je připravený. Zkontroluj ho a rezervaci odešli.':'Výběr z Weekend Planneru je připravený. Přidej auto a rezervaci odešli.');
-  }catch(error){console.warn(error);localStorage.removeItem(plannerDraftKey);localStorage.removeItem('e36UnitedReservationDraftV20')}
+  }catch(error){console.warn(error)}
 }
 
 const menuBtn=$('.menu-btn'),nav=$('.nav-links');

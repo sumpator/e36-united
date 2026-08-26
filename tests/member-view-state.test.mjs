@@ -53,3 +53,16 @@ test('overview: approved reservation with remaining payment is actionable', () =
   assert.equal(view.action, 'Přejít na platbu');
   assert.equal(view.target, 'payments');
 });
+
+test('overview: a real reservation wins over both waiting and unavailable planner state', () => {
+  const reservation={status:'pending',payment:{remainingCzk:0}};
+  const view=deriveOverviewState({reservation,registrationOpen:false,plannerWaiting:true,plannerUnavailable:true});
+  assert.equal(view.label,'ČEKÁ NA SCHVÁLENÍ');
+  assert.equal(view.target,'reservation');
+});
+
+test('overview: planner sync error is not rendered as no plan', () => {
+  const view=deriveOverviewState({plannerUnavailable:true,registrationOpen:false});
+  assert.equal(view.active,true);
+  assert.equal(view.label,'PLÁN TEĎ NELZE OVĚŘIT');
+});

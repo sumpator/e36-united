@@ -3,6 +3,22 @@ const qs = (selector, root = document) => root.querySelector(selector);
 const qsa = (selector, root = document) => [...root.querySelectorAll(selector)];
 const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+const publicMemberStateListeners=new Set();
+let publicMemberState={status:'loading',authenticated:false,hasWaitingPlan:false,hasReservation:false,showJoinCta:false};
+const publishPublicMemberState=state=>{
+publicMemberState={...publicMemberState,...state};
+qsa('.nav-cta').forEach(cta=>{cta.hidden=!publicMemberState.showJoinCta});
+for(const listener of publicMemberStateListeners)listener(publicMemberState);
+};
+const subscribePublicMemberState=listener=>{publicMemberStateListeners.add(listener);listener(publicMemberState);return()=>publicMemberStateListeners.delete(listener)};
+qsa('.nav-cta').forEach(cta=>{cta.hidden=true});
+void (async()=>{
+try{
+const [{firebaseConfig,portalConfig},{initPublicMemberState}]=await Promise.all([import('./firebase-config.js?v=20260823-auth2'),import('./public-member-state.js?v=20260826-planner-sync')]);
+initPublicMemberState({config:firebaseConfig,apiBaseUrl:portalConfig.apiBaseUrl,onStateChange:publishPublicMemberState});
+}catch(error){publishPublicMemberState({status:'error',authenticated:false,showJoinCta:false,error});console.debug('Public member state unavailable; join CTA remains hidden.',error)}
+})();
+
 const coreStyles = qs('link[href^="styles.css"]');
 if (coreStyles && !coreStyles.href.includes('v=20260825-mobile1')) coreStyles.href = 'styles.css?v=20260825-mobile1';
 
@@ -898,31 +914,8 @@ calendarPopover.hidden = true;
 calendarButton?.setAttribute('aria-expanded','false');
 }
 });
-const refreshMemberPlannerMode = async () => {
-  // Never trust a local boolean as authentication state. Firebase is the only source of truth.
-  memberPlannerMode = false;
-  localStorage.removeItem('e36UnitedMemberSessionV19');
-  try {
-    const cfg = await import('./firebase-config.js?v=20260823-auth2');
-    const fc = cfg.firebaseConfig;
-    const live = fc?.apiKey && fc?.projectId && !String(fc.apiKey).startsWith('PASTE_');
-    if (!live) { updatePlanner(); return; }
-    const appMod = await import('https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js');
-    const authMod = await import('https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js');
-    const app = appMod.getApps().length ? appMod.getApps()[0] : appMod.initializeApp(fc);
-    const auth = authMod.getAuth(app);
-    await authMod.setPersistence(auth, authMod.browserLocalPersistence);
-    await new Promise(resolve => {
-      const unsub = authMod.onAuthStateChanged(auth,user=>{memberPlannerMode=Boolean(user&&!user.isAnonymous);updatePlanner();unsub();resolve();});
-    });
-  } catch (e) {
-    memberPlannerMode = false;
-    console.debug('Member planner auth state unavailable; failing closed.', e);
-  }
-  updatePlanner();
-};
 updatePlanner();
-refreshMemberPlannerMode();
+subscribePublicMemberState(state=>{memberPlannerMode=state.authenticated===true;updatePlanner()});
 }
 
 /* Account-first planner completion with a manual e-mail fallback. */

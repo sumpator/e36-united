@@ -42,6 +42,17 @@ test('mobile menu sheet keeps internal 01–07 before its Merch divider', () => 
   assert.ok(divider > 0 && sheet.indexOf('United Merch ↗') > divider);
 });
 
+test('mobile menu adds unnumbered logout after Merch and reuses the shared logout function', () => {
+  const start = memberHtml.indexOf('<nav aria-label="Všechny sekce Můj United"');
+  const sheet = memberHtml.slice(start, memberHtml.indexOf('</nav>', start));
+  const merch = sheet.indexOf('United Merch ↗'), secondDivider = sheet.indexOf('portal-nav-sheet-divider', sheet.indexOf('portal-nav-sheet-divider') + 1), logout = sheet.indexOf('portal-nav-sheet-logout');
+  assert.ok(merch > 0 && secondDivider > merch && logout > secondDivider);
+  assert.doesNotMatch(sheet.slice(logout), /<span>\d{2}<\/span>/);
+  assert.match(memberJs, /async function logoutMember\(\)/);
+  assert.match(memberJs, /\$\$\('\[data-logout\]'\)\.forEach\(button=>button\.addEventListener\('click',logoutMember\)\)/);
+  assert.equal((memberHtml.match(/data-logout=""/g)||[]).length,2);
+});
+
 test('initial auth markup is loading, not anonymous', () => {
   assert.match(memberHtml, /data-auth-status-view/);
   assert.match(memberHtml, /data-auth-view="" hidden/);

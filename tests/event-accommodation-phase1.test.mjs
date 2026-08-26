@@ -5,6 +5,7 @@ import { DatabaseSync } from 'node:sqlite';
 
 const migration = readFileSync(new URL('../D1-event-accommodation-v1.sql', import.meta.url), 'utf8');
 const paymentMigration = readFileSync(new URL('../D1-reservation-payments-v1.sql', import.meta.url), 'utf8');
+const plannerMigration = readFileSync(new URL('../D1-member-planner-drafts-v1.sql', import.meta.url), 'utf8');
 const workerSource = readFileSync(new URL('../cloudflare-worker-media.js', import.meta.url), 'utf8');
 const workerModule = await import(`data:text/javascript;base64,${Buffer.from(`${workerSource}\nexport { putCurrentReservation, patchAdminReservation, createAdminAccommodation, patchAdminAccommodation, patchAdminEvent, getAdminReservations, calculateAccommodationPricing };`).toString('base64')}`);
 
@@ -44,6 +45,7 @@ function database(events = [{ id: 'event-2026', year: 2026, status: 'open' }]) {
   for (const event of events) insertEvent.run(event.id, event.year, event.status || 'closed');
   db.exec(migration);
   db.exec(paymentMigration);
+  db.exec(plannerMigration);
   return db;
 }
 
