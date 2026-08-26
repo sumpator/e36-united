@@ -49,6 +49,9 @@ test('mobile menu adds unnumbered logout after Merch and reuses the shared logou
   assert.ok(merch > 0 && secondDivider > merch && logout > secondDivider);
   assert.doesNotMatch(sheet.slice(logout), /<span>\d{2}<\/span>/);
   assert.match(memberJs, /async function logoutMember\(\)/);
+  assert.match(memberJs, /performMemberLogout/);
+  assert.match(memberJs, /onSuccess:\(\)=>\{memberPortalNavigation\?\.close/);
+  assert.match(memberJs, /Tvoje přihlášení zůstalo aktivní/);
   assert.match(memberJs, /\$\$\('\[data-logout\]'\)\.forEach\(button=>button\.addEventListener\('click',logoutMember\)\)/);
   assert.equal((memberHtml.match(/data-logout=""/g)||[]).length,2);
 });

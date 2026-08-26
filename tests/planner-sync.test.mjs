@@ -2,14 +2,14 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
-import { newerPlannerDraft, shouldShowJoinCta, validatePlannerDraft } from '../planner-state.js';
+import { newerPlannerDraft, PLANNER_CLOCK_SKEW_MS, shouldShowJoinCta, validatePlannerDraft } from '../planner-state.js';
 import { initPublicMemberState } from '../public-member-state.js';
 
 const eventMigration=readFileSync(new URL('../D1-event-accommodation-v1.sql',import.meta.url),'utf8');
 const paymentMigration=readFileSync(new URL('../D1-reservation-payments-v1.sql',import.meta.url),'utf8');
 const plannerMigration=readFileSync(new URL('../D1-member-planner-drafts-v1.sql',import.meta.url),'utf8');
 const workerSource=readFileSync(new URL('../cloudflare-worker-media.js',import.meta.url),'utf8');
-const worker=await import(`data:text/javascript;base64,${Buffer.from(`${workerSource}\nexport { getPlannerDraft, putPlannerDraft, deletePlannerDraft, getMemberNavigationState, putCurrentReservation, validatePlannerDraft };`).toString('base64')}`);
+const worker=await import(`data:text/javascript;base64,${Buffer.from(`${workerSource}\nexport { getPlannerDraft, putPlannerDraft, deletePlannerDraft, getMemberNavigationState, putCurrentReservation, validatePlannerDraft, PLANNER_CLOCK_SKEW_MS };`).toString('base64')}`);
 
 function database(){
   const db=new DatabaseSync(':memory:');
@@ -59,6 +59,21 @@ function draft({id='11111111-1111-4111-8111-111111111111',createdOffset=-60_000,
   return {version:1,draftId:id,source:'weekend-planner',eventYear:2026,eventId:'event-2026',createdAt:new Date(created).toISOString(),expiresAt:new Date(created+6*24*60*60*1000).toISOString(),arrival:'Pátek',departure:'Neděle',nights:2,attendanceType:'full_weekend',accommodation:'Chatka',accommodationOptionId:'cabin-a',accommodationUnits:crew,crew,showShine:'Možná'};
 }
 
+function timedDraft(now,createdOffset){
+  const created=now+createdOffset,candidate=draft();
+  candidate.createdAt=new Date(created).toISOString();
+  candidate.expiresAt=new Date(created+6*24*60*60*1000).toISOString();
+  return candidate;
+}
+
+function stayDraft(arrival,departure,nights){
+  const candidate=draft();
+  candidate.arrival=arrival;candidate.departure=departure;candidate.nights=nights;
+  candidate.attendanceType=arrival==='Pátek'?'full_weekend':arrival==='Sobota'?'saturday_only':'day_visit';
+  if(arrival==='Jen na otočku'){candidate.accommodation='Bez ubytování';candidate.accommodationOptionId=null;candidate.accommodationUnits=0}
+  return candidate;
+}
+
 function request(body){return new Request('https://api.e36united.cz/api/planner-draft',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})}
 async function jsonOf(response){return {status:response.status,payload:await response.json()}}
 
@@ -86,6 +101,35 @@ test('server rejects malformed drafts at least as strictly as the browser valida
   const response=await jsonOf(await worker.putPlannerDraft(request({draft:invalid}),{DB},{uid:'member-a'},'https://e36united.cz'));
   assert.equal(response.status,400);
   assert.equal(db.prepare('SELECT COUNT(*) AS count FROM member_planner_drafts').get().count,0);
+});
+
+test('server and shared validators reject future timestamps beyond the five-minute clock skew',async()=>{
+  const now=Date.parse('2026-08-26T12:00:00.000Z');
+  assert.equal(PLANNER_CLOCK_SKEW_MS,5*60*1000);
+  assert.equal(worker.PLANNER_CLOCK_SKEW_MS,PLANNER_CLOCK_SKEW_MS);
+  for(const candidate of [
+    timedDraft(now,PLANNER_CLOCK_SKEW_MS+1),
+    {...timedDraft(now,0),createdAt:'2099-01-01T00:00:00.000Z',expiresAt:'2099-01-07T00:00:00.000Z'},
+  ]){
+    assert.equal(worker.validatePlannerDraft(candidate,now),null);
+    assert.equal(validatePlannerDraft(candidate,{now}),null);
+  }
+  for(const candidate of [timedDraft(now,PLANNER_CLOCK_SKEW_MS),timedDraft(now,-60_000)]){
+    assert.ok(worker.validatePlannerDraft(candidate,now));
+    assert.ok(validatePlannerDraft(candidate,{now}));
+  }
+
+  const db=database(),DB=d1(db),farFuture={...timedDraft(now,0),createdAt:'2099-01-01T00:00:00.000Z',expiresAt:'2099-01-07T00:00:00.000Z'};
+  const response=await jsonOf(await worker.putPlannerDraft(request({draft:farFuture}),{DB},{uid:'member-a'},'https://e36united.cz'));
+  assert.equal(response.status,400);
+  assert.equal(db.prepare('SELECT COUNT(*) AS count FROM member_planner_drafts').get().count,0);
+});
+
+test('authoritative server validator enforces the exact planner stay matrix',()=>{
+  const accepted=[['Pátek','Sobota',1],['Pátek','Neděle',2],['Sobota','Neděle',1],['Jen na otočku','Stejný den',0]];
+  const rejected=[['Pátek','Sobota',2],['Pátek','Neděle',1],['Sobota','Neděle',2],['Jen na otočku','Stejný den',1]];
+  for(const values of accepted){const candidate=stayDraft(...values);assert.ok(worker.validatePlannerDraft(candidate),`server accepts ${values.join(' / ')}`);assert.ok(validatePlannerDraft(candidate),`shared accepts ${values.join(' / ')}`)}
+  for(const values of rejected){const candidate=stayDraft(...values);assert.equal(worker.validatePlannerDraft(candidate),null,`server rejects ${values.join(' / ')}`);assert.equal(validatePlannerDraft(candidate),null,`shared rejects ${values.join(' / ')}`)}
 });
 
 test('newer explicit handoff wins and an older browser cannot overwrite it',async()=>{

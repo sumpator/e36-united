@@ -13,6 +13,7 @@ const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 const MAX_GALLERY_DAILY = 24;
 const MAX_CAR_PHOTOS = 3;
 const MAX_PAYMENT_CZK = 10_000_000;
+const PLANNER_CLOCK_SKEW_MS = 5 * 60 * 1000;
 
 let jwksCache = { keys: [], expiresAt: 0 };
 
@@ -1146,7 +1147,7 @@ function validatePlannerDraft(candidate, now = Date.now()) {
   const eventYear = Number(candidate.eventYear), crew = Number(candidate.crew), units = Number(candidate.accommodationUnits);
   const lifetime = 7 * 24 * 60 * 60 * 1000;
   const attendanceByArrival = { "Pátek": "full_weekend", "Sobota": "saturday_only", "Jen na otočku": "day_visit" };
-  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(draftId) || !Number.isFinite(createdAt) || !Number.isFinite(expiresAt) || expiresAt <= now || expiresAt <= createdAt || now - createdAt > lifetime || expiresAt - createdAt > lifetime) return null;
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(draftId) || !Number.isFinite(createdAt) || !Number.isFinite(expiresAt) || createdAt > now + PLANNER_CLOCK_SKEW_MS || expiresAt <= now || expiresAt <= createdAt || now - createdAt > lifetime || expiresAt - createdAt > lifetime) return null;
   if (!Number.isInteger(eventYear) || eventYear < 2000 || eventYear > 2100) return null;
   if (!attendanceByArrival[candidate.arrival] || candidate.attendanceType !== attendanceByArrival[candidate.arrival]) return null;
   if (!["Chatka", "Stan", "Bez ubytování"].includes(candidate.accommodation) || !Number.isInteger(crew) || crew < 1 || crew > 8 || !Number.isInteger(units) || units < 0 || units > crew || !["Ano", "Ne", "Možná"].includes(candidate.showShine)) return null;
@@ -1160,7 +1161,7 @@ function validatePlannerDraft(candidate, now = Date.now()) {
   const departure = String(candidate.departure || fallbackDeparture);
   const nights = Number(candidate.nights ?? (candidate.arrival === "Pátek" ? 2 : candidate.arrival === "Sobota" ? 1 : 0));
   const validStay = candidate.arrival === "Pátek"
-    ? (["Sobota", "Neděle"].includes(departure) && [1, 2].includes(nights))
+    ? ((departure === "Sobota" && nights === 1) || (departure === "Neděle" && nights === 2))
     : candidate.arrival === "Sobota" ? (departure === "Neděle" && nights === 1) : (departure === "Stejný den" && nights === 0);
   if (!validStay) return null;
   return { version: 1, draftId, source: "weekend-planner", eventYear, eventId, createdAt: new Date(createdAt).toISOString(), expiresAt: new Date(expiresAt).toISOString(), arrival: candidate.arrival, departure, nights, attendanceType: candidate.attendanceType, accommodation: candidate.accommodation, accommodationOptionId, accommodationUnits: units, crew, showShine: candidate.showShine };

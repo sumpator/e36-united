@@ -3,7 +3,8 @@ import qrcode from './vendor/qrcode-generator.mjs';
 import { initPortalNavigation } from './portal-navigation.js?v=20260825-mobile1';
 import { initUnitedAuth } from './united-auth.js?v=20260825-phase-a1';
 import { deriveMemberHeroState, deriveOverviewState } from './member-portal-state.js?v=20260825-phase-a1';
-import { newerPlannerDraft } from './planner-state.js?v=20260826-planner-sync';
+import { newerPlannerDraft, validatePlannerDraft } from './planner-state.js?v=20260826-predeploy-fix';
+import { performMemberLogout } from './member-logout.js?v=20260826-predeploy-fix';
 
 const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
 const apiBaseUrl=(portalConfig.apiBaseUrl||'https://api.e36united.cz').replace(/\/$/,'');
@@ -49,22 +50,7 @@ function decodePlannerHandoff(value){
     return JSON.parse(new TextDecoder().decode(bytes));
   }catch(error){console.debug('Weekend Planner handoff could not be decoded.',error);return null}
 }
-function validatePlannerHandoff(candidate){
-  if(!candidate||candidate.version!==1||candidate.source!=='weekend-planner')return null;
-  const draftId=String(candidate.draftId||''),createdAt=Date.parse(candidate.createdAt),expiresAt=Date.parse(candidate.expiresAt),eventYear=Number(candidate.eventYear),crew=Number(candidate.crew),units=Number(candidate.accommodationUnits),handoffLifetime=7*24*60*60*1000;
-  const attendanceByArrival={Pátek:'full_weekend',Sobota:'saturday_only','Jen na otočku':'day_visit'};
-  if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(draftId)||!Number.isFinite(createdAt)||!Number.isFinite(expiresAt)||expiresAt<=Date.now()||expiresAt<=createdAt||Date.now()-createdAt>handoffLifetime||expiresAt-createdAt>handoffLifetime)return null;
-  if(!Number.isInteger(eventYear)||eventYear<2000||eventYear>2100)return null;
-  if(!attendanceByArrival[candidate.arrival]||candidate.attendanceType!==attendanceByArrival[candidate.arrival])return null;
-  if(!['Chatka','Stan','Bez ubytování'].includes(candidate.accommodation)||!Number.isInteger(crew)||crew<1||crew>8||!Number.isInteger(units)||units<0||units>crew||!['Ano','Ne','Možná'].includes(candidate.showShine))return null;
-  if((candidate.arrival==='Jen na otočku'||candidate.accommodation==='Bez ubytování')&&units!==0)return null;
-  if(candidate.arrival!=='Jen na otočku'&&candidate.accommodation!=='Bez ubytování'&&units<1)return null;
-  const eventId=candidate.eventId==null?null:String(candidate.eventId);if(eventId!==null&&!/^[a-z0-9_-]{1,128}$/i.test(eventId))return null;
-  const accommodationOptionId=candidate.accommodationOptionId==null?null:String(candidate.accommodationOptionId);if(accommodationOptionId!==null&&!/^[a-z0-9_-]{1,128}$/i.test(accommodationOptionId))return null;
-  const fallbackDeparture=candidate.arrival==='Jen na otočku'?'Stejný den':'Neděle',departure=String(candidate.departure||fallbackDeparture),nights=Number(candidate.nights??(candidate.arrival==='Pátek'?2:candidate.arrival==='Sobota'?1:0));
-  const validStay=candidate.arrival==='Pátek'?(['Sobota','Neděle'].includes(departure)&&[1,2].includes(nights)):candidate.arrival==='Sobota'?(departure==='Neděle'&&nights===1):(departure==='Stejný den'&&nights===0);if(!validStay)return null;
-  return {version:1,draftId,source:'weekend-planner',eventYear,eventId,createdAt:new Date(createdAt).toISOString(),expiresAt:new Date(expiresAt).toISOString(),arrival:candidate.arrival,departure,nights,attendanceType:candidate.attendanceType,accommodation:candidate.accommodation,accommodationOptionId,accommodationUnits:units,crew,showShine:candidate.showShine};
-}
+function validatePlannerHandoff(candidate){return validatePlannerDraft(candidate)}
 function cleanupPlannerHandoffs(){
   try{for(let index=localStorage.length-1;index>=0;index--){const key=localStorage.key(index);if(!key?.startsWith(plannerHandoffPrefix))continue;let valid=null;try{valid=validatePlannerHandoff(JSON.parse(localStorage.getItem(key)||'null'))}catch{}if(!valid)localStorage.removeItem(key)}}
   catch(error){console.debug('Weekend Planner cleanup is unavailable.',error)}
@@ -482,10 +468,15 @@ $('[data-auth-retry]')?.addEventListener('click',async()=>{
 });
 
 async function logoutMember(){
+  if(authFlowActive)return false;
   authFlowActive=true;
-  memberPortalNavigation?.close({restoreFocus:false});
-  try{if(firebase)await firebase.signOut(firebase.auth)}catch(error){console.warn('Firebase logout failed',error)}
-  currentUser=null;resetMemberState();resetAuthForms();showAuth();setMode(firebase?'AUTH READY':'AUTH NEDOSTUPNÝ');authFlowActive=false;toast('Odhlášeno.');
+  const signedOut=await performMemberLogout({
+    signOut:()=>{if(!firebase)throw new Error('firebase_unavailable');return firebase.signOut(firebase.auth)},
+    onSuccess:()=>{memberPortalNavigation?.close({restoreFocus:false});currentUser=null;resetMemberState();resetAuthForms();showAuth();setMode('AUTH READY');toast('Odhlášeno.')},
+    onFailure:error=>{console.warn('Firebase logout failed',error);toast('Odhlášení se nepodařilo. Tvoje přihlášení zůstalo aktivní. Zkus to znovu.')},
+  });
+  authFlowActive=false;
+  return signedOut;
 }
 $$('[data-logout]').forEach(button=>button.addEventListener('click',logoutMember));
 
