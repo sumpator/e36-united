@@ -2,14 +2,18 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
-import { newerPlannerDraft, PLANNER_CLOCK_SKEW_MS, shouldShowJoinCta, validatePlannerDraft } from '../planner-state.js';
+import { MAX_RESERVATION_CREW, newerPlannerDraft, PLANNER_CLOCK_SKEW_MS, shouldShowJoinCta, validatePlannerDraft } from '../planner-state.js';
 import { initPublicMemberState } from '../public-member-state.js';
 
 const eventMigration=readFileSync(new URL('../D1-event-accommodation-v1.sql',import.meta.url),'utf8');
 const paymentMigration=readFileSync(new URL('../D1-reservation-payments-v1.sql',import.meta.url),'utf8');
 const plannerMigration=readFileSync(new URL('../D1-member-planner-drafts-v1.sql',import.meta.url),'utf8');
 const workerSource=readFileSync(new URL('../cloudflare-worker-media.js',import.meta.url),'utf8');
-const worker=await import(`data:text/javascript;base64,${Buffer.from(`${workerSource}\nexport { getPlannerDraft, putPlannerDraft, deletePlannerDraft, getMemberNavigationState, putCurrentReservation, validatePlannerDraft, PLANNER_CLOCK_SKEW_MS };`).toString('base64')}`);
+const mainSource=readFileSync(new URL('../main.js',import.meta.url),'utf8');
+const indexSource=readFileSync(new URL('../index.html',import.meta.url),'utf8');
+const memberSource=readFileSync(new URL('../member.js',import.meta.url),'utf8');
+const memberHtml=readFileSync(new URL('../member.html',import.meta.url),'utf8');
+const worker=await import(`data:text/javascript;base64,${Buffer.from(`${workerSource}\nexport { getPlannerDraft, putPlannerDraft, deletePlannerDraft, getMemberNavigationState, putCurrentReservation, validatePlannerDraft, MAX_RESERVATION_CREW, PLANNER_CLOCK_SKEW_MS };`).toString('base64')}`);
 
 function database(){
   const db=new DatabaseSync(':memory:');
@@ -95,12 +99,37 @@ test('closed event accepts a valid UID-scoped draft and creates no reservation',
 });
 
 test('server rejects malformed drafts at least as strictly as the browser validator',async()=>{
-  const db=database(),DB=d1(db),invalid=draft({crew:9});
+  const db=database(),DB=d1(db),invalid=draft({crew:6});
   assert.equal(validatePlannerDraft(invalid),null);
   assert.equal(worker.validatePlannerDraft(invalid),null);
   const response=await jsonOf(await worker.putPlannerDraft(request({draft:invalid}),{DB},{uid:'member-a'},'https://e36united.cz'));
   assert.equal(response.status,400);
   assert.equal(db.prepare('SELECT COUNT(*) AS count FROM member_planner_drafts').get().count,0);
+});
+
+test('planner crew limit is exactly five in shared and server validation',()=>{
+  assert.equal(MAX_RESERVATION_CREW,5);
+  assert.equal(worker.MAX_RESERVATION_CREW,5);
+  for(const crew of [1,5]){
+    const candidate=draft({crew});
+    assert.ok(validatePlannerDraft(candidate));
+    assert.ok(worker.validatePlannerDraft(candidate));
+  }
+  for(const crew of [0,-1,6,8,1.5,'abc']){
+    const candidate=draft({crew});
+    assert.equal(validatePlannerDraft(candidate),null);
+    assert.equal(worker.validatePlannerDraft(candidate),null);
+  }
+});
+
+test('planner and member controls expose five as the maximum and edits send the current reservation id',()=>{
+  assert.match(mainSource,/Math\.min\(5, plannerState\.people \+ 1\)/);
+  assert.doesNotMatch(mainSource,/Math\.min\(8, plannerState\.people \+ 1\)/);
+  assert.match(indexSource,/<span>\/ 05<\/span>/);
+  assert.match(memberHtml,/name="crew" type="number" value="2"\/?>/);
+  assert.match(memberHtml,/name="crew"[^>]*max="5"|max="5"[^>]*name="crew"/);
+  assert.doesNotMatch(memberHtml,/name="crew"[^>]*max="8"|max="8"[^>]*name="crew"/);
+  assert.match(memberSource,/reservationId:data\.reservation\?\.id\|\|null/);
 });
 
 test('server and shared validators reject future timestamps beyond the five-minute clock skew',async()=>{
@@ -166,6 +195,17 @@ test('join CTA matrix hides for any plan or reservation and fails closed while u
   assert.equal(shouldShowJoinCta({status:'authenticated',hasWaitingPlan:true,hasReservation:true}),false);
   assert.equal(shouldShowJoinCta({status:'loading'}),false);
   assert.equal(shouldShowJoinCta({status:'error'}),false);
+});
+
+test('navigation reservation state is scoped to the current event, not the account forever',async()=>{
+  const db=database(),DB=d1(db),auth={uid:'member-a'};
+  db.prepare("INSERT INTO events (id,year,registration_status,is_current) VALUES ('event-2025',2025,'closed',0)").run();
+  db.prepare("INSERT INTO reservations (id,member_id,event_id,status) VALUES ('old-reservation','member-a','event-2025','approved')").run();
+  const historicalOnly=await jsonOf(await worker.getMemberNavigationState({DB},auth,'https://e36united.cz'));
+  assert.equal(historicalOnly.payload.hasReservation,false);
+  db.prepare("INSERT INTO reservations (id,member_id,event_id,status) VALUES ('current-reservation','member-a','event-2026','pending')").run();
+  const current=await jsonOf(await worker.getMemberNavigationState({DB},auth,'https://e36united.cz'));
+  assert.equal(current.payload.hasReservation,true);
 });
 
 test('public auth bootstrap fetches only the boolean navigation summary',async()=>{

@@ -7,7 +7,7 @@ const migration = readFileSync(new URL('../D1-event-accommodation-v1.sql', impor
 const paymentMigration = readFileSync(new URL('../D1-reservation-payments-v1.sql', import.meta.url), 'utf8');
 const plannerMigration = readFileSync(new URL('../D1-member-planner-drafts-v1.sql', import.meta.url), 'utf8');
 const workerSource = readFileSync(new URL('../cloudflare-worker-media.js', import.meta.url), 'utf8');
-const workerModule = await import(`data:text/javascript;base64,${Buffer.from(`${workerSource}\nexport { putCurrentReservation, patchAdminReservation, createAdminAccommodation, patchAdminAccommodation, patchAdminEvent, getAdminReservations, calculateAccommodationPricing };`).toString('base64')}`);
+const workerModule = await import(`data:text/javascript;base64,${Buffer.from(`${workerSource}\nexport { putCurrentReservation, getCurrentReservation, patchAdminReservation, createAdminAccommodation, patchAdminAccommodation, patchAdminEvent, getAdminReservations, calculateAccommodationPricing };`).toString('base64')}`);
 
 function database(events = [{ id: 'event-2026', year: 2026, status: 'open' }]) {
   const db = new DatabaseSync(':memory:');
@@ -140,14 +140,14 @@ function d1Binding(db) {
   };
 }
 
-async function submitWorkerReservation(db, { memberId, people = 4, arrival = 'Pátek', accommodation = 'Chatka', optionId = 'cabin-a', accommodationUnits = people }) {
+async function submitWorkerReservation(db, { memberId, reservationId = null, people = 4, arrival = 'Pátek', accommodation = 'Chatka', optionId = 'cabin-a', accommodationUnits = people }) {
   db.prepare('INSERT OR IGNORE INTO members (id) VALUES (?)').run(memberId);
   db.prepare('INSERT OR IGNORE INTO cars (id, member_id, model, body, year, color, nickname) VALUES (?, ?, ?, ?, ?, ?, ?)')
     .run(`car-${memberId}`, memberId, '328i', 'Coupé', 1996, 'Modrá', 'Test E36');
   const request = new Request('https://api.e36united.cz/api/reservations/current', {
     method: 'PUT', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      carId: `car-${memberId}`, arrival, crew: people,
+      reservationId, carId: `car-${memberId}`, arrival, crew: people,
       attendanceType: arrival === 'Pátek' ? 'full_weekend' : 'saturday_only',
       accommodation, accommodationOptionId: optionId, accommodationUnits,
       showShine: 'Ne', note: '',
@@ -216,7 +216,8 @@ test('6. the final available cabin can be reserved', async () => {
   assert.equal(response.status, 200);
   assert.equal(blockedUnits(db), 2);
   assert.equal(db.prepare("SELECT total_czk FROM reservation_accommodation WHERE reservation_id=(SELECT id FROM reservations WHERE member_id='m2')").get().total_czk, 5680);
-  const editResponse=await submitWorkerReservation(db,{memberId:'m2',people:4});
+  const reservationId=db.prepare("SELECT id FROM reservations WHERE member_id='m2'").get().id;
+  const editResponse=await submitWorkerReservation(db,{memberId:'m2',reservationId,people:4});
   assert.equal(editResponse.status,200,'an edit excludes the member own existing allocation');
   assert.equal(db.prepare("SELECT COUNT(*) AS value FROM reservations WHERE member_id='m2'").get().value,1);
 });
@@ -341,10 +342,10 @@ test('15. migration preserves every legacy reservation and selects the newest ex
 
 test('16. unlimited inventory ignores units_total but keeps a positive capacity per unit', async () => {
   const db = database(); addOption(db, { inventory: 'unlimited', units: 0, capacity: 4 });
-  const response = await submitWorkerReservation(db, { memberId: 'm1', people: 8 });
+  const response = await submitWorkerReservation(db, { memberId: 'm1', people: 5 });
   assert.equal(response.status, 200);
   const snapshot = db.prepare("SELECT people_count,unit_count FROM reservation_accommodation WHERE reservation_id=(SELECT id FROM reservations WHERE member_id='m1')").get();
-  assert.deepEqual({ ...snapshot }, { people_count: 8, unit_count: 2 });
+  assert.deepEqual({ ...snapshot }, { people_count: 5, unit_count: 2 });
 });
 
 test('17. day visit ignores a supplied option and stores no accommodation charge or allocation', async () => {
@@ -364,9 +365,10 @@ test('17. day visit ignores a supplied option and stores no accommodation charge
 test('18. an explicit member edit reprices and replaces the snapshot from current configuration', async () => {
   const db = database(); addOption(db);
   assert.equal((await submitWorkerReservation(db, { memberId: 'm1', people: 4 })).status, 200);
+  const reservationId = db.prepare("SELECT id FROM reservations WHERE member_id='m1'").get().id;
   assert.equal(db.prepare("SELECT total_czk FROM reservation_accommodation WHERE reservation_id=(SELECT id FROM reservations WHERE member_id='m1')").get().total_czk, 5680);
   db.prepare("UPDATE event_accommodation_options SET capacity_per_unit=2,unit_price_czk=3000 WHERE id='cabin-a'").run();
-  assert.equal((await submitWorkerReservation(db, { memberId: 'm1', people: 4 })).status, 200);
+  assert.equal((await submitWorkerReservation(db, { memberId: 'm1', reservationId, people: 4 })).status, 200);
   const snapshot = db.prepare("SELECT people_count,unit_count,unit_price_czk,total_czk FROM reservation_accommodation WHERE reservation_id=(SELECT id FROM reservations WHERE member_id='m1')").get();
   assert.deepEqual({ ...snapshot }, { people_count: 4, unit_count: 2, unit_price_czk: 3000, total_czk: 12880 });
 });
@@ -407,4 +409,109 @@ test('21. capacity lowering and a concurrent final reservation cannot create ove
   assert.deepEqual(responses.map(response => response.status).sort(), [200, 409]);
   const unitsTotal = db.prepare("SELECT units_total FROM event_accommodation_options WHERE id='cabin-a'").get().units_total;
   assert.ok(blockedUnits(db) <= unitsTotal);
+});
+
+test('22. a second active create is rejected without changing the existing reservation', async () => {
+  const db = database(); addOption(db);
+  const first = await submitWorkerReservation(db, { memberId: 'm1', people: 4 });
+  assert.equal(first.status, 200);
+  const original = db.prepare("SELECT id,crew,status FROM reservations WHERE member_id='m1'").get();
+  const duplicate = await submitWorkerReservation(db, { memberId: 'm1', people: 2 });
+  assert.equal(duplicate.status, 409);
+  assert.equal((await duplicate.json()).error, 'active_reservation_exists');
+  assert.deepEqual({ ...db.prepare("SELECT id,crew,status FROM reservations WHERE member_id='m1'").get() }, { ...original });
+  db.prepare("UPDATE reservations SET status='approved' WHERE member_id='m1'").run();
+  const approvedDuplicate = await submitWorkerReservation(db, { memberId: 'm1', people: 2 });
+  assert.equal(approvedDuplicate.status, 409);
+  assert.equal((await approvedDuplicate.json()).error, 'active_reservation_exists');
+  assert.deepEqual({ ...db.prepare("SELECT id,crew,status FROM reservations WHERE member_id='m1'").get() }, { id: original.id, crew: original.crew, status: 'approved' });
+});
+
+test('23. another member may reserve the same event and one member may reserve another event', async () => {
+  const db = database([
+    { id: 'event-2026', year: 2026, status: 'open' },
+    { id: 'event-2027', year: 2027, status: 'open' },
+  ]);
+  db.exec("UPDATE events SET is_current=0; UPDATE events SET is_current=1 WHERE id='event-2026'");
+  addOption(db, { id: 'cabin-2026', eventId: 'event-2026' });
+  assert.equal((await submitWorkerReservation(db, { memberId: 'm1', optionId: 'cabin-2026' })).status, 200);
+  assert.equal((await submitWorkerReservation(db, { memberId: 'm2', optionId: 'cabin-2026' })).status, 200);
+  db.exec("UPDATE events SET is_current=0; UPDATE events SET is_current=1 WHERE id='event-2027'");
+  addOption(db, { id: 'cabin-2027', eventId: 'event-2027' });
+  assert.equal((await submitWorkerReservation(db, { memberId: 'm1', optionId: 'cabin-2027' })).status, 200);
+  assert.equal(db.prepare("SELECT COUNT(*) AS value FROM reservations WHERE member_id='m1'").get().value, 2);
+  assert.equal(db.prepare("SELECT COUNT(*) AS value FROM reservations WHERE event_id='event-2026'").get().value, 2);
+});
+
+test('24. explicit edits keep the reservation id and cannot target another member reservation', async () => {
+  const db = database(); addOption(db);
+  assert.equal((await submitWorkerReservation(db, { memberId: 'm1', people: 4 })).status, 200);
+  const reservationId = db.prepare("SELECT id FROM reservations WHERE member_id='m1'").get().id;
+  const edit = await submitWorkerReservation(db, { memberId: 'm1', reservationId, people: 3, accommodationUnits: 3 });
+  assert.equal(edit.status, 200);
+  assert.deepEqual({ ...db.prepare("SELECT id,crew,status FROM reservations WHERE member_id='m1'").get() }, { id: reservationId, crew: 3, status: 'pending' });
+  const attack = await submitWorkerReservation(db, { memberId: 'm2', reservationId, people: 2, accommodationUnits: 2 });
+  assert.equal(attack.status, 404);
+  assert.equal((await attack.json()).error, 'reservation_not_found');
+  assert.equal(db.prepare("SELECT COUNT(*) AS value FROM reservations WHERE member_id='m2'").get().value, 0);
+});
+
+test('25. rejected and cancelled history requires an explicit same-id resubmission', async () => {
+  for (const status of ['rejected', 'cancelled']) {
+    const db = database(); addOption(db);
+    assert.equal((await submitWorkerReservation(db, { memberId: 'm1' })).status, 200);
+    const reservationId = db.prepare("SELECT id FROM reservations WHERE member_id='m1'").get().id;
+    db.prepare('UPDATE reservations SET status=? WHERE id=?').run(status, reservationId);
+    const implicit = await submitWorkerReservation(db, { memberId: 'm1', people: 3, accommodationUnits: 3 });
+    assert.equal(implicit.status, 409);
+    assert.equal((await implicit.json()).error, 'reservation_edit_required');
+    assert.equal(db.prepare('SELECT status FROM reservations WHERE id=?').get(reservationId).status, status);
+    const explicit = await submitWorkerReservation(db, { memberId: 'm1', reservationId, people: 3, accommodationUnits: 3 });
+    assert.equal(explicit.status, 200);
+    assert.deepEqual({ ...db.prepare('SELECT id,status,crew FROM reservations WHERE member_id=?').get('m1') }, { id: reservationId, status: 'pending', crew: 3 });
+  }
+});
+
+test('26. concurrent same-member creates produce one reservation and one controlled conflict', async () => {
+  const db = database(); addOption(db);
+  const responses = await Promise.all([
+    submitWorkerReservation(db, { memberId: 'm1', people: 4 }),
+    submitWorkerReservation(db, { memberId: 'm1', people: 4 }),
+  ]);
+  assert.deepEqual(responses.map(response => response.status).sort(), [200, 409]);
+  assert.equal(db.prepare("SELECT COUNT(*) AS value FROM reservations WHERE member_id='m1' AND event_id='event-2026'").get().value, 1);
+});
+
+test('27. crew accepts only integers from one through five', async () => {
+  for (const people of [1, 5]) {
+    const db = database();
+    const response = await submitWorkerReservation(db, { memberId: `ok-${people}`, people, arrival: 'Jen na otočku' });
+    assert.equal(response.status, 200, `crew ${people} is accepted`);
+  }
+  for (const [index, people] of [0, -1, 6, 8, 999, 1.5, 'abc'].entries()) {
+    const db = database();
+    const response = await submitWorkerReservation(db, { memberId: `bad-${index}`, people, arrival: 'Jen na otočku' });
+    assert.equal(response.status, 400, `crew ${people} is rejected`);
+    assert.equal((await response.json()).error, 'invalid_crew');
+    assert.equal(db.prepare('SELECT COUNT(*) AS value FROM reservations').get().value, 0);
+  }
+});
+
+test('28. a legacy crew-eight reservation stays readable and unchanged until reduced', async () => {
+  const db = database();
+  db.prepare("INSERT INTO members (id) VALUES ('legacy-member')").run();
+  db.prepare("INSERT INTO cars (id,member_id,model,body,year) VALUES ('car-legacy-member','legacy-member','328i','Coupé',1996)").run();
+  db.prepare("INSERT INTO reservations (id,member_id,event_id,car_id,crew,arrival,accommodation,accommodation_units,show_shine,status) VALUES ('legacy-eight','legacy-member','event-2026','car-legacy-member',8,'Jen na otočku','Bez ubytování',0,'Ne','approved')").run();
+  const adminResponse = await workerModule.getAdminReservations({ DB: d1Binding(db) }, new URL('https://api.e36united.cz/api/admin/reservations?eventId=event-2026'), 'https://e36united.cz');
+  assert.equal(adminResponse.status, 200);
+  assert.equal((await adminResponse.json()).reservations.find(row => row.id === 'legacy-eight').crew, 8);
+  const readable = await workerModule.getCurrentReservation({ DB: d1Binding(db) }, { uid: 'legacy-member' }, 'https://e36united.cz');
+  assert.equal(readable.status, 200);
+  assert.equal((await readable.json()).reservation.crew, 8);
+  const unchanged = await submitWorkerReservation(db, { memberId: 'legacy-member', reservationId: 'legacy-eight', people: 8, arrival: 'Jen na otočku' });
+  assert.equal(unchanged.status, 400);
+  assert.deepEqual({ ...db.prepare("SELECT id,crew,status FROM reservations WHERE id='legacy-eight'").get() }, { id: 'legacy-eight', crew: 8, status: 'approved' });
+  const reduced = await submitWorkerReservation(db, { memberId: 'legacy-member', reservationId: 'legacy-eight', people: 5, arrival: 'Jen na otočku' });
+  assert.equal(reduced.status, 200);
+  assert.deepEqual({ ...db.prepare("SELECT id,crew,status FROM reservations WHERE id='legacy-eight'").get() }, { id: 'legacy-eight', crew: 5, status: 'pending' });
 });

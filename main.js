@@ -847,7 +847,7 @@ qsa('[data-context-sleep-availability]',planner).forEach(element=>{element.textC
 qsa('[data-context-people-number]',planner).forEach(element=>{element.textContent=String(plannerState.people).padStart(2,'0')});
 qsa('[data-context-people-title]',planner).forEach(element=>{element.textContent=`${plannerState.people} ${personLabel(plannerState.people)}`});
 qsa('[data-context-people-copy]',planner).forEach(element=>{element.textContent=plannerState.partialAccommodation?`${plannerState.people} přijedou · ${plannerState.accommodationUnits} se ubytují`:`${plannerState.people} přijedou`});
-qsa('[data-context-people-icons]',planner).forEach(element=>{element.innerHTML=Array.from({length:8},(_,index)=>`<span class="planner-context-person${index<plannerState.people?'':' is-ghost'}"></span>`).join('')});
+qsa('[data-context-people-icons]',planner).forEach(element=>{element.innerHTML=Array.from({length:5},(_,index)=>`<span class="planner-context-person${index<plannerState.people?'':' is-ghost'}"></span>`).join('')});
 if (plannerRecap) {
   const compactDay=dayPass?'Na otočku':`${plannerState.arrival==='Pátek'?'Pá':'So'} → ${plannerState.departure==='Sobota'?'So':'Ne'}`;
   const partialStay=needsAccommodation&&plannerState.accommodationUnits!==plannerState.people?` · ${plannerState.accommodationUnits} ${personLabel(plannerState.accommodationUnits)} ubytování`:'';
@@ -871,7 +871,7 @@ setPlannerChoice(group.dataset.choiceGroup, choice.dataset.value);
 }));
 });
 qs('[data-people-minus]', planner)?.addEventListener('click', () => { plannerState.people = Math.max(1, plannerState.people - 1);plannerState.accommodationUnits=plannerState.partialAccommodation?Math.min(plannerState.accommodationUnits,plannerState.people):plannerState.people;updatePlanner(); });
-qs('[data-people-plus]', planner)?.addEventListener('click', () => { plannerState.people = Math.min(8, plannerState.people + 1);if(!plannerState.partialAccommodation)plannerState.accommodationUnits=plannerState.people;updatePlanner(); });
+qs('[data-people-plus]', planner)?.addEventListener('click', () => { plannerState.people = Math.min(5, plannerState.people + 1);if(!plannerState.partialAccommodation)plannerState.accommodationUnits=plannerState.people;updatePlanner(); });
 qs('[data-accommodation-units-minus]', planner)?.addEventListener('click', () => {plannerState.accommodationUnits=Math.max(1,plannerState.accommodationUnits-1);updatePlanner()});
 qs('[data-accommodation-units-plus]', planner)?.addEventListener('click', () => {plannerState.accommodationUnits=Math.min(plannerState.people,plannerState.accommodationUnits+1);updatePlanner()});
 partialAccommodationInput?.addEventListener('change',()=>{plannerState.partialAccommodation=partialAccommodationInput.checked;if(!plannerState.partialAccommodation)plannerState.accommodationUnits=plannerState.people;updatePlanner()});
@@ -1194,7 +1194,7 @@ window.setTimeout(reveal, 420);
 
 const renderPeople = count => {
 if (flowPeopleIcons) {
-const max = 8;
+const max = 5;
 flowPeopleIcons.innerHTML = Array.from({length:max}, (_,index) => `<span class="flow-person${index < count ? '' : ' is-ghost'}"></span>`).join('');
 }
 const label = `${count} ${personLabelPreview(count)}`;

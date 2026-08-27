@@ -215,6 +215,9 @@ body:not(.member-authenticated) [data-app-view]{display:none!important}
 .perk.is-locked{opacity:1;filter:none;border-color:rgba(255,255,255,.09);}
 .perk.is-locked i{border-color:rgba(255,255,255,.12);background:rgba(255,255,255,.03);color:#717e89;}
 .perk.is-locked>span{border-color:rgba(255,255,255,.11);background:rgba(255,255,255,.03);color:#89949f!important;}
+/* Existing reservations above the new crew limit remain visible but cannot be saved unchanged. */
+.reservation-field-warning{color:#ffc15c}
+
 @media(max-width:560px){
   .badge{min-height:148px;}
   .perk{grid-template-columns:42px minmax(0,1fr);}

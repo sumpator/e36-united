@@ -3,7 +3,7 @@ import qrcode from './vendor/qrcode-generator.mjs';
 import { initPortalNavigation } from './portal-navigation.js?v=20260825-mobile1';
 import { initUnitedAuth } from './united-auth.js?v=20260825-phase-a1';
 import { deriveMemberHeroState, deriveOverviewState } from './member-portal-state.js?v=20260825-phase-a1';
-import { newerPlannerDraft, validatePlannerDraft } from './planner-state.js?v=20260826-predeploy-fix';
+import { MAX_RESERVATION_CREW, newerPlannerDraft, validatePlannerDraft } from './planner-state.js?v=20260827-reservation-limits';
 import { performMemberLogout } from './member-logout.js?v=20260826-predeploy-fix';
 import { createImagePreviewController, selectImageFiles } from './image-upload.js?v=20260827-garage-photos';
 
@@ -684,7 +684,7 @@ function renderAccommodationOptionChoices(preferredId=''){
 }
 function renderAccommodationPreview(){
   if(!accommodationPreview||!accommodationAvailability)return;
-  const option=selectedAccommodationOption(),people=clampReservationNumber(accommodationUnitsInput?.value,1,8,1);
+  const option=selectedAccommodationOption(),visibleCrewLimit=Math.max(MAX_RESERVATION_CREW,Number(crewInput?.value)||MAX_RESERVATION_CREW),people=clampReservationNumber(accommodationUnitsInput?.value,1,visibleCrewLimit,1);
   if(!option){const available=matchingAccommodationOptions();accommodationPreview.hidden=true;accommodationPreview.innerHTML='';accommodationAvailability.textContent=available.length&&available.every(item=>item.soldOut)?'Všechny možnosti tohoto typu jsou vyprodané.':available.length?'Vyber konkrétní možnost ubytování.':'Pro tento event zatím není tento typ ubytování dostupný.';accommodationAvailability.classList.toggle('is-warning',true);return}
   const pricing=priceAccommodation(option,people),free=option.freeUnits,hasCapacity=option.inventoryMode==='unlimited'||free>=pricing.unitCount;
   accommodationAvailability.classList.toggle('is-warning',!hasCapacity);
@@ -706,7 +706,17 @@ function renderAccommodationPreview(){
 }
 function syncMemberSleep(source='form'){
   if(!reservationForm||!arrivalSelect||!sleepField||!crewInput||!accommodationUnitsInput||!sleepSelect||!accommodationOptionSelect||!accommodationPartialInput)return;
-  const dayPass=arrivalSelect.value==='Jen na otočku';let crew=clampReservationNumber(crewInput.value,1,8,1);crewInput.value=String(crew);
+  const dayPass=arrivalSelect.value==='Jen na otočku',rawCrew=Number(crewInput.value),aboveLimit=Number.isInteger(rawCrew)&&rawCrew>MAX_RESERVATION_CREW;
+  let crew=aboveLimit?rawCrew:clampReservationNumber(crewInput.value,1,MAX_RESERVATION_CREW,1);
+  if(!aboveLimit)crewInput.value=String(crew);
+  crewInput.setCustomValidity(aboveLimit?`Posádka může mít nejvýše ${MAX_RESERVATION_CREW} osob.`:'');
+  const legacyCrewWarning=$('[data-legacy-crew-warning]',reservationForm);
+  if(legacyCrewWarning){
+    legacyCrewWarning.hidden=!aboveLimit;
+    legacyCrewWarning.textContent=data.reservation?.crew>MAX_RESERVATION_CREW
+      ? `Tato starší rezervace má ${rawCrew} osob. Před uložením sniž posádku nejvýše na ${MAX_RESERVATION_CREW}.`
+      : `Posádka může mít nejvýše ${MAX_RESERVATION_CREW} osob.`;
+  }
   sleepField.hidden=dayPass;if(dayPass)sleepSelect.value='Bez ubytování';
   const withoutAccommodation=dayPass||sleepSelect.value==='Bez ubytování';
   if(source==='accommodation')renderAccommodationOptionChoices();
@@ -940,15 +950,17 @@ reservationForm?.addEventListener('submit',async event=>{
   syncMemberSleep();const car=ensureSelectedReservationCar();
   if(!data.cars.length||!car){setReservationCarError(true);toast('Nejdřív přidej auto do garáže.');return}
   setReservationCarError(false);const fd=new FormData(event.currentTarget);
+  const crew=Number(fd.get('crew'));
+  if(!Number.isInteger(crew)||crew<1||crew>MAX_RESERVATION_CREW){toast(`Posádka musí mít 1 až ${MAX_RESERVATION_CREW} osob.`);crewInput?.focus();return}
   const arrival=fd.get('arrival')||'Pátek',sleep=arrival==='Jen na otočku'?'Bez ubytování':fd.get('sleep');
   const attendanceType=arrival==='Pátek'?'full_weekend':arrival==='Sobota'?'saturday_only':'day_visit';
   const wantsAccommodation=attendanceType!=='day_visit'&&sleep!=='Bez ubytování',accommodationOption=wantsAccommodation?selectedAccommodationOption():null;
-  const accommodationUnits=wantsAccommodation?clampReservationNumber(accommodationUnitsInput.value,1,+fd.get('crew'),+fd.get('crew')):0;
+  const accommodationUnits=wantsAccommodation?clampReservationNumber(accommodationUnitsInput.value,1,crew,crew):0;
   if(wantsAccommodation&&!accommodationOption){toast('Vyber konkrétní typ ubytování.');accommodationOptionSelect?.focus();return}
   if(accommodationOption?.inventoryMode==='limited'&&numericValue(accommodationOption.freeUnits)<accommodationUnitCount(accommodationUnits,accommodationOption)){toast(`${accommodationOption.name} už nemá dost volné kapacity pro tvoji posádku. Vyber jinou možnost.`);accommodationOptionSelect?.focus();return}
   const button=$('[data-reservation-submit]');setButtonBusy(button,true,'Odesílám rezervaci…');
   try{
-    const payload=await apiRequest('/api/reservations/current',{method:'PUT',body:{carId:car.id,arrival,crew:+fd.get('crew'),attendanceType,accommodation:sleep,accommodationOptionId:accommodationOption?.id||null,accommodationUnits,showShine:fd.get('showshine'),note:fd.get('note')}});
+    const payload=await apiRequest('/api/reservations/current',{method:'PUT',body:{reservationId:data.reservation?.id||null,carId:car.id,arrival,crew,attendanceType,accommodation:sleep,accommodationOptionId:accommodationOption?.id||null,accommodationUnits,showShine:fd.get('showshine'),note:fd.get('note')}});
     const reservation=normalizeReservation(payload?.reservation);if(!reservation)throw new Error('reservation_response_invalid');
     reservationState={registrationOpen:payload?.registrationOpen===true,event:payload?.event||reservationState.event,message:payload?.message||'',accommodationOptions:Array.isArray(payload?.accommodationOptions)?payload.accommodationOptions.map(normalizeAccommodationOption).filter(option=>option.id):reservationState.accommodationOptions};
     data.reservation=reservation;if(activePlannerHandoff&&plannerHandoffApplied)clearPlannerHandoff();if(legacyPlannerDraftApplied)clearLegacyPlannerDraft();renderReservation();renderProfile();toast(payload?.message||'Rezervace byla uložena.');

@@ -13,6 +13,7 @@ const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 const MAX_GALLERY_DAILY = 24;
 const MAX_CAR_PHOTOS = 3;
 const MAX_PAYMENT_CZK = 10_000_000;
+const MAX_RESERVATION_CREW = 5;
 const PLANNER_CLOCK_SKEW_MS = 5 * 60 * 1000;
 
 let jwksCache = { keys: [], expiresAt: 0 };
@@ -1154,7 +1155,7 @@ function validatePlannerDraft(candidate, now = Date.now()) {
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(draftId) || !Number.isFinite(createdAt) || !Number.isFinite(expiresAt) || createdAt > now + PLANNER_CLOCK_SKEW_MS || expiresAt <= now || expiresAt <= createdAt || now - createdAt > lifetime || expiresAt - createdAt > lifetime) return null;
   if (!Number.isInteger(eventYear) || eventYear < 2000 || eventYear > 2100) return null;
   if (!attendanceByArrival[candidate.arrival] || candidate.attendanceType !== attendanceByArrival[candidate.arrival]) return null;
-  if (!["Chatka", "Stan", "Bez ubytování"].includes(candidate.accommodation) || !Number.isInteger(crew) || crew < 1 || crew > 8 || !Number.isInteger(units) || units < 0 || units > crew || !["Ano", "Ne", "Možná"].includes(candidate.showShine)) return null;
+  if (!["Chatka", "Stan", "Bez ubytování"].includes(candidate.accommodation) || !Number.isInteger(crew) || crew < 1 || crew > MAX_RESERVATION_CREW || !Number.isInteger(units) || units < 0 || units > crew || !["Ano", "Ne", "Možná"].includes(candidate.showShine)) return null;
   if ((candidate.arrival === "Jen na otočku" || candidate.accommodation === "Bez ubytování") && units !== 0) return null;
   if (candidate.arrival !== "Jen na otočku" && candidate.accommodation !== "Bez ubytování" && units < 1) return null;
   const eventId = candidate.eventId == null ? null : String(candidate.eventId);
@@ -1236,8 +1237,11 @@ async function deletePlannerDraft(env, auth, url, origin) {
 
 async function getMemberNavigationState(env, auth, origin) {
   const now = new Date().toISOString();
+  const event = await getCurrentEvent(env);
   const [reservation, planner] = await Promise.all([
-    env.DB.prepare("SELECT 1 AS found FROM reservations WHERE member_id = ? LIMIT 1").bind(auth.uid).first(),
+    event
+      ? env.DB.prepare("SELECT 1 AS found FROM reservations WHERE member_id = ? AND event_id = ? LIMIT 1").bind(auth.uid, event.id).first()
+      : Promise.resolve(null),
     env.DB.prepare("SELECT 1 AS found FROM member_planner_drafts WHERE member_id = ? AND expires_at > ? LIMIT 1").bind(auth.uid, now).first(),
   ]);
   return json({ ok: true, hasWaitingPlan: !!planner, hasReservation: !!reservation }, 200, origin);
@@ -1255,6 +1259,7 @@ async function putCurrentReservation(request, env, auth, origin) {
   catch { return json({ ok: false, error: "invalid_json", message: "Požadavek nemá platný JSON." }, 400, origin); }
 
   const carId = clean(body.carId);
+  const requestedReservationId = clean(body.reservationId);
   const arrival = clean(body.arrival);
   const showShine = clean(body.showShine);
   const note = clean(body.note).slice(0, 1000);
@@ -1270,7 +1275,7 @@ async function putCurrentReservation(request, env, auth, origin) {
   if (!["Pátek", "Sobota", "Jen na otočku"].includes(arrival)) return json({ ok: false, error: "invalid_arrival", message: "Vyber platný příjezd." }, 400, origin);
   if (!["Chatka", "Stan", "Bez ubytování"].includes(requestedAccommodation)) return json({ ok: false, error: "invalid_accommodation", message: "Vyber platné ubytování." }, 400, origin);
   if (!["Ne", "Možná", "Ano"].includes(showShine)) return json({ ok: false, error: "invalid_show_shine", message: "Vyber platnou možnost Show & Shine." }, 400, origin);
-  if (!Number.isInteger(crew) || crew < 1 || crew > 8) return json({ ok: false, error: "invalid_crew", message: "Posádka musí mít 1 až 8 osob." }, 400, origin);
+  if (!Number.isInteger(crew) || crew < 1 || crew > MAX_RESERVATION_CREW) return json({ ok: false, error: "invalid_crew", message: `Posádka musí mít 1 až ${MAX_RESERVATION_CREW} osob.` }, 400, origin);
   if (!attendanceType) return json({ ok: false, error: "invalid_attendance_type", message: "Vyber platný typ účasti." }, 400, origin);
   if (!Number.isInteger(accommodationUnits) || accommodationUnits < (wantsAccommodation ? 1 : 0) || accommodationUnits > crew) return json({ ok: false, error: "invalid_accommodation_units", message: "Počet ubytovaných musí být celé číslo od 1 do počtu členů posádky." }, 400, origin);
   if (wantsAccommodation && !accommodationOptionId) return json({ ok: false, error: "accommodation_option_required", message: "Vyber konkrétní typ ubytování." }, 400, origin);
@@ -1302,7 +1307,20 @@ async function putCurrentReservation(request, env, auth, origin) {
     pricing = calculateAccommodationPricing(event, option, accommodationUnits, attendanceType);
   }
 
-  const existing = await env.DB.prepare("SELECT id FROM reservations WHERE member_id = ? AND event_id = ? LIMIT 1").bind(auth.uid, event.id).first();
+  const existing = await env.DB.prepare("SELECT id, status FROM reservations WHERE member_id = ? AND event_id = ? LIMIT 1").bind(auth.uid, event.id).first();
+  if (existing && !requestedReservationId) {
+    const active = ["pending", "approved"].includes(existing.status);
+    return json({
+      ok: false,
+      error: active ? "active_reservation_exists" : "reservation_edit_required",
+      message: active
+        ? "Pro tento event už máš aktivní rezervaci. Otevři ji a uprav existující rezervaci."
+        : "Pro tento event už máš uloženou rezervaci. Otevři ji a uprav nebo znovu odešli.",
+    }, 409, origin);
+  }
+  if (requestedReservationId && (!existing || requestedReservationId !== existing.id)) {
+    return json({ ok: false, error: "reservation_not_found", message: "Rezervace pro tento účet a event nebyla nalezena." }, 404, origin);
+  }
   const reservationId = existing?.id || crypto.randomUUID();
   const writeToken = createWriteToken();
   const amountDueCzk = pricing?.totalCzk || 0;
@@ -1361,6 +1379,7 @@ async function putCurrentReservation(request, env, auth, origin) {
       amount_due_czk = excluded.amount_due_czk,
       submitted_at = CURRENT_TIMESTAMP,
       updated_at = excluded.updated_at
+    WHERE reservations.id = excluded.id
   `);
   const baseBindings = [
     reservationId, auth.uid, car.id,
@@ -1441,6 +1460,17 @@ async function putCurrentReservation(request, env, auth, origin) {
   `).bind(auth.uid, event.id, auth.uid, event.id, writeToken));
   const results = await env.DB.batch(statements);
   if (!results[0]?.meta?.changes) {
+    const conflicting = await env.DB.prepare("SELECT id, status FROM reservations WHERE member_id = ? AND event_id = ? LIMIT 1").bind(auth.uid, event.id).first();
+    if (conflicting && conflicting.id !== reservationId) {
+      const active = ["pending", "approved"].includes(conflicting.status);
+      return json({
+        ok: false,
+        error: active ? "active_reservation_exists" : "reservation_edit_required",
+        message: active
+          ? "Pro tento event už máš aktivní rezervaci. Otevři ji a uprav existující rezervaci."
+          : "Pro tento event už máš uloženou rezervaci. Otevři ji a uprav nebo znovu odešli.",
+      }, 409, origin);
+    }
     if (option) return accommodationCapacityConflict(option.name, origin);
     return json({ ok: false, error: "registration_closed", message: "Rezervace byly mezitím uzavřeny. Rezervace nebyla uložena." }, 409, origin);
   }
