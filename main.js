@@ -608,6 +608,7 @@ let memberPlannerMode = false;
 const plannerNights = () => plannerState.arrival === 'Pátek' ? (plannerState.departure === 'Sobota' ? 1 : Number(plannerEventData?.fullWeekendNights ?? 2)) : plannerState.arrival === 'Sobota' ? Number(plannerEventData?.saturdayOnlyNights ?? 1) : 0;
 const plannerNightLabel = count => count === 1 ? '1 noc' : `${count} noci`;
 const plannerStayLabel = () => plannerState.arrival === 'Jen na otočku' ? 'Jen na otočku' : `${plannerState.arrival} → ${plannerState.departure}`;
+const plannerAccommodationVisual = option => accommodationVisualTools?.accommodationVisualModel(option,{apiBaseUrl:plannerApiBaseUrl,nights:plannerNights(),mode:'image-only'}) || null;
 
 if (planner) {
 const groups = qsa('[data-choice-group]', planner);
@@ -660,8 +661,7 @@ const slug = (value, fallback) => value.normalize('NFD').replace(/[\u0300-\u036f
 const personLabel = count => count === 1 ? 'osoba' : (count >= 2 && count <= 4 ? 'osoby' : 'osob');
 const plannerMoney = new Intl.NumberFormat('cs-CZ',{style:'currency',currency:'CZK',maximumFractionDigits:0});
 const plannerEscapeHtml = value => String(value||'').replace(/[&<>'"]/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[char]));
-const plannerAccommodationVisual = option => accommodationVisualTools?.accommodationVisualModel(option,{apiBaseUrl:plannerApiBaseUrl,nights:plannerNights()}) || null;
-void import('./accommodation-visual.js?v=20260827-accommodation1').then(tools=>{accommodationVisualTools=tools;renderPlannerAccommodationOptions(plannerState.accommodationOptionId||'');updatePlanner()}).catch(error=>console.debug('Accommodation visuals unavailable.',error));
+void import('./accommodation-visual.js?v=20260828-planner1').then(tools=>{accommodationVisualTools=tools;renderPlannerAccommodationOptions(plannerState.accommodationOptionId||'');updatePlanner()}).catch(error=>console.debug('Accommodation visuals unavailable.',error));
 const plannerAccommodationKind = () => plannerState.sleep === 'Chatka' ? 'cabin' : plannerState.sleep === 'Stan' ? 'tent' : null;
 const matchingPlannerAccommodation = () => plannerAccommodationOptions.filter(option => option.active && option.kind === plannerAccommodationKind()).sort((a,b)=>a.sortOrder-b.sortOrder||a.name.localeCompare(b.name,'cs'));
 const selectedPlannerAccommodation = () => matchingPlannerAccommodation().find(option => option.id === plannerState.accommodationOptionId) || null;
@@ -690,10 +690,8 @@ const renderPlannerAccommodationOptions = (preferredId='') => {
   accommodationOptionSelect.disabled=!options.length;
   if(accommodationOptionCards)accommodationOptionCards.innerHTML=options.length?options.map(option=>{
     const active=option.id===plannerState.accommodationOptionId,availability=option.inventoryMode==='unlimited'?'Bez omezení':option.soldOut?'Vyprodáno':`${Number(option.freeUnits||0)} volných`;
-    const visual=accommodationVisualTools?.accommodationVisualMarkup(option,{apiBaseUrl:plannerApiBaseUrl,nights:plannerNights(),className:'planner-accommodation-visual'})||'';
-    return `<button aria-pressed="${active}" class="planner-accommodation-card${active?' is-active':''}" data-accommodation-option-id="${plannerEscapeHtml(option.id)}" ${option.soldOut?'disabled':''} type="button">${visual}<strong>${plannerEscapeHtml(option.name)}</strong><span>Max. ${Number(option.capacityPerUnit||1)} ${personLabel(Number(option.capacityPerUnit||1))}</span><b>${plannerEscapeHtml(plannerOptionPriceLabel(option))}</b><small>${availability}</small></button>`;
+    return `<button aria-pressed="${active}" class="planner-accommodation-card${active?' is-active':''}" data-accommodation-option-id="${plannerEscapeHtml(option.id)}" ${option.soldOut?'disabled':''} type="button"><strong>${plannerEscapeHtml(option.name)}</strong><span>Max. ${Number(option.capacityPerUnit||1)} ${personLabel(Number(option.capacityPerUnit||1))}</span><b>${plannerEscapeHtml(plannerOptionPriceLabel(option))}</b><small>${availability}</small></button>`;
   }).join(''):'<div class="planner-accommodation-empty">Pro tento event zatím není konkrétní varianta nastavená.</div>';
-  if(accommodationOptionCards&&accommodationVisualTools)accommodationVisualTools.bindAccommodationVisualFallbacks(accommodationOptionCards);
 };
 const renderPlannerPrice = (needsAccommodation) => {
   if (!plannerPricePreview || !accommodationAvailability) return;

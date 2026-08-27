@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { accommodationFallbackSvg, accommodationVisualMarkup, accommodationVisualModel } from '../accommodation-visual.js';
+import { accommodationFallbackSvg, accommodationImageFallbackSvg, accommodationVisualMarkup, accommodationVisualModel } from '../accommodation-visual.js';
 
 const read=name=>readFileSync(new URL(`../${name}`,import.meta.url),'utf8');
 
@@ -23,6 +23,16 @@ test('custom photo wins and failed or removed custom media has a generated fallb
   const removed=accommodationVisualModel(option,{apiBaseUrl:'https://api.e36united.cz',nights:2});assert.equal(removed.custom,false);assert.equal(removed.src,removed.fallbackSrc);
 });
 
+test('Planner uses a text-free illustration while custom accommodation photos keep priority',()=>{
+  const fallbackSvg=accommodationImageFallbackSvg(option);
+  assert.doesNotMatch(fallbackSvg,/<text\b|Chatka A|4 OSOBY|2 NOCI|2 VOLNÉ|KČ|GENEROVANÝ/i);
+  assert.match(fallbackSvg,/<svg\b/);assert.match(fallbackSvg,/<path\b/);
+  const fallback=accommodationVisualModel(option,{apiBaseUrl:'https://api.e36united.cz',nights:2,mode:'image-only'});
+  assert.equal(fallback.custom,false);assert.equal(fallback.src,fallback.fallbackSrc);assert.match(decodeURIComponent(fallback.fallbackSrc),/<svg\b/);
+  const custom=accommodationVisualModel({...option,visual:{hasCustomPhoto:true,imageUrl:'/api/accommodation/media/cabin-a?v=etag-3'}},{apiBaseUrl:'https://api.e36united.cz',mode:'image-only'});
+  assert.equal(custom.custom,true);assert.equal(custom.src,'https://api.e36united.cz/api/accommodation/media/cabin-a?v=etag-3');assert.equal(custom.fallbackSrc,fallback.fallbackSrc);
+});
+
 test('authenticated member can bootstrap/load Member Portal successfully with accommodation visual',()=>{
   const member=read('member.js'),start=member.indexOf('function renderAccommodationPreview(){'),end=member.indexOf('function syncMemberSleep(',start);
   assert.ok(start>=0&&end>start);
@@ -39,10 +49,16 @@ test('authenticated member can bootstrap/load Member Portal successfully with ac
 });
 
 test('one shared visual module propagates through Planner, Member Portal and Admin contexts',()=>{
-  const main=read('main.js'),member=read('member.js'),admin=read('admin.js'),worker=read('cloudflare-worker-media.js');
-  assert.match(main,/import\('\.\/accommodation-visual\.js/);assert.match(main,/plannerAccommodationVisual\(liveOption\)/);assert.match(main,/accommodationVisualMarkup\(option/);
+  const main=read('main.js'),html=read('index.html'),member=read('member.js'),admin=read('admin.js'),worker=read('cloudflare-worker-media.js');
+  const selectorSource=main.slice(main.indexOf('const renderPlannerAccommodationOptions'),main.indexOf('const renderPlannerPrice'));
+  const standalonePreview=html.slice(html.indexOf('data-context-preview="sleep"'),html.indexOf('</aside>',html.indexOf('data-context-preview="sleep"')));
+  assert.match(main,/import\('\.\/accommodation-visual\.js/);assert.match(main,/plannerAccommodationVisual\(liveOption\)/);assert.match(main,/mode:'image-only'/);
+  assert.ok(main.indexOf('const plannerAccommodationVisual')<main.indexOf('if (planner)'));
+  assert.doesNotMatch(selectorSource,/accommodationVisualMarkup|planner-accommodation-visual|<img\b/);assert.match(selectorSource,/planner-accommodation-card/);
+  assert.match(standalonePreview,/data-context-sleep-image/);assert.doesNotMatch(standalonePreview,/data-context-sleep-(?:title|capacity|price|availability)|planner-context-copy/);
   assert.match(member,/from '\.\/accommodation-visual\.js/);assert.match(member,/member-accommodation-preview/);assert.match(member,/member-summary-accommodation/);
   assert.match(admin,/from '\.\/accommodation-visual\.js/);assert.match(admin,/admin-accommodation-visual/);assert.match(admin,/admin-drawer-accommodation/);
+  assert.match(accommodationFallbackSvg(option,{nights:2}),/Chatka A|4 OSOBY|GENEROVANÝ TECHNICKÝ PŘEHLED/);
   assert.match(worker,/accommodationPhotoKey\(eventId, optionId\)/);assert.match(worker,/\?v=\$\{encodeURIComponent\(version\)\}/);
 });
 

@@ -52,16 +52,29 @@ export function accommodationFallbackDataUrl(option = {}, settings = {}) {
   return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(accommodationFallbackSvg(option, settings))}`;
 }
 
+export function accommodationImageFallbackSvg(option = {}) {
+  const kind = option.kind === 'tent' ? 'tent' : 'cabin';
+  const detail = kind === 'tent'
+    ? '<path d="M480 136 652 374H308L480 136Z"/><path d="m480 136 58 238M480 136l-58 238M376 280h208M480 374V274l58 100"/>'
+    : '<path d="M286 267 480 139l194 128v151H286V267Z"/><path d="m246 281 234-155 234 155M330 418V293h112v125M502 293h112v84H502z"/><path d="M298 230v-77h63v38"/>';
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 540" role="img" aria-label="Ilustrační vizuál ubytování"><defs><linearGradient id="image-bg" x1="0" x2="1" y1="0" y2="1"><stop stop-color="#101923"/><stop offset="1" stop-color="#05080c"/></linearGradient><pattern id="image-grid" width="36" height="36" patternUnits="userSpaceOnUse"><path d="M36 0H0V36" fill="none" stroke="#69b8ff" stroke-opacity=".09"/></pattern><radialGradient id="image-glow"><stop stop-color="#4da3ff" stop-opacity=".3"/><stop offset="1" stop-color="#4da3ff" stop-opacity="0"/></radialGradient></defs><rect width="960" height="540" fill="url(#image-bg)"/><rect width="960" height="540" fill="url(#image-grid)"/><circle cx="690" cy="205" r="310" fill="url(#image-glow)"/><g fill="none" stroke="#7cc5ff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" opacity=".85">${detail}</g><g fill="none" stroke="#7cc5ff" stroke-opacity=".22"><path d="M120 420h720M145 451h670"/><path d="M154 112h92v18h-74v74M806 112h-92v18h74v74"/></g><circle cx="480" cy="280" r="190" fill="none" stroke="#7cc5ff" stroke-opacity=".08" stroke-width="2"/></svg>`;
+}
+
+export function accommodationImageFallbackDataUrl(option = {}) {
+  return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(accommodationImageFallbackSvg(option))}`;
+}
+
 function resolvedPhotoUrl(imageUrl, apiBaseUrl) {
   const source = String(imageUrl || '');
   if (!source || /^(?:https?:|data:)/i.test(source)) return source;
   return `${String(apiBaseUrl || '').replace(/\/$/, '')}${source.startsWith('/') ? source : `/${source}`}`;
 }
 
-export function accommodationVisualModel(option = {}, { apiBaseUrl = '', nights = null } = {}) {
-  const fallbackSrc = accommodationFallbackDataUrl(option, { nights });
+export function accommodationVisualModel(option = {}, { apiBaseUrl = '', nights = null, mode = 'informational' } = {}) {
+  const imageOnly = mode === 'image-only';
+  const fallbackSrc = imageOnly ? accommodationImageFallbackDataUrl(option) : accommodationFallbackDataUrl(option, { nights });
   const custom = option.visual?.hasCustomPhoto === true && !!option.visual?.imageUrl;
-  const fallbackAlt = `${String(option.name || 'Ubytování')} – generovaný přehled`;
+  const fallbackAlt = imageOnly ? `${String(option.name || 'Ubytování')} – ilustrační vizuál` : `${String(option.name || 'Ubytování')} – generovaný přehled`;
   return {
     src: custom ? resolvedPhotoUrl(option.visual.imageUrl, apiBaseUrl) : fallbackSrc,
     fallbackSrc,
@@ -71,8 +84,8 @@ export function accommodationVisualModel(option = {}, { apiBaseUrl = '', nights 
   };
 }
 
-export function accommodationVisualMarkup(option = {}, { apiBaseUrl = '', nights = null, className = '' } = {}) {
-  const model = accommodationVisualModel(option, { apiBaseUrl, nights });
+export function accommodationVisualMarkup(option = {}, { apiBaseUrl = '', nights = null, mode = 'informational', className = '' } = {}) {
+  const model = accommodationVisualModel(option, { apiBaseUrl, nights, mode });
   return `<div class="accommodation-visual ${model.custom ? 'is-custom' : 'is-fallback'} ${escapeMarkup(className)}"><img alt="${escapeMarkup(model.alt)}" data-accommodation-fallback="${escapeMarkup(model.fallbackSrc)}" data-accommodation-fallback-alt="${escapeMarkup(model.fallbackAlt)}" data-accommodation-kind="${model.custom ? 'custom' : 'fallback'}" decoding="async" loading="lazy" src="${escapeMarkup(model.src)}"/></div>`;
 }
 
