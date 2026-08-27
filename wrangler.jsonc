@@ -1,0 +1,20 @@
+{
+  "$schema": "https://raw.githubusercontent.com/cloudflare/workers-sdk/main/packages/wrangler/config-schema.json",
+  "name": "e36-united-api",
+  "main": "cloudflare-worker-media.js",
+  "compatibility_date": "2026-08-22",
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "e36-united-db",
+      "database_id": "b25a2d51-7ae3-4c7a-9933-3fdb907981c4"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "MEDIA",
+      "bucket_name": "e36-united-media",
+      "jurisdiction": "eu"
+    }
+  ]
+}
