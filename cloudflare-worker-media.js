@@ -130,6 +130,7 @@ export default {
         }
 
         const carMatch = url.pathname.match(/^\/api\/cars\/([^/]+)$/);
+        if (carMatch && request.method === "PUT") return await updateCar(request, env, auth, decodeURIComponent(carMatch[1]), origin);
         if (carMatch && request.method === "DELETE") return await deleteCar(env, auth, decodeURIComponent(carMatch[1]), origin);
 
         const primaryMatch = url.pathname.match(/^\/api\/cars\/([^/]+)\/primary$/);
@@ -137,9 +138,12 @@ export default {
 
         const photoMatch = url.pathname.match(/^\/api\/cars\/([^/]+)\/photos$/);
         if (photoMatch && request.method === "POST") return await uploadCarPhoto(request, env, auth, decodeURIComponent(photoMatch[1]), origin);
+        if (photoMatch && request.method === "PUT") return await replaceCarPhoto(request, env, auth, decodeURIComponent(photoMatch[1]), origin);
 
         if (url.pathname === "/api/gallery/submissions" && request.method === "POST") return await uploadGallerySubmission(request, env, auth, origin);
-        if (url.pathname === "/api/gallery/mine" && request.method === "GET") return await listMyGallery(env, auth, origin);
+        if (url.pathname === "/api/gallery/mine" && request.method === "GET") return await listMyGallery(env, auth, url, origin);
+        const memberGalleryMediaMatch = url.pathname.match(/^\/api\/gallery\/mine\/media\/([^/]+)$/);
+        if (memberGalleryMediaMatch && request.method === "GET") return await privateMemberGalleryMedia(env, auth, decodeURIComponent(memberGalleryMediaMatch[1]), origin);
       }
 
       return json({ ok: true, service: "E36 United API" }, 200, origin);
@@ -1514,6 +1518,48 @@ async function createCar(request, env, auth, origin) {
   return json({ ok: true, car: { id, nickname, model, body: carBody, year, color, primary, photos: [] } }, 201, origin);
 }
 
+async function updateCar(request, env, auth, carId, origin) {
+  let body = {};
+  try { body = await request.json(); } catch { return json({ ok: false, error: "Invalid JSON" }, 400, origin); }
+
+  const car = await env.DB.prepare("SELECT id, is_primary FROM cars WHERE id = ? AND member_id = ? LIMIT 1").bind(carId, auth.uid).first();
+  if (!car) return json({ ok: false, error: "Car not found" }, 404, origin);
+
+  const nickname = clean(body.nickname || "").slice(0, 80);
+  const model = clean(body.model || "").slice(0, 80);
+  const carBody = clean(body.body || "").slice(0, 40);
+  const color = clean(body.color || "").slice(0, 80);
+  const year = body.year ? Number(body.year) : null;
+  if (!model || !carBody) return json({ ok: false, error: "Model and body are required" }, 400, origin);
+  if (year && (year < 1990 || year > 2030)) return json({ ok: false, error: "Invalid year" }, 400, origin);
+
+  const requestedPrimary = body.primary === true;
+  let primary = requestedPrimary || !!car.is_primary;
+  let replacementPrimaryId = "";
+  const statements = [];
+  if (requestedPrimary) {
+    statements.push(env.DB.prepare("UPDATE cars SET is_primary = 0, updated_at = CURRENT_TIMESTAMP WHERE member_id = ?").bind(auth.uid));
+    primary = true;
+  } else if (car.is_primary) {
+    const replacement = await env.DB.prepare("SELECT id FROM cars WHERE member_id = ? AND id <> ? ORDER BY created_at ASC LIMIT 1").bind(auth.uid, carId).first();
+    if (replacement?.id) {
+      primary = false;
+      replacementPrimaryId = replacement.id;
+    }
+  }
+  statements.push(env.DB.prepare(`
+    UPDATE cars
+    SET nickname = ?, model = ?, body = ?, year = ?, color = ?, is_primary = ?, updated_at = CURRENT_TIMESTAMP
+    WHERE id = ? AND member_id = ?
+  `).bind(nickname || null, model, carBody, year, color || null, primary ? 1 : 0, carId, auth.uid));
+  if (replacementPrimaryId) statements.push(env.DB.prepare("UPDATE cars SET is_primary = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND member_id = ?").bind(replacementPrimaryId, auth.uid));
+  const results = await env.DB.batch(statements);
+  const carUpdateResult = results[requestedPrimary ? 1 : 0];
+  if (!carUpdateResult?.meta?.changes) return json({ ok: false, error: "Car not found" }, 404, origin);
+
+  return json({ ok: true, car: { id: carId, nickname, model, body: carBody, year, color, primary } }, 200, origin);
+}
+
 async function setPrimaryCar(env, auth, carId, origin) {
   const owned = await env.DB.prepare("SELECT id FROM cars WHERE id = ? AND member_id = ? LIMIT 1").bind(carId, auth.uid).first();
   if (!owned) return json({ ok: false, error: "Car not found" }, 404, origin);
@@ -1571,6 +1617,42 @@ async function uploadCarPhoto(request, env, auth, carId, origin) {
   return json({ ok: true, photo: { id, mimeType: file.type, sizeBytes: file.size } }, 201, origin);
 }
 
+async function replaceCarPhoto(request, env, auth, carId, origin) {
+  const car = await env.DB.prepare("SELECT id FROM cars WHERE id = ? AND member_id = ? LIMIT 1").bind(carId, auth.uid).first();
+  if (!car) return json({ ok: false, error: "Car not found" }, 404, origin);
+
+  const form = await request.formData();
+  const file = form.get("file");
+  const validation = validateImageFile(file);
+  if (validation) return json({ ok: false, error: validation }, 400, origin);
+
+  const previous = await env.DB.prepare("SELECT id, r2_key FROM car_photos WHERE car_id = ? ORDER BY sort_order ASC, created_at ASC").bind(carId).all();
+  const id = crypto.randomUUID();
+  const ext = extensionFor(file.type);
+  const key = `cars/${auth.uid}/${carId}/${id}.${ext}`;
+  await env.MEDIA.put(key, file.stream(), {
+    httpMetadata: { contentType: file.type },
+    customMetadata: { owner: auth.uid, kind: "car", carId, photoId: id },
+  });
+  try {
+    await env.DB.batch([
+      env.DB.prepare("DELETE FROM car_photos WHERE car_id = ?").bind(carId),
+      env.DB.prepare(`
+        INSERT INTO car_photos (id, car_id, r2_key, mime_type, size_bytes, sort_order)
+        VALUES (?, ?, ?, ?, ?, 0)
+      `).bind(id, carId, key, file.type, file.size),
+    ]);
+  } catch (error) {
+    try { await env.MEDIA.delete(key); } catch (cleanupError) { console.warn("Unable to clean up failed R2 car replacement", cleanupError); }
+    throw error;
+  }
+  for (const photo of previous.results || []) {
+    if (!photo.r2_key || photo.r2_key === key) continue;
+    try { await env.MEDIA.delete(photo.r2_key); } catch (error) { console.warn("Unable to delete replaced R2 car photo", error); }
+  }
+  return json({ ok: true, photo: { id, mimeType: file.type, sizeBytes: file.size }, replaced: (previous.results || []).map(photo => photo.id) }, 200, origin);
+}
+
 async function privateCarMedia(env, auth, photoId, origin) {
   const row = await env.DB.prepare(`
     SELECT p.r2_key, p.mime_type
@@ -1618,15 +1700,42 @@ async function uploadGallerySubmission(request, env, auth, origin) {
   return json({ ok: true, submission: { id, caption, status: "pending", createdAt: new Date().toISOString() } }, 201, origin);
 }
 
-async function listMyGallery(env, auth, origin) {
+async function listMyGallery(env, auth, url, origin) {
+  const rawLimit = Number(url.searchParams.get("limit") || 24);
+  const rawOffset = Number(url.searchParams.get("offset") || 0);
+  const limit = Math.max(1, Math.min(48, Number.isFinite(rawLimit) ? Math.trunc(rawLimit) : 24));
+  const offset = Math.max(0, Math.min(10000, Number.isFinite(rawOffset) ? Math.trunc(rawOffset) : 0));
   const rows = await env.DB.prepare(`
     SELECT id, caption, status, created_at, reviewed_at
     FROM gallery_submissions
     WHERE member_id = ?
     ORDER BY created_at DESC
-    LIMIT 100
-  `).bind(auth.uid).all();
-  return json({ ok: true, submissions: (rows.results || []).map(row => ({ id: row.id, caption: row.caption || "", status: row.status, createdAt: row.created_at, reviewedAt: row.reviewed_at || null, imageUrl: row.status === "approved" ? `/api/gallery/media/${encodeURIComponent(row.id)}` : null })) }, 200, origin);
+    LIMIT ? OFFSET ?
+  `).bind(auth.uid, limit + 1, offset).all();
+  const found = rows.results || [];
+  const page = found.slice(0, limit);
+  return json({
+    ok: true,
+    submissions: page.map(row => ({ id: row.id, caption: row.caption || "", status: row.status, createdAt: row.created_at, reviewedAt: row.reviewed_at || null, imageUrl: `/api/gallery/mine/media/${encodeURIComponent(row.id)}` })),
+    pagination: { limit, offset, nextOffset: offset + page.length, hasMore: found.length > limit },
+  }, 200, origin);
+}
+
+async function privateMemberGalleryMedia(env, auth, submissionId, origin) {
+  const row = await env.DB.prepare(`
+    SELECT r2_key
+    FROM gallery_submissions
+    WHERE id = ? AND member_id = ?
+    LIMIT 1
+  `).bind(submissionId, auth.uid).first();
+  if (!row) return json({ ok: false, error: "Photo not found" }, 404, origin);
+  const object = await env.MEDIA.get(row.r2_key);
+  if (!object) return json({ ok: false, error: "Media not found" }, 404, origin);
+  const headers = new Headers();
+  object.writeHttpMetadata(headers);
+  headers.set("Cache-Control", "private, no-store");
+  headers.set("ETag", object.httpEtag || object.etag || "");
+  return cors(new Response(object.body, { status: 200, headers }), origin);
 }
 
 async function publicGalleryList(env, url, origin) {

@@ -1,5 +1,6 @@
 import { firebaseConfig, portalConfig } from './firebase-config.js?v=20260823-auth2';
 import { initUnitedAuth } from './united-auth.js?v=20260825-phase-a1';
+import { createImagePreviewController, selectImageFiles } from './image-upload.js?v=20260827-garage-photos';
 
 const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
 const apiBase=(portalConfig.apiBaseUrl||'https://api.e36united.cz').replace(/\/$/,'');
@@ -94,14 +95,14 @@ async function compressImage(file,max=1800,quality=.82){
   });
 }
 
+let selectedUploadFiles=[];
+const uploadPreviewController=createImagePreviewController($('[data-upload-preview]'));
 function renderFilePreview(){
   const input=$('[data-upload-input]'),preview=$('[data-upload-preview]'),count=$('[data-upload-count]');if(!input||!preview)return;
-  const files=[...input.files].slice(0,8);preview.innerHTML='';if(count)count.textContent=`${files.length} / 8 vybráno`;
-  files.forEach(file=>{
-    const fig=document.createElement('figure'),img=document.createElement('img'),label=document.createElement('span');
-    label.textContent=file.name;fig.append(img,label);preview.append(fig);
-    const reader=new FileReader();reader.onload=()=>img.src=String(reader.result||'');reader.readAsDataURL(file);
-  });
+  const selection=selectImageFiles(input.files,{maxFiles:8});selectedUploadFiles=selection.files;uploadPreviewController.render(selectedUploadFiles);if(count)count.textContent=`${selectedUploadFiles.length} / 8 vybráno`;
+  if(selection.tooLarge)setUploadStatus('Každá fotka může mít nejvýše 12 MB.','error');
+  else if(selection.invalidType)setUploadStatus('Podporujeme JPG, PNG a WEBP.','error');
+  else if(selection.truncated)setUploadStatus('Najednou můžeš nahrát maximálně 8 fotek.','info');
 }
 
 async function loadApprovedGallery(){
@@ -150,7 +151,7 @@ dropzone?.addEventListener('drop',event=>{
 form?.addEventListener('submit',async event=>{
   event.preventDefault();if(!currentUser)return setUploadStatus('Nejdřív se přihlas do Můj United.','error');
   if(!form.reportValidity())return;
-  const files=[...input.files].slice(0,8),caption=String(new FormData(form).get('caption')||'').trim(),submit=$('[data-upload-submit]');
+  const files=[...selectedUploadFiles],caption=String(new FormData(form).get('caption')||'').trim(),submit=$('[data-upload-submit]');
   if(!files.length)return setUploadStatus('Vyber alespoň jednu fotografii.','error');
   submit.disabled=true;
   try{
@@ -160,7 +161,7 @@ form?.addEventListener('submit',async event=>{
       const fd=new FormData();fd.append('file',blob,`${files[i].name.replace(/\.[^.]+$/,'')||'united'}.jpg`);fd.append('caption',caption);
       await authorizedFetch('/api/gallery/submissions',{method:'POST',body:fd});
     }
-    form.reset();renderFilePreview();setUploadStatus('Hotovo. Fotky jsou na serveru a čekají na schválení United týmem.','success');
+    form.reset();selectedUploadFiles=[];uploadPreviewController.clear();const count=$('[data-upload-count]');if(count)count.textContent='0 / 8 vybráno';setUploadStatus('Hotovo. Fotky jsou na serveru a čekají na schválení United týmem.','success');
   }catch(error){
     console.error('Gallery upload failed',error);
     const msg=error.message==='type'?'Podporujeme JPG, PNG a WEBP.':error.message==='size'?'Jeden ze souborů je větší než 12 MB.':error.status===429?'Dnešní limit nahrávání byl dosažen.':'Upload se nepodařil. Zkus to znovu.';

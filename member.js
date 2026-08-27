@@ -5,6 +5,7 @@ import { initUnitedAuth } from './united-auth.js?v=20260825-phase-a1';
 import { deriveMemberHeroState, deriveOverviewState } from './member-portal-state.js?v=20260825-phase-a1';
 import { newerPlannerDraft, validatePlannerDraft } from './planner-state.js?v=20260826-predeploy-fix';
 import { performMemberLogout } from './member-logout.js?v=20260826-predeploy-fix';
+import { createImagePreviewController, selectImageFiles } from './image-upload.js?v=20260827-garage-photos';
 
 const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
 const apiBaseUrl=(portalConfig.apiBaseUrl||'https://api.e36united.cz').replace(/\/$/,'');
@@ -20,10 +21,15 @@ let unitedAuth=null;
 let currentUser=null;
 let authFlowActive=false;
 let memberGallery=[];
+let memberGalleryHasMore=false;
+let memberGalleryLoading=false;
 let reservationState={registrationOpen:false,event:null,message:'',accommodationOptions:[]};
 const carPhotoObjectUrls=new Map();
 const carPhotoObjectUrlRequests=new Map();
+const memberGalleryObjectUrls=new Map();
+const memberGalleryObjectUrlRequests=new Map();
 let carPhotoRequestGeneration=0;
+let memberGalleryRequestGeneration=0;
 let memberHeroPhotoId='';
 
 const defaultData=()=>({
@@ -105,12 +111,13 @@ function saveUserLocal(){
   catch(error){console.error('Local member data could not be saved',error);toast('Lokální data se nepodařilo uložit. Zkus odebrat velké fotografie.')}
 }
 function clearCarPhotoObjectUrls(){carPhotoRequestGeneration+=1;for(const url of carPhotoObjectUrls.values())URL.revokeObjectURL(url);carPhotoObjectUrls.clear();carPhotoObjectUrlRequests.clear()}
+function clearMemberGalleryObjectUrls(){memberGalleryRequestGeneration+=1;for(const url of memberGalleryObjectUrls.values())URL.revokeObjectURL(url);memberGalleryObjectUrls.clear();memberGalleryObjectUrlRequests.clear()}
 function pruneCarPhotoObjectUrls(){
   const activeIds=new Set(data.cars.flatMap(car=>(car.photos||[]).map(photo=>String(photo.id))));
   for(const [id,url] of carPhotoObjectUrls){if(!activeIds.has(String(id))){URL.revokeObjectURL(url);carPhotoObjectUrls.delete(id)}}
   for(const id of carPhotoObjectUrlRequests.keys()){if(!activeIds.has(String(id)))carPhotoObjectUrlRequests.delete(id)}
 }
-function resetMemberState(){clearCarPhotoObjectUrls();memberGallery=[];reservationState={registrationOpen:false,event:null,message:'',accommodationOptions:[]};plannerDraftSyncState='idle';activePlannerHandoff=null;legacyPlannerDraftApplied=false;data=defaultData();renderAll()}
+function resetMemberState(){clearCarPhotoObjectUrls();clearMemberGalleryObjectUrls();memberGallery=[];memberGalleryHasMore=false;reservationState={registrationOpen:false,event:null,message:'',accommodationOptions:[]};plannerDraftSyncState='idle';activePlannerHandoff=null;legacyPlannerDraftApplied=false;data=defaultData();renderAll()}
 function toast(msg){const el=$('[data-toast]');if(!el)return;el.textContent=msg;el.classList.add('is-visible');clearTimeout(toast.t);toast.t=setTimeout(()=>el.classList.remove('is-visible'),3200)}
 function esc(v=''){return String(v).replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]))}
 function uid(){return crypto?.randomUUID?.()||Math.random().toString(36).slice(2,10)}
@@ -239,16 +246,34 @@ async function getPrivateCarPhotoUrl(photoId){
   carPhotoObjectUrlRequests.set(photoId,request);
   return await request;
 }
+async function getPrivateMemberGalleryPhotoUrl(photoId){
+  if(memberGalleryObjectUrls.has(photoId))return memberGalleryObjectUrls.get(photoId);
+  if(memberGalleryObjectUrlRequests.has(photoId))return await memberGalleryObjectUrlRequests.get(photoId);
+  const generation=memberGalleryRequestGeneration,userId=currentUser?.uid;
+  let request;request=apiRequestBlob(`/api/gallery/mine/media/${encodeURIComponent(photoId)}`).then(blob=>{
+    if(generation!==memberGalleryRequestGeneration||userId!==currentUser?.uid||!memberGallery.some(photo=>String(photo.id)===String(photoId)))throw new Error('stale_member_gallery_request');
+    const existing=memberGalleryObjectUrls.get(photoId);if(existing)return existing;const url=URL.createObjectURL(blob);memberGalleryObjectUrls.set(photoId,url);return url;
+  }).finally(()=>{if(memberGalleryObjectUrlRequests.get(photoId)===request)memberGalleryObjectUrlRequests.delete(photoId)});
+  memberGalleryObjectUrlRequests.set(photoId,request);
+  return await request;
+}
 
 async function loadCarsFromApi(){
   const payload=await apiRequest('/api/cars');
   return Array.isArray(payload?.cars)?payload.cars:[];
 }
-async function loadMemberGallery(){
-  const payload=await apiRequest('/api/gallery/mine');
-  memberGallery=Array.isArray(payload?.submissions)?payload.submissions:[];
-  renderMemberGallery();
-  return memberGallery;
+async function loadMemberGallery({append=false}={}){
+  if(memberGalleryLoading)return memberGallery;
+  memberGalleryLoading=true;
+  try{
+    const offset=append?memberGallery.length:0,payload=await apiRequest(`/api/gallery/mine?limit=24&offset=${offset}`),items=Array.isArray(payload?.submissions)?payload.submissions:[];
+    if(!append){clearMemberGalleryObjectUrls();memberGallery=[]}
+    const known=new Set(memberGallery.map(item=>String(item.id)));
+    memberGallery.push(...items.filter(item=>!known.has(String(item.id))));
+    memberGalleryHasMore=payload?.pagination?.hasMore===true;
+    renderMemberGallery();
+    return memberGallery;
+  }finally{memberGalleryLoading=false}
 }
 function normalizeAccommodationOption(source){
   return {
@@ -594,10 +619,10 @@ function renderGarage(){
   if(!grid)return;
   pruneCarPhotoObjectUrls();
   if(!data.cars.length){grid.innerHTML='<div class="garage-empty"><div><b>Garáž je zatím prázdná.</b><br><small>Přidej svoje první E36. Fotku můžeš doplnit kdykoliv později.</small></div></div>';renderCarSelect();renderReservationCarPhoto(data.reservation);return}
-  grid.innerHTML=data.cars.map(c=>{const first=c.photos?.[0];return `<article class="car-card" data-car-card="${esc(c.id)}" ${c.primary?'data-primary-car-card':''}><div class="car-photo">${first?`<img data-car-photo-id="${esc(first.id)}" alt="${esc(c.nickname||c.model)}">`:'<div class="car-photo-placeholder">E36</div>'}${c.primary?'<span class="car-primary">HLAVNÍ AUTO</span>':''}</div><div class="car-body"><small>${esc(c.body)} · ${esc(c.year||'')}</small><h3>${esc(c.nickname||c.model)}</h3><p>${esc(c.model)}${c.color?' · '+esc(c.color):''}</p><div class="car-actions"><button data-primary-car="${esc(c.id)}">${c.primary?'Hlavní':'Nastavit hlavní'}</button>${first?'':`<label class="car-photo-add">Přidat fotku<input accept="image/jpeg,image/png,image/webp" data-car-photo-upload="${esc(c.id)}" type="file"></label>`}<button data-delete-car="${esc(c.id)}">Odebrat</button></div></div></article>`}).join('');
+  grid.innerHTML=data.cars.map(c=>{const first=c.photos?.[0],name=c.nickname||c.model;return `<article class="car-card" data-car-card="${esc(c.id)}" ${c.primary?'data-primary-car-card':''}><div class="car-photo">${first?`<img data-car-photo-id="${esc(first.id)}" alt="${esc(name)}">`:'<div class="car-photo-placeholder">E36</div>'}${c.primary?'<span class="car-primary">HLAVNÍ AUTO</span>':''}<button aria-label="Upravit ${esc(name)}" class="car-edit" data-edit-car="${esc(c.id)}" title="Upravit auto" type="button">${pictogram('<path d="m4 20 4.2-1 10.4-10.4a2.1 2.1 0 0 0-3-3L5.2 16 4 20Z"/><path d="m13.8 7.4 3 3"/>')}</button></div><div class="car-body"><small>${esc(c.body)} · ${esc(c.year||'')}</small><h3>${esc(name)}</h3><p>${esc(c.model)}${c.color?' · '+esc(c.color):''}</p><div class="car-actions"><button data-primary-car="${esc(c.id)}">${c.primary?'Hlavní':'Nastavit hlavní'}</button><button data-delete-car="${esc(c.id)}">Odebrat</button></div></div></article>`}).join('');
+  $$('[data-edit-car]').forEach(button=>button.onclick=()=>{const car=data.cars.find(item=>String(item.id)===String(button.dataset.editCar));if(car)openCarModal(car)});
   $$('[data-primary-car]').forEach(button=>button.onclick=async()=>{try{await apiRequest(`/api/cars/${encodeURIComponent(button.dataset.primaryCar)}/primary`,{method:'POST'});data.cars=await loadCarsFromApi();renderGarage();renderProfile();toast('Hlavní auto změněno')}catch(error){console.error(error);toast(apiError(error))}});
   $$('[data-delete-car]').forEach(button=>button.onclick=async()=>{if(!confirm('Odebrat auto z garáže včetně jeho fotek?'))return;try{await apiRequest(`/api/cars/${encodeURIComponent(button.dataset.deleteCar)}`,{method:'DELETE'});data.cars=await loadCarsFromApi();renderGarage();renderProfile();toast('Auto odebráno')}catch(error){console.error(error);toast(apiError(error))}});
-  $$('[data-car-photo-upload]').forEach(input=>input.onchange=()=>uploadCarPhotos(input.dataset.carPhotoUpload,[...input.files]));
   renderCarSelect();
   hydrateCarPhotos();
   renderReservationCarPhoto(data.reservation);
@@ -608,18 +633,6 @@ async function hydrateCarPhotos(){
     try{img.src=await getPrivateCarPhotoUrl(id)}
     catch(error){console.warn('Car photo unavailable',id,error);img.replaceWith(Object.assign(document.createElement('div'),{className:'car-photo-placeholder',textContent:'E36'}))}
   }
-}
-async function uploadCarPhotos(carId,files){
-  const car=data.cars.find(item=>String(item.id)===String(carId));if(!car||!files.length)return;
-  const accepted=files.filter(file=>['image/jpeg','image/png','image/webp'].includes(file.type)&&file.size<=12*1024*1024),selected=car.photos?.length?[]:accepted.slice(0,1);if(!selected.length)return toast(car.photos?.length?'Auto už má profilovou fotku.':'Vyber JPG, PNG nebo WebP do 12 MB.');
-  try{
-    for(let index=0;index<selected.length;index++){
-      toast(`Nahrávám fotku auta ${index+1} / ${selected.length}…`);
-      const blob=await compressImageBlob(selected[index],1800,.82),upload=new FormData();upload.append('file',blob,`${selected[index].name.replace(/\.[^.]+$/,'')||'e36'}.jpg`);
-      await apiRequestForm(`/api/cars/${encodeURIComponent(carId)}/photos`,upload);
-    }
-    data.cars=await loadCarsFromApi();renderGarage();renderProfile();toast(selected.length===1?'Fotka auta byla přidána.':'Fotky auta byly přidány.');
-  }catch(error){console.error('Car photo upload failed',error);toast(error?.status===409?'Fotku se nepodařilo uložit.':apiError(error))}
 }
 function preferredReservationCar(){return data.cars.find(car=>car.primary)||data.cars[0]||null}
 function ensureSelectedReservationCar(){
@@ -944,60 +957,128 @@ reservationForm?.addEventListener('submit',async event=>{
 });
 
 const carModal=$('[data-car-modal]');
-function openCarModal(){if(!carModal)return;carModal.hidden=false;document.body.classList.add('modal-open')}
+const carForm=$('[data-car-form]'),carPhotoInput=$('[data-car-photo-input]');
+const carPhotoPreview=createImagePreviewController($('[data-car-photo-preview]'));
+let editingCarId='';
+let selectedCarPhoto=null;
+function syncCarPhotoSelection(){
+  const action=$('[data-car-photo-action]'),name=$('[data-car-photo-name]'),clear=$('[data-car-photo-clear]'),current=$('[data-car-current-photo]');
+  if(action)action.textContent=selectedCarPhoto?'Změnit fotku':editingCarId&&current&&!current.hidden?'Změnit fotku':'Vybrat fotku';
+  if(name)name.textContent=selectedCarPhoto?selectedCarPhoto.name:'JPG, PNG nebo WEBP · max. 12 MB';
+  if(clear)clear.hidden=!selectedCarPhoto;
+  if(current)current.hidden=Boolean(selectedCarPhoto)||!current.dataset.available;
+}
+function clearSelectedCarPhoto(){selectedCarPhoto=null;if(carPhotoInput)carPhotoInput.value='';carPhotoPreview.clear();syncCarPhotoSelection()}
+function closeCarModal(){
+  if(!carModal)return;carModal.hidden=true;delete carModal.dataset.carId;document.body.classList.remove('modal-open');returnToReservationAfterCar=false;editingCarId='';carForm?.reset();clearSelectedCarPhoto();
+  const current=$('[data-car-current-photo]');if(current){current.hidden=true;delete current.dataset.available}
+}
+function openCarModal(car=null){
+  if(!carModal||!carForm)return;
+  editingCarId=car?.id?String(car.id):'';carModal.dataset.carId=editingCarId;carForm.reset();clearSelectedCarPhoto();
+  const title=$('[data-car-modal-title]'),kicker=$('[data-car-modal-kicker]'),copy=$('[data-car-modal-copy]'),submit=$('[data-car-submit]'),current=$('[data-car-current-photo]'),currentImage=$('[data-car-current-photo-image]');
+  if(title)title.textContent=editingCarId?'Upravit auto.':'Přidat auto.';
+  if(kicker)kicker.textContent=editingCarId?'MY GARAGE · ÚPRAVA':'MY GARAGE · NOVÉ AUTO';
+  if(copy)copy.textContent=editingCarId?'Změň jen to, co potřebuješ. Auto zůstane pod stejným ID a současná fotka se nahradí až po úspěšném uploadu.':'Fotka není povinná. Pro profil auta používáme jednu privátní fotografii načítanou přes autorizovaný endpoint.';
+  if(submit)submit.innerHTML=editingCarId?'Uložit změny <span>→</span>':'Přidat do garáže <span>→</span>';
+  if(car){for(const field of ['nickname','body','model','year','color'])if(carForm.elements[field])carForm.elements[field].value=car[field]??'';if(carForm.elements.primary)carForm.elements.primary.checked=car.primary===true}
+  if(current){current.hidden=true;delete current.dataset.available}
+  const photoId=car?.photos?.[0]?.id;
+  if(photoId&&current&&currentImage){void getPrivateCarPhotoUrl(String(photoId)).then(url=>{if(editingCarId!==String(car.id)||selectedCarPhoto)return;currentImage.src=url;current.dataset.available='true';current.hidden=false;syncCarPhotoSelection()}).catch(error=>console.warn('Current car photo preview unavailable',error))}
+  carModal.hidden=false;document.body.classList.add('modal-open');requestAnimationFrame(()=>carForm.elements.nickname?.focus());syncCarPhotoSelection();
+}
 function openCarForReservation(){returnToReservationAfterCar=true;openCarModal()}
 $('[data-open-car]')?.addEventListener('click',openCarModal);
 $('[data-planner-handoff-add-car]')?.addEventListener('click',openCarForReservation);
 $('[data-reservation-add-car]')?.addEventListener('click',openCarForReservation);
-$$('[data-close-car]').forEach(button=>button.addEventListener('click',()=>{carModal.hidden=true;document.body.classList.remove('modal-open');returnToReservationAfterCar=false}));
-$('[data-car-form]')?.addEventListener('submit',async event=>{
+$$('[data-close-car]').forEach(button=>button.addEventListener('click',closeCarModal));
+carPhotoInput?.addEventListener('change',()=>{
+  const selection=selectImageFiles(carPhotoInput.files,{maxFiles:1});
+  if(selection.invalidType||selection.tooLarge){carPhotoInput.value='';selectedCarPhoto=null;carPhotoPreview.clear();syncCarPhotoSelection();return toast(selection.tooLarge?'Fotka může mít nejvýše 12 MB.':'Vyber JPG, PNG nebo WebP.')}
+  selectedCarPhoto=selection.files[0]||null;carPhotoPreview.render(selection.files);syncCarPhotoSelection();
+});
+$('[data-car-photo-clear]')?.addEventListener('click',clearSelectedCarPhoto);
+carForm?.addEventListener('submit',async event=>{
   event.preventDefault();
   if(!currentUser)return toast('Nejdřív se přihlas.');
-  const form=event.currentTarget,button=form.querySelector('button[type="submit"]'),fd=new FormData(form),files=[...form.elements.photos.files].slice(0,1);
+  const form=event.currentTarget,button=form.querySelector('button[type="submit"]'),fd=new FormData(form),file=selectedCarPhoto,carId=editingCarId;
   setButtonBusy(button,true,'Ukládám auto…');
   try{
-    const created=await apiRequest('/api/cars',{method:'POST',body:{nickname:fd.get('nickname'),body:fd.get('body'),model:fd.get('model'),year:fd.get('year'),color:fd.get('color'),primary:fd.get('primary')==='on'}});
-    const carId=created?.car?.id;if(!carId)throw new Error('car_create_failed');
-    for(const file of files){
-      const blob=await compressImageBlob(file,1800,.82);
+    const blob=file?await compressImageBlob(file,1800,.82):null,payload={nickname:fd.get('nickname'),body:fd.get('body'),model:fd.get('model'),year:fd.get('year'),color:fd.get('color'),primary:fd.get('primary')==='on'};
+    let savedCarId=carId;
+    if(carId)await apiRequest(`/api/cars/${encodeURIComponent(carId)}`,{method:'PUT',body:payload});
+    else{const created=await apiRequest('/api/cars',{method:'POST',body:payload});savedCarId=created?.car?.id;if(!savedCarId)throw new Error('car_create_failed')}
+    let photoError=null;
+    if(blob){
       const upload=new FormData();upload.append('file',blob,`${file.name.replace(/\.[^.]+$/,'')||'car'}.jpg`);
-      await apiRequestForm(`/api/cars/${encodeURIComponent(carId)}/photos`,upload);
+      try{await apiRequestForm(`/api/cars/${encodeURIComponent(savedCarId)}/photos`,upload,{method:carId?'PUT':'POST'})}catch(error){photoError=error}
     }
     data.cars=await loadCarsFromApi();
-    carModal.hidden=true;document.body.classList.remove('modal-open');form.reset();setReservationCarError(false);renderGarage();renderProfile();
+    const resumeReservation=returnToReservationAfterCar;closeCarModal();setReservationCarError(false);renderGarage();renderProfile();
     if(activePlannerHandoff&&plannerHandoffApplied){renderReservation();applyPlannerHandoffToForm()}
-    else if(returnToReservationAfterCar)openSection('reservation');
-    returnToReservationAfterCar=false;toast(files.length?'Auto i fotky jsou uložené v Můj United.':'Auto je uložené v Můj United.');
+    else if(resumeReservation)openSection('reservation');
+    returnToReservationAfterCar=false;
+    if(photoError){console.error('Car photo replacement failed',photoError);toast(carId?'Změny auta jsou uložené. Původní fotka zůstala beze změny.':'Auto je uložené, ale fotku se nepodařilo přidat.');return}
+    toast(carId?(file?'Auto i nová fotka byly aktualizovány.':'Změny auta byly uloženy.'):(file?'Auto i fotka jsou uložené v Můj United.':'Auto je uložené v Můj United.'));
   }catch(error){console.error('Car upload failed',error);toast(error?.status===409?'Profilovou fotku se nepodařilo uložit.':apiError(error))}
   finally{setButtonBusy(button,false)}
 });
 async function compressImageBlob(file,max=1800,quality=.82){return new Promise((resolve,reject)=>{const img=new Image(),reader=new FileReader();reader.onload=()=>img.src=reader.result;reader.onerror=reject;img.onload=()=>{const scale=Math.min(1,max/Math.max(img.width,img.height)),canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(img.width*scale));canvas.height=Math.max(1,Math.round(img.height*scale));canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);canvas.toBlob(blob=>blob?resolve(blob):reject(new Error('image_compression_failed')),'image/jpeg',quality)};reader.readAsDataURL(file)})}
 
-function renderMemberGallery(){
-  const list=$('[data-member-gallery-list]');if(!list)return;
-  if(!memberGallery.length){list.innerHTML='<div class="member-gallery-empty"><b>Zatím jsi neposlal žádné fotografie.</b><small>Nahraj je tady. Po schválení se objeví ve veřejné galerii.</small></div>';return}
-  const label={pending:'ČEKÁ NA SCHVÁLENÍ',approved:'SCHVÁLENA',rejected:'ZAMÍTNUTA'};
-  list.innerHTML=memberGallery.map(item=>`<article class="member-gallery-item"><div><small>${esc(new Date(item.createdAt||Date.now()).toLocaleDateString('cs-CZ'))}</small><b>${esc(item.caption||'Fotka do United galerie')}</b></div><span class="status-${esc(item.status)}">${label[item.status]||esc(item.status)}</span></article>`).join('');
+let memberGalleryObserver=null,activeMemberGalleryIndex=-1;
+function loadMemberGalleryThumbnail(img){
+  const id=img.dataset.memberGalleryImage;if(!id||img.dataset.loading)return;img.dataset.loading='true';
+  void getPrivateMemberGalleryPhotoUrl(id).then(url=>{if(img.isConnected)img.src=url}).catch(error=>{console.warn('Member gallery thumbnail unavailable',id,error);img.closest('.member-gallery-item')?.classList.add('is-image-unavailable')}).finally(()=>delete img.dataset.loading);
 }
+function hydrateMemberGalleryThumbnails(){
+  memberGalleryObserver?.disconnect();const images=$$('img[data-member-gallery-image]');
+  if(!('IntersectionObserver'in window)){images.forEach(loadMemberGalleryThumbnail);return}
+  memberGalleryObserver=new IntersectionObserver(entries=>{for(const entry of entries)if(entry.isIntersecting){memberGalleryObserver.unobserve(entry.target);loadMemberGalleryThumbnail(entry.target)}},{rootMargin:'240px'});
+  images.forEach(image=>memberGalleryObserver.observe(image));
+}
+function renderMemberGallery(){
+  const list=$('[data-member-gallery-list]'),more=$('[data-member-gallery-more]');if(!list)return;
+  if(!memberGallery.length){list.innerHTML='<div class="member-gallery-empty"><b>Zatím jsi neposlal žádné fotografie.</b><small>Nahraj je tady. Po schválení se objeví ve veřejné galerii.</small></div>';if(more)more.hidden=true;return}
+  const label={pending:'ČEKÁ NA SCHVÁLENÍ',approved:'SCHVÁLENA',rejected:'ZAMÍTNUTA'};
+  list.innerHTML=memberGallery.map((item,index)=>`<button aria-label="Otevřít fotografii ${index+1}" class="member-gallery-item" data-member-gallery-open="${index}" type="button"><span class="member-gallery-thumb"><img alt="${esc(item.caption||'Fotka do United galerie')}" data-member-gallery-image="${esc(item.id)}" decoding="async" loading="lazy"><i aria-hidden="true">E36</i></span><span class="member-gallery-copy"><small>${esc(new Date(item.createdAt||Date.now()).toLocaleDateString('cs-CZ'))}</small><b>${esc(item.caption||'Fotka do United galerie')}</b><em class="status-${esc(item.status)}">${label[item.status]||esc(item.status)}</em></span></button>`).join('');
+  $$('[data-member-gallery-open]').forEach(button=>button.addEventListener('click',()=>openMemberGalleryLightbox(Number(button.dataset.memberGalleryOpen))));
+  if(more){more.hidden=!memberGalleryHasMore;more.disabled=memberGalleryLoading}
+  hydrateMemberGalleryThumbnails();
+}
+async function showMemberGalleryLightboxPhoto(){
+  const item=memberGallery[activeMemberGalleryIndex],image=$('[data-member-gallery-lightbox-image]'),caption=$('[data-member-gallery-lightbox-caption]'),prev=$('[data-member-gallery-prev]'),next=$('[data-member-gallery-next]');if(!item||!image)return;
+  image.removeAttribute('src');image.alt=item.caption||'Fotka do United galerie';if(caption)caption.textContent=`${activeMemberGalleryIndex+1} / ${memberGallery.length}${item.caption?` · ${item.caption}`:''}`;
+  if(prev)prev.disabled=memberGallery.length<2;if(next)next.disabled=memberGallery.length<2;
+  try{const url=await getPrivateMemberGalleryPhotoUrl(String(item.id));if(memberGallery[activeMemberGalleryIndex]?.id===item.id)image.src=url}catch(error){console.warn('Member gallery lightbox unavailable',error)}
+}
+function openMemberGalleryLightbox(index){const modal=$('[data-member-gallery-lightbox]');if(!modal||!memberGallery[index])return;activeMemberGalleryIndex=index;modal.hidden=false;document.body.classList.add('modal-open');void showMemberGalleryLightboxPhoto();$('[data-member-gallery-close]',modal)?.focus()}
+function closeMemberGalleryLightbox(){const modal=$('[data-member-gallery-lightbox]');if(!modal)return;modal.hidden=true;activeMemberGalleryIndex=-1;document.body.classList.remove('modal-open')}
+function stepMemberGalleryLightbox(direction){if(activeMemberGalleryIndex<0||!memberGallery.length)return;activeMemberGalleryIndex=(activeMemberGalleryIndex+direction+memberGallery.length)%memberGallery.length;void showMemberGalleryLightboxPhoto()}
+$$('[data-member-gallery-close]').forEach(button=>button.addEventListener('click',closeMemberGalleryLightbox));
+$('[data-member-gallery-prev]')?.addEventListener('click',()=>stepMemberGalleryLightbox(-1));
+$('[data-member-gallery-next]')?.addEventListener('click',()=>stepMemberGalleryLightbox(1));
+document.addEventListener('keydown',event=>{if(activeMemberGalleryIndex<0)return;if(event.key==='Escape')closeMemberGalleryLightbox();if(event.key==='ArrowLeft')stepMemberGalleryLightbox(-1);if(event.key==='ArrowRight')stepMemberGalleryLightbox(1)});
+$('[data-member-gallery-more]')?.addEventListener('click',async event=>{const button=event.currentTarget;button.disabled=true;button.textContent='Načítám…';try{await loadMemberGallery({append:true})}catch(error){console.error('More member photos unavailable',error);toast(apiError(error))}finally{button.disabled=false;button.textContent='Načíst další'}});
 
 const memberGalleryForm=$('[data-member-gallery-form]'),memberPhotoInput=$('[data-member-photo-input]'),memberPhotoDropzone=$('[data-member-photo-dropzone]');
-const memberPhotoTypes=new Set(['image/jpeg','image/png','image/webp']);
+const memberPhotoPreview=createImagePreviewController($('[data-member-photo-previews]'));
 let memberPhotoSelection=[];
 function renderMemberPhotoSelection(){
   const panel=$('[data-member-photo-selection]'),count=$('[data-member-photo-count]'),names=$('[data-member-photo-names]');if(!panel||!count||!names)return;
-  const total=memberPhotoSelection.length;panel.hidden=!total;if(!total){count.textContent='';names.textContent='';return}
+  const total=memberPhotoSelection.length;panel.hidden=!total;memberPhotoPreview.render(memberPhotoSelection);if(!total){count.textContent='';names.textContent='';return}
   const noun=total===1?'fotka připravená':total<=4?'fotky připravené':'fotek připravených';count.textContent=`${total} ${noun} k nahrání`;
   const visible=memberPhotoSelection.slice(0,2).map(file=>file.name),remaining=total-visible.length;names.textContent=`${visible.join(' · ')}${remaining?` · +${remaining} další`:''}`;
 }
 function selectMemberPhotos(fileList,{notify=true,updateInput=false}={}){
-  const source=[...fileList],accepted=source.filter(file=>memberPhotoTypes.has(file.type)),limited=accepted.slice(0,8);
-  memberPhotoSelection=limited;
-  if(notify&&source.length!==accepted.length)toast('Vyber fotky ve formátu JPG, PNG nebo WebP.');
-  else if(notify&&accepted.length>8)toast('Najednou můžeš nahrát maximálně 8 fotek.');
-  if(updateInput&&memberPhotoInput){try{const transfer=new DataTransfer();for(const file of limited)transfer.items.add(file);memberPhotoInput.files=transfer.files}catch(error){console.debug('Dropped photos stay in the upload selection.',error)}}
+  const selection=selectImageFiles(fileList,{maxFiles:8});memberPhotoSelection=selection.files;
+  if(notify&&(selection.invalidType||selection.tooLarge))toast(selection.tooLarge?'Každá fotka může mít nejvýše 12 MB.':'Vyber fotky ve formátu JPG, PNG nebo WebP.');
+  else if(notify&&selection.truncated)toast('Najednou můžeš nahrát maximálně 8 fotek.');
+  if(updateInput&&memberPhotoInput){try{const transfer=new DataTransfer();for(const file of memberPhotoSelection)transfer.items.add(file);memberPhotoInput.files=transfer.files}catch(error){console.debug('Dropped photos stay in the upload selection.',error)}}
   renderMemberPhotoSelection();
 }
+function clearMemberPhotoSelection(){memberPhotoSelection=[];if(memberPhotoInput)memberPhotoInput.value='';renderMemberPhotoSelection()}
 memberPhotoInput?.addEventListener('change',()=>selectMemberPhotos(memberPhotoInput.files));
+$('[data-member-photo-clear]')?.addEventListener('click',clearMemberPhotoSelection);
 if(memberPhotoDropzone){
   for(const type of ['dragenter','dragover'])memberPhotoDropzone.addEventListener(type,event=>{event.preventDefault();if(event.dataTransfer)event.dataTransfer.dropEffect='copy';memberPhotoDropzone.classList.add('is-drag-over')});
   memberPhotoDropzone.addEventListener('dragleave',event=>{if(!memberPhotoDropzone.contains(event.relatedTarget))memberPhotoDropzone.classList.remove('is-drag-over')});
@@ -1016,7 +1097,7 @@ memberGalleryForm?.addEventListener('submit',async event=>{
       const blob=await compressImageBlob(files[i],1800,.82),upload=new FormData();upload.append('file',blob,`${files[i].name.replace(/\.[^.]+$/,'')||'united'}.jpg`);upload.append('caption',caption);
       await apiRequestForm('/api/gallery/submissions',upload);
     }
-    form.reset();memberPhotoSelection=[];renderMemberPhotoSelection();await loadMemberGallery();toast('Fotky jsou nahrané a čekají na schválení United týmem.');
+    form.reset();clearMemberPhotoSelection();await loadMemberGallery();toast('Fotky jsou nahrané a čekají na schválení United týmem.');
   }catch(error){console.error('Gallery upload failed',error);toast(error?.status===429?'Dnešní limit nahrávání byl dosažen.':apiError(error))}
   finally{setButtonBusy(button,false)}
 });

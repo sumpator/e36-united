@@ -52,10 +52,12 @@ test('Member Summary renders real profile identity and progress data', () => {
   assert.match(css, /\.member-summary>div\{padding:19px\}/);
 });
 
-test('Garage exposes Add Photo only when the car has no profile photo', () => {
-  assert.match(js, /first\?'':`<label class="car-photo-add">Přidat fotku/);
-  assert.match(js, /car\.photos\?\.length\?\[\]:accepted\.slice\(0,1\)/);
-  assert.match(js, /form\.elements\.photos\.files\]\.slice\(0,1\)/);
+test('Garage exposes one shared add/edit form and one profile-photo selector', () => {
+  assert.match(js, /data-edit-car/);
+  assert.match(js, /openCarModal\(car\)/);
+  assert.match(js, /selectedCarPhoto=selection\.files\[0\]\|\|null/);
+  assert.match(js, /method:carId\?'PUT':'POST'/);
+  assert.equal((html.match(/data-car-form=""/g)||[]).length,1);
   assert.doesNotMatch(html, /Profilová fotka[^<]*max 3|name="photos"[^>]*multiple/);
 });
 
