@@ -8,14 +8,25 @@
 <meta content="noindex,nofollow" name="robots"/>
 <meta content="#090a0c" name="theme-color"/>
 <link href="styles.css?v=20260825-mobile1" rel="stylesheet"/>
-<link href="member.css?v=20260827-portal-refine" rel="stylesheet"/>
+<link href="member.css?v=20260827-mobile-nav" rel="stylesheet"/>
 </head>
 <body class="member-page">
 <header class="site-header scrolled member-header">
 <div class="container nav">
 <a aria-label="E36 United – domů" class="brand" href="index.html"><span class="brand-mark"><img alt="" src="https://static.wixstatic.com/media/595239_e98c154b89304202a35b84993c3ddef4~mv2.png/v1/fill/w_61%2Ch_58%2Cal_c%2Cq_85%2Cusm_0.66_1.00_0.01%2Cenc_avif%2Cquality_auto/UsingleWhite.png"/></span><span>E36 UNITED</span></a>
 <nav aria-label="Navigace členského portálu" class="nav-links member-top-nav">
-<a href="index.html">Web</a><a href="galerie.html">Galerie</a><a href="merch.html">United Merch</a><a class="nav-member active" href="member.html">Můj United</a>
+<a href="index.html">Web</a><a href="galerie.html">Galerie</a><a href="merch.html">United Merch</a><a class="nav-member active" data-member-entry="" href="member.html"><span class="nav-member-label">Můj United</span></a>
+<div aria-label="Sekce Můj United" class="member-main-mobile-nav" data-member-main-mobile-nav="" hidden="" role="group">
+<button class="is-active" data-main-member-section="overview" type="button">Přehled</button>
+<button data-main-member-section="reservation" type="button">Sraz &amp; Ubytování</button>
+<button data-main-member-section="garage" type="button">Garáž</button>
+<button data-main-member-section="payments" type="button">Platby</button>
+<button data-main-member-section="club" type="button">United Club</button>
+<button data-main-member-section="photos" type="button">Moje fotky</button>
+<button data-main-member-section="account" type="button">Účet</button>
+<span aria-hidden="true" class="member-main-mobile-divider"></span>
+<button class="member-main-mobile-logout" data-logout="" type="button">Odhlásit se</button>
+</div>
 </nav>
 <button aria-expanded="false" aria-label="Otevřít menu" class="menu-btn"><span></span><span></span><span></span></button>
 </div>
@@ -75,26 +86,6 @@
 </aside>
 </div>
 <button class="member-sidebar-logout" data-logout="" type="button">Odhlásit se</button>
-<button aria-controls="member-mobile-menu" aria-expanded="false" class="portal-menu-button" data-portal-menu-open type="button"><span>MENU</span><i aria-hidden="true"></i></button>
-<div class="portal-nav-sheet" data-portal-sheet hidden id="member-mobile-menu">
-<button aria-label="Zavřít menu" class="portal-nav-sheet-backdrop" data-portal-sheet-close type="button"></button>
-<div aria-labelledby="member-mobile-menu-title" aria-modal="true" class="portal-nav-sheet-dialog" data-portal-sheet-dialog role="dialog" tabindex="-1">
-<div class="portal-nav-sheet-head"><div><small>NAVIGACE</small><h2 id="member-mobile-menu-title">Můj United</h2></div><button aria-label="Zavřít menu" data-portal-sheet-close type="button">×</button></div>
-<nav aria-label="Všechny sekce Můj United" class="portal-nav-sheet-list">
-<button class="is-active" data-portal-target="overview" type="button"><span>01</span><b>Přehled</b></button>
-<button data-portal-target="reservation" type="button"><span>02</span><b>Sraz &amp; Ubytování</b></button>
-<button data-portal-target="garage" type="button"><span>03</span><b>Garáž</b></button>
-<button data-portal-target="payments" type="button"><span>04</span><b>Platby</b></button>
-<button data-portal-target="club" type="button"><span>05</span><b>United Club</b></button>
-<button data-portal-target="photos" type="button"><span>06</span><b>Moje fotky</b></button>
-<button data-portal-target="account" type="button"><span>07</span><b>Účet</b></button>
-<span aria-hidden="true" class="portal-nav-sheet-divider"></span>
-<a class="portal-nav-sheet-external" href="merch.html"><b>United Merch ↗</b></a>
-<span aria-hidden="true" class="portal-nav-sheet-divider"></span>
-<button class="portal-nav-sheet-logout" data-logout="" type="button"><b>Odhlásit se</b></button>
-</nav>
-</div>
-</div>
 </div>
 <div class="member-content">
 <section class="member-section is-active" data-member-panel="overview">
@@ -209,5 +200,5 @@
 </main>
 <div class="member-modal" data-car-modal="" hidden=""><div class="member-modal-backdrop" data-close-car=""></div><div class="member-modal-dialog"><button class="member-modal-close" data-close-car="">×</button><div class="member-section-head"><div><span class="member-kicker">MY GARAGE</span><h2>Přidat auto.</h2><p>Fotka není povinná. Pro profil auta používáme jednu privátní fotografii načítanou přes autorizovaný endpoint.</p></div></div><form class="car-form" data-car-form=""><div class="form-grid-two"><label><span>Název / přezdívka auta</span><input name="nickname" placeholder="Modrá mrcha" required=""/></label><label><span>Karoserie</span><select name="body"><option>Sedan</option><option>Coupé</option><option>Touring</option><option>Cabrio</option><option>Compact</option><option>Z3</option><option>///M Power</option></select></label></div><div class="form-grid-two"><label><span>Model / motor</span><input name="model" placeholder="328i / M52B28" required=""/></label><label><span>Rok</span><input max="2026" min="1990" name="year" placeholder="1996" type="number"/></label></div><div class="form-grid-two"><label><span>Barva</span><input name="color" placeholder="Estoril Blau"/></label><label><span>SPZ (volitelné)</span><input name="plate" placeholder="—"/></label></div><label><span>Profilová fotka · 1× JPG / PNG / WEBP</span><input accept="image/jpeg,image/png,image/webp" name="photos" type="file"/></label><label class="consent-line"><input name="primary" type="checkbox"/><span>Nastavit jako hlavní auto</span></label><button class="member-primary" type="submit">Přidat do garáže <span>→</span></button></form></div></div>
 <div aria-live="polite" class="member-toast" data-toast="" role="status"></div>
-<script src="member.js?v=20260827-portal-refine" type="module"></script>
+<script src="member.js?v=20260827-mobile-nav" type="module"></script>
 </body></html>

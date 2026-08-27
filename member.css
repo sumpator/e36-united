@@ -364,3 +364,21 @@ body:not(.member-authenticated) [data-app-view]{display:none!important}
 @media(max-width:1050px){.member-sidebar-logout{display:none}}
 @media(max-width:700px){.member-summary>div{padding:15px}.member-summary-primary .member-summary-profile{gap:8px 12px}}
 @media(prefers-reduced-motion:reduce){.member-sidebar-logout{transition:none}}
+
+/* 2026-08-27: one authenticated mobile menu; the in-portal scroller stays independent. */
+.member-main-mobile-nav{display:none}
+.member-top-nav a.nav-member.active::after{display:none}
+.member-top-nav .nav-member-label{position:relative}
+.member-top-nav .nav-member.active .nav-member-label::after{content:"";position:absolute;left:0;right:0;bottom:-9px;height:1px;border-radius:999px;background:#69b9ff;box-shadow:0 0 10px rgba(77,163,255,.72)}
+@media(max-width:1050px){.member-portal-nav{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:980px){
+  .member-top-nav a.nav-member.active{text-decoration:none}
+  .member-top-nav .nav-member.active .nav-member-label{text-decoration-line:underline;text-decoration-color:#69b9ff;text-decoration-thickness:1px;text-underline-offset:8px}
+  .member-top-nav .nav-member.active .nav-member-label::after{display:none}
+  .member-main-mobile-nav:not([hidden]){width:100%;display:grid;gap:4px;margin-top:-8px;padding:12px 0 0 18px;border-left:1px solid rgba(77,163,255,.24)}
+  .member-main-mobile-nav button{width:100%;min-height:39px;padding:0 12px;border:1px solid transparent;border-radius:10px;background:transparent;color:#a8b4c0;text-align:left;font-size:13px;font-weight:750;cursor:pointer}
+  .member-main-mobile-nav button.is-active{border-color:rgba(77,163,255,.2);background:rgba(77,163,255,.07);color:#e9f5ff;box-shadow:inset 3px 0 #63b4ff}
+  .member-main-mobile-divider{height:1px;margin:7px 8px;background:rgba(255,255,255,.11)}
+  .member-main-mobile-nav .member-main-mobile-logout{color:#dc929b;border-color:rgba(255,110,124,.14);background:rgba(255,77,97,.025)}
+  .member-main-mobile-nav .member-main-mobile-logout:hover{color:#f1a3ac;border-color:rgba(255,110,124,.3);background:rgba(255,77,97,.06)}
+}

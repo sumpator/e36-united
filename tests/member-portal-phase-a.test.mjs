@@ -23,31 +23,28 @@ test('main navigation contains exactly seven internal panels in target order', (
 
 test('United Merch is a separated external destination, never an internal panel', () => {
   const sidebar = memberHtml.slice(memberHtml.indexOf('<aside class="member-sidebar"'), memberHtml.indexOf('</aside>'));
-  const sheet = memberHtml.slice(memberHtml.indexOf('<nav aria-label="Všechny sekce Můj United"'), memberHtml.indexOf('</nav>', memberHtml.indexOf('<nav aria-label="Všechny sekce Můj United"')));
   assert.match(sidebar, /member-nav-external member-nav-shop" href="merch\.html"><b>United Merch<\/b>/);
   assert.doesNotMatch(sidebar, /member-nav-external[^>]*>[\s\S]*?<span>\d{2}<\/span>/);
   assert.doesNotMatch(memberHtml, /data-member-panel="merch"/);
-  assert.match(sheet, /portal-nav-sheet-divider/);
-  assert.match(sheet, /portal-nav-sheet-external" href="merch\.html"><b>United Merch ↗<\/b>/);
   assert.match(memberCss, /@media\(max-width:1050px\)[^\n]*member-portal-nav \.member-nav-external\{display:none\}/);
 });
 
-test('mobile menu sheet keeps internal 01–07 before its Merch divider', () => {
-  const start = memberHtml.indexOf('<nav aria-label="Všechny sekce Můj United"');
-  const sheet = memberHtml.slice(start, memberHtml.indexOf('</nav>', start));
-  const divider = sheet.indexOf('portal-nav-sheet-divider');
-  const internal = sheet.slice(0, divider);
-  const labels = [...internal.matchAll(/data-portal-target="[^"]+"[^>]*>[\s\S]*?<b>([^<]+)<\/b>/g)].map(match => match[1].replace('&amp;', '&'));
+test('authenticated main mobile menu contains all Member Portal sections', () => {
+  const start = memberHtml.indexOf('data-member-main-mobile-nav');
+  const mobile = memberHtml.slice(start, memberHtml.indexOf('</div>', start));
+  const labels = [...mobile.matchAll(/data-main-member-section="[^"]+"[^>]*>([^<]+)<\/button>/g)].map(match => match[1].replace('&amp;', '&'));
   assert.deepEqual(labels, ['Přehled', 'Sraz & Ubytování', 'Garáž', 'Platby', 'United Club', 'Moje fotky', 'Účet']);
-  assert.ok(divider > 0 && sheet.indexOf('United Merch ↗') > divider);
+  assert.match(memberHtml, /data-member-main-mobile-nav="" hidden=""/);
+  assert.match(memberJs, /setMainMobileMemberNavigation\(true\)/);
+  assert.match(memberJs, /setMainMobileMemberNavigation\(false\)/);
 });
 
-test('mobile menu adds unnumbered logout after Merch and reuses the shared logout function', () => {
-  const start = memberHtml.indexOf('<nav aria-label="Všechny sekce Můj United"');
-  const sheet = memberHtml.slice(start, memberHtml.indexOf('</nav>', start));
-  const merch = sheet.indexOf('United Merch ↗'), secondDivider = sheet.indexOf('portal-nav-sheet-divider', sheet.indexOf('portal-nav-sheet-divider') + 1), logout = sheet.indexOf('portal-nav-sheet-logout');
-  assert.ok(merch > 0 && secondDivider > merch && logout > secondDivider);
-  assert.doesNotMatch(sheet.slice(logout), /<span>\d{2}<\/span>/);
+test('main mobile menu adds unnumbered logout after its divider and reuses the shared logout function', () => {
+  const start = memberHtml.indexOf('data-member-main-mobile-nav');
+  const mobile = memberHtml.slice(start, memberHtml.indexOf('</div>', start));
+  const divider = mobile.indexOf('member-main-mobile-divider'), logout = mobile.indexOf('member-main-mobile-logout');
+  assert.ok(divider > 0 && logout > divider);
+  assert.doesNotMatch(mobile.slice(logout), /<span>\d{2}<\/span>/);
   assert.match(memberJs, /async function logoutMember\(\)/);
   assert.match(memberJs, /performMemberLogout/);
   assert.match(memberJs, /onSuccess:\(\)=>\{memberPortalNavigation\?\.close/);
@@ -55,7 +52,7 @@ test('mobile menu adds unnumbered logout after Merch and reuses the shared logou
   assert.match(memberJs, /\$\$\('\[data-logout\]'\)\.forEach\(button=>button\.addEventListener\('click',logoutMember\)\)/);
 });
 
-test('desktop sidebar action, mobile menu and Account expose shared logout outside the bordered navigation card', () => {
+test('desktop sidebar action, main mobile menu and Account expose shared logout outside the bordered navigation card', () => {
   const heroStart = memberHtml.indexOf('data-member-hero=');
   const hero = memberHtml.slice(heroStart, memberHtml.indexOf('<div class="container member-shell">', heroStart));
   const navStart = memberHtml.indexOf('<div class="member-portal-nav');
@@ -67,12 +64,35 @@ test('desktop sidebar action, mobile menu and Account expose shared logout outsi
   assert.doesNotMatch(hero, /data-logout|member-hero-logout/);
   assert.doesNotMatch(sidebar, /data-logout/);
   assert.ok(nav.indexOf('member-sidebar-logout') > nav.indexOf('</aside>'));
-  assert.ok(nav.indexOf('member-sidebar-logout') < nav.indexOf('data-portal-menu-open'));
+  assert.doesNotMatch(nav, /data-portal-menu-open|data-portal-sheet/);
   assert.match(account, /account-logout" data-logout=""/);
   assert.equal((memberHtml.match(/data-logout=""/g)||[]).length,3);
   assert.match(memberCss, /\.member-sidebar-logout\{width:100%;min-height:44px;margin-top:10px/);
   assert.match(memberCss, /@media\(max-width:1050px\)\{\.member-sidebar-logout\{display:none\}\}/);
   assert.match(memberJs, /\$\$\('\[data-logout\]'\)\.forEach\(button=>button\.addEventListener\('click',logoutMember\)\)/);
+});
+
+test('duplicate internal mobile hamburger is removed while the horizontal scroller remains', () => {
+  const navStart = memberHtml.indexOf('<div class="member-portal-nav');
+  const nav = memberHtml.slice(navStart, memberHtml.indexOf('<div class="member-content">', navStart));
+  assert.doesNotMatch(nav, /portal-menu-button|data-portal-menu-open|portal-nav-sheet|data-portal-sheet/);
+  assert.match(nav, /portal-nav-viewport[\s\S]*?<aside class="member-sidebar" data-portal-tablist>/);
+  assert.equal((nav.match(/data-member-section="/g)||[]).length,7);
+  assert.match(memberCss, /@media\(max-width:1050px\)\{\.member-portal-nav\{grid-template-columns:minmax\(0,1fr\)\}\}/);
+  assert.match(portalNavigationJs, /scrollIntoView/);
+});
+
+test('main mobile submenu delegates section state to openSection and closes the hamburger', () => {
+  assert.match(memberJs, /\$\$\('\[data-main-member-section\]'\)\.forEach\(button=>button\.addEventListener\('click',\(\)=>\{openSection\(button\.dataset\.mainMemberSection\);closeMainMenu\(\)\}\)\)/);
+  assert.match(memberJs, /\$\$\('\[data-main-member-section\]'\)\.forEach\(button=>button\.classList\.toggle\('is-active',button\.dataset\.mainMemberSection===id\)\)/);
+  assert.match(memberJs, /data-member-entry[\s\S]*openSection\('overview'\)/);
+});
+
+test('Můj United active underline belongs to its label, not the decorative marker', () => {
+  assert.match(memberHtml, /nav-member-label">Můj United<\/span>/);
+  assert.match(memberCss, /\.member-top-nav a\.nav-member\.active::after\{display:none\}/);
+  assert.match(memberCss, /\.member-top-nav \.nav-member\.active \.nav-member-label::after/);
+  assert.match(memberCss, /\.member-top-nav a\.nav-member\.active\{text-decoration:none\}/);
 });
 
 test('authenticated entry always starts on Overview without planner or URL auto-navigation', () => {

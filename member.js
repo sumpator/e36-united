@@ -120,8 +120,10 @@ function setMode(text){
   const sync=$('[data-sync-state]');if(sync)sync.textContent=text;
   $$('[data-demo-hint]').forEach(x=>x.hidden=text.includes('LIVE'));
 }
+function setMainMobileMemberNavigation(authenticated){const nav=$('[data-member-main-mobile-nav]');if(nav)nav.hidden=!authenticated;if(!authenticated)closeMainMenu()}
 function showAuth(){
   document.body.classList.remove('member-authenticated');
+  setMainMobileMemberNavigation(false);
   const authView=$('[data-auth-view]'),appView=$('[data-app-view]'),statusView=$('[data-auth-status-view]');
   if(statusView)statusView.hidden=true;
   if(authView)authView.hidden=false;
@@ -129,6 +131,7 @@ function showAuth(){
 }
 function showAuthStatus({title='Ověřuji přihlášení.',copy='Počkám na potvrzený stav Firebase session.',retry=false}={}){
   document.body.classList.remove('member-authenticated');
+  setMainMobileMemberNavigation(false);
   const authView=$('[data-auth-view]'),appView=$('[data-app-view]'),statusView=$('[data-auth-status-view]');
   if(authView)authView.hidden=true;
   if(appView)appView.hidden=true;
@@ -136,6 +139,7 @@ function showAuthStatus({title='Ověřuji přihlášení.',copy='Počkám na pot
 }
 function showApp(){
   document.body.classList.add('member-authenticated');
+  setMainMobileMemberNavigation(true);
   const authView=$('[data-auth-view]'),appView=$('[data-app-view]'),statusView=$('[data-auth-status-view]');
   if(statusView)statusView.hidden=true;
   if(authView)authView.hidden=true;
@@ -470,7 +474,7 @@ async function logoutMember(){
   authFlowActive=true;
   const signedOut=await performMemberLogout({
     signOut:()=>{if(!firebase)throw new Error('firebase_unavailable');return firebase.signOut(firebase.auth)},
-    onSuccess:()=>{memberPortalNavigation?.close({restoreFocus:false});currentUser=null;resetMemberState();resetAuthForms();showAuth();setMode('AUTH READY');toast('Odhlášeno.')},
+    onSuccess:()=>{memberPortalNavigation?.close({restoreFocus:false});closeMainMenu();currentUser=null;resetMemberState();resetAuthForms();showAuth();setMode('AUTH READY');toast('Odhlášeno.')},
     onFailure:error=>{console.warn('Firebase logout failed',error);toast('Odhlášení se nepodařilo. Tvoje přihlášení zůstalo aktivní. Zkus to znovu.')},
   });
   authFlowActive=false;
@@ -528,6 +532,7 @@ function openClubTab(id,{scroll=false}={}){
 function openSection(id){
   const legacyClubTab={history:'history',rewards:'points'}[id];if(legacyClubTab){id='club';openClubTab(legacyClubTab)}
   $$('.member-nav-item[data-member-section]').forEach(button=>button.classList.toggle('is-active',button.dataset.memberSection===id));
+  $$('[data-main-member-section]').forEach(button=>button.classList.toggle('is-active',button.dataset.mainMemberSection===id));
   $$('[data-member-panel]').forEach(panel=>panel.classList.toggle('is-active',panel.dataset.memberPanel===id));
   if(id==='club')openClubTab(activeClubTab);
   memberPortalNavigation?.sync(id);if(innerWidth<700)window.scrollTo({top:82,behavior:'smooth'});
@@ -1057,7 +1062,10 @@ async function applyPlannerDraft(serverResult={available:false,draft:null}){
 }
 
 const menuBtn=$('.menu-btn'),nav=$('.nav-links');
+function closeMainMenu(){document.body.classList.remove('menu-open');menuBtn?.setAttribute('aria-expanded','false');nav?.classList.remove('open')}
 if(menuBtn&&nav)menuBtn.addEventListener('click',()=>{const open=document.body.classList.toggle('menu-open');menuBtn.setAttribute('aria-expanded',String(open));nav.classList.toggle('open',open)});
+$('[data-member-entry]')?.addEventListener('click',event=>{if(!currentUser)return;event.preventDefault();openSection('overview');closeMainMenu()});
+$$('[data-main-member-section]').forEach(button=>button.addEventListener('click',()=>{openSection(button.dataset.mainMemberSection);closeMainMenu()}));
 
 hydratePlannerHandoffFromUrl();
 const requestedAuthMode=memberUrlParams.get('mode');if(requestedAuthMode==='register'||requestedAuthMode==='login')activateAuthTab(requestedAuthMode);
