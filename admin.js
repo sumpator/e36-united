@@ -1,6 +1,7 @@
 import { firebaseConfig, portalConfig } from './firebase-config.js?v=20260823-auth2';
 import qrcode from './vendor/qrcode-generator.mjs';
 import { initPortalNavigation } from './portal-navigation.js?v=20260825-mobile1';
+import { ADMIN_VIEW_IDS, RESERVATION_VIEW_MODES, adminItemPayment, filterAdminPayments, filterAdminReservations, paymentMatchesFilter, paymentNeedsAttention, reservationMatchesFilter } from './admin-view-model.js?v=20260827-admin-views';
 
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js';
 import { getAuth, setPersistence, browserLocalPersistence, onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js';
@@ -16,7 +17,12 @@ let adminEvents=[];
 let selectedEventId='';
 let accommodationItems=[];
 let reservationItems=[];
-let reservationFilter='pending';
+let reservationFilter='all';
+let reservationSearch='';
+let reservationViewMode=readSessionChoice('e36UnitedAdmin.reservationViewMode',RESERVATION_VIEW_MODES,'quick');
+let paymentFilter='attention';
+let paymentSearch='';
+let activeAdminView=readSessionChoice('e36UnitedAdmin.activeView',ADMIN_VIEW_IDS,'dashboard');
 let selectedReservationId=null;
 let reservationDrawerReturnFocus=null;
 let galleryItems=[];
@@ -27,7 +33,8 @@ let adminPortalNavigation=null;
 const galleryMediaUrls=new Map();
 const galleryMediaPromises=new Map();
 const galleryMediaTokens=new Map();
-const reservationFilterLabels={pending:'Žádosti',approved:'Schválené',rejected:'Zamítnuté',cancelled:'Zrušené',all:'Všechny'};
+const reservationFilterLabels={all:'Vše',action:'Vyžaduje akci',pending:'Pending',approved:'Schváleno',payment:'K platbě',paid:'Zaplaceno',rejected:'Zamítnuté',cancelled:'Zrušené'};
+const paymentFilterLabels={attention:'Vyžaduje kontrolu',all:'Vše',unpaid:'Nezaplaceno',underpaid:'Částečně',paid:'Zaplaceno',overpaid:'Přeplatek'};
 const galleryFilterLabels={pending:'Žádosti',approved:'Schválené',rejected:'Zamítnuté',all:'Všechny'};
 const adminCollapseStorageKey='e36UnitedAdmin.collapsedSections.v1';
 const adminCollapsePreferences=readAdminCollapsePreferences();
@@ -40,7 +47,7 @@ function setView(name){
   $('[data-auth-view]').hidden=name!=='auth';
   $('[data-denied-view]').hidden=name!=='denied';
   $('[data-admin-view]').hidden=name!=='admin';
-  if(name==='admin')requestAnimationFrame(updateAdminNavActive);
+  if(name==='admin')requestAnimationFrame(()=>setAdminView(activeAdminView,{focus:false}));
 }
 function toast(message){const el=$('[data-toast]');el.textContent=message;el.classList.add('is-visible');clearTimeout(toast.timer);toast.timer=setTimeout(()=>el.classList.remove('is-visible'),3200)}
 function escapeHtml(value=''){return String(value).replace(/[&<>'"]/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[char]))}
@@ -50,7 +57,7 @@ function formatDate(value,withTime=true){if(!value)return '—';const normalized
 function statusLabel(status){return({pending:'Čeká',approved:'Schválená',rejected:'Zamítnutá',cancelled:'Zrušená'})[status]||status||'—'}
 function galleryStatusLabel(status){return({pending:'Čeká na schválení',approved:'Schválena',rejected:'Zamítnuta'})[status]||status||'—'}
 function paymentLabel(status){return({paid:'Zaplaceno',unpaid:'Nezaplaceno',underpaid:'Částečně',overpaid:'Přeplatek',not_required:'Bez platby',overdue:'Po splatnosti',early_paid:'Zaplaceno',refunded:'Vráceno'})[status]||status||'—'}
-function itemPayment(item){return item?.payment||{amountDueCzk:numeric(item?.amountDueCzk),amountPaidCzk:numeric(item?.amountPaidCzk),remainingCzk:Math.max(0,numeric(item?.amountDueCzk)-numeric(item?.amountPaidCzk)),status:item?.paymentStatus||'unpaid',overdue:false}}
+function itemPayment(item){return adminItemPayment(item)}
 function paymentQrSvg(spayd){if(!spayd)return '';try{const qr=qrcode(0,'M');qr.addData(spayd,'Byte');qr.make();return qr.createSvgTag({cellSize:4,margin:8,scalable:true})}catch(error){console.error('QR payment render failed',error);return ''}}
 function attendanceLabel(type){return({full_weekend:'Full weekend',saturday_only:'Sobota',day_visit:'Day visit'})[type]||type||'—'}
 function attendanceShortLabel(item){
@@ -59,6 +66,11 @@ function attendanceShortLabel(item){
   if(item.attendanceType==='day_visit')return 'Na otočku';
   return item.arrival||'—';
 }
+
+function readSessionChoice(key,allowed,fallback){
+  try{const value=sessionStorage.getItem(key);return allowed.includes(value)?value:fallback}catch{return fallback}
+}
+function rememberSessionChoice(key,value){try{sessionStorage.setItem(key,value)}catch{}}
 
 function readAdminCollapsePreferences(){
   try{
@@ -136,6 +148,7 @@ function selectedEvent(){return adminEvents.find(event=>event.id===selectedEvent
 function renderEventSettings(event){
   const form=$('[data-event-settings-form]');
   if(!form||!event)return;
+  const year=$('[data-event-settings-year]');if(year)year.textContent=event.year||'—';
   form.elements.registrationStatus.value=event.registrationStatus||'closed';
   form.elements.reservationCapacity.value=numeric(event.reservationCapacity);
   form.elements.fullWeekendNights.value=numeric(event.fullWeekendNights);
@@ -193,10 +206,17 @@ function renderOverview(payload){
   $('[data-payment-total-due]').textContent=formatMoney(payments.amountDueCzk);$('[data-payment-total-paid]').textContent=formatMoney(payments.amountPaidCzk);$('[data-payment-total-remaining]').textContent=formatMoney(payments.amountRemainingCzk);
   $('[data-payment-count-unpaid]').textContent=numeric(payments.unpaid);$('[data-payment-count-underpaid]').textContent=numeric(payments.underpaid);$('[data-payment-count-paid]').textContent=numeric(payments.paid);$('[data-payment-count-overpaid]').textContent=numeric(payments.overpaid);$('[data-payment-count-overdue]').textContent=numeric(payments.overdue);
   const testWarning=$('[data-admin-payment-test]');if(testWarning)testWarning.hidden=!event?.paymentTestMode;
-  if(!hasAdminCollapsePreference('booking')){
-    const hasFinanceData=commitment>0||collected>0||paid>0||numeric(payments.amountDueCzk)>0||numeric(payments.amountPaidCzk)>0;
-    setAdminSectionCollapsed('booking',!hasFinanceData,{animate:false});
-  }
+  renderAttentionCounts();
+}
+
+function renderAttentionCounts(){
+  const pendingReservations=reservationItems.filter(item=>reservationMatchesFilter(item,'action')).length;
+  const paymentAttention=reservationItems.filter(paymentNeedsAttention).length;
+  const pendingGallery=galleryItems.filter(item=>item.status==='pending').length;
+  const reservationAttention=$('[data-attention-reservations]');if(reservationAttention)reservationAttention.textContent=pendingReservations;
+  const paymentAttentionElement=$('[data-attention-payments]');if(paymentAttentionElement)paymentAttentionElement.textContent=paymentAttention;
+  const galleryAttention=$('[data-attention-gallery]');if(galleryAttention)galleryAttention.textContent=pendingGallery;
+  const paymentNav=$('[data-payment-nav-count]');if(paymentNav)paymentNav.textContent=paymentAttention;
 }
 
 function recordsLabel(count){return `${count} ${count===1?'záznam':count>1&&count<5?'záznamy':'záznamů'}`}
@@ -205,12 +225,15 @@ function renderReservationTabs(){
   $('[data-reservation-nav-count]').textContent=reservationItems.filter(item=>item.status==='pending').length;
   $$('[data-reservation-filter]').forEach(button=>{
     const filter=button.dataset.reservationFilter;
-    const count=filter==='all'?reservationItems.length:reservationItems.filter(item=>item.status===filter).length;
+    const count=reservationItems.filter(item=>reservationMatchesFilter(item,filter)).length;
     const counter=$(`[data-reservation-filter-count="${filter}"]`,button);
     if(counter)counter.textContent=count;
     const active=filter===reservationFilter;
     button.classList.toggle('is-active',active);button.setAttribute('aria-selected',String(active));button.tabIndex=active?0:-1;
   });
+}
+function renderReservationViewMode(){
+  $$('[data-reservation-mode]').forEach(button=>{const active=button.dataset.reservationMode===reservationViewMode;button.classList.toggle('is-active',active);button.setAttribute('aria-pressed',String(active))});
 }
 function reservationActions(item){
   const actions=[
@@ -220,31 +243,24 @@ function reservationActions(item){
   ];
   return actions.filter(action=>action.status!==item.status).map(action=>`<button class="admin-button ${action.className}" data-review-action="${action.status}" type="button">${action.label}</button>`).join('');
 }
+function reservationMemberTitle(item){const member=item.member||{};return member.nickname||member.name||member.email||'United member'}
+function reservationDifference(item){const payment=itemPayment(item),due=numeric(payment.amountDueCzk),paid=numeric(payment.amountPaidCzk);if(paid>due)return `+${formatMoney(paid-due)}`;return formatMoney(numeric(payment.remainingCzk))}
+function reservationQuickRow(item){
+  const member=item.member||{},payment=itemPayment(item),attention=payment.overdue&&payment.remainingCzk>0?'Po splatnosti':paymentLabel(payment.status);
+  return `<tr data-reservation-open="${escapeHtml(item.id)}" tabindex="0"><td><strong>${escapeHtml(reservationMemberTitle(item))}</strong><small>${escapeHtml(member.email||member.name||'Bez kontaktu')}</small></td><td><strong>${escapeHtml(attendanceShortLabel(item))}</strong><small>${numeric(item.crew)} ${numeric(item.crew)===1?'osoba':'osob'}</small></td><td><i class="admin-badge admin-badge--${escapeHtml(item.status)}">${escapeHtml(statusLabel(item.status))}</i></td><td><i class="admin-badge admin-payment--${escapeHtml(payment.status)}">${escapeHtml(attention)}</i></td><td class="admin-table-money"><strong>${escapeHtml(reservationDifference(item))}</strong><small>rozdíl</small></td><td><span>${escapeHtml(formatDate(item.updatedAt))}</span></td><td><button aria-label="Otevřít detail rezervace ${escapeHtml(reservationMemberTitle(item))}" class="admin-table-detail" data-reservation-open="${escapeHtml(item.id)}" type="button">Detail →</button></td></tr>`;
+}
+function reservationDetailRow(item){
+  const member=item.member||{},payment=itemPayment(item),snapshot=item.accommodationSnapshot||null,accommodation=snapshot?`${numeric(snapshot.unitCount)}× ${snapshot.optionName}`:item.accommodation||'Bez ubytování';
+  return `<tr data-reservation-open="${escapeHtml(item.id)}" tabindex="0"><td><strong>${escapeHtml(member.name||reservationMemberTitle(item))}</strong></td><td>${escapeHtml(member.email||'—')}</td><td>${escapeHtml(member.nickname||'—')}</td><td>${numeric(item.crew)}</td><td>${escapeHtml(attendanceLabel(item.attendanceType))}</td><td>${escapeHtml(accommodation)}</td><td class="admin-table-money">${escapeHtml(formatMoney(payment.amountDueCzk))}</td><td class="admin-table-money">${escapeHtml(formatMoney(payment.amountPaidCzk))}</td><td>${escapeHtml(payment.variableSymbol||'—')}</td><td><i class="admin-badge admin-badge--${escapeHtml(item.status)}">${escapeHtml(statusLabel(item.status))}</i><i class="admin-badge admin-payment--${escapeHtml(payment.status)}">${escapeHtml(paymentLabel(payment.status))}</i></td><td>${escapeHtml(formatDate(item.updatedAt))}</td><td><button aria-label="Otevřít detail rezervace ${escapeHtml(reservationMemberTitle(item))}" class="admin-table-detail" data-reservation-open="${escapeHtml(item.id)}" type="button">Detail →</button></td></tr>`;
+}
 function renderReservationList(){
-  const reservations=reservationFilter==='all'?reservationItems:reservationItems.filter(item=>item.status===reservationFilter);
-  $('[data-reservation-count]').textContent=reservationFilter==='all'?recordsLabel(reservations.length):`${recordsLabel(reservations.length)} z ${reservationItems.length}`;
+  const reservations=filterAdminReservations(reservationItems,{filter:reservationFilter,query:reservationSearch});
+  $('[data-reservation-count]').textContent=`${recordsLabel(reservations.length)} z ${reservationItems.length}`;
   const list=$('[data-reservation-list]');
-  if(!reservations.length){list.innerHTML=`<div class="admin-empty">V záložce ${escapeHtml(reservationFilterLabels[reservationFilter].toLowerCase())} nejsou žádné rezervace.</div>`;return}
-  list.innerHTML=reservations.map(item=>{
-    const member=item.member||{};const car=item.carSnapshot||{};
-    const accommodationSnapshot=item.accommodationSnapshot||null;
-    const memberTitle=member.nickname||member.name||member.email||'United member';
-    const carModel=[car.body,car.model].filter(Boolean).join(' · ')||'Auto bez údajů';
-    const accommodation=accommodationSnapshot?`${numeric(accommodationSnapshot.unitCount)}× ${accommodationSnapshot.optionName}`:item.accommodation||'Bez ubytování';
-    const total=numeric(item.amountDueCzk)||numeric(accommodationSnapshot?.totalCzk),payment=itemPayment(item);
-    return `<article class="admin-reservation admin-reservation--compact" data-reservation-id="${escapeHtml(item.id)}">
-      <button aria-label="Otevřít detail rezervace ${escapeHtml(memberTitle)}" class="admin-reservation-row" data-reservation-open="${escapeHtml(item.id)}" type="button">
-        <span class="admin-reservation-member"><strong>${escapeHtml(memberTitle)}</strong><small>${escapeHtml(member.name||'Jméno neuvedeno')} · ${escapeHtml(member.email||'E-mail neuveden')}</small></span>
-        <span><small>AUTO</small><b>${escapeHtml(carModel)}</b></span>
-        <span><small>POBYT</small><b>${escapeHtml(attendanceShortLabel(item))} · ${numeric(item.crew)} ${numeric(item.crew)===1?'osoba':'osob'}</b></span>
-        <span><small>UBYTOVÁNÍ</small><b>${escapeHtml(accommodation)}</b></span>
-        <span class="admin-reservation-money"><small>CELKEM</small><b>${escapeHtml(formatMoney(total))}</b></span>
-        <span><small>PLATBA</small><i class="admin-badge admin-payment--${escapeHtml(payment.status)}">${escapeHtml(payment.overdue&&payment.remainingCzk>0?'Po splatnosti':paymentLabel(payment.status))}</i></span>
-        <span><small>REZERVACE</small><i class="admin-badge admin-badge--${escapeHtml(item.status)}">${escapeHtml(statusLabel(item.status))}</i></span>
-        <span class="admin-reservation-open-label">Detail <b>→</b></span>
-      </button>
-    </article>`;
-  }).join('');
+  if(!reservations.length){list.innerHTML=`<div class="admin-empty">Filtru ${escapeHtml(reservationFilterLabels[reservationFilter].toLowerCase())} a hledání neodpovídá žádná rezervace.</div>`;return}
+  const quick=reservationViewMode==='quick';
+  const headers=quick?'<th>Člen</th><th>Pobyt / posádka</th><th>Rezervace</th><th>Platba</th><th>Rozdíl</th><th>Aktualizace</th><th></th>':'<th>Člen</th><th>E-mail</th><th>Přezdívka</th><th>Posádka</th><th>Účast</th><th>Ubytování</th><th>Celkem</th><th>Uhrazeno</th><th>VS</th><th>Stavy</th><th>Aktualizace</th><th></th>';
+  list.innerHTML=`<div class="admin-table-scroll"><table class="admin-data-table admin-reservation-table admin-reservation-table--${quick?'quick':'detail'}" data-reservation-table data-mode="${reservationViewMode}"><thead><tr>${headers}</tr></thead><tbody>${reservations.map(quick?reservationQuickRow:reservationDetailRow).join('')}</tbody></table></div>`;
 }
 function renderReservationDrawer(){
   const item=reservationItems.find(reservation=>reservation.id===selectedReservationId);
@@ -278,11 +294,32 @@ function closeReservationDrawer(){
   const drawer=$('[data-reservation-drawer]');if(drawer)drawer.hidden=true;selectedReservationId=null;document.body.classList.remove('admin-overlay-open');
   if(reservationDrawerReturnFocus?.isConnected)reservationDrawerReturnFocus.focus();reservationDrawerReturnFocus=null;
 }
-function renderReservations(payload){reservationItems=Array.isArray(payload.reservations)?payload.reservations:[];renderReservationTabs();renderReservationList();if(selectedReservationId)renderReservationDrawer()}
-function setReservationFilter(filter,scroll=false){
+function paymentRow(item){
+  const member=item.member||{},payment=itemPayment(item),difference=reservationDifference(item),attention=payment.overdue&&payment.remainingCzk>0?'Po splatnosti':paymentLabel(payment.status);
+  return `<tr data-reservation-open="${escapeHtml(item.id)}" tabindex="0"><td><strong>${escapeHtml(reservationMemberTitle(item))}</strong><small>${escapeHtml(member.email||member.name||'Bez kontaktu')}</small></td><td>${escapeHtml(payment.variableSymbol||'—')}</td><td class="admin-table-money">${escapeHtml(formatMoney(payment.amountDueCzk))}</td><td class="admin-table-money">${escapeHtml(formatMoney(payment.amountPaidCzk))}</td><td class="admin-table-money"><strong>${escapeHtml(difference)}</strong></td><td><i class="admin-badge admin-payment--${escapeHtml(payment.status)}">${escapeHtml(attention)}</i></td><td>${escapeHtml(formatDate(payment.deadline,false))}</td><td><button aria-label="Otevřít platbu ${escapeHtml(reservationMemberTitle(item))}" class="admin-table-detail" data-reservation-open="${escapeHtml(item.id)}" type="button">Detail →</button></td></tr>`;
+}
+function renderPaymentTabs(){
+  $$('[data-payment-filter]').forEach(button=>{
+    const filter=button.dataset.paymentFilter,count=reservationItems.filter(item=>paymentMatchesFilter(item,filter)).length;
+    const counter=$(`[data-payment-filter-count="${filter}"]`,button);if(counter)counter.textContent=count;
+    const active=filter===paymentFilter;button.classList.toggle('is-active',active);button.setAttribute('aria-selected',String(active));button.tabIndex=active?0:-1;
+  });
+}
+function renderPaymentList(){
+  const payments=filterAdminPayments(reservationItems,{filter:paymentFilter,query:paymentSearch});
+  const count=$('[data-payment-count]');if(count)count.textContent=`${recordsLabel(payments.length)} z ${reservationItems.length}`;
+  const list=$('[data-payment-list]');if(!list)return;
+  if(!payments.length){list.innerHTML=`<div class="admin-empty">Filtru ${escapeHtml(paymentFilterLabels[paymentFilter].toLowerCase())} a hledání neodpovídá žádná platba.</div>`;return}
+  list.innerHTML=`<div class="admin-table-scroll"><table class="admin-data-table admin-payment-table"><thead><tr><th>Člen</th><th>VS</th><th>Předepsáno</th><th>Uhrazeno</th><th>Rozdíl</th><th>Stav</th><th>Splatnost</th><th></th></tr></thead><tbody>${payments.map(paymentRow).join('')}</tbody></table></div>`;
+}
+function renderReservations(payload){reservationItems=Array.isArray(payload.reservations)?payload.reservations:[];renderReservationTabs();renderReservationViewMode();renderReservationList();renderPaymentTabs();renderPaymentList();renderAttentionCounts();if(selectedReservationId)renderReservationDrawer()}
+function setReservationFilter(filter){
   if(!reservationFilterLabels[filter])return;
   reservationFilter=filter;renderReservationTabs();renderReservationList();
-  if(scroll)$('[data-reservation-tabs]')?.scrollIntoView({behavior:'smooth',block:'start'});
+}
+function setPaymentFilter(filter){
+  if(!paymentFilterLabels[filter])return;
+  paymentFilter=filter;renderPaymentTabs();renderPaymentList();
 }
 
 function accommodationAvailability(item){
@@ -395,6 +432,7 @@ function renderGalleryCounts(){
   const pending=galleryItems.filter(item=>item.status==='pending').length;
   $('[data-kpi-gallery-pending]').textContent=pending;
   $('[data-gallery-nav-count]').textContent=pending;
+  renderAttentionCounts();
 }
 function renderGalleryList(){
   const photos=galleryFilter==='all'?galleryItems:galleryItems.filter(item=>item.status===galleryFilter);
@@ -406,10 +444,9 @@ function renderGalleryList(){
   hydrateGalleryMedia(list);
 }
 function renderGallery(payload){galleryItems=Array.isArray(payload.photos)?payload.photos:[];renderGalleryTabs();renderGalleryCounts();renderGalleryList()}
-function setGalleryFilter(filter,scroll=false){
+function setGalleryFilter(filter){
   if(!galleryFilterLabels[filter])return;
   galleryFilter=filter;renderGalleryTabs();renderGalleryList();
-  if(scroll)$('[data-gallery-tabs]')?.scrollIntoView({behavior:'smooth',block:'start'});
 }
 
 async function galleryMediaUrl(id){
@@ -491,7 +528,7 @@ async function updateReservation(card,status){
   if(button)button.disabled=true;
   try{
     await apiRequest(`/api/admin/reservations/${encodeURIComponent(reservationId)}`,{method:'PATCH',body:{status,reviewNote:note}});
-    const reservation=reservationItems.find(item=>item.id===reservationId);if(reservation){reservation.status=status;reservation.reviewNote=note;renderReservationTabs();renderReservationList();renderReservationDrawer()}
+    const reservation=reservationItems.find(item=>item.id===reservationId);if(reservation){reservation.status=status;reservation.reviewNote=note;renderReservationTabs();renderReservationList();renderPaymentTabs();renderPaymentList();renderAttentionCounts();renderReservationDrawer()}
     const messages={pending:'Rezervace byla vrácena k posouzení.',approved:'Rezervace byla schválena.',rejected:'Rezervace byla zamítnuta.'};toast(messages[status]||'Stav rezervace byl změněn.');
     await loadEventData();
   }
@@ -505,7 +542,7 @@ async function updateReservationPayment(card,markFull=false){
   $$('[data-payment-save], [data-payment-full]',card).forEach(button=>button.disabled=true);
   try{
     const payload=await apiRequest(`/api/admin/reservations/${encodeURIComponent(reservationId)}/payment`,{method:'PATCH',body:{amountPaidCzk}});
-    if(item&&payload?.reservation?.payment){item.payment=payload.reservation.payment;item.paymentStatus=item.payment.status;item.amountPaidCzk=item.payment.amountPaidCzk;renderReservationList();renderReservationDrawer()}
+    if(item&&payload?.reservation?.payment){item.payment=payload.reservation.payment;item.paymentStatus=item.payment.status;item.amountPaidCzk=item.payment.amountPaidCzk;renderReservationTabs();renderReservationList();renderPaymentTabs();renderPaymentList();renderAttentionCounts();renderReservationDrawer()}
     toast(markFull?'Platba byla označena jako plně uhrazená.':'Uhrazená částka byla uložena.');await loadEventData();
   }catch(error){if(error.status===403){setDenied();return}toast(error.message||'Platbu se nepodařilo uložit.')}
   finally{$$('[data-payment-save], [data-payment-full]',card).forEach(button=>button.disabled=false)}
@@ -522,27 +559,17 @@ async function updateGallery(container,status){
   }catch(error){if(error.status===403){setDenied();return}toast(error.message||'Fotografii se nepodařilo změnit.')}finally{$$('[data-gallery-action]',container).forEach(button=>button.disabled=false)}
 }
 
-function jumpToSection(section){
-  const target=section==='dashboard'?$('.admin-kpis'):$(`[data-admin-section="${section}"]`);
-  if(section!=='dashboard')setAdminSectionCollapsed(section,false,{persist:true});
-  setAdminNavActive(section);
-  target?.scrollIntoView({behavior:'smooth',block:'start'});
+function setAdminView(view,{focus=true}={}){
+  const nextView=ADMIN_VIEW_IDS.includes(view)?view:'dashboard';
+  activeAdminView=nextView;rememberSessionChoice('e36UnitedAdmin.activeView',nextView);
+  $$('[data-admin-panel]').forEach(panel=>{const active=panel.dataset.adminPanel===nextView;panel.hidden=!active;panel.classList.toggle('is-active',active);panel.setAttribute('aria-hidden',String(!active))});
+  $$('[data-admin-jump]').forEach(button=>{const active=button.dataset.adminJump===nextView;button.classList.toggle('is-active',active);if(active)button.setAttribute('aria-current','page');else button.removeAttribute('aria-current')});
+  adminPortalNavigation?.sync(nextView);
+  closeReservationDrawer();closeGalleryLightbox();
+  window.scrollTo({top:0,behavior:'auto'});
+  if(focus){const heading=$(`[data-admin-panel="${nextView}"] h2`);if(heading){heading.tabIndex=-1;heading.focus({preventScroll:true})}}
 }
-
-function setAdminNavActive(section){
-  $$('[data-admin-jump]').forEach(button=>{const active=button.dataset.adminJump===section;button.classList.toggle('is-active',active);if(active)button.setAttribute('aria-current','location');else button.removeAttribute('aria-current')});
-  adminPortalNavigation?.sync(section);
-}
-function updateAdminNavActive(){
-  if($('[data-admin-view]')?.hidden)return;
-  const sections=[['dashboard',$('.admin-kpis')],['reservations',$('[data-admin-section="reservations"]')],['gallery',$('[data-admin-section="gallery"]')],['accommodation',$('[data-admin-section="accommodation"]')],['settings',$('[data-admin-section="settings"]')]].filter(([,element])=>element).sort((a,b)=>a[1].offsetTop-b[1].offsetTop);
-  const probe=Math.min(innerHeight*.28,220);let active=sections[0]?.[0]||'dashboard';
-  sections.forEach(([id,element])=>{if(element.getBoundingClientRect().top<=probe)active=id});setAdminNavActive(active);
-}
-let adminNavFrame=0;
-window.addEventListener('scroll',()=>{if(adminNavFrame)return;adminNavFrame=requestAnimationFrame(()=>{adminNavFrame=0;updateAdminNavActive()})},{passive:true});
-window.addEventListener('resize',updateAdminNavActive,{passive:true});
-adminPortalNavigation=initPortalNavigation({root:$('[data-portal-nav="admin"]'),onSelect:jumpToSection});
+adminPortalNavigation=initPortalNavigation({root:$('[data-portal-nav="admin"]'),onSelect:view=>setAdminView(view)});
 
 $('[data-login-form]').addEventListener('submit',async event=>{
   event.preventDefault();const button=$('button[type="submit"]',event.currentTarget);const form=new FormData(event.currentTarget);button.disabled=true;$('[data-auth-status]').textContent='';
@@ -552,7 +579,10 @@ $('[data-login-form]').addEventListener('submit',async event=>{
 
 $('[data-event-select]').addEventListener('change',event=>{
   if(!adminEvents.some(item=>item.id===event.target.value))return;
-  selectedEventId=event.target.value;reservationFilter='pending';loadEventData();
+  selectedEventId=event.target.value;reservationFilter='all';reservationSearch='';paymentFilter='attention';paymentSearch='';
+  const reservationSearchInput=$('[data-reservation-search]');if(reservationSearchInput)reservationSearchInput.value='';
+  const paymentSearchInput=$('[data-payment-search]');if(paymentSearchInput)paymentSearchInput.value='';
+  loadEventData();
 });
 
 document.addEventListener('submit',event=>{
@@ -568,10 +598,13 @@ document.addEventListener('click',event=>{
   const logout=event.target.closest('[data-logout]');if(logout){signOut(auth);return}
   const refresh=event.target.closest('[data-refresh]');if(refresh){loadAdminData();return}
   const collapse=event.target.closest('[data-admin-collapse-toggle]');if(collapse){const section=collapse.dataset.adminCollapseToggle;setAdminSectionCollapsed(section,collapse.getAttribute('aria-expanded')==='true',{persist:true});return}
-  const jump=event.target.closest('[data-admin-jump]');if(jump){jumpToSection(jump.dataset.adminJump);return}
+  const jump=event.target.closest('[data-admin-jump]');if(jump){setAdminView(jump.dataset.adminJump);return}
   const filter=event.target.closest('[data-reservation-filter]');if(filter){setReservationFilter(filter.dataset.reservationFilter);return}
-  const pending=event.target.closest('[data-open-pending]');if(pending){setReservationFilter('pending',true);return}
-  const galleryPending=event.target.closest('[data-open-gallery-pending]');if(galleryPending){setGalleryFilter('pending',true);return}
+  const reservationMode=event.target.closest('[data-reservation-mode]');if(reservationMode){const mode=reservationMode.dataset.reservationMode;if(RESERVATION_VIEW_MODES.includes(mode)){reservationViewMode=mode;rememberSessionChoice('e36UnitedAdmin.reservationViewMode',mode);renderReservationViewMode();renderReservationList()}return}
+  const paymentFilterButton=event.target.closest('[data-payment-filter]');if(paymentFilterButton){setPaymentFilter(paymentFilterButton.dataset.paymentFilter);return}
+  const attention=event.target.closest('[data-attention-target]');if(attention){const target=attention.dataset.attentionTarget;if(target==='reservations')setReservationFilter(attention.dataset.attentionFilter);if(target==='payments')setPaymentFilter(attention.dataset.attentionFilter);if(target==='gallery')setGalleryFilter(attention.dataset.attentionFilter);setAdminView(target);return}
+  const pending=event.target.closest('[data-open-pending]');if(pending){setReservationFilter('pending');setAdminView('reservations');return}
+  const galleryPending=event.target.closest('[data-open-gallery-pending]');if(galleryPending){setGalleryFilter('pending');setAdminView('gallery');return}
   const galleryFilterButton=event.target.closest('[data-gallery-filter]');if(galleryFilterButton){setGalleryFilter(galleryFilterButton.dataset.galleryFilter);return}
   const reservationOpen=event.target.closest('[data-reservation-open]');if(reservationOpen){openReservationDrawer(reservationOpen.dataset.reservationOpen,reservationOpen);return}
   if(event.target.closest('[data-reservation-drawer-close]')){closeReservationDrawer();return}
@@ -585,16 +618,20 @@ document.addEventListener('click',event=>{
 document.addEventListener('keydown',event=>{
   if(event.key==='Escape'&&!$('[data-reservation-drawer]').hidden){closeReservationDrawer();return}
   if(event.key==='Escape'&&!$('[data-gallery-lightbox]').hidden){closeGalleryLightbox();return}
-  if((event.key==='Enter'||event.key===' ')&&event.target.closest('[data-open-pending]')){event.preventDefault();setReservationFilter('pending',true)}
-  if((event.key==='Enter'||event.key===' ')&&event.target.closest('[data-open-gallery-pending]')){event.preventDefault();setGalleryFilter('pending',true)}
+  if((event.key==='Enter'||event.key===' ')&&event.target.matches('tr[data-reservation-open]')){event.preventDefault();openReservationDrawer(event.target.dataset.reservationOpen,event.target);return}
+  if((event.key==='Enter'||event.key===' ')&&event.target.closest('[data-open-pending]')){event.preventDefault();setReservationFilter('pending');setAdminView('reservations')}
+  if((event.key==='Enter'||event.key===' ')&&event.target.closest('[data-open-gallery-pending]')){event.preventDefault();setGalleryFilter('pending');setAdminView('gallery')}
 });
+
+$('[data-reservation-search]')?.addEventListener('input',event=>{reservationSearch=event.target.value;renderReservationList()});
+$('[data-payment-search]')?.addEventListener('input',event=>{paymentSearch=event.target.value;renderPaymentList()});
 
 initializeAdminCollapsibles();
 
 onAuthStateChanged(auth,user=>{
   currentUser=user;
   if(!user){closeGalleryLightbox();closeReservationDrawer();releaseGalleryMedia();galleryItems=[];reservationItems=[];accommodationItems=[];adminEvents=[];selectedEventId='';setView('auth');$('[data-admin-account]').textContent='';return}
-  reservationFilter='pending';galleryFilter='pending';
+  reservationFilter='all';galleryFilter='pending';paymentFilter='attention';
   $('[data-admin-account]').textContent=user.email||user.uid;
   loadAdminData();
 });
