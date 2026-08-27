@@ -9,22 +9,25 @@ export function adminItemPayment(item = {}) {
   if (item.payment) return item.payment;
   const amountDueCzk = Number(item.amountDueCzk || 0);
   const amountPaidCzk = Number(item.amountPaidCzk || 0);
+  const balanceCzk = amountDueCzk - amountPaidCzk;
   return {
     amountDueCzk,
     amountPaidCzk,
-    remainingCzk: Math.max(0, amountDueCzk - amountPaidCzk),
-    status: item.paymentStatus || (amountDueCzk <= 0 ? 'not_required' : amountPaidCzk >= amountDueCzk ? 'paid' : amountPaidCzk > 0 ? 'underpaid' : 'unpaid'),
+    balanceCzk,
+    remainingCzk: Math.max(0, balanceCzk),
+    overpaymentCzk: Math.max(0, -balanceCzk),
+    status: item.paymentStatus || (balanceCzk < 0 ? 'overpaid' : balanceCzk === 0 ? (amountDueCzk === 0 ? 'not_required' : 'paid') : amountPaidCzk > 0 ? 'underpaid' : 'unpaid'),
     overdue: false,
   };
 }
 
 export function paymentNeedsAttention(item) {
   const payment = adminItemPayment(item);
-  return payment.overdue === true || payment.status === 'underpaid' || payment.status === 'overpaid' || (payment.status === 'unpaid' && Number(payment.amountDueCzk || 0) > 0);
+  return payment.overdue === true || payment.status === 'overpaid';
 }
 
 export function reservationNeedsAction(item) {
-  return item?.status === 'pending' || (item?.status === 'approved' && paymentNeedsAttention(item));
+  return item?.status === 'pending' || paymentNeedsAttention(item);
 }
 
 export function matchesAdminSearch(item, query) {
@@ -44,8 +47,9 @@ export function reservationMatchesFilter(item, filter) {
   const payment = adminItemPayment(item);
   if (filter === 'all') return true;
   if (filter === 'action') return reservationNeedsAction(item);
-  if (filter === 'payment') return item?.status === 'approved' && Number(payment.remainingCzk || 0) > 0;
+  if (filter === 'payment') return item?.status === 'approved' && payment.status === 'unpaid';
   if (filter === 'paid') return payment.status === 'paid';
+  if (filter === 'underpaid' || filter === 'overpaid') return payment.status === filter;
   return item?.status === filter;
 }
 

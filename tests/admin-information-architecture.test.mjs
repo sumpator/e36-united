@@ -31,7 +31,12 @@ const reservations = [
   {
     id: 'underpaid', status: 'approved', updatedAt: '2026-08-27T10:00:00Z',
     member: { name: 'Petr Dvořák', email: 'petr@example.cz' },
-    payment: { status: 'underpaid', amountDueCzk: 5000, amountPaidCzk: 2000, remainingCzk: 3000, variableSymbol: '2026000003', overdue: true },
+    payment: { status: 'underpaid', amountDueCzk: 5000, amountPaidCzk: 2000, balanceCzk: 3000, remainingCzk: 3000, overpaymentCzk: 0, variableSymbol: '2026000003', overdue: false },
+  },
+  {
+    id: 'overpaid', status: 'approved', updatedAt: '2026-08-27T11:00:00Z',
+    member: { name: 'Anna Přeplatková', email: 'anna@example.cz' },
+    payment: { status: 'overpaid', amountDueCzk: 3000, amountPaidCzk: 4800, balanceCzk: -1800, remainingCzk: 0, overpaymentCzk: 1800, variableSymbol: '2026000004', overdue: false },
   },
 ];
 
@@ -67,8 +72,11 @@ test('reservation quick/detail modes and operational filters use current reserva
   assert.deepEqual(RESERVATION_VIEW_MODES, ['quick', 'detail']);
   assert.equal(reservationNeedsAction(reservations[0]), true);
   assert.equal(reservationNeedsAction(reservations[1]), false);
-  assert.equal(reservationNeedsAction(reservations[2]), true);
-  assert.deepEqual(filterAdminReservations(reservations, { filter: 'action' }).map(item => item.id), ['pending', 'underpaid']);
+  assert.equal(reservationNeedsAction(reservations[2]), false);
+  assert.equal(reservationNeedsAction(reservations[3]), true);
+  assert.deepEqual(filterAdminReservations(reservations, { filter: 'action' }).map(item => item.id), ['pending', 'overpaid']);
+  assert.deepEqual(filterAdminReservations(reservations, { filter: 'underpaid' }).map(item => item.id), ['underpaid']);
+  assert.deepEqual(filterAdminReservations(reservations, { filter: 'overpaid' }).map(item => item.id), ['overpaid']);
   assert.deepEqual(filterAdminReservations(reservations, { filter: 'paid' }).map(item => item.id), ['paid']);
   assert.match(html, /data-reservation-mode="quick"/);
   assert.match(html, /data-reservation-mode="detail"/);
@@ -76,13 +84,16 @@ test('reservation quick/detail modes and operational filters use current reserva
 });
 
 test('payments view is derived from existing reservation payment records', () => {
-  assert.equal(paymentNeedsAttention(reservations[0]), true);
+  assert.equal(paymentNeedsAttention(reservations[0]), false);
   assert.equal(paymentNeedsAttention(reservations[1]), false);
-  assert.equal(paymentNeedsAttention(reservations[2]), true);
-  assert.deepEqual(filterAdminPayments(reservations, { filter: 'attention' }).map(item => item.id), ['pending', 'underpaid']);
+  assert.equal(paymentNeedsAttention(reservations[2]), false);
+  assert.equal(paymentNeedsAttention(reservations[3]), true);
+  assert.deepEqual(filterAdminPayments(reservations, { filter: 'attention' }).map(item => item.id), ['overpaid']);
   assert.deepEqual(filterAdminPayments(reservations, { filter: 'paid', query: 'novakova' }).map(item => item.id), ['paid']);
   assert.match(html, /data-admin-panel="payments"/);
   assert.match(js, /function renderPaymentList\(\)/);
+  assert.match(html, /data-payment-filter="underpaid"[^>]*>[\s\S]*?Doplatek/);
+  assert.match(html, /data-payment-filter="overpaid"[^>]*>[\s\S]*?Přeplatek/);
 });
 
 test('existing admin mutation workflows remain available through the established endpoints', () => {

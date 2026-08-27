@@ -64,7 +64,9 @@ test('Garage exposes one shared add/edit form and one profile-photo selector', (
 test('Payments are driven only by approved reservation payment data', () => {
   const payments = panel('payments', 'club');
   assert.match(payments, /Aktuálně nemáš žádnou platbu k řešení/);
-  assert.match(js, /reservation\?\.status!=='approved'\|\|!payment/);
+  assert.match(js, /if\(reservation\.status!==\'approved\'\)/);
+  assert.match(js, /ZMĚNA ČEKÁ NA SCHVÁLENÍ/);
+  assert.match(js, /QR ani nové platební instrukce teď nejsou dostupné/);
   for (const status of ['not_required', 'unpaid', 'underpaid', 'paid', 'overpaid']) assert.match(js, new RegExp(`${status}:`));
   assert.match(js, /payment\.overdue/);
   assert.match(js, /paymentQrSvg\(payment\.spayd\)/);

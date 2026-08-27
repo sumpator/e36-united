@@ -6,7 +6,7 @@ import qrcode from '../vendor/qrcode-generator.mjs';
 
 const migration = readFileSync(new URL('../D1-reservation-payments-v1.sql', import.meta.url), 'utf8');
 const workerSource = readFileSync(new URL('../cloudflare-worker-media.js', import.meta.url), 'utf8');
-const worker = await import(`data:text/javascript;base64,${Buffer.from(`${workerSource}\nexport { paymentStatusFor, isPaymentOverdue, buildSpayd, reservationPayment, ensureReservationPaymentVs, patchAdminReservationPayment, getAdminOverview };`).toString('base64')}`);
+const worker = await import(`data:text/javascript;base64,${Buffer.from(`${workerSource}\nexport { paymentBalanceCzk, paymentStatusFor, isPaymentOverdue, buildSpayd, reservationPayment, ensureReservationPaymentVs, patchAdminReservationPayment, getAdminOverview };`).toString('base64')}`);
 
 function database() {
   const db = new DatabaseSync(':memory:');
@@ -100,7 +100,10 @@ test('payment variable symbols are unique, numeric, ten digits and stable', asyn
 });
 
 test('payment status is derived exclusively from paid and due amounts', () => {
+  assert.equal(worker.paymentBalanceCzk(6000, 4800), 1200);
+  assert.equal(worker.paymentBalanceCzk(3000, 4800), -1800);
   assert.equal(worker.paymentStatusFor(0, 0), 'not_required');
+  assert.equal(worker.paymentStatusFor(0, 1200), 'overpaid');
   assert.equal(worker.paymentStatusFor(4800, 0), 'unpaid');
   assert.equal(worker.paymentStatusFor(4800, 1200), 'underpaid');
   assert.equal(worker.paymentStatusFor(4800, 4800), 'paid');
@@ -131,19 +134,44 @@ test('NULL deadline keeps payment configuration ready and generates SPAYD withou
   assert.equal(payment.overdue, false);
 });
 
-test('member payment data is only returned for an approved reservation', () => {
-  assert.equal(worker.reservationPayment(paymentRow({ status: 'pending' })), null);
+test('pending member payment data exposes reconciliation but no payment instructions', () => {
+  const pending = worker.reservationPayment(paymentRow({ status: 'pending', amount_paid_czk: 1200 }));
+  assert.equal(pending.status, 'underpaid');
+  assert.equal(pending.balanceCzk, 3600);
+  assert.equal(pending.awaitingApproval, true);
+  assert.equal(pending.actionable, false);
+  assert.equal(pending.configurationReady, false);
+  assert.equal(pending.recipientName, null);
+  assert.equal(pending.accountDisplay, null);
+  assert.equal(pending.spayd, null);
   const approved = worker.reservationPayment(paymentRow());
   assert.equal(approved.testMode, true);
   assert.equal(approved.variableSymbol, '2026123456');
   assert.equal(approved.configurationReady, true);
+  assert.equal(approved.actionable, true);
 });
 
 test('zero remaining amount never produces a payment QR payload', () => {
   assert.equal(worker.reservationPayment(paymentRow({ amount_paid_czk: 4800 })).spayd, null);
+  const overpaid = worker.reservationPayment(paymentRow({ amount_due_czk: 3000, amount_paid_czk: 4800 }));
+  assert.equal(overpaid.balanceCzk, -1800);
+  assert.equal(overpaid.overpaymentCzk, 1800);
+  assert.equal(overpaid.status, 'overpaid');
+  assert.equal(overpaid.spayd, null);
   const noCharge = worker.reservationPayment(paymentRow({ amount_due_czk: 0, amount_paid_czk: 0 }));
   assert.equal(noCharge.status, 'not_required');
   assert.equal(noCharge.spayd, null);
+});
+
+test('admin payment PATCH rejects negative and non-integer received amounts', async () => {
+  for (const amountPaidCzk of [-1, 1.5, 'invalid']) {
+    const db = database();
+    db.prepare("INSERT INTO reservations (id,member_id,event_id,status,amount_due_czk,payment_vs) VALUES ('r1','m1','united-2026','approved',4800,'2026123456')").run();
+    const request = new Request('https://api.e36united.cz/api/admin/reservations/r1/payment', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ amountPaidCzk }) });
+    const response = await worker.patchAdminReservationPayment(request, { DB: d1Binding(db) }, { uid: 'admin-1' }, 'r1', 'https://e36united.cz');
+    assert.equal(response.status, 400);
+    assert.equal(db.prepare("SELECT amount_paid_czk FROM reservations WHERE id='r1'").get().amount_paid_czk, 0);
+  }
 });
 
 test('admin payment PATCH updates amount and audit atomically', async () => {

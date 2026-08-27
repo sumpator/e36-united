@@ -30,15 +30,22 @@ export function deriveOverviewState({ reservation = null, registrationOpen = fal
       emptyCopy: eventYear ? `United ${eventYear}: registrace je uzavřená a nemáš žádnou aktivní rezervaci.` : 'Aktuálně tu není nic, co potřebuje tvoji akci.',
     };
   }
-  const labels = { approved: 'REZERVACE SCHVÁLENA', pending: 'ČEKÁ NA SCHVÁLENÍ', rejected: 'REZERVACE ZAMÍTNUTA', cancelled: 'REZERVACE ZRUŠENA' };
-  const copies = { approved: 'Máš potvrzeno. Tvoje rezervace je schválená United týmem.', pending: 'Rezervaci máme. United tým ji ještě zkontroluje.', rejected: 'Tvoje rezervace nebyla schválena.', cancelled: 'Tvoje rezervace je zrušená.' };
-  const remaining = Number(reservation.payment?.remainingCzk || 0);
+  const labels = { approved: 'REZERVACE SCHVÁLENA', pending: reservation.changePending ? 'ZMĚNA REZERVACE ČEKÁ NA SCHVÁLENÍ' : 'ČEKÁ NA SCHVÁLENÍ', rejected: 'REZERVACE ZAMÍTNUTA', cancelled: 'REZERVACE ZRUŠENA' };
+  const copies = { approved: 'Máš potvrzeno. Tvoje rezervace je schválená United týmem.', pending: reservation.changePending ? 'Upravenou rezervaci teď zkontroluje United tým. Do schválení nic nedoplácej.' : 'Rezervaci máme. United tým ji ještě zkontroluje.', rejected: 'Tvoje rezervace nebyla schválena.', cancelled: 'Tvoje rezervace je zrušená.' };
+  const payment = reservation.payment || null;
+  const remaining = Number(payment?.remainingCzk || 0);
+  const overpayment = Number(payment?.overpaymentCzk || 0);
+  const approvedPayment = reservation.status === 'approved' && payment;
+  const paymentLabel = approvedPayment?.status === 'underpaid' ? `DOPLATEK ${formatAmount(remaining)}`
+    : approvedPayment?.status === 'unpaid' ? `K PLATBĚ ${formatAmount(remaining)}`
+      : approvedPayment?.status === 'overpaid' ? `PŘEPLATEK ${formatAmount(overpayment)}`
+        : approvedPayment?.status === 'paid' ? 'ZAPLACENO' : '';
   return {
     active: true,
-    label: reservation.status === 'approved' && remaining > 0 ? `ZBÝVÁ UHRADIT ${formatAmount(remaining)}` : labels[reservation.status] || 'AKTUÁLNÍ REZERVACE',
-    copy: reservation.status === 'approved' && remaining > 0 ? 'Rezervace je schválená. Platební údaje najdeš v detailu Sraz & Ubytování.' : copies[reservation.status] || 'Otevři detail aktuální rezervace.',
-    action: reservation.status === 'approved' && remaining > 0 ? 'Přejít na platbu' : 'Otevřít rezervaci',
-    target: reservation.status === 'approved' && remaining > 0 ? 'payments' : 'reservation',
+    label: paymentLabel || labels[reservation.status] || 'AKTUÁLNÍ REZERVACE',
+    copy: approvedPayment?.status === 'overpaid' ? `U rezervace evidujeme přeplatek ${formatAmount(overpayment)}. Není potřeba nic platit.` : approvedPayment && remaining > 0 ? 'Rezervace je schválená. Platební údaje obsahují pouze aktuální částku k úhradě.' : copies[reservation.status] || 'Otevři detail aktuální rezervace.',
+    action: approvedPayment ? 'Otevřít platbu' : 'Otevřít rezervaci',
+    target: approvedPayment ? 'payments' : 'reservation',
     emptyCopy: '',
   };
 }

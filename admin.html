@@ -7,7 +7,7 @@
   <meta content="#090a0c" name="theme-color"/>
   <title>United Admin | E36 United</title>
   <link href="styles.css?v=20260825-mobile1" rel="stylesheet"/>
-  <link href="admin.css?v=20260827-admin-views" rel="stylesheet"/>
+  <link href="admin.css?v=20260827-payment-reconciliation" rel="stylesheet"/>
 </head>
 <body class="admin-page">
   <header class="site-header scrolled admin-header">
@@ -143,7 +143,9 @@
               <button aria-selected="false" class="admin-reservation-tab" data-reservation-filter="pending" role="tab" type="button">Pending <b data-reservation-filter-count="pending">0</b></button>
               <button aria-selected="false" class="admin-reservation-tab" data-reservation-filter="approved" role="tab" type="button">Schváleno <b data-reservation-filter-count="approved">0</b></button>
               <button aria-selected="false" class="admin-reservation-tab" data-reservation-filter="payment" role="tab" type="button">K platbě <b data-reservation-filter-count="payment">0</b></button>
+              <button aria-selected="false" class="admin-reservation-tab" data-reservation-filter="underpaid" role="tab" type="button">Doplatek <b data-reservation-filter-count="underpaid">0</b></button>
               <button aria-selected="false" class="admin-reservation-tab" data-reservation-filter="paid" role="tab" type="button">Zaplaceno <b data-reservation-filter-count="paid">0</b></button>
+              <button aria-selected="false" class="admin-reservation-tab" data-reservation-filter="overpaid" role="tab" type="button">Přeplatek <b data-reservation-filter-count="overpaid">0</b></button>
               <button aria-selected="false" class="admin-reservation-tab" data-reservation-filter="rejected" role="tab" type="button">Zamítnuté <b data-reservation-filter-count="rejected">0</b></button>
               <button aria-selected="false" class="admin-reservation-tab" data-reservation-filter="cancelled" role="tab" type="button">Zrušené <b data-reservation-filter-count="cancelled">0</b></button>
             </div>
@@ -162,7 +164,7 @@
           </section>
 
           <section class="booking-block admin-view-panel" data-admin-panel="payments" hidden>
-            <div class="admin-section-head booking-heading"><div><span class="admin-kicker">PAYMENTS</span><h2>Platby a závazky.</h2><p>Současná platební data rezervací a United závazek bez nových reconciliation pravidel.</p></div><span class="admin-count" data-payment-count>0 plateb</span></div>
+            <div class="admin-section-head booking-heading"><div><span class="admin-kicker">PAYMENTS</span><h2>Platby a závazky.</h2><p>Celková cena, skutečně uhrazená částka a aktuální doplatek nebo přeplatek každé rezervace.</p></div><span class="admin-count" data-payment-count>0 plateb</span></div>
             <div class="booking-collapse-body" id="admin-booking-content">
               <div class="booking-primary"><small>Závazek United</small><strong data-booking-commitment>0 Kč</strong><span>Splatnost <b data-booking-due>—</b></span></div>
               <div class="booking-grid">
@@ -185,8 +187,8 @@
               <div aria-label="Filtrovat platby podle stavu" class="admin-reservation-tabs" data-payment-tabs role="tablist">
                 <button aria-selected="true" class="admin-reservation-tab is-active" data-payment-filter="attention" role="tab" type="button">Vyžaduje kontrolu <b data-payment-filter-count="attention">0</b></button>
                 <button aria-selected="false" class="admin-reservation-tab" data-payment-filter="all" role="tab" type="button">Vše <b data-payment-filter-count="all">0</b></button>
-                <button aria-selected="false" class="admin-reservation-tab" data-payment-filter="unpaid" role="tab" type="button">Nezaplaceno <b data-payment-filter-count="unpaid">0</b></button>
-                <button aria-selected="false" class="admin-reservation-tab" data-payment-filter="underpaid" role="tab" type="button">Částečně <b data-payment-filter-count="underpaid">0</b></button>
+                <button aria-selected="false" class="admin-reservation-tab" data-payment-filter="unpaid" role="tab" type="button">K platbě <b data-payment-filter-count="unpaid">0</b></button>
+                <button aria-selected="false" class="admin-reservation-tab" data-payment-filter="underpaid" role="tab" type="button">Doplatek <b data-payment-filter-count="underpaid">0</b></button>
                 <button aria-selected="false" class="admin-reservation-tab" data-payment-filter="paid" role="tab" type="button">Zaplaceno <b data-payment-filter-count="paid">0</b></button>
                 <button aria-selected="false" class="admin-reservation-tab" data-payment-filter="overpaid" role="tab" type="button">Přeplatek <b data-payment-filter-count="overpaid">0</b></button>
               </div>
@@ -252,6 +254,6 @@
     </aside>
   </div>
   <div aria-live="polite" class="admin-toast" data-toast role="status"></div>
-  <script src="admin.js?v=20260827-admin-views" type="module"></script>
+  <script src="admin.js?v=20260827-payment-reconciliation" type="module"></script>
 </body>
 </html>

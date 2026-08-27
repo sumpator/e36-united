@@ -256,9 +256,9 @@ async function getAdminOverview(env, url, origin) {
       COALESCE(SUM(CASE WHEN status IN ('pending', 'approved') AND amount_due_czk > 0 AND amount_paid_czk = 0 THEN 1 ELSE 0 END), 0) AS payment_unpaid,
       COALESCE(SUM(CASE WHEN status IN ('pending', 'approved') AND amount_due_czk > 0 AND amount_paid_czk > 0 AND amount_paid_czk < amount_due_czk THEN 1 ELSE 0 END), 0) AS payment_underpaid,
       COALESCE(SUM(CASE WHEN status IN ('pending', 'approved') AND amount_due_czk > 0 AND amount_paid_czk = amount_due_czk THEN 1 ELSE 0 END), 0) AS payment_paid,
-      COALESCE(SUM(CASE WHEN status IN ('pending', 'approved') AND amount_due_czk > 0 AND amount_paid_czk > amount_due_czk THEN 1 ELSE 0 END), 0) AS payment_overpaid,
-      COALESCE(SUM(CASE WHEN status IN ('pending', 'approved') AND amount_due_czk <= 0 THEN 1 ELSE 0 END), 0) AS payment_not_required,
-      COALESCE(SUM(CASE WHEN status IN ('pending', 'approved') AND amount_due_czk > amount_paid_czk AND e.payment_deadline IS NOT NULL AND date(e.payment_deadline) < date('now') THEN 1 ELSE 0 END), 0) AS payment_overdue,
+      COALESCE(SUM(CASE WHEN status IN ('pending', 'approved') AND amount_paid_czk > amount_due_czk THEN 1 ELSE 0 END), 0) AS payment_overpaid,
+      COALESCE(SUM(CASE WHEN status IN ('pending', 'approved') AND amount_due_czk <= 0 AND amount_paid_czk <= 0 THEN 1 ELSE 0 END), 0) AS payment_not_required,
+      COALESCE(SUM(CASE WHEN status = 'approved' AND amount_due_czk > amount_paid_czk AND e.payment_deadline IS NOT NULL AND date(e.payment_deadline) < date('now') THEN 1 ELSE 0 END), 0) AS payment_overdue,
       COALESCE(SUM(CASE WHEN status IN ('pending', 'approved') THEN amount_due_czk ELSE 0 END), 0) AS amount_due_czk,
       COALESCE(SUM(CASE WHEN status IN ('pending', 'approved') THEN amount_paid_czk ELSE 0 END), 0) AS amount_paid_czk,
       COALESCE(SUM(CASE WHEN status IN ('pending', 'approved') THEN MAX(amount_due_czk - amount_paid_czk, 0) ELSE 0 END), 0) AS amount_remaining_czk
@@ -417,6 +417,7 @@ function publicAdminReservation(reservation) {
     showShine: reservation.show_shine || "Ne",
     note: reservation.note || "",
     status: reservation.status || "pending",
+    changePending: reservation.status === "pending" && !!reservation.reviewed_at,
     paymentStatus: paymentStatusFor(reservation.amount_due_czk, reservation.amount_paid_czk),
     amountDueCzk: Number(reservation.amount_due_czk || 0),
     amountPaidCzk: Number(reservation.amount_paid_czk || 0),
@@ -1044,7 +1045,7 @@ async function findCurrentReservation(env, memberId, eventId) {
       r.arrival, r.crew, r.accommodation, r.show_shine, r.note, r.status,
       r.attendance_type, r.accommodation_units,
       r.amount_due_czk, r.amount_paid_czk, r.payment_status, r.payment_vs,
-      r.paid_at, r.submitted_at, r.created_at, r.updated_at,
+      r.paid_at, r.submitted_at, r.created_at, r.updated_at, r.reviewed_at,
       e.year AS event_year, e.registration_status AS event_registration_status,
       e.currency AS payment_currency, e.payment_deadline,
       e.payment_recipient_name, e.payment_account_display, e.payment_iban,
@@ -1080,7 +1081,7 @@ async function findLatestReservation(env, memberId) {
       r.arrival, r.crew, r.accommodation, r.show_shine, r.note, r.status,
       r.attendance_type, r.accommodation_units,
       r.amount_due_czk, r.amount_paid_czk, r.payment_status, r.payment_vs,
-      r.paid_at, r.submitted_at, r.created_at, r.updated_at,
+      r.paid_at, r.submitted_at, r.created_at, r.updated_at, r.reviewed_at,
       e.year AS event_year, e.registration_status AS event_registration_status,
       e.currency AS payment_currency, e.payment_deadline,
       e.payment_recipient_name, e.payment_account_display, e.payment_iban,
@@ -1200,6 +1201,7 @@ async function putPlannerDraft(request, env, auth, origin) {
   let body;
   try { body = await request.json(); }
   catch { return json({ ok: false, error: "invalid_json", message: "Požadavek nemá platný JSON." }, 400, origin); }
+
   const draft = validatePlannerDraft(body?.draft);
   if (!draft || JSON.stringify(draft).length > 4096) return json({ ok: false, error: "invalid_planner_draft", message: "Plán z Weekend Planneru není platný." }, 400, origin);
 
@@ -1257,6 +1259,14 @@ async function putCurrentReservation(request, env, auth, origin) {
     if (!body || typeof body !== "object" || Array.isArray(body)) throw new Error("Invalid JSON object");
   }
   catch { return json({ ok: false, error: "invalid_json", message: "Požadavek nemá platný JSON." }, 400, origin); }
+
+  const protectedFinancialFields = [
+    "amountDueCzk", "amountPaidCzk", "paidAmount", "paymentStatus",
+    "paymentVs", "variableSymbol", "balance", "balanceCzk",
+  ];
+  if (protectedFinancialFields.some(key => Object.prototype.hasOwnProperty.call(body, key))) {
+    return json({ ok: false, error: "protected_financial_fields", message: "Cenu, přijatou platbu ani platební identitu nelze měnit z členského účtu." }, 400, origin);
+  }
 
   const carId = clean(body.carId);
   const requestedReservationId = clean(body.reservationId);
@@ -1438,15 +1448,11 @@ async function putCurrentReservation(request, env, auth, origin) {
   statements.push(env.DB.prepare(`
     UPDATE reservations
     SET payment_status = CASE
+          WHEN amount_paid_czk > amount_due_czk THEN 'overpaid'
           WHEN amount_due_czk <= 0 THEN 'not_required'
           WHEN amount_paid_czk <= 0 THEN 'unpaid'
           WHEN amount_paid_czk < amount_due_czk THEN 'underpaid'
-          WHEN amount_paid_czk = amount_due_czk THEN 'paid'
-          ELSE 'overpaid'
-        END,
-        paid_at = CASE
-          WHEN amount_due_czk > 0 AND amount_paid_czk >= amount_due_czk THEN COALESCE(paid_at, CURRENT_TIMESTAMP)
-          ELSE NULL
+          ELSE 'paid'
         END
     WHERE member_id = ? AND event_id = ? AND updated_at = ?
   `).bind(auth.uid, event.id, writeToken));
@@ -1885,14 +1891,19 @@ function publicMember(member) {
   };
 }
 
+function paymentBalanceCzk(amountDueCzk, amountPaidCzk) {
+  const due = Math.max(0, Number(amountDueCzk || 0));
+  const paid = Math.max(0, Number(amountPaidCzk || 0));
+  return due - paid;
+}
+
 function paymentStatusFor(amountDueCzk, amountPaidCzk) {
   const due = Math.max(0, Number(amountDueCzk || 0));
   const paid = Math.max(0, Number(amountPaidCzk || 0));
-  if (due <= 0) return "not_required";
-  if (paid <= 0) return "unpaid";
-  if (paid < due) return "underpaid";
-  if (paid === due) return "paid";
-  return "overpaid";
+  const balanceCzk = paymentBalanceCzk(due, paid);
+  if (balanceCzk < 0) return "overpaid";
+  if (balanceCzk === 0) return due === 0 ? "not_required" : "paid";
+  return paid > 0 ? "underpaid" : "unpaid";
 }
 
 function isPaymentOverdue(deadline, amountDueCzk, amountPaidCzk, now = new Date()) {
@@ -1925,18 +1936,22 @@ function buildSpayd({ iban, amountCzk, currency = "CZK", variableSymbol, message
 }
 
 function reservationPayment(reservation, { admin = false } = {}) {
-  if (!reservation || (!admin && reservation.status !== "approved")) return null;
+  if (!reservation) return null;
   const amountDueCzk = Math.max(0, Number(reservation.amount_due_czk || 0));
   const amountPaidCzk = Math.max(0, Number(reservation.amount_paid_czk || 0));
-  const remainingCzk = Math.max(0, amountDueCzk - amountPaidCzk);
+  const balanceCzk = paymentBalanceCzk(amountDueCzk, amountPaidCzk);
+  const remainingCzk = Math.max(0, balanceCzk);
+  const overpaymentCzk = Math.max(0, -balanceCzk);
+  const approved = reservation.status === "approved";
+  const revealInstructions = admin || approved;
   const variableSymbol = clean(reservation.payment_vs);
   const messagePrefix = spaydText(reservation.payment_message_prefix);
   const message = [messagePrefix, variableSymbol].filter(Boolean).join(" ");
-  const configurationReady = !!(
+  const configurationReady = revealInstructions && !!(
     reservation.payment_recipient_name && reservation.payment_account_display &&
     reservation.payment_iban && variableSymbol
   );
-  const spayd = configurationReady && reservation.status === "approved" && remainingCzk > 0
+  const spayd = configurationReady && approved && remainingCzk > 0
     ? buildSpayd({
         iban: reservation.payment_iban,
         amountCzk: remainingCzk,
@@ -1949,18 +1964,22 @@ function reservationPayment(reservation, { admin = false } = {}) {
   return {
     amountDueCzk,
     amountPaidCzk,
+    balanceCzk,
     remainingCzk,
+    overpaymentCzk,
     status: paymentStatusFor(amountDueCzk, amountPaidCzk),
-    overdue: isPaymentOverdue(reservation.payment_deadline, amountDueCzk, amountPaidCzk),
+    overdue: approved && isPaymentOverdue(reservation.payment_deadline, amountDueCzk, amountPaidCzk),
     variableSymbol: variableSymbol || null,
-    recipientName: reservation.payment_recipient_name || null,
-    accountDisplay: reservation.payment_account_display || null,
-    iban: reservation.payment_iban || null,
+    recipientName: revealInstructions ? reservation.payment_recipient_name || null : null,
+    accountDisplay: revealInstructions ? reservation.payment_account_display || null : null,
+    iban: revealInstructions ? reservation.payment_iban || null : null,
     currency: reservation.payment_currency || "CZK",
-    message: message || null,
-    deadline: reservation.payment_deadline || null,
+    message: revealInstructions ? message || null : null,
+    deadline: revealInstructions ? reservation.payment_deadline || null : null,
     testMode: Number(reservation.payment_test_mode) !== 0,
     configurationReady,
+    actionable: approved && remainingCzk > 0,
+    awaitingApproval: reservation.status === "pending",
     spayd,
     paidAt: reservation.paid_at || null,
   };
@@ -2017,6 +2036,7 @@ function publicReservation(reservation) {
     showShine: reservation.show_shine || "Ne",
     note: reservation.note || "",
     status: reservation.status || "pending",
+    changePending: reservation.status === "pending" && !!reservation.reviewed_at,
     attendanceType: reservation.attendance_type || "",
     accommodationUnits: Number(reservation.accommodation_units || 0),
     accommodationSnapshot: mapAccommodationSnapshot(reservation),

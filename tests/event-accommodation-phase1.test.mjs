@@ -7,7 +7,7 @@ const migration = readFileSync(new URL('../D1-event-accommodation-v1.sql', impor
 const paymentMigration = readFileSync(new URL('../D1-reservation-payments-v1.sql', import.meta.url), 'utf8');
 const plannerMigration = readFileSync(new URL('../D1-member-planner-drafts-v1.sql', import.meta.url), 'utf8');
 const workerSource = readFileSync(new URL('../cloudflare-worker-media.js', import.meta.url), 'utf8');
-const workerModule = await import(`data:text/javascript;base64,${Buffer.from(`${workerSource}\nexport { putCurrentReservation, getCurrentReservation, patchAdminReservation, createAdminAccommodation, patchAdminAccommodation, patchAdminEvent, getAdminReservations, calculateAccommodationPricing };`).toString('base64')}`);
+const workerModule = await import(`data:text/javascript;base64,${Buffer.from(`${workerSource}\nexport { putCurrentReservation, getCurrentReservation, patchAdminReservation, patchAdminReservationPayment, createAdminAccommodation, patchAdminAccommodation, patchAdminEvent, getAdminReservations, calculateAccommodationPricing };`).toString('base64')}`);
 
 function database(events = [{ id: 'event-2026', year: 2026, status: 'open' }]) {
   const db = new DatabaseSync(':memory:');
@@ -31,6 +31,7 @@ function database(events = [{ id: 'event-2026', year: 2026, status: 'open' }]) {
       payment_status TEXT NOT NULL DEFAULT 'unpaid', paid_at TEXT, submitted_at TEXT,
       created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
       reviewed_by TEXT, reviewed_at TEXT, review_note TEXT,
+      payment_confirmed_by TEXT, payment_confirmed_at TEXT,
       UNIQUE(member_id, event_id), FOREIGN KEY (event_id) REFERENCES events(id)
     );
     CREATE TABLE members (id TEXT PRIMARY KEY, name TEXT, nickname TEXT, email TEXT, member_code TEXT);
@@ -140,7 +141,7 @@ function d1Binding(db) {
   };
 }
 
-async function submitWorkerReservation(db, { memberId, reservationId = null, people = 4, arrival = 'Pátek', accommodation = 'Chatka', optionId = 'cabin-a', accommodationUnits = people }) {
+async function submitWorkerReservation(db, { memberId, reservationId = null, people = 4, arrival = 'Pátek', accommodation = 'Chatka', optionId = 'cabin-a', accommodationUnits = people, extraBody = {} }) {
   db.prepare('INSERT OR IGNORE INTO members (id) VALUES (?)').run(memberId);
   db.prepare('INSERT OR IGNORE INTO cars (id, member_id, model, body, year, color, nickname) VALUES (?, ?, ?, ?, ?, ?, ?)')
     .run(`car-${memberId}`, memberId, '328i', 'Coupé', 1996, 'Modrá', 'Test E36');
@@ -151,6 +152,7 @@ async function submitWorkerReservation(db, { memberId, reservationId = null, peo
       attendanceType: arrival === 'Pátek' ? 'full_weekend' : 'saturday_only',
       accommodation, accommodationOptionId: optionId, accommodationUnits,
       showShine: 'Ne', note: '',
+      ...extraBody,
     }),
   });
   return workerModule.putCurrentReservation(request, { DB: d1Binding(db) }, { uid: memberId }, 'https://e36united.cz');
@@ -162,6 +164,22 @@ async function setAdminReservationStatus(db, reservationId, status) {
     body: JSON.stringify({ status, reviewNote: '' }),
   });
   return workerModule.patchAdminReservation(request, { DB: d1Binding(db) }, { uid: 'admin' }, reservationId, 'https://e36united.cz');
+}
+
+async function setAdminPaidAmount(db, reservationId, amountPaidCzk) {
+  const request = new Request(`https://api.e36united.cz/api/admin/reservations/${reservationId}/payment`, {
+    method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ amountPaidCzk }),
+  });
+  return workerModule.patchAdminReservationPayment(request, { DB: d1Binding(db) }, { uid: 'admin' }, reservationId, 'https://e36united.cz');
+}
+
+function configureTestPayment(db) {
+  db.prepare(`
+    UPDATE events
+    SET payment_recipient_name='E36 UNITED TEST', payment_account_display='123 / 9999',
+        payment_iban='CZ5099990000000000000123', payment_message_prefix='E36 UNITED 2026', payment_test_mode=1
+    WHERE id='event-2026'
+  `).run();
 }
 
 test('1. four people in a max-four cabin use one physical unit', () => {
@@ -514,4 +532,68 @@ test('28. a legacy crew-eight reservation stays readable and unchanged until red
   const reduced = await submitWorkerReservation(db, { memberId: 'legacy-member', reservationId: 'legacy-eight', people: 5, arrival: 'Jen na otočku' });
   assert.equal(reduced.status, 200);
   assert.deepEqual({ ...db.prepare("SELECT id,crew,status FROM reservations WHERE id='legacy-eight'").get() }, { id: 'legacy-eight', crew: 5, status: 'pending' });
+});
+
+test('29. paid reservations reconcile the four required edit scenarios without changing identity', async t => {
+  const scenarios = [
+    { name: 'fully paid becomes more expensive', paid: 4800, total: 6000, status: 'underpaid', remaining: 1200, overpayment: 0, qrAmount: '1200.00' },
+    { name: 'fully paid keeps the same total', paid: 4800, total: 4800, status: 'paid', remaining: 0, overpayment: 0, qrAmount: null },
+    { name: 'fully paid becomes cheaper', paid: 4800, total: 3000, status: 'overpaid', remaining: 0, overpayment: 1800, qrAmount: null },
+    { name: 'partially paid becomes more expensive', paid: 1200, total: 5000, status: 'underpaid', remaining: 3800, overpayment: 0, qrAmount: '3800.00' },
+  ];
+
+  for (const scenario of scenarios) await t.test(scenario.name, async () => {
+    const db = database();
+    addOption(db, { capacity: 5, unitPrice: 2400, bedding: 0, tax: 0 });
+    configureTestPayment(db);
+    assert.equal((await submitWorkerReservation(db, { memberId: 'm1', people: 4 })).status, 200);
+    const created = db.prepare("SELECT id,payment_vs FROM reservations WHERE member_id='m1'").get();
+    assert.equal((await setAdminReservationStatus(db, created.id, 'approved')).status, 200);
+    assert.equal((await setAdminPaidAmount(db, created.id, scenario.paid)).status, 200);
+    const beforeEdit = db.prepare('SELECT id,payment_vs,amount_paid_czk,paid_at FROM reservations WHERE id=?').get(created.id);
+
+    db.prepare("UPDATE event_accommodation_options SET unit_price_czk=? WHERE id='cabin-a'").run(scenario.total / 2);
+    const editResponse = await submitWorkerReservation(db, { memberId: 'm1', reservationId: created.id, people: 3, accommodationUnits: 3 });
+    assert.equal(editResponse.status, 200);
+    const pending = (await editResponse.json()).reservation;
+    assert.equal(pending.id, created.id);
+    assert.equal(pending.status, 'pending');
+    assert.equal(pending.changePending, true);
+    assert.equal(pending.amountDueCzk, scenario.total);
+    assert.equal(pending.amountPaidCzk, scenario.paid);
+    assert.equal(pending.payment.variableSymbol, created.payment_vs);
+    assert.equal(pending.payment.amountPaidCzk, scenario.paid);
+    assert.equal(pending.payment.spayd, null);
+    assert.equal(pending.payment.actionable, false);
+    assert.equal(pending.payment.configurationReady, false);
+    const storedPending = db.prepare('SELECT id,payment_vs,amount_paid_czk,paid_at FROM reservations WHERE id=?').get(created.id);
+    assert.deepEqual({ ...storedPending }, { ...beforeEdit });
+
+    assert.equal((await setAdminReservationStatus(db, created.id, 'approved')).status, 200);
+    const approvedResponse = await workerModule.getCurrentReservation({ DB: d1Binding(db) }, { uid: 'm1' }, 'https://e36united.cz');
+    assert.equal(approvedResponse.status, 200);
+    const approved = (await approvedResponse.json()).reservation;
+    assert.equal(approved.id, created.id);
+    assert.equal(approved.payment.variableSymbol, created.payment_vs);
+    assert.equal(approved.payment.amountPaidCzk, scenario.paid);
+    assert.equal(approved.payment.balanceCzk, scenario.total - scenario.paid);
+    assert.equal(approved.payment.status, scenario.status);
+    assert.equal(approved.payment.remainingCzk, scenario.remaining);
+    assert.equal(approved.payment.overpaymentCzk, scenario.overpayment);
+    if (scenario.qrAmount) assert.match(approved.payment.spayd, new RegExp(`(?:^|\\*)AM:${scenario.qrAmount}(?:\\*|$)`));
+    else assert.equal(approved.payment.spayd, null);
+  });
+});
+
+test('30. member reservation writes reject protected finance and VS fields without changing stored money', async () => {
+  const db = database(); addOption(db, { capacity: 5, unitPrice: 2400, bedding: 0, tax: 0 });
+  assert.equal((await submitWorkerReservation(db, { memberId: 'm1' })).status, 200);
+  const before = db.prepare("SELECT id,amount_due_czk,amount_paid_czk,payment_status,payment_vs FROM reservations WHERE member_id='m1'").get();
+  const response = await submitWorkerReservation(db, {
+    memberId: 'm1', reservationId: before.id, people: 3, accommodationUnits: 3,
+    extraBody: { amountDueCzk: -1, amountPaidCzk: 999999, paymentStatus: 'paid', paymentVs: '1' },
+  });
+  assert.equal(response.status, 400);
+  assert.equal((await response.json()).error, 'protected_financial_fields');
+  assert.deepEqual({ ...db.prepare('SELECT id,amount_due_czk,amount_paid_czk,payment_status,payment_vs FROM reservations WHERE id=?').get(before.id) }, { ...before });
 });
