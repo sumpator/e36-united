@@ -7,6 +7,7 @@
   <meta content="#090a0c" name="theme-color"/>
   <title>United Admin | E36 United</title>
   <link href="styles.css?v=20260825-mobile1" rel="stylesheet"/>
+  <link href="accommodation-visual.css?v=20260827-accommodation1" rel="stylesheet"/>
   <link href="admin.css?v=20260827-payment-reconciliation" rel="stylesheet"/>
 </head>
 <body class="admin-page">
@@ -140,14 +141,22 @@
             <div aria-label="Filtrovat rezervace podle stavu" class="admin-reservation-tabs" data-reservation-tabs role="tablist">
               <button aria-selected="true" class="admin-reservation-tab is-active" data-reservation-filter="all" role="tab" type="button">Vše <b data-reservation-filter-count="all">0</b></button>
               <button aria-selected="false" class="admin-reservation-tab" data-reservation-filter="action" role="tab" type="button">Vyžaduje akci <b data-reservation-filter-count="action">0</b></button>
-              <button aria-selected="false" class="admin-reservation-tab" data-reservation-filter="pending" role="tab" type="button">Pending <b data-reservation-filter-count="pending">0</b></button>
-              <button aria-selected="false" class="admin-reservation-tab" data-reservation-filter="approved" role="tab" type="button">Schváleno <b data-reservation-filter-count="approved">0</b></button>
-              <button aria-selected="false" class="admin-reservation-tab" data-reservation-filter="payment" role="tab" type="button">K platbě <b data-reservation-filter-count="payment">0</b></button>
-              <button aria-selected="false" class="admin-reservation-tab" data-reservation-filter="underpaid" role="tab" type="button">Doplatek <b data-reservation-filter-count="underpaid">0</b></button>
-              <button aria-selected="false" class="admin-reservation-tab" data-reservation-filter="paid" role="tab" type="button">Zaplaceno <b data-reservation-filter-count="paid">0</b></button>
-              <button aria-selected="false" class="admin-reservation-tab" data-reservation-filter="overpaid" role="tab" type="button">Přeplatek <b data-reservation-filter-count="overpaid">0</b></button>
-              <button aria-selected="false" class="admin-reservation-tab" data-reservation-filter="rejected" role="tab" type="button">Zamítnuté <b data-reservation-filter-count="rejected">0</b></button>
-              <button aria-selected="false" class="admin-reservation-tab" data-reservation-filter="cancelled" role="tab" type="button">Zrušené <b data-reservation-filter-count="cancelled">0</b></button>
+              <button aria-selected="false" class="admin-reservation-tab" data-reservation-filter="active" role="tab" type="button">Aktivní <b data-reservation-filter-count="active">0</b></button>
+              <button aria-selected="false" class="admin-reservation-tab" data-reservation-filter="complete" role="tab" type="button">Hotové <b data-reservation-filter-count="complete">0</b></button>
+              <button aria-controls="admin-reservation-detail-filters" aria-expanded="false" class="admin-reservation-tab admin-reservation-filter-toggle" data-reservation-filter-toggle type="button">Filtry <b data-reservation-detail-count>0</b></button>
+            </div>
+            <div class="admin-reservation-detail-filters" data-reservation-detail-panel hidden id="admin-reservation-detail-filters">
+              <div><span>PODROBNÉ STAVY</span><button data-reservation-filter-clear type="button">Vymazat filtry</button></div>
+              <div aria-label="Podrobné filtry rezervací" class="admin-filter-chip-list">
+                <button aria-pressed="false" data-reservation-detail-filter="pending" type="button">Pending</button>
+                <button aria-pressed="false" data-reservation-detail-filter="approved" type="button">Schváleno</button>
+                <button aria-pressed="false" data-reservation-detail-filter="payment" type="button">K platbě</button>
+                <button aria-pressed="false" data-reservation-detail-filter="underpaid" type="button">Doplatek</button>
+                <button aria-pressed="false" data-reservation-detail-filter="paid" type="button">Zaplaceno</button>
+                <button aria-pressed="false" data-reservation-detail-filter="overpaid" type="button">Přeplatek</button>
+                <button aria-pressed="false" data-reservation-detail-filter="rejected" type="button">Zamítnuto</button>
+                <button aria-pressed="false" data-reservation-detail-filter="cancelled" type="button">Zrušeno</button>
+              </div>
             </div>
             <div class="admin-reservation-list" data-reservation-list></div></div>
           </section>

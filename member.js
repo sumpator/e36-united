@@ -6,6 +6,7 @@ import { deriveMemberHeroState, deriveOverviewState } from './member-portal-stat
 import { MAX_RESERVATION_CREW, newerPlannerDraft, validatePlannerDraft } from './planner-state.js?v=20260827-reservation-limits';
 import { performMemberLogout } from './member-logout.js?v=20260826-predeploy-fix';
 import { createImagePreviewController, selectImageFiles } from './image-upload.js?v=20260827-garage-photos';
+import { accommodationVisualMarkup, bindAccommodationVisualFallbacks } from './accommodation-visual.js?v=20260827-accommodation1';
 
 const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
 const apiBaseUrl=(portalConfig.apiBaseUrl||'https://api.e36united.cz').replace(/\/$/,'');
@@ -278,18 +279,18 @@ async function loadMemberGallery({append=false}={}){
 function normalizeAccommodationOption(source){
   return {
     id:String(source?.id||''),eventId:String(source?.eventId||''),name:String(source?.name||''),kind:source?.kind==='tent'?'tent':'cabin',
-    inventoryMode:source?.inventoryMode==='unlimited'?'unlimited':'limited',unitsTotal:Number(source?.unitsTotal||0),blockedUnits:Number(source?.blockedUnits||0),
+    inventoryMode:source?.inventoryMode==='unlimited'?'unlimited':'limited',unitsTotal:Number(source?.unitsTotal||0),blockedUnits:Number(source?.blockedUnits||0),approvedUnits:Number(source?.approvedUnits||source?.blockedUnits||0),pendingUnits:Number(source?.pendingUnits||0),
     freeUnits:source?.freeUnits==null?null:Number(source.freeUnits),capacityPerUnit:Math.max(1,Number(source?.capacityPerUnit||1)),unitPriceCzk:Number(source?.unitPriceCzk||0),
     personPriceCzk:Number(source?.personPriceCzk||0),beddingFeePerPersonCzk:Number(source?.beddingFeePerPersonCzk||0),cityTaxPerPersonPerNightCzk:Number(source?.cityTaxPerPersonPerNightCzk||0),
-    active:source?.active!==false,soldOut:source?.soldOut===true,
+    active:source?.active!==false,soldOut:source?.soldOut===true,visual:source?.visual||{hasCustomPhoto:false,imageUrl:null,version:null},
   };
 }
 function normalizeAccommodationSnapshot(source){
   if(!source?.optionId)return null;
   return {
-    optionId:String(source.optionId),optionName:String(source.optionName||''),kind:String(source.kind||''),peopleCount:Number(source.peopleCount||0),unitCount:Number(source.unitCount||0),
+    optionId:String(source.optionId),optionName:String(source.optionName||''),kind:String(source.kind||''),capacityPerUnit:Math.max(1,Number(source.capacityPerUnit||1)),peopleCount:Number(source.peopleCount||0),unitCount:Number(source.unitCount||0),
     unitPriceCzk:Number(source.unitPriceCzk||0),personPriceCzk:Number(source.personPriceCzk||0),beddingFeePerPersonCzk:Number(source.beddingFeePerPersonCzk||0),cityTaxPerPersonPerNightCzk:Number(source.cityTaxPerPersonPerNightCzk||0),nights:Number(source.nights||0),
-    baseTotalCzk:Number(source.baseTotalCzk||0),personTotalCzk:Number(source.personTotalCzk||0),beddingTotalCzk:Number(source.beddingTotalCzk||0),cityTaxTotalCzk:Number(source.cityTaxTotalCzk||0),totalCzk:Number(source.totalCzk||0),
+    baseTotalCzk:Number(source.baseTotalCzk||0),personTotalCzk:Number(source.personTotalCzk||0),beddingTotalCzk:Number(source.beddingTotalCzk||0),cityTaxTotalCzk:Number(source.cityTaxTotalCzk||0),totalCzk:Number(source.totalCzk||0),visual:source.visual||{hasCustomPhoto:false,imageUrl:null,version:null},
   };
 }
 function normalizePayment(source){
@@ -702,7 +703,8 @@ function renderAccommodationPreview(){
   ].filter(([,value])=>value>0);
   const detailOpen=$('[data-reservation-price-details]',accommodationPreview)?.open===true;
   accommodationPreview.hidden=false;
-  accommodationPreview.innerHTML=`<div class="reservation-price-head"><span>${people} ${people===1?'osoba':people<=4?'osoby':'osob'} · ${pricing.unitCount}× ${esc(option.name)}</span></div><div class="reservation-price-estimate"><span>Orientačně celkem</span><b>${esc(formatCzk(pricing.totalCzk))}</b></div><details class="reservation-price-details" data-reservation-price-details><summary><span class="price-detail-show">+ Detail ceny</span><span class="price-detail-hide">− Skrýt detail</span></summary><div class="reservation-price-breakdown">${rows.map(([label,value])=>`<div><span>${esc(label)}</span><b>${esc(formatCzk(value))}</b></div>`).join('')}<div class="reservation-price-total"><strong>Celkem</strong><b>${esc(formatCzk(pricing.totalCzk))}</b></div><small>Konečnou cenu ověříme při odeslání rezervace.</small></div></details>`;
+  accommodationPreview.innerHTML=`${accommodationVisualMarkup(option,{apiBaseUrl,nights,className:'accommodation-visual--compact member-accommodation-preview'})}<div class="reservation-price-head"><span>${people} ${people===1?'osoba':people<=4?'osoby':'osob'} · ${pricing.unitCount}× ${esc(option.name)}</span></div><div class="reservation-price-estimate"><span>Orientačně celkem</span><b>${esc(formatCzk(pricing.totalCzk))}</b></div><details class="reservation-price-details" data-reservation-price-details><summary><span class="price-detail-show">+ Detail ceny</span><span class="price-detail-hide">− Skrýt detail</span></summary><div class="reservation-price-breakdown">${rows.map(([label,value])=>`<div><span>${esc(label)}</span><b>${esc(formatCzk(value))}</b></div>`).join('')}<div class="reservation-price-total"><strong>Celkem</strong><b>${esc(formatCzk(pricing.totalCzk))}</b></div><small>Konečnou cenu ověříme při odeslání rezervace.</small></div></details>`;
+  bindAccommodationVisualFallbacks(accommodationPreview);
   const priceDetails=$('[data-reservation-price-details]',accommodationPreview);if(priceDetails)priceDetails.open=detailOpen;
 }
 function syncMemberSleep(source='form'){
@@ -877,7 +879,7 @@ function renderSavedReservationPrice(reservation){
     [`Pobytová taxa · ${snapshot.nights} ${snapshot.nights===1?'noc':'noci'}`,snapshot.cityTaxTotalCzk],
   ].filter(([,value])=>value>0);
   container.hidden=false;
-  container.innerHTML=`<div><span>CENA UBYTOVÁNÍ</span><b>${esc(snapshot.peopleCount)} ${snapshot.peopleCount===1?'osoba':'osob'} · ${esc(snapshot.unitCount)}× ${esc(snapshot.optionName)}</b></div>${rows.map(([label,value])=>`<small><span>${esc(label)}</span><b>${esc(formatCzk(value))}</b></small>`).join('')}<strong><span>CELKEM</span><b>${esc(formatCzk(snapshot.totalCzk))}</b></strong>`;
+  container.innerHTML=`${accommodationVisualMarkup({...snapshot,id:snapshot.optionId,name:snapshot.optionName},{apiBaseUrl,nights:snapshot.nights,className:'accommodation-visual--compact member-saved-accommodation-visual'})}<div><span>CENA UBYTOVÁNÍ</span><b>${esc(snapshot.peopleCount)} ${snapshot.peopleCount===1?'osoba':'osob'} · ${esc(snapshot.unitCount)}× ${esc(snapshot.optionName)}</b></div>${rows.map(([label,value])=>`<small><span>${esc(label)}</span><b>${esc(formatCzk(value))}</b></small>`).join('')}<strong><span>CELKEM</span><b>${esc(formatCzk(snapshot.totalCzk))}</b></strong>`;bindAccommodationVisualFallbacks(container);
 }
 
 function paymentLabel(status){return({unpaid:'K platbě',underpaid:'Doplatek',paid:'Zaplaceno',overpaid:'Přeplatek',not_required:'Bez platby'})[status]||'Platba'}
@@ -937,7 +939,7 @@ function renderReservation(){
   const sleep=r.arrival==='Jen na otočku'?'Bez ubytování':r.sleep;
   const snapshot=r.accommodationSnapshot,accommodationSummary=snapshot?`${snapshot.peopleCount} ${snapshot.peopleCount===1?'osoba':'osob'} · ${snapshot.unitCount}× ${snapshot.optionName}`:sleep==='Bez ubytování'?'Bez ubytování':`${sleep||'—'} · ${r.accommodationUnits} osob · cena —`;
   const crewWord=Number(r.crew)===1?'osoba':Number(r.crew)>=5?'osob':'osoby';
-  $('[data-reservation-summary]').innerHTML=`<div><small>AUTO</small><b>${esc(r.carSnapshot?.nickname||r.carSnapshot?.model||'—')}</b></div><div><small>POBYT</small><b>${esc(r.arrival||'—')} · ${esc(r.crew)} ${crewWord}</b></div><div><small>UBYTOVÁNÍ</small><b>${esc(accommodationSummary)}</b></div>${snapshot?`<div><small>CELKEM</small><b>${esc(formatCzk(snapshot.totalCzk))}</b></div>`:''}`;
+  const summary=$('[data-reservation-summary]');summary.innerHTML=`<div><small>AUTO</small><b>${esc(r.carSnapshot?.nickname||r.carSnapshot?.model||'—')}</b></div><div><small>POBYT</small><b>${esc(r.arrival||'—')} · ${esc(r.crew)} ${crewWord}</b></div><div class="member-summary-accommodation">${snapshot?accommodationVisualMarkup({...snapshot,id:snapshot.optionId,name:snapshot.optionName},{apiBaseUrl,nights:snapshot.nights,className:'accommodation-visual--tiny'}):''}<span><small>UBYTOVÁNÍ</small><b>${esc(accommodationSummary)}</b></span></div>${snapshot?`<div><small>CELKEM</small><b>${esc(formatCzk(snapshot.totalCzk))}</b></div>`:''}`;bindAccommodationVisualFallbacks(summary);
   if(mailState){mailState.classList.toggle('is-confirmed',r.status==='approved');mailState.querySelector('span').textContent=description}
 }
 function renderRewards(){

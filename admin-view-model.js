@@ -1,5 +1,7 @@
 export const ADMIN_VIEW_IDS = Object.freeze(['dashboard', 'reservations', 'payments', 'gallery', 'accommodation', 'event']);
 export const RESERVATION_VIEW_MODES = Object.freeze(['quick', 'detail']);
+export const RESERVATION_PRIMARY_FILTERS = Object.freeze(['all', 'action', 'active', 'complete']);
+export const RESERVATION_DETAIL_FILTERS = Object.freeze(['pending', 'approved', 'payment', 'underpaid', 'paid', 'overpaid', 'rejected', 'cancelled']);
 
 function normalized(value) {
   return String(value ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('cs-CZ').trim();
@@ -27,7 +29,7 @@ export function paymentNeedsAttention(item) {
 }
 
 export function reservationNeedsAction(item) {
-  return item?.status === 'pending' || paymentNeedsAttention(item);
+  return item?.status === 'pending' || item?.changePending === true || item?.capacityConflict === true || paymentNeedsAttention(item);
 }
 
 export function matchesAdminSearch(item, query) {
@@ -47,10 +49,17 @@ export function reservationMatchesFilter(item, filter) {
   const payment = adminItemPayment(item);
   if (filter === 'all') return true;
   if (filter === 'action') return reservationNeedsAction(item);
+  if (filter === 'active') return item?.status === 'approved' && ['unpaid', 'underpaid'].includes(payment.status);
+  if (filter === 'complete') return item?.status === 'approved' && ['paid', 'not_required'].includes(payment.status);
   if (filter === 'payment') return item?.status === 'approved' && payment.status === 'unpaid';
   if (filter === 'paid') return payment.status === 'paid';
   if (filter === 'underpaid' || filter === 'overpaid') return payment.status === filter;
   return item?.status === filter;
+}
+
+export function reservationMatchesDetailFilters(item, filters = []) {
+  const selected = [...filters];
+  return !selected.length || selected.some(filter => reservationMatchesFilter(item, filter));
 }
 
 export function paymentMatchesFilter(item, filter) {
@@ -60,8 +69,8 @@ export function paymentMatchesFilter(item, filter) {
   return payment.status === filter;
 }
 
-export function filterAdminReservations(items, { filter = 'all', query = '' } = {}) {
-  return (items || []).filter(item => reservationMatchesFilter(item, filter) && matchesAdminSearch(item, query));
+export function filterAdminReservations(items, { filter = 'all', filters = [], query = '' } = {}) {
+  return (items || []).filter(item => reservationMatchesFilter(item, filter) && reservationMatchesDetailFilters(item, filters) && matchesAdminSearch(item, query));
 }
 
 export function filterAdminPayments(items, { filter = 'attention', query = '' } = {}) {

@@ -43,6 +43,11 @@ export default {
         return await getPublicCurrentEvent(env, origin);
       }
 
+      const accommodationMediaMatch = url.pathname.match(/^\/api\/accommodation\/media\/([^/]+)$/);
+      if (accommodationMediaMatch && request.method === "GET") {
+        return await publicAccommodationMedia(env, decodeURIComponent(accommodationMediaMatch[1]), url, origin);
+      }
+
       // Public media stream only for approved gallery submissions.
       if (url.pathname.startsWith("/api/gallery/media/") && request.method === "GET") {
         return await publicGalleryMedia(env, decodeURIComponent(url.pathname.split("/").pop()), origin);
@@ -107,6 +112,14 @@ export default {
           const adminAccommodationMatch = url.pathname.match(/^\/api\/admin\/accommodation\/([^/]+)$/);
           if (adminAccommodationMatch && request.method === "PATCH") {
             return await patchAdminAccommodation(request, env, auth, decodeURIComponent(adminAccommodationMatch[1]), origin);
+          }
+
+          const adminAccommodationPhotoMatch = url.pathname.match(/^\/api\/admin\/accommodation\/([^/]+)\/photo$/);
+          if (adminAccommodationPhotoMatch && request.method === "PUT") {
+            return await putAdminAccommodationPhoto(request, env, auth, decodeURIComponent(adminAccommodationPhotoMatch[1]), origin);
+          }
+          if (adminAccommodationPhotoMatch && request.method === "DELETE") {
+            return await deleteAdminAccommodationPhoto(env, auth, decodeURIComponent(adminAccommodationPhotoMatch[1]), origin);
           }
 
           return json({ ok: false, error: "not_found", message: "Admin endpoint neexistuje." }, 404, origin);
@@ -344,7 +357,7 @@ async function getAdminReservations(env, url, origin) {
 
   const rows = await env.DB.prepare(`
     SELECT
-      r.id, r.car_id, r.car_model, r.car_body, r.car_year, r.car_color, r.car_nickname,
+      r.id, r.event_id, r.car_id, r.car_model, r.car_body, r.car_year, r.car_color, r.car_nickname,
       r.attendance_type, r.arrival, r.crew, r.accommodation, r.accommodation_units,
       r.show_shine, r.note, r.status, r.payment_status, r.payment_vs, r.paid_at,
       r.amount_due_czk, r.amount_paid_czk,
@@ -355,6 +368,18 @@ async function getAdminReservations(env, url, origin) {
       ra.option_id AS accommodation_option_id,
       ra.option_name AS accommodation_option_name,
       ra.kind AS accommodation_option_kind,
+      ao.capacity_per_unit AS accommodation_capacity_per_unit,
+      CASE
+        WHEN r.status = 'pending' AND ao.inventory_mode = 'limited' AND
+          ra.unit_count + (
+            SELECT COALESCE(SUM(approved_allocation.unit_count), 0)
+            FROM reservation_accommodation approved_allocation
+            JOIN reservations approved_reservation ON approved_reservation.id = approved_allocation.reservation_id
+            WHERE approved_allocation.option_id = ra.option_id
+              AND approved_reservation.status = 'approved'
+          ) > ao.units_total
+        THEN 1 ELSE 0
+      END AS accommodation_capacity_conflict,
       ra.people_count AS accommodation_people_count,
       ra.unit_count AS accommodation_unit_count,
       ra.unit_price_czk AS accommodation_unit_price_czk,
@@ -373,6 +398,7 @@ async function getAdminReservations(env, url, origin) {
     JOIN members m ON m.id = r.member_id
     JOIN events e ON e.id = r.event_id
     LEFT JOIN reservation_accommodation ra ON ra.reservation_id = r.id
+    LEFT JOIN event_accommodation_options ao ON ao.id = ra.option_id
     WHERE r.event_id = ?
     ORDER BY
       CASE r.status WHEN 'pending' THEN 0 WHEN 'rejected' THEN 1 WHEN 'approved' THEN 2 ELSE 3 END,
@@ -383,6 +409,8 @@ async function getAdminReservations(env, url, origin) {
   for (const reservation of rows.results || []) {
     if (!reservation.payment_vs) reservation.payment_vs = await ensureReservationPaymentVs(env, reservation.id, reservation.event_year);
   }
+  const visualCache = new Map();
+  await Promise.all((rows.results || []).map(reservation => hydrateReservationAccommodationVisual(env, reservation, visualCache)));
 
   return json({
     ok: true,
@@ -414,6 +442,7 @@ function publicAdminReservation(reservation) {
     accommodation: reservation.accommodation || "",
     accommodationUnits: Number(reservation.accommodation_units || 0),
     accommodationSnapshot: mapAccommodationSnapshot(reservation),
+    capacityConflict: !!reservation.accommodation_capacity_conflict,
     showShine: reservation.show_shine || "Ne",
     note: reservation.note || "",
     status: reservation.status || "pending",
@@ -457,7 +486,8 @@ async function listAccommodationOptions(env, eventId, activeOnly = false) {
       o.bedding_fee_per_person_czk,
       o.city_tax_per_person_per_night_czk,
       o.active, o.sort_order, o.created_at, o.updated_at,
-      COALESCE(SUM(CASE WHEN r.status IN ('pending', 'approved') THEN ra.unit_count ELSE 0 END), 0) AS blocked_units
+      COALESCE(SUM(CASE WHEN r.status = 'approved' THEN ra.unit_count ELSE 0 END), 0) AS approved_units,
+      COALESCE(SUM(CASE WHEN r.status = 'pending' THEN ra.unit_count ELSE 0 END), 0) AS pending_units
     FROM event_accommodation_options o
     LEFT JOIN reservation_accommodation ra ON ra.option_id = o.id
     LEFT JOIN reservations r ON r.id = ra.reservation_id
@@ -471,13 +501,17 @@ async function listAccommodationOptions(env, eventId, activeOnly = false) {
       o.active, o.sort_order, o.created_at, o.updated_at
     ORDER BY o.sort_order ASC, o.name COLLATE NOCASE ASC
   `).bind(eventId, activeOnly ? 1 : 0).all();
-  return (rows.results || []).map(mapAccommodationOption);
+  const options = (rows.results || []).map(mapAccommodationOption);
+  await Promise.all(options.map(async option => {
+    option.visual = await accommodationVisualMetadata(env, option.eventId, option.id);
+  }));
+  return options;
 }
 
 async function listMemberAccommodationOptions(env, eventId, reservation = null) {
   const options = await listAccommodationOptions(env, eventId, true);
   const ownSnapshot = reservation ? mapAccommodationSnapshot(reservation) : null;
-  if (ownSnapshot && ["pending", "approved"].includes(reservation.status)) {
+  if (ownSnapshot && reservation.status === "approved") {
     const ownOption = options.find(option => option.id === ownSnapshot.optionId && option.inventoryMode === "limited");
     if (ownOption) {
       ownOption.freeUnits = Math.min(ownOption.unitsTotal, ownOption.freeUnits + ownSnapshot.unitCount);
@@ -490,8 +524,9 @@ async function listMemberAccommodationOptions(env, eventId, reservation = null) 
 function mapAccommodationOption(row) {
   const limited = row.inventory_mode === "limited";
   const total = Number(row.units_total || 0);
-  const blocked = Number(row.blocked_units || 0);
-  const free = limited ? Math.max(0, total - blocked) : null;
+  const approved = Number(row.approved_units || 0);
+  const pending = Number(row.pending_units || 0);
+  const free = limited ? Math.max(0, total - approved) : null;
   return {
     id: row.id,
     eventId: row.event_id,
@@ -499,7 +534,10 @@ function mapAccommodationOption(row) {
     kind: row.kind,
     inventoryMode: row.inventory_mode,
     unitsTotal: total,
-    blockedUnits: blocked,
+    blockedUnits: approved,
+    approvedUnits: approved,
+    pendingUnits: pending,
+    pendingConflictUnits: limited ? Math.max(0, pending - free) : 0,
     freeUnits: free,
     capacityPerUnit: Number(row.capacity_per_unit || 1),
     unitPriceCzk: Number(row.unit_price_czk || 0),
@@ -510,6 +548,82 @@ function mapAccommodationOption(row) {
     sortOrder: Number(row.sort_order || 0),
     soldOut: limited && free === 0,
   };
+}
+
+function accommodationPhotoKey(eventId, optionId) {
+  return `accommodation/${encodeURIComponent(String(eventId || ""))}/${encodeURIComponent(String(optionId || ""))}/cover`;
+}
+
+async function accommodationVisualMetadata(env, eventId, optionId) {
+  const fallback = { hasCustomPhoto: false, imageUrl: null, version: null };
+  if (!env.MEDIA?.head || !eventId || !optionId) return fallback;
+  let object = null;
+  try { object = await env.MEDIA.head(accommodationPhotoKey(eventId, optionId)); }
+  catch (error) { console.warn("Accommodation photo metadata unavailable", optionId, error); return fallback; }
+  if (!object) return fallback;
+  const version = object.httpEtag || object.etag || String(object.uploaded?.getTime?.() || object.size || "current");
+  return {
+    hasCustomPhoto: true,
+    imageUrl: `/api/accommodation/media/${encodeURIComponent(optionId)}?v=${encodeURIComponent(version)}`,
+    version,
+  };
+}
+
+async function hydrateReservationAccommodationVisual(env, reservation, cache = new Map()) {
+  if (!reservation?.accommodation_option_id) return reservation;
+  const key = `${reservation.event_id}:${reservation.accommodation_option_id}`;
+  let visual = cache.get(key);
+  if (!visual) {
+    visual = await accommodationVisualMetadata(env, reservation.event_id, reservation.accommodation_option_id);
+    cache.set(key, visual);
+  }
+  reservation.accommodation_visual = visual;
+  return reservation;
+}
+
+async function findAccommodationOption(env, optionId) {
+  if (!optionId || optionId.length > 128) return null;
+  return await env.DB.prepare(`
+    SELECT id, event_id, name
+    FROM event_accommodation_options
+    WHERE id = ?
+    LIMIT 1
+  `).bind(optionId).first();
+}
+
+async function publicAccommodationMedia(env, optionId, url, origin) {
+  const option = await findAccommodationOption(env, optionId);
+  if (!option) return json({ ok: false, error: "accommodation_not_found", message: "Typ ubytování nebyl nalezen." }, 404, origin);
+  const object = await env.MEDIA.get(accommodationPhotoKey(option.event_id, option.id));
+  if (!object?.body) return json({ ok: false, error: "accommodation_photo_not_found", message: "Ubytování používá generovaný vizuál." }, 404, origin);
+  const headers = new Headers();
+  object.writeHttpMetadata(headers);
+  headers.set("ETag", object.httpEtag || object.etag || "");
+  headers.set("Cache-Control", url.searchParams.has("v") ? "public, max-age=31536000, immutable" : "public, max-age=300");
+  return cors(new Response(object.body, { status: 200, headers }), origin);
+}
+
+async function putAdminAccommodationPhoto(request, env, auth, optionId, origin) {
+  const option = await findAccommodationOption(env, optionId);
+  if (!option) return json({ ok: false, error: "accommodation_not_found", message: "Typ ubytování nebyl nalezen." }, 404, origin);
+  let form;
+  try { form = await request.formData(); }
+  catch { return json({ ok: false, error: "invalid_accommodation_photo", message: "Požadavek neobsahuje platný formulář s fotografií." }, 400, origin); }
+  const file = form.get("file");
+  const validation = validateImageFile(file);
+  if (validation) return json({ ok: false, error: "invalid_accommodation_photo", message: validation }, 400, origin);
+  await env.MEDIA.put(accommodationPhotoKey(option.event_id, option.id), file.stream(), {
+    httpMetadata: { contentType: file.type },
+    customMetadata: { owner: auth.uid, kind: "accommodation", eventId: option.event_id, optionId: option.id },
+  });
+  return json({ ok: true, optionId: option.id, visual: await accommodationVisualMetadata(env, option.event_id, option.id) }, 200, origin);
+}
+
+async function deleteAdminAccommodationPhoto(env, auth, optionId, origin) {
+  const option = await findAccommodationOption(env, optionId);
+  if (!option) return json({ ok: false, error: "accommodation_not_found", message: "Typ ubytování nebyl nalezen." }, 404, origin);
+  await env.MEDIA.delete(accommodationPhotoKey(option.event_id, option.id));
+  return json({ ok: true, optionId: option.id, removedBy: auth.uid, visual: { hasCustomPhoto: false, imageUrl: null, version: null } }, 200, origin);
 }
 
 async function getAdminAccommodation(env, url, origin) {
@@ -578,14 +692,16 @@ async function createAdminAccommodation(request, env, auth, origin) {
   return json({ ok: true, option }, 201, origin);
 }
 
-async function getBlockedAccommodationUnits(env, optionId) {
+async function getAccommodationUsage(env, optionId) {
   const row = await env.DB.prepare(`
-    SELECT COALESCE(SUM(ra.unit_count), 0) AS blocked_units
+    SELECT
+      COALESCE(SUM(CASE WHEN r.status = 'approved' THEN ra.unit_count ELSE 0 END), 0) AS approved_units,
+      COALESCE(SUM(CASE WHEN r.status = 'pending' THEN ra.unit_count ELSE 0 END), 0) AS pending_units
     FROM reservation_accommodation ra
     JOIN reservations r ON r.id = ra.reservation_id
-    WHERE ra.option_id = ? AND r.status IN ('pending', 'approved')
+    WHERE ra.option_id = ?
   `).bind(optionId).first();
-  return Number(row?.blocked_units || 0);
+  return { approved: Number(row?.approved_units || 0), pending: Number(row?.pending_units || 0) };
 }
 
 async function patchAdminAccommodation(request, env, auth, optionId, origin) {
@@ -601,12 +717,18 @@ async function patchAdminAccommodation(request, env, auth, optionId, origin) {
   const config = result.config;
   const duplicate = await env.DB.prepare("SELECT id FROM event_accommodation_options WHERE event_id = ? AND name = ? COLLATE NOCASE AND id <> ? LIMIT 1").bind(current.event_id, config.name, optionId).first();
   if (duplicate) return json({ ok: false, error: "duplicate_accommodation", message: "Ubytování s tímto názvem už u eventu existuje." }, 409, origin);
-  const blocked = await getBlockedAccommodationUnits(env, optionId);
-  if (config.inventoryMode === "limited" && config.unitsTotal < blocked) return accommodationCapacityConflict(config.name, origin, "Kapacitu nelze snížit pod počet aktuálně rezervovaných jednotek.");
+  const usage = await getAccommodationUsage(env, optionId);
+  if (config.inventoryMode === "limited" && config.unitsTotal < usage.approved) {
+    return accommodationCapacityConflict(config.name, origin, `Kapacitu nelze snížit na ${config.unitsTotal}. Aktuálně je potvrzeno ${usage.approved} jednotek.`);
+  }
 
   const oldStateObject = accommodationState(current);
   const newStateObject = { ...config, eventId: current.event_id };
-  if (JSON.stringify(oldStateObject) === JSON.stringify(newStateObject)) return json({ ok: true, unchanged: true, option: mapAccommodationOption({ ...current, blocked_units: blocked }) }, 200, origin);
+  if (JSON.stringify(oldStateObject) === JSON.stringify(newStateObject)) {
+    const option = mapAccommodationOption({ ...current, approved_units: usage.approved, pending_units: usage.pending });
+    option.visual = await accommodationVisualMetadata(env, option.eventId, option.id);
+    return json({ ok: true, unchanged: true, option }, 200, origin);
+  }
 
   const writeToken = createWriteToken();
   const actionId = crypto.randomUUID();
@@ -621,7 +743,7 @@ async function patchAdminAccommodation(request, env, auth, optionId, origin) {
           SELECT COALESCE(SUM(ra.unit_count), 0)
           FROM reservation_accommodation ra
           JOIN reservations r ON r.id = ra.reservation_id
-          WHERE ra.option_id = event_accommodation_options.id AND r.status IN ('pending', 'approved')
+          WHERE ra.option_id = event_accommodation_options.id AND r.status = 'approved'
         )
       )
     `).bind(config.name, config.kind, config.inventoryMode, config.unitsTotal, config.capacityPerUnit, config.unitPriceCzk, config.personPriceCzk, config.beddingFeePerPersonCzk, config.cityTaxPerPersonPerNightCzk, config.active ? 1 : 0, config.sortOrder, writeToken, optionId, config.inventoryMode, config.unitsTotal),
@@ -752,7 +874,7 @@ async function patchAdminReservation(request, env, auth, reservationId, origin) 
   const newState = JSON.stringify({ status, reviewNote });
   const actionId = crypto.randomUUID();
   const writeToken = createWriteToken();
-  const requiresCapacityCheck = !["pending", "approved"].includes(reservation.status) && ["pending", "approved"].includes(status);
+  const requiresCapacityCheck = reservation.status !== "approved" && status === "approved";
 
   const results = await env.DB.batch([
     env.DB.prepare(`
@@ -770,7 +892,7 @@ async function patchAdminReservation(request, env, auth, reservationId, origin) 
               FROM reservation_accommodation other_allocation
               JOIN reservations other_reservation ON other_reservation.id = other_allocation.reservation_id
               WHERE other_allocation.option_id = own_allocation.option_id
-                AND other_reservation.status IN ('pending', 'approved')
+                AND other_reservation.status = 'approved'
                 AND other_reservation.id <> reservations.id
             )
         )
@@ -1053,6 +1175,7 @@ async function findCurrentReservation(env, memberId, eventId) {
       ra.option_id AS accommodation_option_id,
       ra.option_name AS accommodation_option_name,
       ra.kind AS accommodation_option_kind,
+      ao.capacity_per_unit AS accommodation_capacity_per_unit,
       ra.people_count AS accommodation_people_count,
       ra.unit_count AS accommodation_unit_count,
       ra.unit_price_czk AS accommodation_unit_price_czk,
@@ -1068,6 +1191,7 @@ async function findCurrentReservation(env, memberId, eventId) {
     FROM reservations r
     JOIN events e ON e.id = r.event_id
     LEFT JOIN reservation_accommodation ra ON ra.reservation_id = r.id
+    LEFT JOIN event_accommodation_options ao ON ao.id = ra.option_id
     WHERE r.member_id = ? AND r.event_id = ?
     LIMIT 1
   `).bind(memberId, eventId).first();
@@ -1089,6 +1213,7 @@ async function findLatestReservation(env, memberId) {
       ra.option_id AS accommodation_option_id,
       ra.option_name AS accommodation_option_name,
       ra.kind AS accommodation_option_kind,
+      ao.capacity_per_unit AS accommodation_capacity_per_unit,
       ra.people_count AS accommodation_people_count,
       ra.unit_count AS accommodation_unit_count,
       ra.unit_price_czk AS accommodation_unit_price_czk,
@@ -1104,6 +1229,7 @@ async function findLatestReservation(env, memberId) {
     FROM reservations r
     JOIN events e ON e.id = r.event_id
     LEFT JOIN reservation_accommodation ra ON ra.reservation_id = r.id
+    LEFT JOIN event_accommodation_options ao ON ao.id = ra.option_id
     WHERE r.member_id = ?
     ORDER BY e.year DESC
     LIMIT 1
@@ -1118,6 +1244,7 @@ async function getCurrentReservation(env, auth, origin) {
       await ensureReservationPaymentVs(env, reservation.id, reservation.event_year);
       reservation = await findLatestReservation(env, auth.uid);
     }
+    if (reservation) await hydrateReservationAccommodationVisual(env, reservation);
     return json({
       ok: true,
       registrationOpen: false,
@@ -1133,6 +1260,7 @@ async function getCurrentReservation(env, auth, origin) {
     await ensureReservationPaymentVs(env, reservation.id, reservation.event_year);
     reservation = await findCurrentReservation(env, auth.uid, event.id);
   }
+  if (reservation) await hydrateReservationAccommodationVisual(env, reservation);
   const options = await listMemberAccommodationOptions(env, event.id, reservation);
   return json({
     ok: true,
@@ -1367,7 +1495,7 @@ async function putCurrentReservation(request, env, auth, origin) {
             FROM reservation_accommodation other_allocation
             JOIN reservations other_reservation ON other_reservation.id = other_allocation.reservation_id
             WHERE other_allocation.option_id = selected_option.id
-              AND other_reservation.status IN ('pending', 'approved')
+              AND other_reservation.status = 'approved'
               AND NOT (other_reservation.member_id = ? AND other_reservation.event_id = events.id)
           )
         )` : ""}
@@ -1484,6 +1612,7 @@ async function putCurrentReservation(request, env, auth, origin) {
   await ensureReservationPaymentVs(env, reservationId, event.year);
   const reservation = await findCurrentReservation(env, auth.uid, event.id);
   if (!reservation) throw new Error("Reservation was not found after upsert");
+  await hydrateReservationAccommodationVisual(env, reservation);
 
   return json({
     ok: true,
@@ -2057,6 +2186,7 @@ function mapAccommodationSnapshot(row) {
     optionId: row.accommodation_option_id,
     optionName: row.accommodation_option_name || "",
     kind: row.accommodation_option_kind || "",
+    capacityPerUnit: Number(row.accommodation_capacity_per_unit || Math.ceil(Number(row.accommodation_people_count || 0) / Math.max(1, Number(row.accommodation_unit_count || 1))) || 1),
     peopleCount: Number(row.accommodation_people_count || 0),
     unitCount: Number(row.accommodation_unit_count || 0),
     unitPriceCzk: Number(row.accommodation_unit_price_czk || 0),
@@ -2069,6 +2199,7 @@ function mapAccommodationSnapshot(row) {
     beddingTotalCzk: Number(row.accommodation_bedding_total_czk || 0),
     cityTaxTotalCzk: Number(row.accommodation_city_tax_total_czk || 0),
     totalCzk: Number(row.accommodation_total_czk || 0),
+    visual: row.accommodation_visual || { hasCustomPhoto: false, imageUrl: null, version: null },
   };
 }
 

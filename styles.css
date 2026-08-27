@@ -1441,3 +1441,7 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid rgba(
 .upload-preview .image-selection-preview-item{position:relative;overflow:hidden;margin:0;border:1px solid rgba(112,184,255,.2);border-radius:12px;background:#090e14}
 .upload-preview .image-selection-preview-item img{width:100%;aspect-ratio:1;object-fit:cover}
 .upload-preview .image-selection-preview-item figcaption{padding:7px 8px;overflow:hidden;color:#91a3b4;font-size:10px;white-space:nowrap;text-overflow:ellipsis}
+
+/* 2026-08-27: actual accommodation visual in Planner choices. */
+.planner-accommodation-card .planner-accommodation-visual{grid-column:1/-1;margin-bottom:7px;border-radius:9px}.planner-accommodation-card .planner-accommodation-visual::after{font-size:7px}.planner-accommodation-card>.planner-accommodation-visual~small{grid-row:2/5}.preview-choice-card[data-preview-card="sleep"] .preview-choice-media img{filter:brightness(.8) saturate(.92) contrast(1.04)}
+@media(max-width:600px){.planner-accommodation-card .planner-accommodation-visual{max-height:150px}}

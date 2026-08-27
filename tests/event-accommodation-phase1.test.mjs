@@ -7,7 +7,7 @@ const migration = readFileSync(new URL('../D1-event-accommodation-v1.sql', impor
 const paymentMigration = readFileSync(new URL('../D1-reservation-payments-v1.sql', import.meta.url), 'utf8');
 const plannerMigration = readFileSync(new URL('../D1-member-planner-drafts-v1.sql', import.meta.url), 'utf8');
 const workerSource = readFileSync(new URL('../cloudflare-worker-media.js', import.meta.url), 'utf8');
-const workerModule = await import(`data:text/javascript;base64,${Buffer.from(`${workerSource}\nexport { putCurrentReservation, getCurrentReservation, patchAdminReservation, patchAdminReservationPayment, createAdminAccommodation, patchAdminAccommodation, patchAdminEvent, getAdminReservations, calculateAccommodationPricing };`).toString('base64')}`);
+const workerModule = await import(`data:text/javascript;base64,${Buffer.from(`${workerSource}\nexport { putCurrentReservation, getCurrentReservation, patchAdminReservation, patchAdminReservationPayment, createAdminAccommodation, patchAdminAccommodation, patchAdminEvent, getAdminReservations, getAdminAccommodation, putAdminAccommodationPhoto, deleteAdminAccommodationPhoto, publicAccommodationMedia, calculateAccommodationPricing };`).toString('base64')}`);
 
 function database(events = [{ id: 'event-2026', year: 2026, status: 'open' }]) {
   const db = new DatabaseSync(':memory:');
@@ -93,7 +93,7 @@ function blockedUnits(db, optionId = 'cabin-a') {
     SELECT COALESCE(SUM(ra.unit_count), 0) AS value
     FROM reservation_accommodation ra
     JOIN reservations r ON r.id = ra.reservation_id
-    WHERE ra.option_id = ? AND r.status IN ('pending', 'approved')
+    WHERE ra.option_id = ? AND r.status = 'approved'
   `).get(optionId).value);
 }
 
@@ -107,7 +107,7 @@ function saveIfCapacity(db, { reservationId, memberId, units, people }) {
         SELECT COALESCE(SUM(ra.unit_count), 0)
         FROM reservation_accommodation ra
         JOIN reservations r ON r.id = ra.reservation_id
-        WHERE ra.option_id = o.id AND r.status IN ('pending', 'approved') AND r.id <> ?
+        WHERE ra.option_id = o.id AND r.status = 'approved' AND r.id <> ?
       )
     )
   `).run(reservationId, memberId, people, units, reservationId);
@@ -173,6 +173,14 @@ async function setAdminPaidAmount(db, reservationId, amountPaidCzk) {
   return workerModule.patchAdminReservationPayment(request, { DB: d1Binding(db) }, { uid: 'admin' }, reservationId, 'https://e36united.cz');
 }
 
+class MemoryMedia {
+  constructor(){this.objects=new Map();this.writes=0}
+  async put(key,body,options={}){const bytes=new Uint8Array(await new Response(body).arrayBuffer()),etag=`etag-${++this.writes}`;this.objects.set(key,{bytes,etag,httpEtag:`"${etag}"`,httpMetadata:options.httpMetadata||{},customMetadata:options.customMetadata||{}})}
+  async head(key){const value=this.objects.get(key);return value?{etag:value.etag,httpEtag:value.httpEtag,size:value.bytes.byteLength}:null}
+  async get(key){const value=this.objects.get(key);return value?{body:value.bytes,etag:value.etag,httpEtag:value.httpEtag,writeHttpMetadata(headers){if(value.httpMetadata.contentType)headers.set('Content-Type',value.httpMetadata.contentType)}}:null}
+  async delete(key){this.objects.delete(key)}
+}
+
 function configureTestPayment(db) {
   db.prepare(`
     UPDATE events
@@ -229,10 +237,10 @@ test('5. Friday and Saturday use event-configured night counts', () => {
 
 test('6. the final available cabin can be reserved', async () => {
   const db = database(); addOption(db, { units: 2 });
-  addAllocation(db, { reservationId: 'r1', memberId: 'm1', units: 1 });
+  addAllocation(db, { reservationId: 'r1', memberId: 'm1', units: 1, status: 'approved' });
   const response=await submitWorkerReservation(db,{memberId:'m2',people:4});
   assert.equal(response.status, 200);
-  assert.equal(blockedUnits(db), 2);
+  assert.equal(blockedUnits(db), 1);
   assert.equal(db.prepare("SELECT total_czk FROM reservation_accommodation WHERE reservation_id=(SELECT id FROM reservations WHERE member_id='m2')").get().total_czk, 5680);
   const reservationId=db.prepare("SELECT id FROM reservations WHERE member_id='m2'").get().id;
   const editResponse=await submitWorkerReservation(db,{memberId:'m2',reservationId,people:4});
@@ -242,7 +250,7 @@ test('6. the final available cabin can be reserved', async () => {
 
 test('7. a reservation beyond physical inventory returns conflict', async () => {
   const db = database(); addOption(db, { units: 1 });
-  addAllocation(db, { reservationId: 'r1', memberId: 'm1', units: 1 });
+  addAllocation(db, { reservationId: 'r1', memberId: 'm1', units: 1, status: 'approved' });
   const response=await submitWorkerReservation(db,{memberId:'m2',people:4});
   assert.equal(response.status, 409);
   assert.equal(db.prepare("SELECT COUNT(*) AS value FROM reservations WHERE member_id='m2'").get().value, 0);
@@ -272,12 +280,40 @@ test('10. admin cannot lower capacity below active blocked units', async () => {
   const createResponse=await workerModule.createAdminAccommodation(createRequest,{DB:d1Binding(db)},{uid:'admin'},'https://e36united.cz');
   assert.equal(createResponse.status,201);
   const optionId=(await createResponse.json()).option.id;
-  addAllocation(db, { reservationId: 'r1', memberId: 'm1', optionId, units: 2 });
+  addAllocation(db, { reservationId: 'r1', memberId: 'm1', optionId, units: 2, status: 'approved' });
   const request=new Request(`https://api.e36united.cz/api/admin/accommodation/${optionId}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({unitsTotal:1})});
   const response=await workerModule.patchAdminAccommodation(request,{DB:d1Binding(db)},{uid:'admin'},optionId,'https://e36united.cz');
   assert.equal(response.status,409);
   assert.equal(db.prepare('SELECT units_total FROM event_accommodation_options WHERE id=?').get(optionId).units_total, 3);
   assert.equal(db.prepare('SELECT COUNT(*) AS value FROM admin_actions').get().value,1,'only the successful create is audited');
+});
+
+test('10a. capacity may be reduced exactly to approved usage', async () => {
+  const db=database();addOption(db,{units:10});addAllocation(db,{reservationId:'r-approved',memberId:'m-approved',units:8,status:'approved'});
+  const request=new Request('https://api.e36united.cz/api/admin/accommodation/cabin-a',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({unitsTotal:8})});
+  const response=await workerModule.patchAdminAccommodation(request,{DB:d1Binding(db)},{uid:'admin'},'cabin-a','https://e36united.cz');
+  assert.equal(response.status,200);assert.equal(db.prepare("SELECT units_total FROM event_accommodation_options WHERE id='cabin-a'").get().units_total,8);
+});
+
+test('10b. capacity reduction below ten approved units is blocked with a clear message', async () => {
+  const db=database();addOption(db,{units:10});addAllocation(db,{reservationId:'r-approved',memberId:'m-approved',units:10,status:'approved'});
+  const request=new Request('https://api.e36united.cz/api/admin/accommodation/cabin-a',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({unitsTotal:8})});
+  const response=await workerModule.patchAdminAccommodation(request,{DB:d1Binding(db)},{uid:'admin'},'cabin-a','https://e36united.cz');
+  assert.equal(response.status,409);assert.equal((await response.json()).message,'Kapacitu nelze snížit na 8. Aktuálně je potvrzeno 10 jednotek.');
+});
+
+test('10c. pending demand remains visible when capacity is reduced to approved usage', async () => {
+  const db=database();addOption(db,{units:10});addAllocation(db,{reservationId:'r-approved',memberId:'m-approved',units:8,status:'approved'});addAllocation(db,{reservationId:'r-pending',memberId:'m-pending',units:2,status:'pending'});
+  const request=new Request('https://api.e36united.cz/api/admin/accommodation/cabin-a',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({unitsTotal:8})});
+  const response=await workerModule.patchAdminAccommodation(request,{DB:d1Binding(db)},{uid:'admin'},'cabin-a','https://e36united.cz'),option=(await response.json()).option;
+  assert.equal(response.status,200);assert.deepEqual({approved:option.approvedUnits,pending:option.pendingUnits,free:option.freeUnits,conflict:option.pendingConflictUnits},{approved:8,pending:2,free:0,conflict:2});
+});
+
+test('10d. approval at full capacity is rejected while the last available approval succeeds', async () => {
+  const full=database();addOption(full,{units:10});addAllocation(full,{reservationId:'r-approved',memberId:'m-approved',units:10,status:'approved'});addAllocation(full,{reservationId:'r-pending',memberId:'m-pending',units:1,status:'pending'});
+  assert.equal((await setAdminReservationStatus(full,'r-pending','approved')).status,409);assert.equal(blockedUnits(full),10);
+  const available=database();addOption(available,{units:10});addAllocation(available,{reservationId:'r-approved',memberId:'m-approved',units:9,status:'approved'});addAllocation(available,{reservationId:'r-pending',memberId:'m-pending',units:1,status:'pending'});
+  assert.equal((await setAdminReservationStatus(available,'r-pending','approved')).status,200);assert.equal(blockedUnits(available),10);
 });
 
 test('11. later price changes do not alter an existing reservation snapshot', () => {
@@ -391,21 +427,21 @@ test('18. an explicit member edit reprices and replaces the snapshot from curren
   assert.deepEqual({ ...snapshot }, { people_count: 4, unit_count: 2, unit_price_czk: 3000, total_czk: 12880 });
 });
 
-test('19. two concurrent member requests cannot both take the final limited unit', async () => {
+test('19. pending member requests remain demand and do not consume confirmed capacity', async () => {
   const db = database(); addOption(db, { units: 1 });
   const responses = await Promise.all([
     submitWorkerReservation(db, { memberId: 'm1', people: 4 }),
     submitWorkerReservation(db, { memberId: 'm2', people: 4 }),
   ]);
-  assert.deepEqual(responses.map(response => response.status).sort(), [200, 409]);
-  assert.equal(blockedUnits(db), 1);
-  assert.equal(db.prepare('SELECT COUNT(*) AS value FROM reservations').get().value, 1);
+  assert.deepEqual(responses.map(response => response.status).sort(), [200, 200]);
+  assert.equal(blockedUnits(db), 0);
+  assert.equal(db.prepare('SELECT COUNT(*) AS value FROM reservations').get().value, 2);
 });
 
-test('20. concurrent rejected and cancelled re-approvals cannot both take the final unit', async () => {
+test('20. concurrent pending approvals cannot both take the final unit', async () => {
   const db = database(); addOption(db, { units: 1 });
-  addAllocation(db, { reservationId: 'r1', memberId: 'm1', status: 'rejected' });
-  addAllocation(db, { reservationId: 'r2', memberId: 'm2', status: 'cancelled' });
+  addAllocation(db, { reservationId: 'r1', memberId: 'm1', status: 'pending' });
+  addAllocation(db, { reservationId: 'r2', memberId: 'm2', status: 'pending' });
   const responses = await Promise.all([
     setAdminReservationStatus(db, 'r1', 'approved'),
     setAdminReservationStatus(db, 'r2', 'approved'),
@@ -415,14 +451,15 @@ test('20. concurrent rejected and cancelled re-approvals cannot both take the fi
   assert.equal(db.prepare('SELECT COUNT(*) AS value FROM admin_actions').get().value, 1);
 });
 
-test('21. capacity lowering and a concurrent final reservation cannot create overbooking', async () => {
+test('21. capacity lowering and a concurrent approval cannot create confirmed overbooking', async () => {
   const db = database(); addOption(db, { units: 1 });
+  addAllocation(db, { reservationId: 'r1', memberId: 'm1', status: 'pending' });
   const request = new Request('https://api.e36united.cz/api/admin/accommodation/cabin-a', {
     method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ unitsTotal: 0 }),
   });
   const responses = await Promise.all([
     workerModule.patchAdminAccommodation(request, { DB: d1Binding(db) }, { uid: 'admin' }, 'cabin-a', 'https://e36united.cz'),
-    submitWorkerReservation(db, { memberId: 'm1', people: 4 }),
+    setAdminReservationStatus(db, 'r1', 'approved'),
   ]);
   assert.deepEqual(responses.map(response => response.status).sort(), [200, 409]);
   const unitsTotal = db.prepare("SELECT units_total FROM event_accommodation_options WHERE id='cabin-a'").get().units_total;
@@ -596,4 +633,20 @@ test('30. member reservation writes reject protected finance and VS fields witho
   assert.equal(response.status, 400);
   assert.equal((await response.json()).error, 'protected_financial_fields');
   assert.deepEqual({ ...db.prepare('SELECT id,amount_due_czk,amount_paid_czk,payment_status,payment_vs FROM reservations WHERE id=?').get(before.id) }, { ...before });
+});
+
+test('31. accommodation photo upload, replacement, public delivery and removal share one R2 object', async () => {
+  const db=database();addOption(db);const MEDIA=new MemoryMedia(),env={DB:d1Binding(db),MEDIA};
+  const upload=async bytes=>{const form=new FormData();form.append('file',new Blob([bytes],{type:'image/jpeg'}),'cabin.jpg');return workerModule.putAdminAccommodationPhoto(new Request('https://api.e36united.cz/api/admin/accommodation/cabin-a/photo',{method:'PUT',body:form}),env,{uid:'admin'},'cabin-a','https://e36united.cz')};
+  const first=await upload('first-photo');assert.equal(first.status,200);const firstVisual=(await first.json()).visual;assert.equal(firstVisual.hasCustomPhoto,true);assert.match(firstVisual.imageUrl,/\/api\/accommodation\/media\/cabin-a\?v=/);
+  const second=await upload('replacement-photo');assert.equal(second.status,200);const secondVisual=(await second.json()).visual;assert.notEqual(secondVisual.version,firstVisual.version,'replacement changes the cache version');
+  const publicResponse=await workerModule.publicAccommodationMedia(env,'cabin-a',new URL(`https://api.e36united.cz${secondVisual.imageUrl}`),'https://e36united.cz');assert.equal(publicResponse.status,200);assert.equal(await publicResponse.text(),'replacement-photo');assert.match(publicResponse.headers.get('Cache-Control'),/immutable/);
+  const removed=await workerModule.deleteAdminAccommodationPhoto(env,{uid:'admin'},'cabin-a','https://e36united.cz');assert.equal(removed.status,200);assert.equal((await removed.json()).visual.hasCustomPhoto,false);
+  const listing=await workerModule.getAdminAccommodation(env,new URL('https://api.e36united.cz/api/admin/accommodation?eventId=event-2026'),'https://e36united.cz');assert.equal((await listing.json()).options[0].visual.hasCustomPhoto,false);
+});
+
+test('32. unauthenticated accommodation photo mutation is rejected before R2 or D1 access', async () => {
+  let touched=false;const env={DB:{prepare(){touched=true;throw new Error('DB must not be touched')}},MEDIA:{put(){touched=true;throw new Error('R2 must not be touched')}}};
+  const response=await workerModule.default.fetch(new Request('https://api.e36united.cz/api/admin/accommodation/cabin-a/photo',{method:'PUT'}),env);
+  assert.equal(response.status,401);assert.equal(touched,false);
 });

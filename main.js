@@ -21,6 +21,9 @@ initPublicMemberState({config:firebaseConfig,apiBaseUrl:portalConfig.apiBaseUrl,
 
 const coreStyles = qs('link[href^="styles.css"]');
 if (coreStyles && !coreStyles.href.includes('v=20260825-mobile1')) coreStyles.href = 'styles.css?v=20260825-mobile1';
+if (!qs('link[href^="accommodation-visual.css"]')) {
+const accommodationStyles=document.createElement('link');accommodationStyles.rel='stylesheet';accommodationStyles.href='accommodation-visual.css?v=20260827-accommodation1';document.head.append(accommodationStyles);
+}
 
 /* Temporary rebuild notice — homepage only. */
 const heroContent = qs('.home-page .hero-content');
@@ -597,6 +600,8 @@ const unitedMap = qs('[data-united-map]');
 const plannerState = { arrival:'Pátek', departure:'Neděle', sleep:'Chatka', accommodationOptionId:null, accommodationUnits:2, people:2, partialAccommodation:false, showshine:'Jedu se podívat' };
 let plannerEventData = null;
 let plannerAccommodationOptions = [];
+let plannerApiBaseUrl = '';
+let accommodationVisualTools = null;
 let updatePlanner = () => {};
 let setPlannerChoice = () => {};
 let memberPlannerMode = false;
@@ -655,6 +660,8 @@ const slug = (value, fallback) => value.normalize('NFD').replace(/[\u0300-\u036f
 const personLabel = count => count === 1 ? 'osoba' : (count >= 2 && count <= 4 ? 'osoby' : 'osob');
 const plannerMoney = new Intl.NumberFormat('cs-CZ',{style:'currency',currency:'CZK',maximumFractionDigits:0});
 const plannerEscapeHtml = value => String(value||'').replace(/[&<>'"]/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[char]));
+const plannerAccommodationVisual = option => accommodationVisualTools?.accommodationVisualModel(option,{apiBaseUrl:plannerApiBaseUrl,nights:plannerNights()}) || null;
+void import('./accommodation-visual.js?v=20260827-accommodation1').then(tools=>{accommodationVisualTools=tools;renderPlannerAccommodationOptions(plannerState.accommodationOptionId||'');updatePlanner()}).catch(error=>console.debug('Accommodation visuals unavailable.',error));
 const plannerAccommodationKind = () => plannerState.sleep === 'Chatka' ? 'cabin' : plannerState.sleep === 'Stan' ? 'tent' : null;
 const matchingPlannerAccommodation = () => plannerAccommodationOptions.filter(option => option.active && option.kind === plannerAccommodationKind()).sort((a,b)=>a.sortOrder-b.sortOrder||a.name.localeCompare(b.name,'cs'));
 const selectedPlannerAccommodation = () => matchingPlannerAccommodation().find(option => option.id === plannerState.accommodationOptionId) || null;
@@ -683,8 +690,10 @@ const renderPlannerAccommodationOptions = (preferredId='') => {
   accommodationOptionSelect.disabled=!options.length;
   if(accommodationOptionCards)accommodationOptionCards.innerHTML=options.length?options.map(option=>{
     const active=option.id===plannerState.accommodationOptionId,availability=option.inventoryMode==='unlimited'?'Bez omezení':option.soldOut?'Vyprodáno':`${Number(option.freeUnits||0)} volných`;
-    return `<button aria-pressed="${active}" class="planner-accommodation-card${active?' is-active':''}" data-accommodation-option-id="${plannerEscapeHtml(option.id)}" ${option.soldOut?'disabled':''} type="button"><strong>${plannerEscapeHtml(option.name)}</strong><span>Max. ${Number(option.capacityPerUnit||1)} ${personLabel(Number(option.capacityPerUnit||1))}</span><b>${plannerEscapeHtml(plannerOptionPriceLabel(option))}</b><small>${availability}</small></button>`;
+    const visual=accommodationVisualTools?.accommodationVisualMarkup(option,{apiBaseUrl:plannerApiBaseUrl,nights:plannerNights(),className:'planner-accommodation-visual'})||'';
+    return `<button aria-pressed="${active}" class="planner-accommodation-card${active?' is-active':''}" data-accommodation-option-id="${plannerEscapeHtml(option.id)}" ${option.soldOut?'disabled':''} type="button">${visual}<strong>${plannerEscapeHtml(option.name)}</strong><span>Max. ${Number(option.capacityPerUnit||1)} ${personLabel(Number(option.capacityPerUnit||1))}</span><b>${plannerEscapeHtml(plannerOptionPriceLabel(option))}</b><small>${availability}</small></button>`;
   }).join(''):'<div class="planner-accommodation-empty">Pro tento event zatím není konkrétní varianta nastavená.</div>';
+  if(accommodationOptionCards&&accommodationVisualTools)accommodationVisualTools.bindAccommodationVisualFallbacks(accommodationOptionCards);
 };
 const renderPlannerPrice = (needsAccommodation) => {
   if (!plannerPricePreview || !accommodationAvailability) return;
@@ -880,13 +889,13 @@ accommodationOptionCards?.addEventListener('click',event=>{const card=event.targ
 
 const loadPlannerCurrentEvent=async()=>{
   try{
-    const cfg=await import('./firebase-config.js?v=20260823-auth2'),base=String(cfg.portalConfig?.apiBaseUrl||'https://api.e36united.cz').replace(/\/$/,'');
+    const cfg=await import('./firebase-config.js?v=20260823-auth2'),base=String(cfg.portalConfig?.apiBaseUrl||'https://api.e36united.cz').replace(/\/$/,'');plannerApiBaseUrl=base;
     const response=await fetch(`${base}/api/events/current`,{cache:'no-store'});if(!response.ok)throw new Error(`Event API ${response.status}`);
     const payload=await response.json();plannerEventData=payload?.event||null;
     plannerAccommodationOptions=(Array.isArray(payload?.accommodationOptions)?payload.accommodationOptions:[]).map((option,index)=>({
       id:String(option.id||''),name:String(option.name||''),kind:option.kind==='tent'?'tent':'cabin',inventoryMode:option.inventoryMode==='unlimited'?'unlimited':'limited',
       unitsTotal:Number(option.unitsTotal||0),freeUnits:option.freeUnits==null?null:Number(option.freeUnits),capacityPerUnit:Math.max(1,Number(option.capacityPerUnit||1)),
-      unitPriceCzk:Number(option.unitPriceCzk||0),personPriceCzk:Number(option.personPriceCzk||0),beddingFeePerPersonCzk:Number(option.beddingFeePerPersonCzk||0),cityTaxPerPersonPerNightCzk:Number(option.cityTaxPerPersonPerNightCzk||0),active:option.active!==false,soldOut:option.soldOut===true,sortOrder:option.sortOrder==null?index:Number(option.sortOrder),
+      unitPriceCzk:Number(option.unitPriceCzk||0),personPriceCzk:Number(option.personPriceCzk||0),beddingFeePerPersonCzk:Number(option.beddingFeePerPersonCzk||0),cityTaxPerPersonPerNightCzk:Number(option.cityTaxPerPersonPerNightCzk||0),active:option.active!==false,soldOut:option.soldOut===true,sortOrder:option.sortOrder==null?index:Number(option.sortOrder),visual:option.visual||{hasCustomPhoto:false,imageUrl:null,version:null},
     })).filter(option=>option.id&&option.name);
     if(plannerSection&&plannerEventData){plannerSection.dataset.eventId=plannerEventData.id;plannerSection.dataset.eventYear=plannerEventData.year}
     const statusCopy=qs('.planner-status span',planner);if(statusCopy&&plannerEventData)statusCopy.textContent=`Výběr pro United ${plannerEventData.year} zatím není rezervace. Dokončíš ji v Můj United.`;
@@ -1216,6 +1225,8 @@ const day = flowAssets.day[state.arrival] || flowAssets.day['Pátek'];
 const sleep = flowAssets.sleep[state.sleep] || flowAssets.sleep['Chatka'];
 const show = flowAssets.show[state.showshine] || flowAssets.show['Jedu se podívat'];
 const liveOption = plannerAccommodationOptions.find(option=>option.id===state.accommodationOptionId);
+const liveAccommodationVisual=liveOption?plannerAccommodationVisual(liveOption):null;
+const sleepVisual=liveAccommodationVisual?{...sleep,image:liveAccommodationVisual.src,fallback:liveAccommodationVisual.fallbackSrc,alt:liveAccommodationVisual.alt}:sleep;
 
 unitedMap.classList.toggle('is-day-pass', dayPass);
 if (previewCards.sleep) previewCards.sleep.hidden = dayPass;
@@ -1234,7 +1245,7 @@ if (timelineProgress) {
 }
 
 swapImage(flowDayImage, day);
-swapImage(flowSleepImage, sleep);
+swapImage(flowSleepImage, sleepVisual);
 swapImage(flowShowImage, show);
 if (flowDayTitle) flowDayTitle.textContent = state.arrival === 'Jen na otočku' ? day.title : `${state.arrival} → ${state.departure}`;
 if (flowDayCopy) flowDayCopy.textContent = state.arrival === 'Jen na otočku' ? day.copy : `${plannerNightLabel(plannerNights())} · ${day.copy.charAt(0).toLowerCase()}${day.copy.slice(1)}`;
@@ -1245,7 +1256,7 @@ if (flowShowTitle) flowShowTitle.textContent = show.title;
 if (flowShowCopy) flowShowCopy.textContent = show.copy;
 if (flowShowBadge) flowShowBadge.textContent = show.badge;
 renderPeople(state.people);
-renderContextPreviews(day,sleep,show);
+renderContextPreviews(day,sleepVisual,show);
 
 if (mapArrival) mapArrival.textContent = state.arrival === 'Jen na otočku' ? state.arrival : `${state.arrival} → ${state.departure}`;
 if (mapSleep) mapSleep.textContent = state.accommodationUnits?`${liveOption?.name||state.sleep} · ${state.accommodationUnits} ${personLabelPreview(state.accommodationUnits)}`:state.sleep;

@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
   ADMIN_VIEW_IDS,
+  RESERVATION_DETAIL_FILTERS,
+  RESERVATION_PRIMARY_FILTERS,
   RESERVATION_VIEW_MODES,
   filterAdminPayments,
   filterAdminReservations,
@@ -70,6 +72,8 @@ test('reservation search is accent-insensitive and supports member, car and vari
 
 test('reservation quick/detail modes and operational filters use current reservation data', () => {
   assert.deepEqual(RESERVATION_VIEW_MODES, ['quick', 'detail']);
+  assert.deepEqual(RESERVATION_PRIMARY_FILTERS, ['all', 'action', 'active', 'complete']);
+  assert.deepEqual(RESERVATION_DETAIL_FILTERS, ['pending', 'approved', 'payment', 'underpaid', 'paid', 'overpaid', 'rejected', 'cancelled']);
   assert.equal(reservationNeedsAction(reservations[0]), true);
   assert.equal(reservationNeedsAction(reservations[1]), false);
   assert.equal(reservationNeedsAction(reservations[2]), false);
@@ -78,9 +82,24 @@ test('reservation quick/detail modes and operational filters use current reserva
   assert.deepEqual(filterAdminReservations(reservations, { filter: 'underpaid' }).map(item => item.id), ['underpaid']);
   assert.deepEqual(filterAdminReservations(reservations, { filter: 'overpaid' }).map(item => item.id), ['overpaid']);
   assert.deepEqual(filterAdminReservations(reservations, { filter: 'paid' }).map(item => item.id), ['paid']);
+  assert.deepEqual(filterAdminReservations(reservations, { filter: 'all', filters: new Set(['underpaid', 'paid']), query: 'petr' }).map(item => item.id), ['underpaid']);
+  assert.deepEqual(filterAdminReservations(reservations, { filter: 'active' }).map(item => item.id), ['underpaid']);
+  assert.deepEqual(filterAdminReservations(reservations, { filter: 'complete' }).map(item => item.id), ['paid']);
+  assert.equal((html.match(/data-reservation-filter="/g)||[]).length,4,'only four primary filters remain always visible');
+  for(const filter of RESERVATION_PRIMARY_FILTERS)assert.match(html,new RegExp(`data-reservation-filter="${filter}"`));
+  assert.match(html,/data-reservation-filter-toggle/);
+  assert.match(html,/data-reservation-detail-panel[^>]*hidden/);
+  assert.match(html,/data-reservation-filter-clear[^>]*>Vymazat filtry/);
+  assert.match(js,/reservationDetailFilters\.clear\(\);renderReservationTabs\(\);renderReservationList\(\)/);
   assert.match(html, /data-reservation-mode="quick"/);
   assert.match(html, /data-reservation-mode="detail"/);
   assert.match(js, /admin-reservation-table--\$\{quick\?'quick':'detail'\}/);
+});
+
+test('capacity conflicts are actionable without treating ordinary payment waiting as admin action', () => {
+  const conflict={...reservations[1],id:'conflict',status:'approved',capacityConflict:true,payment:{...reservations[1].payment,status:'paid'}};
+  assert.equal(reservationNeedsAction(conflict),true);
+  assert.equal(reservationNeedsAction({...reservations[0],status:'approved'}),false);
 });
 
 test('payments view is derived from existing reservation payment records', () => {
