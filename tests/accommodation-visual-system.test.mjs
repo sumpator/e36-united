@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { accommodationFallbackSvg, accommodationVisualModel } from '../accommodation-visual.js';
+import { accommodationFallbackSvg, accommodationVisualMarkup, accommodationVisualModel } from '../accommodation-visual.js';
 
 const read=name=>readFileSync(new URL(`../${name}`,import.meta.url),'utf8');
 
@@ -21,6 +21,21 @@ test('custom photo wins and failed or removed custom media has a generated fallb
   const custom=accommodationVisualModel({...option,visual:{hasCustomPhoto:true,imageUrl:'/api/accommodation/media/cabin-a?v=etag-2'}},{apiBaseUrl:'https://api.e36united.cz',nights:2});
   assert.equal(custom.custom,true);assert.equal(custom.src,'https://api.e36united.cz/api/accommodation/media/cabin-a?v=etag-2');assert.equal(custom.fallbackAlt,'Chatka A – generovaný přehled');assert.match(custom.fallbackSrc,/^data:image\/svg\+xml/);
   const removed=accommodationVisualModel(option,{apiBaseUrl:'https://api.e36united.cz',nights:2});assert.equal(removed.custom,false);assert.equal(removed.src,removed.fallbackSrc);
+});
+
+test('authenticated member can bootstrap/load Member Portal successfully with accommodation visual',()=>{
+  const member=read('member.js'),start=member.indexOf('function renderAccommodationPreview(){'),end=member.indexOf('function syncMemberSleep(',start);
+  assert.ok(start>=0&&end>start);
+  const renderSource=member.slice(start,end),preview={hidden:true,innerHTML:''},availability={textContent:'',classList:{toggle(){}}};
+  const execute=new Function('accommodationPreview','accommodationAvailability','selectedAccommodationOption','MAX_RESERVATION_CREW','crewInput','accommodationUnitsInput','clampReservationNumber','matchingAccommodationOptions','priceAccommodation','numericValue','$','accommodationVisualMarkup','apiBaseUrl','esc','formatCzk','bindAccommodationVisualFallbacks',`${renderSource};renderAccommodationPreview();`);
+  assert.doesNotThrow(()=>execute(
+    preview,availability,()=>option,5,{value:'2'},{value:'2'},(value,min,max,fallback)=>Number.isFinite(Number(value))?Math.max(min,Math.min(max,Number(value))):fallback,
+    ()=>[option],()=>({unitCount:1,nights:2,baseTotalCzk:2400,personTotalCzk:0,beddingTotalCzk:0,cityTaxTotalCzk:200,totalCzk:2600}),value=>Number(value||0),()=>null,
+    accommodationVisualMarkup,'https://api.e36united.cz',String,value=>`${value} Kč`,()=>{},
+  ));
+  assert.equal(preview.hidden,false);
+  assert.match(preview.innerHTML,/data-accommodation-fallback=/);
+  assert.match(preview.innerHTML,/Orientačně celkem/);
 });
 
 test('one shared visual module propagates through Planner, Member Portal and Admin contexts',()=>{
