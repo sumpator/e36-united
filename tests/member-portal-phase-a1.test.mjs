@@ -46,7 +46,7 @@ test('Member Card renders real profile identity and meaningful progress data', (
   for (const attribute of ['data-summary-name', 'data-summary-member-code', 'data-member-since', 'data-attendance-count', 'data-member-rating', 'data-overview-points']) assert.match(overview, new RegExp(attribute));
   assert.match(overview, /aria-label="United Member Card"/);
   assert.match(overview, /<strong data-summary-name/);
-  assert.match(overview, /<span data-summary-member-code/);
+  assert.match(overview, /<span class="member-card-code" data-summary-member-code/);
   assert.doesNotMatch(overview, /data-summary-nickname|MEMBER SUMMARY/);
   assert.match(js, /summaryName\.textContent=p\.name\|\|'United Member'/);
   assert.match(js, /summaryCode\.textContent=p\.memberCode/);

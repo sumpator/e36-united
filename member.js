@@ -599,7 +599,6 @@ const badgeDefs=[
   {id:'first',icon:pictogram('<path d="M6 20V5m0 1h10l-2.5 3L16 12H6"/><path d="M4 20h5"/>'),name:'První United',desc:'První potvrzená účast',test:d=>verified(d)>=1},
   {id:'regular',icon:pictogram('<path d="M7 7a7 7 0 1 1-1.2 8"/><path d="M7 3v4H3"/><path d="M9.5 10.2h2.8a2 2 0 0 1 0 4H9.5"/>'),name:'United Regular',desc:'3 ověřené účasti',test:d=>verified(d)>=3},
   {id:'veteran',icon:pictogram('<path d="M12 3 19 6v5c0 4.5-2.8 8-7 10-4.2-2-7-5.5-7-10V6l7-3Z"/><path d="m9 12 2 2 4-5"/>'),name:'Veterán United',desc:'5 ověřených účastí',test:d=>verified(d)>=5},
-  {id:'og',icon:pictogram('<circle cx="12" cy="12" r="8"/><path d="M12 7v5l3 2"/>'),name:'Old School',desc:'Člen od roku 2022 nebo dřív',test:d=>(memberSince(d)||9999)<=2022},
   {id:'winner',icon:pictogram('<path d="M8 4h8v4a4 4 0 0 1-8 0V4Z"/><path d="M8 6H5v1a4 4 0 0 0 4 4m7-5h3v1a4 4 0 0 1-4 4m-3 1v5m-3 3h6"/>'),name:'S&S vítěz',desc:'Ověřená výhra v Show & Shine',test:d=>d.history.some(h=>h.verified&&h.winner)}
 ];
 function attended(d=data){return d.history.filter(h=>h.attended).length}
@@ -629,6 +628,7 @@ function renderProfile(){
   const code=p.memberCode?String(p.memberCode).replace(/^EU-?/i,'').slice(-6):String((p.email||nick).split('').reduce((a,c)=>a+c.charCodeAt(0),0)%900+100);
   const idEl=$('[data-card-id]');if(idEl)idEl.textContent=code;
   const summaryCode=$('[data-summary-member-code]');if(summaryCode)summaryCode.textContent=p.memberCode||`EU${code}`;
+  const identityMarkers=$('[data-identity-markers]');if(identityMarkers)identityMarkers.hidden=!((memberSince()||9999)<=2022);
   const car=data.cars.find(c=>c.primary)||data.cars[0];const carEl=$('[data-card-car]');if(carEl)carEl.textContent=car?`${car.body} · ${car.model}${car.nickname?' · '+car.nickname:''}`:'BMW E36 · Garáž čeká na první auto';
   const sinceEl=$('[data-member-since]'),historySinceEl=$('[data-history-since]'),attendanceEl=$('[data-attendance-count]'),ratingEl=$('[data-member-rating]');if(sinceEl)sinceEl.textContent=memberSince()||'—';if(historySinceEl)historySinceEl.textContent=memberSince()||'—';if(attendanceEl)attendanceEl.textContent=verified();if(ratingEl)ratingEl.textContent=deriveMemberRating(lifetimePoints());renderMemberHero();
 }

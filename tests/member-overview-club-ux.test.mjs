@@ -22,6 +22,10 @@ test('Member Card has exactly four help-enabled core blocks and the required rat
   for (const label of ['UNITED OD', 'OVĚŘENÉ UNITED', 'UNITED POINTS', 'MEMBER RATING']) assert.match(overview, new RegExp(label));
   assert.match(overview, /data-overview-points-fill/);
   assert.match(js, /overviewFill\.style\.width/);
+  assert.match(css, /\.member-card-stat\{[^}]*align-items:center[^}]*text-align:center/);
+  assert.match(css, /\.member-card-stat>small\{[^}]*justify-content:center[^}]*text-align:center/);
+  assert.match(css, /\.member-card-points\{[^}]*justify-content:center/);
+  assert.match(css, /\.member-card-points-track\{width:min\(100%,112px\)/);
 });
 
 test('one reusable micro tutorial supports toggle, outside click, keyboard Escape and focus return', () => {
@@ -67,11 +71,19 @@ test('mobile Earn Strip exposes a horizontal snap rail with a partial next card'
 });
 
 test('badges are meaningful milestones and future perks do not claim unsupported activation', () => {
-  assert.doesNotMatch(js, /id:'garage'|id:'twelve'|Dřívější rezervace|Přednostní ubytování|Komunitní hlasování/);
+  assert.doesNotMatch(js, /id:'garage'|id:'twelve'|id:'og'|Dřívější rezervace|Přednostní ubytování|Komunitní hlasování/);
   assert.match(js, /První United/);
   assert.match(js, /United Regular/);
   assert.match(js, /Veterán United/);
   assert.match(js, /Budoucí výhody se zde objeví až ve chvíli, kdy budou skutečně dostupné/);
+});
+
+test('Old School is a restrained identity marker derived from existing member-since data', () => {
+  assert.match(overview, /data-identity-markers[^>]*hidden/);
+  assert.match(overview, /member-identity-marker[\s\S]*Old School/);
+  assert.match(js, /identityMarkers\.hidden=!\(\(memberSince\(\)\|\|9999\)<=2022\)/);
+  assert.doesNotMatch(js.slice(js.indexOf('const badgeDefs='), js.indexOf('function attended')), /Old School/);
+  assert.match(css, /\.member-identity-marker\{[^}]*font:800 7px/);
 });
 
 test('portal preserves the closed registration default while live event state remains API-driven', () => {
