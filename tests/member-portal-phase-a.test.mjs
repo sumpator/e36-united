@@ -166,7 +166,7 @@ test('United Club keeps four desktop tabs and becomes one vertical mobile page',
   const clubStart = memberHtml.indexOf('data-member-panel="club"');
   const club = memberHtml.slice(clubStart, memberHtml.indexOf('data-member-panel="photos"', clubStart));
   const tabs = [...club.matchAll(/data-club-tab="([^"]+)"[^>]*>([^<]+)<\/button>/g)].map(match => [match[1], match[2]]);
-  assert.deepEqual(tabs, [['history', 'Historie'], ['points', 'Points'], ['badges', 'Badges'], ['perks', 'Perks']]);
+  assert.deepEqual(tabs, [['history', 'Moje stopa'], ['points', 'Points'], ['badges', 'Milníky'], ['perks', 'Výhody']]);
   assert.ok(club.indexOf('data-club-panel="history"') < club.indexOf('data-club-anchor="points"'));
   assert.ok(club.indexOf('data-club-anchor="points"') < club.indexOf('data-club-anchor="badges"'));
   assert.ok(club.indexOf('data-club-anchor="badges"') < club.indexOf('data-club-anchor="perks"'));

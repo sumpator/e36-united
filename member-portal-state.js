@@ -49,3 +49,18 @@ export function deriveOverviewState({ reservation = null, registrationOpen = fal
     emptyCopy: '',
   };
 }
+
+const MEMBER_RATINGS = [
+  [12, 'M POWER'],
+  [10, '328i'],
+  [8, '325i'],
+  [6, '323i'],
+  [4, '320i'],
+  [2, '318is'],
+  [0, '316i'],
+];
+
+export function deriveMemberRating(lifetimeProgress = 0) {
+  const progress = Math.max(0, Number(lifetimeProgress) || 0);
+  return MEMBER_RATINGS.find(([minimum]) => progress >= minimum)?.[1] || '316i';
+}

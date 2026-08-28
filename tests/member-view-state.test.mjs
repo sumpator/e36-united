@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { deriveMemberHeroState, deriveOverviewState } from '../member-portal-state.js';
+import { deriveMemberHeroState, deriveMemberRating, deriveOverviewState } from '../member-portal-state.js';
 
 test('hero: member without a car gets the branded garage CTA', () => {
   assert.deepEqual(deriveMemberHeroState({ cars: [] }), {
@@ -75,4 +75,10 @@ test('overview: planner sync error is not rendered as no plan', () => {
   const view=deriveOverviewState({plannerUnavailable:true,registrationOpen:false});
   assert.equal(view.active,true);
   assert.equal(view.label,'PLÁN TEĎ NELZE OVĚŘIT');
+});
+
+test('member rating follows the complete BMW ladder and clamps invalid progress', () => {
+  const expected = [[-1, '316i'], [0, '316i'], [1, '316i'], [2, '318is'], [3, '318is'], [4, '320i'], [5, '320i'], [6, '323i'], [7, '323i'], [8, '325i'], [9, '325i'], [10, '328i'], [11, '328i'], [12, 'M POWER'], [99, 'M POWER']];
+  for (const [progress, rating] of expected) assert.equal(deriveMemberRating(progress), rating, `${progress} → ${rating}`);
+  assert.equal(deriveMemberRating('invalid'), '316i');
 });

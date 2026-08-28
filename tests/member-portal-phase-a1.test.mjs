@@ -41,15 +41,17 @@ test('mobile auth is compact while desktop auth content and tab behavior remain 
   assert.match(js, /\$\$\('\[data-auth-tab\]'\)\.forEach\(btn=>btn\.addEventListener\('click',\(\)=>activateAuthTab\(btn\.dataset\.authTab\)\)\)/);
 });
 
-test('Member Summary renders real profile identity and progress data', () => {
+test('Member Card renders real profile identity and meaningful progress data', () => {
   const overview = panel('overview', 'reservation');
-  for (const attribute of ['data-summary-nickname', 'data-summary-name', 'data-summary-member-code', 'data-member-since', 'data-attendance-count', 'data-member-status', 'data-overview-points']) assert.match(overview, new RegExp(attribute));
-  assert.match(overview, /member-summary-profile[\s\S]*?<small>JMÉNO<\/small><b data-summary-name/);
-  assert.match(overview, /<small>MEMBER ID<\/small><b data-summary-member-code/);
-  assert.match(js, /summaryNick\.textContent=nick\.toUpperCase\(\)/);
+  for (const attribute of ['data-summary-name', 'data-summary-member-code', 'data-member-since', 'data-attendance-count', 'data-member-rating', 'data-overview-points']) assert.match(overview, new RegExp(attribute));
+  assert.match(overview, /aria-label="United Member Card"/);
+  assert.match(overview, /<strong data-summary-name/);
+  assert.match(overview, /<span data-summary-member-code/);
+  assert.doesNotMatch(overview, /data-summary-nickname|MEMBER SUMMARY/);
   assert.match(js, /summaryName\.textContent=p\.name\|\|'United Member'/);
   assert.match(js, /summaryCode\.textContent=p\.memberCode/);
-  assert.match(css, /\.member-summary>div\{padding:19px\}/);
+  assert.match(js, /deriveMemberRating\(lifetimePoints\(\)\)/);
+  assert.match(css, /\.member-card\{display:grid/);
 });
 
 test('Garage exposes one shared add/edit form and one profile-photo selector', () => {
@@ -87,12 +89,14 @@ test('Points Journey reads the unchanged production scoring configuration', () =
   assert.match(config, /points:\s*\{\s*attendance:\s*2,\s*showShineWin:\s*3,\s*communityBonus:\s*1,\s*rewardThreshold:\s*12\s*\}/);
   assert.match(html, /data-points-journey/);
   for (const key of ['attendance', 'showShineWin', 'communityBonus', 'rewardThreshold']) assert.match(js, new RegExp(`rules\.${key}|portalConfig\.points\.${key}`));
-  assert.match(js, /data-points-rules/);
+  assert.match(js, /data-earn-strip/);
+  assert.match(js, /S&S TOP 3/);
+  assert.match(js, /průběh zatím není dostupný/);
 });
 
 test('readability and motion polish preserve reduced-motion behavior', () => {
   assert.match(css, /member-nav-item b\{font-size:14px/);
-  assert.match(css, /member-summary-primary span\{[^}]*font-size:14px/);
+  assert.match(css, /member-card-identity strong\{[^}]*font-size:clamp/);
   assert.match(css, /history-year-status small\{font-size:12px/);
   assert.match(css, /badge small\{font-size:12px/);
   assert.match(css, /perk small\{font-size:12px/);
