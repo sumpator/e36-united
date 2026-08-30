@@ -337,14 +337,44 @@ async function getAdminGalleryCounts(env) {
 async function getAdminHistoryCounts(env) {
   const row = await env.DB.prepare(`
     SELECT
-      COALESCE(SUM(CASE WHEN attendance_status = 'pending' THEN 1 ELSE 0 END), 0) AS attendance_pending,
-      COALESCE(SUM(CASE WHEN sns_status = 'pending' THEN 1 ELSE 0 END), 0) AS sns_pending,
+      COALESCE(SUM(CASE WHEN c.attendance_status = 'pending' THEN 1 ELSE 0 END), 0) AS attendance_pending,
+      COALESCE(SUM(CASE WHEN c.sns_status = 'pending' THEN 1 ELSE 0 END), 0) AS sns_pending,
+      COALESCE(SUM(CASE WHEN c.attendance_status = 'pending' OR c.sns_status = 'pending' THEN 1 ELSE 0 END), 0) AS pending,
+      COALESCE(SUM(CASE WHEN c.attendance_status = 'approved' OR c.sns_status = 'approved' THEN 1 ELSE 0 END), 0) AS approved,
+      COALESCE(SUM(CASE WHEN c.attendance_status = 'rejected' OR c.sns_status = 'rejected' THEN 1 ELSE 0 END), 0) AS rejected,
+      MAX(CASE WHEN c.attendance_status = 'pending' OR c.sns_status = 'pending' THEN e.year END) AS latest_pending_year,
+      MAX(e.year) AS latest_year,
       COUNT(*) AS total
-    FROM united_history_claims
+    FROM united_history_claims c
+    JOIN events e ON e.id = c.event_id
   `).first();
   const attendancePending = Number(row?.attendance_pending || 0);
   const snsPending = Number(row?.sns_pending || 0);
-  return { attendancePending, snsPending, pending: attendancePending + snsPending, total: Number(row?.total || 0) };
+  const pending = Number(row?.pending || 0);
+  const latestPendingYear = row?.latest_pending_year == null ? null : Number(row.latest_pending_year);
+  const latestYear = row?.latest_year == null ? null : Number(row.latest_year);
+  let latestYearPending = 0;
+  if (latestPendingYear != null) {
+    const latest = await env.DB.prepare(`
+      SELECT COUNT(*) AS count
+      FROM united_history_claims c
+      JOIN events e ON e.id = c.event_id
+      WHERE e.year = ? AND (c.attendance_status = 'pending' OR c.sns_status = 'pending')
+    `).bind(latestPendingYear).first();
+    latestYearPending = Number(latest?.count || 0);
+  }
+  return {
+    attendancePending,
+    snsPending,
+    pending,
+    approved: Number(row?.approved || 0),
+    rejected: Number(row?.rejected || 0),
+    total: Number(row?.total || 0),
+    latestPendingYear,
+    latestYear,
+    latestYearPending,
+    olderPending: Math.max(0, pending - latestYearPending),
+  };
 }
 
 function emptyAdminOverview() {
@@ -1245,9 +1275,70 @@ function showShinePointStatements(env, claim) {
 async function getAdminHistoryClaims(env, url, origin) {
   const q = clean(url.searchParams.get("q")).slice(0, 120);
   const status = clean(url.searchParams.get("status") || "pending");
+  const claimType = clean(url.searchParams.get("type") || "all");
+  const requestedYear = clean(url.searchParams.get("year"));
+  const page = Math.max(1, Math.min(10000, Number.parseInt(url.searchParams.get("page") || "1", 10) || 1));
+  const pageSize = Math.max(12, Math.min(50, Number.parseInt(url.searchParams.get("pageSize") || "24", 10) || 24));
   if (!["all", "pending", "approved", "rejected"].includes(status)) {
     return json({ ok: false, error: "invalid_status", message: "Neplatný filtr stavu." }, 400, origin);
   }
+  if (!["all", "attendance", "show_shine", "best_of_best", "best_exhaust"].includes(claimType)) {
+    return json({ ok: false, error: "invalid_claim_type", message: "Neplatný filtr typu žádosti." }, 400, origin);
+  }
+  if (requestedYear && requestedYear !== "all" && !/^\d{4}$/.test(requestedYear)) {
+    return json({ ok: false, error: "invalid_year", message: "Neplatný filtr ročníku." }, 400, origin);
+  }
+
+  const counts = await getAdminHistoryCounts(env);
+  const defaultYear = counts.latestPendingYear ?? counts.latestYear;
+  const selectedYear = requestedYear === "all" ? null : requestedYear ? Number(requestedYear) : defaultYear;
+  const yearsResult = await env.DB.prepare(`
+    SELECT e.year,
+      COUNT(*) AS total,
+      SUM(CASE WHEN c.attendance_status = 'pending' OR c.sns_status = 'pending' THEN 1 ELSE 0 END) AS pending
+    FROM united_history_claims c
+    JOIN events e ON e.id = c.event_id
+    GROUP BY e.year
+    ORDER BY e.year DESC
+  `).all();
+  const years = (yearsResult.results || []).map(row => ({ year: Number(row.year), total: Number(row.total || 0), pending: Number(row.pending || 0) }));
+
+  const where = [`(
+    ? = '' OR lower(m.name) LIKE '%' || lower(?) || '%'
+    OR lower(COALESCE(m.nickname, '')) LIKE '%' || lower(?) || '%'
+    OR lower(m.email) LIKE '%' || lower(?) || '%'
+    OR lower(m.member_code) LIKE '%' || lower(?) || '%'
+  )`];
+  const bindings = [q, q, q, q, q];
+  if (selectedYear != null) { where.push("e.year = ?"); bindings.push(selectedYear); }
+
+  const statusColumn = claimType === "attendance" ? "c.attendance_status" : "c.sns_status";
+  if (status !== "all") {
+    if (claimType === "all") {
+      where.push("(c.attendance_status = ? OR c.sns_status = ?)");
+      bindings.push(status, status);
+    } else {
+      where.push(`${statusColumn} = ?`);
+      bindings.push(status);
+    }
+  }
+  if (claimType === "show_shine") where.push("c.sns_competed = 1");
+  if (claimType === "best_of_best") where.push("c.sns_competed = 1 AND c.sns_best_of_best = 1");
+  if (claimType === "best_exhaust") where.push("c.sns_competed = 1 AND c.sns_best_exhaust = 1");
+
+  const whereSql = where.join(" AND ");
+  const totalRow = await env.DB.prepare(`
+    SELECT COUNT(*) AS count
+    FROM united_history_claims c
+    JOIN events e ON e.id = c.event_id
+    JOIN members m ON m.id = c.member_id
+    WHERE ${whereSql}
+  `).bind(...bindings).first();
+  const filteredTotal = Number(totalRow?.count || 0);
+  const totalPages = Math.max(1, Math.ceil(filteredTotal / pageSize));
+  const safePage = Math.min(page, totalPages);
+  const offset = (safePage - 1) * pageSize;
+
   const rows = await env.DB.prepare(`
     SELECT
       c.*, e.year AS event_year, e.event_end_at,
@@ -1256,26 +1347,23 @@ async function getAdminHistoryClaims(env, url, origin) {
     FROM united_history_claims c
     JOIN events e ON e.id = c.event_id
     JOIN members m ON m.id = c.member_id
-    WHERE (
-      ? = '' OR lower(m.name) LIKE '%' || lower(?) || '%'
-      OR lower(COALESCE(m.nickname, '')) LIKE '%' || lower(?) || '%'
-      OR lower(m.email) LIKE '%' || lower(?) || '%'
-      OR lower(m.member_code) LIKE '%' || lower(?) || '%'
-      OR CAST(e.year AS TEXT) LIKE '%' || ? || '%'
-    )
-      AND (
-        ? = 'all'
-        OR (? = 'pending' AND (c.attendance_status = 'pending' OR c.sns_status = 'pending'))
-        OR (? IN ('approved', 'rejected') AND (c.attendance_status = ? OR c.sns_status = ?))
-      )
+    WHERE ${whereSql}
     ORDER BY
       CASE WHEN c.attendance_status = 'pending' OR c.sns_status = 'pending' THEN 0 ELSE 1 END,
+      e.year DESC,
       c.submitted_at DESC
-    LIMIT 200
-  `).bind(q, q, q, q, q, q, status, status, status, status, status).all();
+    LIMIT ? OFFSET ?
+  `).bind(...bindings, pageSize, offset).all();
   const claims = (rows.results || []).map(publicAdminHistoryClaim);
   await attachHistoryEvidence(env, claims, true);
-  return json({ ok: true, claims, counts: await getAdminHistoryCounts(env) }, 200, origin);
+  return json({
+    ok: true,
+    claims,
+    counts,
+    facets: { years },
+    filters: { status, type: claimType, year: selectedYear == null ? "all" : String(selectedYear), q },
+    pagination: { page: safePage, pageSize, total: filteredTotal, totalPages },
+  }, 200, origin);
 }
 
 function publicAdminHistoryClaim(row) {

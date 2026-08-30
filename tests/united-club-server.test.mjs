@@ -5,7 +5,7 @@ import { DatabaseSync } from 'node:sqlite';
 
 const migration=readFileSync(new URL('../D1-united-club-v1.sql',import.meta.url),'utf8');
 const source=readFileSync(new URL('../cloudflare-worker-media.js',import.meta.url),'utf8');
-const worker=await import(`data:text/javascript;base64,${Buffer.from(`${source}\nexport { requireAdmin, submitHistoryClaim, patchAdminHistoryClaim, historyEvidenceMedia, completeMemberHistory, getUnitedClub, patchAdminGallery, deriveMemberRating, deriveUnitedAchievements, getAdminHistoryCounts };`).toString('base64')}`);
+const worker=await import(`data:text/javascript;base64,${Buffer.from(`${source}\nexport { requireAdmin, submitHistoryClaim, patchAdminHistoryClaim, historyEvidenceMedia, completeMemberHistory, getUnitedClub, patchAdminGallery, deriveMemberRating, deriveUnitedAchievements, getAdminHistoryCounts, getAdminHistoryClaims };`).toString('base64')}`);
 
 function database(){
   const db=new DatabaseSync(':memory:');
@@ -132,4 +132,24 @@ test('rating uses lifetime earned ladder and club keeps available separate',asyn
   const db=database(),runtime=env(db);db.prepare(`INSERT INTO united_points_ledger (id,member_id,delta,source_type,source_key,reason) VALUES ('plus','member-a',10,'test','test:plus','test'),('minus','member-a',-4,'redemption','test:minus','future test')`).run();const response=await payload(await worker.getUnitedClub(runtime,{uid:'member-a'},null));assert.equal(response.status,200);assert.deepEqual(response.body.points,{available:6,lifetime:10});assert.equal(response.body.rating.name,'328i');assert.throws(()=>db.prepare("UPDATE united_points_ledger SET delta=9 WHERE id='plus'").run(),/immutable/);assert.throws(()=>db.prepare("DELETE FROM united_points_ledger WHERE id='plus'").run(),/immutable/);
 });
 
-test('history attention counts attendance and S&S decisions independently',async()=>{const db=database(),runtime=env(db);addEvent(db,'one',2024);addEvent(db,'two',2025);addClaim(db,{id:'one',event:'one',attendance:'pending',sns:'pending',category:'sedan'});addClaim(db,{id:'two',event:'two',attendance:'approved',sns:'pending',category:'coupe'});assert.deepEqual(await worker.getAdminHistoryCounts(runtime),{attendancePending:1,snsPending:2,pending:3,total:2})});
+test('history attention keeps component counts but counts each pending claim once',async()=>{const db=database(),runtime=env(db);addEvent(db,'one',2024);addEvent(db,'two',2025);addClaim(db,{id:'one',event:'one',attendance:'pending',sns:'pending',category:'sedan'});addClaim(db,{id:'two',event:'two',attendance:'approved',sns:'pending',category:'coupe'});assert.deepEqual(await worker.getAdminHistoryCounts(runtime),{attendancePending:1,snsPending:2,pending:2,approved:1,rejected:0,total:2,latestPendingYear:2025,latestYear:2025,latestYearPending:1,olderPending:1})});
+
+test('Admin history queue defaults to newest pending year and supports year and claim-type filters',async()=>{
+  const db=database(),runtime=env(db);addEvent(db,'old',2024);addEvent(db,'new',2025);addEvent(db,'resolved',2023);
+  addClaim(db,{id:'old-pending',event:'old',attendance:'pending',sns:'pending',category:'sedan'});
+  addClaim(db,{id:'new-pending',member:'member-b',event:'new',attendance:'approved',sns:'pending',category:'coupe',bob:1});
+  addClaim(db,{id:'resolved-claim',event:'resolved',attendance:'approved'});
+  const defaultQueue=await payload(await worker.getAdminHistoryClaims(runtime,new URL('https://api.e36united.cz/api/admin/history/claims?status=pending'),null));
+  assert.equal(defaultQueue.status,200);assert.equal(defaultQueue.body.filters.year,'2025');assert.deepEqual(defaultQueue.body.claims.map(item=>item.id),['new-pending']);assert.equal(defaultQueue.body.counts.pending,2);assert.equal(defaultQueue.body.counts.latestYearPending,1);assert.equal(defaultQueue.body.counts.olderPending,1);
+  const allYears=await payload(await worker.getAdminHistoryClaims(runtime,new URL('https://api.e36united.cz/api/admin/history/claims?status=pending&year=all&type=attendance'),null));
+  assert.deepEqual(allYears.body.claims.map(item=>item.id),['old-pending']);
+  const award=await payload(await worker.getAdminHistoryClaims(runtime,new URL('https://api.e36united.cz/api/admin/history/claims?status=pending&year=all&type=best_of_best'),null));
+  assert.deepEqual(award.body.claims.map(item=>item.id),['new-pending']);assert.deepEqual(award.body.pagination,{page:1,pageSize:24,total:1,totalPages:1});
+});
+
+test('Admin history queue paginates instead of rendering an unbounded claim set',async()=>{
+  const db=database(),runtime=env(db);addEvent(db,'bulk-event',2026);
+  for(let index=0;index<13;index+=1){const member=`bulk-${index}`;db.prepare('INSERT INTO members (id,member_code,email,name,nickname) VALUES (?,?,?,?,?)').run(member,`EU-BULK-${index}`,`${member}@example.test`,`Bulk Member ${index}`,`Nick ${index}`);addClaim(db,{id:`bulk-claim-${index}`,member,event:'bulk-event'})}
+  const result=await payload(await worker.getAdminHistoryClaims(runtime,new URL('https://api.e36united.cz/api/admin/history/claims?status=pending&year=all&page=2&pageSize=12'),null));
+  assert.equal(result.status,200);assert.equal(result.body.claims.length,1);assert.deepEqual(result.body.pagination,{page:2,pageSize:12,total:13,totalPages:2});
+});

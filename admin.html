@@ -8,7 +8,7 @@
   <title>United Admin | E36 United</title>
   <link href="styles.css?v=20260825-mobile1" rel="stylesheet"/>
   <link href="accommodation-visual.css?v=20260827-accommodation1" rel="stylesheet"/>
-  <link href="admin.css?v=20260830-united-club-v1" rel="stylesheet"/>
+  <link href="admin.css?v=20260830-history-queue-v2" rel="stylesheet"/>
 </head>
 <body class="admin-page">
   <header class="site-header scrolled admin-header">
@@ -173,9 +173,16 @@
             </div>
             <div class="admin-gallery-grid" data-gallery-list></div></div>
             <div class="admin-view-body admin-history-review" data-gallery-history hidden>
-              <div class="admin-agenda-toolbar"><label class="admin-search"><span>HLEDAT ŽÁDOST</span><input autocomplete="off" data-history-search placeholder="Jméno, e-mail, Member ID nebo rok" type="search"/></label></div>
-              <div aria-label="Filtrovat historické žádosti" class="admin-reservation-tabs" role="tablist"><button aria-selected="true" class="admin-reservation-tab is-active" data-history-filter="pending" role="tab" type="button">K vyřízení <b data-history-filter-count="pending">0</b></button><button aria-selected="false" class="admin-reservation-tab" data-history-filter="approved" role="tab" type="button">Schválené <b data-history-filter-count="approved">0</b></button><button aria-selected="false" class="admin-reservation-tab" data-history-filter="rejected" role="tab" type="button">Zamítnuté <b data-history-filter-count="rejected">0</b></button><button aria-selected="false" class="admin-reservation-tab" data-history-filter="all" role="tab" type="button">Vše <b data-history-filter-count="all">0</b></button></div>
+              <div class="admin-history-summary" aria-label="Souhrn fronty"><span>Čeká <b data-history-summary="pending">0</b></span><span data-history-current-summary hidden><b data-history-summary-year>—</b> <strong data-history-summary="current">0</strong></span><span>Starší <b data-history-summary="older">0</b></span></div>
+              <div class="admin-history-filterbar">
+                <label class="admin-search"><span>HLEDAT ČLENA</span><input autocomplete="off" data-history-search placeholder="Jméno, přezdívka nebo Member ID" type="search"/></label>
+                <label><span>ROČNÍK</span><select data-history-year aria-label="Filtrovat podle ročníku"><option value="">Nejnovější relevantní</option><option value="all">Všechny ročníky</option></select></label>
+                <label><span>TYP CLAIMU</span><select data-history-type aria-label="Filtrovat podle typu claimu"><option value="all">Všechny typy</option><option value="attendance">Attendance</option><option value="show_shine">Show &amp; Shine</option><option value="best_of_best">Best of the Best</option><option value="best_exhaust">Best Exhaust</option></select></label>
+                <button class="admin-button secondary admin-history-clear" data-history-clear type="button">Vymazat filtry</button>
+              </div>
+              <div aria-label="Filtrovat historické žádosti podle stavu" class="admin-reservation-tabs" role="tablist"><button aria-selected="true" class="admin-reservation-tab is-active" data-history-filter="pending" role="tab" type="button">Pending <b data-history-filter-count="pending">0</b></button><button aria-selected="false" class="admin-reservation-tab" data-history-filter="approved" role="tab" type="button">Approved <b data-history-filter-count="approved">0</b></button><button aria-selected="false" class="admin-reservation-tab" data-history-filter="rejected" role="tab" type="button">Rejected <b data-history-filter-count="rejected">0</b></button><button aria-selected="false" class="admin-reservation-tab" data-history-filter="all" role="tab" type="button">All <b data-history-filter-count="all">0</b></button></div>
               <div class="admin-history-list" data-history-list></div>
+              <nav class="admin-history-pagination" aria-label="Stránkování historických žádostí" data-history-pagination hidden><button class="admin-button secondary" data-history-page="previous" type="button">Předchozí</button><span data-history-page-label></span><button class="admin-button secondary" data-history-page="next" type="button">Další</button></nav>
             </div>
           </section>
 
@@ -272,6 +279,6 @@
     </aside>
   </div>
   <div aria-live="polite" class="admin-toast" data-toast role="status"></div>
-  <script src="admin.js?v=20260830-united-club-v1" type="module"></script>
+  <script src="admin.js?v=20260830-history-queue-v2" type="module"></script>
 </body>
 </html>

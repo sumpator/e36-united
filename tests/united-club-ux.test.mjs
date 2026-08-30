@@ -250,6 +250,18 @@ test('Admin Photos contains two internal queues without another top-level naviga
   assert.match(adminHtml,/data-attention-history/);
 });
 
+test('Admin history review is server-filtered, session-sticky, paginated and compact by default',()=>{
+  for(const marker of ['data-history-year','Všechny ročníky','data-history-type','Attendance','Best of the Best','Best Exhaust','data-history-clear','Vymazat filtry','data-history-pagination'])assert.match(adminHtml,new RegExp(marker));
+  assert.match(adminHtml,/Show &amp; Shine/);
+  for(const key of ['historyStatus','historyYear','historyType','historySearch'])assert.match(adminJs,new RegExp(`e36UnitedAdmin\\.${key}`));
+  assert.match(adminJs,/function historyRequestPath[\s\S]*pageSize/);
+  assert.match(adminJs,/<details class="admin-history-card/);
+  assert.match(adminJs,/addEventListener\('toggle'[\s\S]*hydrateHistoryEvidence/);
+  assert.match(adminJs,/await loadHistoryClaims\(\{page:historyPagination\.page\}\)/);
+  assert.match(worker,/SUM\(CASE WHEN c\.attendance_status = 'pending' OR c\.sns_status = 'pending' THEN 1 ELSE 0 END\)/);
+  assert.match(worker,/LIMIT \? OFFSET \?/);
+});
+
 test('private evidence preview is authenticated, separate and full-size contain',()=>{
   assert.match(worker,/history-proof\/\$\{auth\.uid\}/);
   assert.match(worker,/\\\/api\\\/history\\\/evidence/);

@@ -35,7 +35,7 @@ function database() {
       new_state_json TEXT, note TEXT, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
     CREATE TABLE gallery_submissions (id TEXT PRIMARY KEY, status TEXT NOT NULL);
-    CREATE TABLE united_history_claims (attendance_status TEXT NOT NULL, sns_status TEXT NOT NULL);
+    CREATE TABLE united_history_claims (event_id TEXT NOT NULL, attendance_status TEXT NOT NULL, sns_status TEXT NOT NULL);
     INSERT INTO events (id, year, registration_status, currency, payment_deadline, is_current)
     VALUES ('united-2026', 2026, 'closed', 'CZK', '2026-12-01', 1),
            ('united-2025', 2025, 'closed', 'CZK', '2025-12-01', 0);
