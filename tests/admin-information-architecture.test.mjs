@@ -6,6 +6,8 @@ import {
   RESERVATION_DETAIL_FILTERS,
   RESERVATION_PRIMARY_FILTERS,
   RESERVATION_VIEW_MODES,
+  adminActionCountState,
+  adminModerationCounts,
   filterAdminPayments,
   filterAdminReservations,
   matchesAdminSearch,
@@ -113,6 +115,31 @@ test('payments view is derived from existing reservation payment records', () =>
   assert.match(js, /function renderPaymentList\(\)/);
   assert.match(html, /data-payment-filter="underpaid"[^>]*>[\s\S]*?Doplatek/);
   assert.match(html, /data-payment-filter="overpaid"[^>]*>[\s\S]*?Přeplatek/);
+});
+
+test('Admin moderation badges format, combine and hide authoritative action counts', () => {
+  assert.deepEqual(adminActionCountState(0), { count: 0, label: '0', hidden: true });
+  assert.deepEqual(adminActionCountState(1), { count: 1, label: '1', hidden: false });
+  assert.deepEqual(adminActionCountState(12), { count: 12, label: '12', hidden: false });
+  assert.deepEqual(adminActionCountState(100), { count: 100, label: '99+', hidden: false });
+
+  const oneMultiComponentClaim = adminModerationCounts({ communityPending: 0, historyPending: 1 });
+  assert.deepEqual(oneMultiComponentClaim, { community: 0, history: 1, total: 1 });
+  assert.deepEqual(adminModerationCounts({ communityPending: 2, historyPending: 1 }), { community: 2, history: 1, total: 3 });
+  assert.equal(adminActionCountState(adminModerationCounts({ communityPending: 0, historyPending: 0 }).total).hidden, true);
+});
+
+test('Admin moderation badges share counts with Overview and refresh after review', () => {
+  assert.equal((html.match(/data-gallery-nav-count/g) || []).length, 2, 'desktop and mobile navigation both expose the badge');
+  assert.match(html, /data-gallery-mode="community"[^>]*>[\s\S]*?data-gallery-mode-count="community"/);
+  assert.match(html, /data-gallery-mode="history"[^>]*>[\s\S]*?Ověření účasti[\s\S]*?data-gallery-mode-count="history"/);
+  assert.match(js, /const moderation=adminModerationCounts\(\{communityPending:[^\n]+historyPending:historyCounts\.pending\}\)/);
+  assert.match(js, /galleryAttention\.textContent=moderation\.community/);
+  assert.match(js, /historyAttention\.textContent=moderation\.history/);
+  assert.match(js, /renderActionCount\('\[data-gallery-nav-count\]',moderation\.total\)/);
+  assert.match(js, /renderHistoryClaims\(payload=null\)[\s\S]*?renderAttentionCounts\(\)/);
+  assert.match(js, /await loadHistoryClaims\(\{page:historyPagination\.page\}\)/);
+  assert.match(css, /\.admin-action-count\[hidden\]\{display:none!important\}/);
 });
 
 test('existing admin mutation workflows remain available through the established endpoints', () => {

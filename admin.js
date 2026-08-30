@@ -1,7 +1,7 @@
 import { firebaseConfig, portalConfig } from './firebase-config.js?v=20260823-auth2';
 import qrcode from './vendor/qrcode-generator.mjs';
 import { initPortalNavigation } from './portal-navigation.js?v=20260825-mobile1';
-import { ADMIN_VIEW_IDS, RESERVATION_DETAIL_FILTERS, RESERVATION_PRIMARY_FILTERS, RESERVATION_VIEW_MODES, adminItemPayment, filterAdminPayments, filterAdminReservations, paymentMatchesFilter, paymentNeedsAttention, reservationMatchesFilter } from './admin-view-model.js?v=20260827-accommodation1';
+import { ADMIN_VIEW_IDS, RESERVATION_DETAIL_FILTERS, RESERVATION_PRIMARY_FILTERS, RESERVATION_VIEW_MODES, adminActionCountState, adminItemPayment, adminModerationCounts, filterAdminPayments, filterAdminReservations, paymentMatchesFilter, paymentNeedsAttention, reservationMatchesFilter } from './admin-view-model.js?v=20260831-admin-badge1';
 import { selectImageFiles } from './image-upload.js?v=20260827-accommodation1';
 import { accommodationVisualMarkup, bindAccommodationVisualFallbacks } from './accommodation-visual.js?v=20260827-accommodation1';
 
@@ -212,7 +212,6 @@ function renderOverview(payload){
   $('[data-kpi-pending]').textContent=numeric(statuses.pending);
   $('[data-kpi-payments]').textContent=`${numeric(payments.paid)} / ${numeric(payments.unpaid)+numeric(payments.underpaid)}`;
   $('[data-kpi-gallery-pending]').textContent=numeric(gallery.pending);
-  $('[data-gallery-nav-count]').textContent=numeric(gallery.pending);
   $('[data-capacity-reservations]').textContent=event?.reservationCapacity?`kapacita ${event.reservationCapacity}`:'kapacita —';
 
   const attendanceTotal=numeric(attendance.fullWeekend)+numeric(attendance.saturdayOnly)+numeric(attendance.dayVisit);
@@ -246,12 +245,20 @@ function renderOverview(payload){
 function renderAttentionCounts(){
   const pendingReservations=reservationItems.filter(item=>reservationMatchesFilter(item,'action')).length;
   const paymentAttention=reservationItems.filter(paymentNeedsAttention).length;
-  const pendingGallery=galleryItems.filter(item=>item.status==='pending').length;
+  const moderation=adminModerationCounts({communityPending:galleryItems.filter(item=>item.status==='pending').length,historyPending:historyCounts.pending});
   const reservationAttention=$('[data-attention-reservations]');if(reservationAttention)reservationAttention.textContent=pendingReservations;
   const paymentAttentionElement=$('[data-attention-payments]');if(paymentAttentionElement)paymentAttentionElement.textContent=paymentAttention;
-  const galleryAttention=$('[data-attention-gallery]');if(galleryAttention)galleryAttention.textContent=pendingGallery;
-  const historyAttention=$('[data-attention-history]');if(historyAttention)historyAttention.textContent=numeric(historyCounts.pending);
+  const galleryAttention=$('[data-attention-gallery]');if(galleryAttention)galleryAttention.textContent=moderation.community;
+  const historyAttention=$('[data-attention-history]');if(historyAttention)historyAttention.textContent=moderation.history;
   const paymentNav=$('[data-payment-nav-count]');if(paymentNav)paymentNav.textContent=paymentAttention;
+  renderActionCount('[data-gallery-mode-count="community"]',moderation.community);
+  renderActionCount('[data-gallery-mode-count="history"]',moderation.history);
+  renderActionCount('[data-gallery-nav-count]',moderation.total);
+}
+
+function renderActionCount(selector,count){
+  const state=adminActionCountState(count);
+  $$(selector).forEach(badge=>{badge.textContent=state.label;badge.hidden=state.hidden});
 }
 
 function recordsLabel(count){return `${count} ${count===1?'záznam':count>1&&count<5?'záznamy':'záznamů'}`}
@@ -508,7 +515,6 @@ function renderGalleryTabs(){
 function renderGalleryCounts(){
   const pending=galleryItems.filter(item=>item.status==='pending').length;
   $('[data-kpi-gallery-pending]').textContent=pending;
-  $('[data-gallery-nav-count]').textContent=pending;
   renderAttentionCounts();
 }
 function renderGalleryList(){

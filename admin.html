@@ -8,7 +8,7 @@
   <title>United Admin | E36 United</title>
   <link href="styles.css?v=20260825-mobile1" rel="stylesheet"/>
   <link href="accommodation-visual.css?v=20260827-accommodation1" rel="stylesheet"/>
-  <link href="admin.css?v=20260830-history-queue-v2" rel="stylesheet"/>
+  <link href="admin.css?v=20260831-admin-badge1" rel="stylesheet"/>
 </head>
 <body class="admin-page">
   <header class="site-header scrolled admin-header">
@@ -59,7 +59,7 @@
                 <button class="is-active" data-admin-jump="dashboard" data-portal-target="dashboard" type="button">Přehled</button>
                 <button data-admin-jump="reservations" data-portal-target="reservations" type="button">Rezervace <b data-reservation-nav-count>0</b></button>
                 <button data-admin-jump="payments" data-portal-target="payments" type="button">Platby <b data-payment-nav-count>0</b></button>
-                <button data-admin-jump="gallery" data-portal-target="gallery" type="button">Fotky <b data-gallery-nav-count>0</b></button>
+                <button data-admin-jump="gallery" data-portal-target="gallery" type="button">Fotky <b class="admin-action-count" data-gallery-nav-count hidden>0</b></button>
                 <button data-admin-jump="accommodation" data-portal-target="accommodation" type="button">Ubytování</button>
                 <button data-admin-jump="event" data-portal-target="event" type="button">Event</button>
               </nav>
@@ -73,7 +73,7 @@
                   <button class="is-active" data-portal-target="dashboard" type="button"><span>01</span><b>Přehled</b></button>
                   <button data-portal-target="reservations" type="button"><span>02</span><b>Rezervace</b></button>
                   <button data-portal-target="payments" type="button"><span>03</span><b>Platby</b></button>
-                  <button data-portal-target="gallery" type="button"><span>04</span><b>Fotky</b></button>
+                  <button data-portal-target="gallery" type="button"><span>04</span><b>Fotky <i class="admin-action-count" data-gallery-nav-count hidden>0</i></b></button>
                   <button data-portal-target="accommodation" type="button"><span>05</span><b>Ubytování</b></button>
                   <button data-portal-target="event" type="button"><span>06</span><b>Event</b></button>
                 </nav>
@@ -164,7 +164,7 @@
 
           <section class="admin-gallery admin-view-panel" data-admin-panel="gallery" hidden>
             <div class="admin-section-head"><div><span class="admin-kicker">PHOTO &amp; HISTORY REVIEW</span><h2>Fotky od členů.</h2><p>Komunitní galerie a soukromé důkazy účasti zůstávají ve dvou oddělených frontách.</p></div><span class="admin-count" data-gallery-count>0 fotografií</span></div>
-            <div aria-label="Režim kontroly fotek" class="admin-view-switch admin-gallery-mode-switch" role="group"><button aria-pressed="true" class="is-active" data-gallery-mode="community" type="button">Komunitní fotky</button><button aria-pressed="false" data-gallery-mode="history" type="button">Důkazy účasti</button></div>
+            <div aria-label="Režim kontroly fotek" class="admin-view-switch admin-gallery-mode-switch" role="group"><button aria-pressed="true" class="is-active" data-gallery-mode="community" type="button">Komunitní fotky <b class="admin-action-count" data-gallery-mode-count="community" hidden>0</b></button><button aria-pressed="false" data-gallery-mode="history" type="button">Ověření účasti <b class="admin-action-count" data-gallery-mode-count="history" hidden>0</b></button></div>
             <div class="admin-view-body" data-gallery-community id="admin-gallery-content"><div aria-label="Filtrovat fotografie podle stavu" class="admin-reservation-tabs" data-gallery-tabs role="tablist">
               <button aria-selected="true" class="admin-reservation-tab is-active" data-gallery-filter="pending" role="tab" type="button">Žádosti <b data-gallery-filter-count="pending">0</b></button>
               <button aria-selected="false" class="admin-reservation-tab" data-gallery-filter="approved" role="tab" type="button">Schválené <b data-gallery-filter-count="approved">0</b></button>
@@ -279,6 +279,6 @@
     </aside>
   </div>
   <div aria-live="polite" class="admin-toast" data-toast role="status"></div>
-  <script src="admin.js?v=20260830-history-queue-v2" type="module"></script>
+  <script src="admin.js?v=20260831-admin-badge1" type="module"></script>
 </body>
 </html>

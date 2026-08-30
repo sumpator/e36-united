@@ -239,7 +239,7 @@ test('Member Card keeps four core blocks with the requested typography lift',()=
 
 test('Admin Photos contains two internal queues without another top-level navigation target',()=>{
   assert.match(adminHtml,/data-gallery-mode="community"[\s\S]*Komunitní fotky/);
-  assert.match(adminHtml,/data-gallery-mode="history"[\s\S]*Důkazy účasti/);
+  assert.match(adminHtml,/data-gallery-mode="history"[\s\S]*Ověření účasti/);
   assert.equal((adminHtml.match(/data-admin-jump="gallery"/g)||[]).length,1);
   assert.match(adminHtml,/data-history-search/);
   for(const status of ['pending','approved','rejected','all'])assert.match(adminHtml,new RegExp(`data-history-filter="${status}"`));

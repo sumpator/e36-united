@@ -3,6 +3,21 @@ export const RESERVATION_VIEW_MODES = Object.freeze(['quick', 'detail']);
 export const RESERVATION_PRIMARY_FILTERS = Object.freeze(['all', 'action', 'active', 'complete']);
 export const RESERVATION_DETAIL_FILTERS = Object.freeze(['pending', 'approved', 'payment', 'underpaid', 'paid', 'overpaid', 'rejected', 'cancelled']);
 
+function actionCount(value) {
+  return Math.max(0, Math.trunc(Number(value) || 0));
+}
+
+export function adminActionCountState(value) {
+  const count = actionCount(value);
+  return { count, label: count > 99 ? '99+' : String(count), hidden: count === 0 };
+}
+
+export function adminModerationCounts({ communityPending = 0, historyPending = 0 } = {}) {
+  const community = actionCount(communityPending);
+  const history = actionCount(historyPending);
+  return { community, history, total: community + history };
+}
+
 function normalized(value) {
   return String(value ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('cs-CZ').trim();
 }
