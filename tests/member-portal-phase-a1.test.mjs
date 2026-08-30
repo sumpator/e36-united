@@ -50,7 +50,7 @@ test('Member Card renders real profile identity and meaningful progress data', (
   assert.doesNotMatch(overview, /data-summary-nickname|MEMBER SUMMARY/);
   assert.match(js, /summaryName\.textContent=p\.name\|\|'United Member'/);
   assert.match(js, /summaryCode\.textContent=p\.memberCode/);
-  assert.match(js, /deriveMemberRating\(lifetimePoints\(\)\)/);
+  assert.match(js, /ratingEl\.textContent=data\.club\?\.rating\?\.name\|\|'316i'/);
   assert.match(css, /\.member-card\{display:grid/);
 });
 
@@ -85,14 +85,16 @@ test('Account renders real profile data, safe existing profile update and reloca
   assert.match(js, /data\.profile=normalizeMember/);
 });
 
-test('Points Journey reads the unchanged production scoring configuration', () => {
-  assert.match(config, /points:\s*\{\s*attendance:\s*2,\s*showShineWin:\s*3,\s*communityBonus:\s*1,\s*rewardThreshold:\s*12\s*\}/);
+test('Points Journey reads server totals and no longer exposes writable scoring configuration', () => {
+  assert.doesNotMatch(config, /points:|unitedYears|memberLocalPrefix/);
   assert.match(html, /data-points-journey/);
-  for (const key of ['attendance', 'showShineWin', 'communityBonus', 'rewardThreshold']) assert.match(js, new RegExp(`rules\.${key}|portalConfig\.points\.${key}`));
+  assert.match(js, /loadUnitedClub\(\)[\s\S]*apiRequest\('\/api\/united-club'\)/);
+  assert.match(js, /d\.club\?\.points\?\.available/);
+  assert.match(js, /d\.club\?\.points\?\.lifetime/);
+  assert.match(js, /data\.club\?\.rewardThreshold/);
   assert.match(js, /data-earn-strip/);
-  assert.match(js, /S&S TOP 3/);
-  assert.match(js, /BMW Prospekt/);
-  assert.doesNotMatch(js, /approvedPhotoCount|communityPhotoProgress/);
+  assert.match(js, /Umístění v Show & Shine/);
+  assert.doesNotMatch(js, /portalConfig\.points|history\.reduce\(.*Points|bonuses/);
 });
 
 test('readability and motion polish preserve reduced-motion behavior', () => {

@@ -29,17 +29,17 @@ test('Member Card keeps four centered core blocks and uses Czech Points terminol
   assert.match(css, /\.member-card-points\{[^}]*justify-content:center/);
 });
 
-test('Member Card has a readable bottom Featured Achievements strip with no ID-side chip', () => {
-  assert.match(overview, /member-card-achievements[\s\S]*FEATURED ACHIEVEMENTS[\s\S]*data-featured-achievements/);
+test('Member Card has a readable bottom server-featured Achievements strip with no ID-side chip', () => {
+  assert.match(overview, /member-card-achievements[\s\S]*>ACHIEVEMENTS<[\s\S]*data-featured-achievements/);
   assert.doesNotMatch(overview, /data-identity-markers|member-identity-marker/);
   assert.match(css, /\.member-card-achievements\{grid-column:1\/-1[^}]*min-height:68px/);
   assert.match(css, /\.featured-achievement b\{[^}]*font-size:11px/);
-  assert.match(js, /unlocked\.slice\(0,4\)/);
+  assert.match(js, /featuredAchievements[\s\S]*slice\(0,4\)/);
 });
 
 test('one reusable micro tutorial supports dynamic earning help, outside click, Escape and focus return', () => {
   assert.equal((html.match(/data-member-help-popover=""/g) || []).length, 1);
-  for (const key of ['since', 'verified', 'points', 'rating', 'verification', 'points-system', 'earn-attendance', 'earn-showshine', 'earn-photos', 'earn-achievements']) assert.ok(js.includes(`${key}:{`) || js.includes(`'${key}':{`), `missing ${key} help content`);
+  for (const key of ['since', 'verified', 'points', 'rating', 'verification', 'points-system', 'earn-attendance', 'earn-showshine', 'earn-photos', 'earn-profile']) assert.ok(js.includes(`${key}:{`) || js.includes(`'${key}':{`), `missing ${key} help content`);
   assert.match(js, /event\.target\.closest\('\[data-member-help\]'\)/);
   assert.match(js, /event\.key==='Escape'/);
   assert.match(js, /restoreFocus:true/);
@@ -71,17 +71,13 @@ test('United Points Command Panel consolidates the meter and Merch reward', () =
   assert.doesNotMatch(club, /United Merch unlock|reward-main|data-reward-lock/);
 });
 
-test('Earn Strip states exact agreed rules and never invents photo progress', () => {
-  const rewards = js.slice(js.indexOf('function renderRewards()'), js.indexOf('async function commit'));
-  assert.match(rewards, /OVĚŘENÝ UNITED/);
-  assert.match(rewards, /pointWord\(rules\.attendance\)/);
-  assert.match(rewards, /S&S TOP 3/);
-  assert.match(rewards, /1\. \+\$\{rules\.showShineWin\} · 2\. \+2 · 3\. \+1/);
-  assert.match(rewards, /COMMUNITY FOTKY/);
-  assert.match(rewards, /5 \+\$\{rules\.communityBonus\} · 20 \+\$\{rules\.communityBonus\} · 50 \+\$\{rules\.communityBonus\*2\}/);
-  assert.match(js, /5 schválených fotek = \+1 bod[\s\S]*20 schválených fotek = \+1 bod[\s\S]*50 schválených fotek = \+2 body[\s\S]*Nad 50/);
-  assert.match(js, /1\. místo = \+3 body[\s\S]*2\. místo = \+2 body[\s\S]*3\. místo = \+1 bod/);
-  assert.doesNotMatch(rewards, /approvedPhoto|photoCount|apiRequest|fetch\(/);
+test('Earn Strip keeps only four activity names and moves exact rules into help', () => {
+  const rewards = js.slice(js.indexOf('function renderRewards()'), js.indexOf("reservationForm?.addEventListener"));
+  for (const label of ['Účast na srazu','Umístění v Show & Shine','Nahrávání fotek','Doplnění profilu']) assert.match(rewards,new RegExp(label));
+  assert.doesNotMatch(rewards,/\+1|\+2|\+3|25 schválených|50 schválených/);
+  assert.match(js, /Každý ověřený sraz = \+1 bod[\s\S]*3 ověřené srazy = \+3 body navíc[\s\S]*5 ověřených srazů = \+3 body navíc/);
+  assert.match(js, /5 schválených = \+1[\s\S]*25 = \+1[\s\S]*50 = \+3/);
+  assert.match(js, /Newsletter není potřeba/);
 });
 
 test('mobile Earn Strip is a compact horizontal snap rail', () => {
@@ -90,18 +86,20 @@ test('mobile Earn Strip is a compact horizontal snap rail', () => {
   assert.match(css, /scroll-snap-type:x mandatory/);
 });
 
-test('Achievements unify identity and milestones using only reliable frontend data', () => {
-  const achievements = js.slice(js.indexOf('const achievementDefs='), js.indexOf('function attended'));
-  assert.match(achievements, /name:'Old School'[\s\S]*memberSince\(d\)[\s\S]*<=2022/);
-  assert.match(achievements, /name:'Veterán'[\s\S]*3 nebo více ověřených účastí[\s\S]*verified\(d\)>=3/);
-  assert.match(achievements, /name:'S&S vítěz'[\s\S]*h\.verified&&h\.winner/);
-  assert.match(achievements, /name:'BMW Prospekt'[\s\S]*25 schválených komunitních fotek[\s\S]*deferred:true/);
-  assert.doesNotMatch(achievements, /id:'garage'|Dřívější rezervace|formulář/);
+test('Achievements render only authoritative server data with anchored desktop and mobile detail UX', () => {
+  assert.match(js, /data\.club\?\.achievements/);
+  assert.match(js, /data\.club\?\.featuredAchievements/);
+  assert.doesNotMatch(js, /const achievementDefs=/);
   assert.match(club, /data-achievement-catalog/);
-  assert.match(css, /\.achievement-card\.is-locked\{opacity:\.72/);
+  assert.match(html, /data-achievement-popover/);
+  assert.match(js, /getBoundingClientRect\(\)/);
+  assert.match(css, /left:var\(--achievement-left\)[\s\S]*top:var\(--achievement-top\)/);
+  assert.match(css, /@media\(max-width:700px\)[\s\S]*\.achievement-detail-popover\{left:10px!important[\s\S]*bottom:10px/);
 });
 
-test('portal preserves the closed registration default while Club rendering remains frontend-only', () => {
+test('portal preserves closed registration while Club state is loaded from the server', () => {
   assert.match(js, /let reservationState=\{registrationOpen:false,event:null/);
-  assert.doesNotMatch(js.slice(js.indexOf('function renderRewards()'), js.indexOf('async function commit')), /registrationOpen|apiRequest|fetch\(/);
+  assert.match(js, /apiRequest\('\/api\/united-club'\)/);
+  assert.match(js, /points\(d=data\)\{return Number\(d\.club\?\.points\?\.available/);
+  assert.doesNotMatch(js, /d\.history\.reduce|d\.bonuses|portalConfig\.points/);
 });

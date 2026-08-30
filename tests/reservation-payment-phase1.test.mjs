@@ -18,7 +18,7 @@ function database() {
       is_current INTEGER NOT NULL DEFAULT 0, accommodation_capacity INTEGER NOT NULL DEFAULT 0,
       reservation_capacity INTEGER NOT NULL DEFAULT 0, full_weekend_nights INTEGER NOT NULL DEFAULT 2,
       saturday_only_nights INTEGER NOT NULL DEFAULT 1, booking_commitment_czk INTEGER NOT NULL DEFAULT 0,
-      booking_due_at TEXT, booking_paid_czk INTEGER NOT NULL DEFAULT 0
+      booking_due_at TEXT, booking_paid_czk INTEGER NOT NULL DEFAULT 0, event_end_at TEXT
     );
     CREATE TABLE reservations (
       id TEXT PRIMARY KEY, member_id TEXT NOT NULL, event_id TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending',
@@ -35,6 +35,7 @@ function database() {
       new_state_json TEXT, note TEXT, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
     CREATE TABLE gallery_submissions (id TEXT PRIMARY KEY, status TEXT NOT NULL);
+    CREATE TABLE united_history_claims (attendance_status TEXT NOT NULL, sns_status TEXT NOT NULL);
     INSERT INTO events (id, year, registration_status, currency, payment_deadline, is_current)
     VALUES ('united-2026', 2026, 'closed', 'CZK', '2026-12-01', 1),
            ('united-2025', 2025, 'closed', 'CZK', '2025-12-01', 0);

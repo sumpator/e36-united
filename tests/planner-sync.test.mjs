@@ -23,6 +23,7 @@ function database(){
       id TEXT PRIMARY KEY, year INTEGER NOT NULL, registration_status TEXT NOT NULL,
       accommodation_capacity INTEGER NOT NULL DEFAULT 0, reservation_capacity INTEGER NOT NULL DEFAULT 0,
       booking_commitment_czk INTEGER NOT NULL DEFAULT 0, booking_due_at TEXT, booking_paid_czk INTEGER NOT NULL DEFAULT 0,
+      event_end_at TEXT,
       currency TEXT NOT NULL DEFAULT 'CZK', payment_deadline TEXT
     );
     CREATE TABLE members (id TEXT PRIMARY KEY, name TEXT, nickname TEXT, email TEXT, member_code TEXT);

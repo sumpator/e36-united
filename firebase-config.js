@@ -12,8 +12,5 @@ export const firebaseConfig = {
 export const portalConfig = {
   mode: "production",
   apiBaseUrl: "https://api.e36united.cz",
-  points: { attendance: 2, showShineWin: 3, communityBonus: 1, rewardThreshold: 12 },
-  unitedYears: [2021, 2022, 2023, 2024, 2025, 2026],
-  memberLocalPrefix: "e36UnitedMemberLocalV20",
   plannerDraftKey: "e36UnitedPlannerDraftV19"
 };

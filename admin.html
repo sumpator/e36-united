@@ -8,7 +8,7 @@
   <title>United Admin | E36 United</title>
   <link href="styles.css?v=20260825-mobile1" rel="stylesheet"/>
   <link href="accommodation-visual.css?v=20260827-accommodation1" rel="stylesheet"/>
-  <link href="admin.css?v=20260827-payment-reconciliation" rel="stylesheet"/>
+  <link href="admin.css?v=20260830-united-club-v1" rel="stylesheet"/>
 </head>
 <body class="admin-page">
   <header class="site-header scrolled admin-header">
@@ -123,6 +123,7 @@
               <button data-attention-target="reservations" data-attention-filter="action" type="button"><span>Rezervace vyžadující akci</span><strong data-attention-reservations>0</strong><i>Otevřít →</i></button>
               <button data-attention-target="payments" data-attention-filter="attention" type="button"><span>Platby vyžadující kontrolu</span><strong data-attention-payments>0</strong><i>Otevřít →</i></button>
               <button data-attention-target="gallery" data-attention-filter="pending" type="button"><span>Fotky ke schválení</span><strong data-attention-gallery>0</strong><i>Otevřít →</i></button>
+              <button data-attention-target="gallery" data-gallery-mode-target="history" data-attention-filter="pending" type="button"><span>Historie a S&amp;S ke kontrole</span><strong data-attention-history>0</strong><i>Otevřít →</i></button>
             </div>
           </section>
 
@@ -162,14 +163,20 @@
           </section>
 
           <section class="admin-gallery admin-view-panel" data-admin-panel="gallery" hidden>
-            <div class="admin-section-head"><div><span class="admin-kicker">GALLERY MODERATION</span><h2>Fotky od členů.</h2><p>Vizuální fronta pro schválení, zamítnutí a kontrolu členských fotografií.</p></div><span class="admin-count" data-gallery-count>0 fotografií</span></div>
-            <div class="admin-view-body" id="admin-gallery-content"><div aria-label="Filtrovat fotografie podle stavu" class="admin-reservation-tabs" data-gallery-tabs role="tablist">
+            <div class="admin-section-head"><div><span class="admin-kicker">PHOTO &amp; HISTORY REVIEW</span><h2>Fotky od členů.</h2><p>Komunitní galerie a soukromé důkazy účasti zůstávají ve dvou oddělených frontách.</p></div><span class="admin-count" data-gallery-count>0 fotografií</span></div>
+            <div aria-label="Režim kontroly fotek" class="admin-view-switch admin-gallery-mode-switch" role="group"><button aria-pressed="true" class="is-active" data-gallery-mode="community" type="button">Komunitní fotky</button><button aria-pressed="false" data-gallery-mode="history" type="button">Důkazy účasti</button></div>
+            <div class="admin-view-body" data-gallery-community id="admin-gallery-content"><div aria-label="Filtrovat fotografie podle stavu" class="admin-reservation-tabs" data-gallery-tabs role="tablist">
               <button aria-selected="true" class="admin-reservation-tab is-active" data-gallery-filter="pending" role="tab" type="button">Žádosti <b data-gallery-filter-count="pending">0</b></button>
               <button aria-selected="false" class="admin-reservation-tab" data-gallery-filter="approved" role="tab" type="button">Schválené <b data-gallery-filter-count="approved">0</b></button>
               <button aria-selected="false" class="admin-reservation-tab" data-gallery-filter="rejected" role="tab" type="button">Zamítnuté <b data-gallery-filter-count="rejected">0</b></button>
               <button aria-selected="false" class="admin-reservation-tab" data-gallery-filter="all" role="tab" type="button">Všechny <b data-gallery-filter-count="all">0</b></button>
             </div>
             <div class="admin-gallery-grid" data-gallery-list></div></div>
+            <div class="admin-view-body admin-history-review" data-gallery-history hidden>
+              <div class="admin-agenda-toolbar"><label class="admin-search"><span>HLEDAT ŽÁDOST</span><input autocomplete="off" data-history-search placeholder="Jméno, e-mail, Member ID nebo rok" type="search"/></label></div>
+              <div aria-label="Filtrovat historické žádosti" class="admin-reservation-tabs" role="tablist"><button aria-selected="true" class="admin-reservation-tab is-active" data-history-filter="pending" role="tab" type="button">K vyřízení <b data-history-filter-count="pending">0</b></button><button aria-selected="false" class="admin-reservation-tab" data-history-filter="approved" role="tab" type="button">Schválené <b data-history-filter-count="approved">0</b></button><button aria-selected="false" class="admin-reservation-tab" data-history-filter="rejected" role="tab" type="button">Zamítnuté <b data-history-filter-count="rejected">0</b></button><button aria-selected="false" class="admin-reservation-tab" data-history-filter="all" role="tab" type="button">Vše <b data-history-filter-count="all">0</b></button></div>
+              <div class="admin-history-list" data-history-list></div>
+            </div>
           </section>
 
           <section class="booking-block admin-view-panel" data-admin-panel="payments" hidden>
@@ -238,6 +245,7 @@
               <label class="admin-field"><span>Booking závazek (Kč)</span><input min="0" name="bookingCommitmentCzk" required type="number"/></label>
               <label class="admin-field"><span>Splatnost závazku</span><input name="bookingDueAt" type="date"/></label>
               <label class="admin-field"><span>Booking paid (Kč)</span><input min="0" name="bookingPaidCzk" required type="number"/></label>
+              <label class="admin-field"><span>Skutečný konec eventu</span><input name="eventEndAt" type="date"/><small>Teprve po tomto datu se ročník nabídne v historii členů.</small></label>
               <label class="admin-check admin-field--wide"><input name="isCurrent" type="checkbox"/><span>Použít jako aktuální event pro web a členské rezervace</span></label>
               <button class="admin-button admin-button--primary" type="submit">Uložit nastavení <span>→</span></button>
             </form></div>
@@ -255,6 +263,7 @@
       <div data-gallery-lightbox-content></div>
     </div>
   </div>
+  <div aria-labelledby="admin-history-evidence-title" aria-modal="true" class="admin-history-evidence-lightbox" data-history-evidence-lightbox hidden role="dialog"><button aria-label="Zavřít důkazní fotografii" class="admin-gallery-lightbox-backdrop" data-history-evidence-close type="button"></button><div class="admin-history-evidence-dialog"><button aria-label="Zavřít náhled" class="admin-gallery-lightbox-close" data-history-evidence-close type="button">×</button><img alt="Soukromý důkaz účasti" data-history-evidence-full/><aside><span class="admin-kicker">SOUKROMÝ DŮKAZ</span><h2 id="admin-history-evidence-title" data-history-evidence-title>United historie</h2><p data-history-evidence-member></p><dl><div><dt>ODESLÁNO</dt><dd data-history-evidence-submitted>—</dd></div><div><dt>NAHRÁNO</dt><dd data-history-evidence-created>—</dd></div><div><dt>DOCHÁZKA</dt><dd data-history-evidence-attendance>—</dd></div><div><dt>SHOW &amp; SHINE</dt><dd data-history-evidence-sns>—</dd></div></dl><div class="admin-history-evidence-thumbs" data-history-evidence-thumbs></div></aside></div></div>
   <div aria-labelledby="admin-reservation-drawer-title" aria-modal="true" class="admin-reservation-drawer" data-reservation-drawer hidden role="dialog">
     <button aria-label="Zavřít detail rezervace" class="admin-reservation-drawer-backdrop" data-reservation-drawer-close type="button"></button>
     <aside class="admin-reservation-drawer-panel">
@@ -263,6 +272,6 @@
     </aside>
   </div>
   <div aria-live="polite" class="admin-toast" data-toast role="status"></div>
-  <script src="admin.js?v=20260827-payment-reconciliation" type="module"></script>
+  <script src="admin.js?v=20260830-united-club-v1" type="module"></script>
 </body>
 </html>

@@ -12,9 +12,12 @@ const IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 const MAX_GALLERY_DAILY = 24;
 const MAX_CAR_PHOTOS = 3;
+const MAX_HISTORY_EVIDENCE = 4;
 const MAX_PAYMENT_CZK = 10_000_000;
 const MAX_RESERVATION_CREW = 5;
+const UNITED_REWARD_THRESHOLD = 12;
 const PLANNER_CLOCK_SKEW_MS = 5 * 60 * 1000;
+const SHOW_SHINE_CATEGORIES = new Set(["sedan", "coupe", "touring", "cabrio", "compact", "z3", "mpower"]);
 
 let jwksCache = { keys: [], expiresAt: 0 };
 
@@ -83,6 +86,26 @@ export default {
           if (url.pathname === "/api/admin/gallery" && request.method === "GET") {
             return await getAdminGallery(env, origin);
           }
+          if (url.pathname === "/api/admin/history/claims" && request.method === "GET") {
+            return await getAdminHistoryClaims(env, url, origin);
+          }
+
+          const adminHistoryEvidenceMatch = url.pathname.match(/^\/api\/admin\/history\/evidence\/([^/]+)$/);
+          if (adminHistoryEvidenceMatch && request.method === "GET") {
+            return await historyEvidenceMedia(env, decodeURIComponent(adminHistoryEvidenceMatch[1]), null, origin);
+          }
+
+          const adminHistoryReviewMatch = url.pathname.match(/^\/api\/admin\/history\/claims\/([^/]+)\/(attendance|sns)$/);
+          if (adminHistoryReviewMatch && request.method === "PATCH") {
+            return await patchAdminHistoryClaim(
+              request,
+              env,
+              auth,
+              decodeURIComponent(adminHistoryReviewMatch[1]),
+              adminHistoryReviewMatch[2],
+              origin,
+            );
+          }
 
           const adminGalleryMediaMatch = url.pathname.match(/^\/api\/admin\/gallery\/media\/([^/]+)$/);
           if (adminGalleryMediaMatch && request.method === "GET") {
@@ -129,6 +152,13 @@ export default {
         if (url.pathname === "/api/me" && request.method === "GET") return await getMember(env, auth, origin);
 
         if (url.pathname === "/api/navigation-state" && request.method === "GET") return await getMemberNavigationState(env, auth, origin);
+        if (url.pathname === "/api/united-club" && request.method === "GET") return await getUnitedClub(env, auth, origin);
+        if (url.pathname === "/api/history/claims" && request.method === "POST") return await submitHistoryClaim(request, env, auth, origin);
+        if (url.pathname === "/api/history/completed" && request.method === "POST") return await completeMemberHistory(env, auth, origin);
+        const memberHistoryEvidenceMatch = url.pathname.match(/^\/api\/history\/evidence\/([^/]+)$/);
+        if (memberHistoryEvidenceMatch && request.method === "GET") {
+          return await historyEvidenceMedia(env, decodeURIComponent(memberHistoryEvidenceMatch[1]), auth.uid, origin);
+        }
         if (url.pathname === "/api/planner-draft" && request.method === "GET") return await getPlannerDraft(env, auth, origin);
         if (url.pathname === "/api/planner-draft" && request.method === "PUT") return await putPlannerDraft(request, env, auth, origin);
         if (url.pathname === "/api/planner-draft" && request.method === "DELETE") return await deletePlannerDraft(env, auth, url, origin);
@@ -184,6 +214,7 @@ const EVENT_SELECT = `
     accommodation_capacity, reservation_capacity,
     full_weekend_nights, saturday_only_nights,
     booking_commitment_czk, booking_due_at, booking_paid_czk,
+    event_end_at,
     currency, payment_deadline,
     payment_recipient_name, payment_account_display, payment_iban,
     payment_message_prefix, payment_test_mode
@@ -226,6 +257,7 @@ function publicAdminEvent(event) {
     bookingPaidCzk: Number(event.booking_paid_czk || 0),
     currency: event.currency || "CZK",
     paymentDeadline: event.payment_deadline || null,
+    eventEndAt: event.event_end_at || null,
     paymentTestMode: event.payment_test_mode !== 0,
   };
 }
@@ -240,11 +272,12 @@ async function getAdminEvents(env, origin) {
 async function getAdminOverview(env, url, origin) {
   const event = await getRequestedAdminEvent(env, url);
   const gallery = await getAdminGalleryCounts(env);
+  const history = await getAdminHistoryCounts(env);
   if (!event) {
     if (clean(url.searchParams.get("eventId"))) {
       return json({ ok: false, error: "event_not_found", message: "Event nebyl nalezen." }, 404, origin);
     }
-    return json({ ok: true, event: null, overview: { ...emptyAdminOverview(), gallery } }, 200, origin);
+    return json({ ok: true, event: null, overview: { ...emptyAdminOverview(), gallery, history } }, 200, origin);
   }
 
   const totals = await env.DB.prepare(`
@@ -280,7 +313,7 @@ async function getAdminOverview(env, url, origin) {
     WHERE r.event_id = ?
   `).bind(event.id).first();
 
-  return json({ ok: true, event: publicAdminEvent(event), overview: { ...mapAdminOverview(totals), gallery } }, 200, origin);
+  return json({ ok: true, event: publicAdminEvent(event), overview: { ...mapAdminOverview(totals), gallery, history } }, 200, origin);
 }
 
 async function getAdminGalleryCounts(env) {
@@ -299,6 +332,19 @@ async function getAdminGalleryCounts(env) {
     rejected: Number(row?.rejected || 0),
     total: Number(row?.total || 0),
   };
+}
+
+async function getAdminHistoryCounts(env) {
+  const row = await env.DB.prepare(`
+    SELECT
+      COALESCE(SUM(CASE WHEN attendance_status = 'pending' THEN 1 ELSE 0 END), 0) AS attendance_pending,
+      COALESCE(SUM(CASE WHEN sns_status = 'pending' THEN 1 ELSE 0 END), 0) AS sns_pending,
+      COUNT(*) AS total
+    FROM united_history_claims
+  `).first();
+  const attendancePending = Number(row?.attendance_pending || 0);
+  const snsPending = Number(row?.sns_pending || 0);
+  return { attendancePending, snsPending, pending: attendancePending + snsPending, total: Number(row?.total || 0) };
 }
 
 function emptyAdminOverview() {
@@ -779,7 +825,7 @@ async function patchAdminEvent(request, env, auth, eventId, origin) {
   const parsed = await readJsonObject(request, origin);
   if (parsed.response) return parsed.response;
   const body = parsed.body;
-  const allowedKeys = new Set(["isCurrent", "registrationStatus", "reservationCapacity", "fullWeekendNights", "saturdayOnlyNights", "bookingCommitmentCzk", "bookingDueAt", "bookingPaidCzk"]);
+  const allowedKeys = new Set(["isCurrent", "registrationStatus", "reservationCapacity", "fullWeekendNights", "saturdayOnlyNights", "bookingCommitmentCzk", "bookingDueAt", "bookingPaidCzk", "eventEndAt"]);
   if (!Object.keys(body).length || Object.keys(body).some(key => !allowedKeys.has(key))) return json({ ok: false, error: "invalid_fields", message: "Požadavek obsahuje nepovolená pole." }, 400, origin);
   const current = await getEventById(env, eventId);
   if (!current) return json({ ok: false, error: "event_not_found", message: "Event nebyl nalezen." }, 404, origin);
@@ -793,6 +839,7 @@ async function patchAdminEvent(request, env, auth, eventId, origin) {
     bookingCommitmentCzk: Number(Object.prototype.hasOwnProperty.call(body, "bookingCommitmentCzk") ? body.bookingCommitmentCzk : current.booking_commitment_czk),
     bookingDueAt: Object.prototype.hasOwnProperty.call(body, "bookingDueAt") ? clean(body.bookingDueAt) || null : current.booking_due_at || null,
     bookingPaidCzk: Number(Object.prototype.hasOwnProperty.call(body, "bookingPaidCzk") ? body.bookingPaidCzk : current.booking_paid_czk),
+    eventEndAt: Object.prototype.hasOwnProperty.call(body, "eventEndAt") ? clean(body.eventEndAt) || null : current.event_end_at || null,
   };
   if (Object.prototype.hasOwnProperty.call(body, "isCurrent") && body.isCurrent !== true) return json({ ok: false, error: "invalid_current_event", message: "Aktuální event lze pouze přepnout na jiný event." }, 400, origin);
   if (!["open", "closed"].includes(next.registrationStatus)) return json({ ok: false, error: "invalid_registration_status", message: "Stav rezervací musí být open nebo closed." }, 400, origin);
@@ -801,6 +848,7 @@ async function patchAdminEvent(request, env, auth, eventId, origin) {
   }
   if (next.fullWeekendNights > 14 || next.saturdayOnlyNights > 14) return json({ ok: false, error: "invalid_nights", message: "Počet nocí musí být 0 až 14." }, 400, origin);
   if (next.bookingDueAt && !/^\d{4}-\d{2}-\d{2}$/.test(next.bookingDueAt)) return json({ ok: false, error: "invalid_booking_due_at", message: "Splatnost musí být ve formátu RRRR-MM-DD." }, 400, origin);
+  if (next.eventEndAt && !/^\d{4}-\d{2}-\d{2}$/.test(next.eventEndAt)) return json({ ok: false, error: "invalid_event_end_at", message: "Konec eventu musí být ve formátu RRRR-MM-DD." }, 400, origin);
 
   const oldState = eventState(current);
   if (JSON.stringify(oldState) === JSON.stringify(next)) return json({ ok: true, unchanged: true, event: publicAdminEvent(current) }, 200, origin);
@@ -810,9 +858,9 @@ async function patchAdminEvent(request, env, auth, eventId, origin) {
     UPDATE events
     SET is_current = ?, registration_status = ?, reservation_capacity = ?,
         full_weekend_nights = ?, saturday_only_nights = ?,
-        booking_commitment_czk = ?, booking_due_at = ?, booking_paid_czk = ?
+        booking_commitment_czk = ?, booking_due_at = ?, booking_paid_czk = ?, event_end_at = ?
     WHERE id = ?
-  `).bind(next.isCurrent ? 1 : 0, next.registrationStatus, next.reservationCapacity, next.fullWeekendNights, next.saturdayOnlyNights, next.bookingCommitmentCzk, next.bookingDueAt, next.bookingPaidCzk, eventId));
+  `).bind(next.isCurrent ? 1 : 0, next.registrationStatus, next.reservationCapacity, next.fullWeekendNights, next.saturdayOnlyNights, next.bookingCommitmentCzk, next.bookingDueAt, next.bookingPaidCzk, next.eventEndAt, eventId));
   statements.push(env.DB.prepare(`
     INSERT INTO admin_actions (id, admin_member_id, action_type, entity_type, entity_id, old_state_json, new_state_json, note, created_at)
     VALUES (?, ?, 'event_settings_changed', 'event', ?, ?, ?, ?, CURRENT_TIMESTAMP)
@@ -833,6 +881,7 @@ function eventState(row) {
     bookingCommitmentCzk: Number(row.booking_commitment_czk || 0),
     bookingDueAt: row.booking_due_at || null,
     bookingPaidCzk: Number(row.booking_paid_czk || 0),
+    eventEndAt: row.event_end_at || null,
   };
 }
 
@@ -1073,7 +1122,7 @@ async function patchAdminGallery(request, env, auth, submissionId, origin) {
   }
 
   const submission = await env.DB.prepare(`
-    SELECT id, status, review_note
+    SELECT id, member_id, status, review_note
     FROM gallery_submissions
     WHERE id = ?
     LIMIT 1
@@ -1088,7 +1137,7 @@ async function patchAdminGallery(request, env, auth, submissionId, origin) {
   const oldState = JSON.stringify({ status: submission.status, reviewNote: currentReviewNote });
   const newState = JSON.stringify({ status, reviewNote });
   const actionId = crypto.randomUUID();
-  const results = await env.DB.batch([
+  const statements = [
     env.DB.prepare(`
       UPDATE gallery_submissions
       SET status = ?, review_note = ?, reviewed_at = CURRENT_TIMESTAMP
@@ -1101,10 +1150,441 @@ async function patchAdminGallery(request, env, auth, submissionId, origin) {
       )
       VALUES (?, ?, 'gallery_status_changed', 'gallery_submission', ?, ?, ?, ?, CURRENT_TIMESTAMP)
     `).bind(actionId, auth.uid, submissionId, oldState, newState, reviewNote || null),
-  ]);
+  ];
+  if (status === "approved") statements.push(...galleryPointStatements(env, submission.member_id), profilePointStatement(env, submission.member_id));
+  const results = await env.DB.batch(statements);
 
   if (!results[0]?.meta?.changes) throw new Error("Gallery submission was not updated");
   return json({ ok: true, photo: { id: submissionId, status, reviewNote } }, 200, origin);
+}
+
+function ledgerInsertStatement(env, memberId, delta, sourceType, sourceKey, reason, eventId = null, relatedObjectId = null) {
+  return env.DB.prepare(`
+    INSERT OR IGNORE INTO united_points_ledger (
+      id, member_id, delta, source_type, source_key, reason, event_id, related_object_id
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `).bind(crypto.randomUUID(), memberId, delta, sourceType, sourceKey, reason, eventId, relatedObjectId);
+}
+
+function thresholdPointStatement(env, memberId, { delta, sourceType, sourceKey, reason, countSql, threshold }) {
+  return env.DB.prepare(`
+    INSERT OR IGNORE INTO united_points_ledger (
+      id, member_id, delta, source_type, source_key, reason
+    )
+    SELECT ?, ?, ?, ?, ?, ?
+    WHERE (${countSql}) >= ?
+  `).bind(crypto.randomUUID(), memberId, delta, sourceType, sourceKey, reason, memberId, threshold);
+}
+
+function attendancePointStatements(env, claim) {
+  return [
+    ledgerInsertStatement(env, claim.member_id, 1, "attendance", `attendance:event:${claim.event_id}`, `Schválená účast na United ${claim.event_year}`, claim.event_id, claim.id),
+    thresholdPointStatement(env, claim.member_id, {
+      delta: 3,
+      sourceType: "attendance_milestone",
+      sourceKey: "attendance:milestone:3",
+      reason: "Milník 3 schválených United",
+      countSql: "SELECT COUNT(*) FROM united_history_claims WHERE member_id = ? AND attendance_status = 'approved'",
+      threshold: 3,
+    }),
+    thresholdPointStatement(env, claim.member_id, {
+      delta: 3,
+      sourceType: "attendance_milestone",
+      sourceKey: "attendance:milestone:5",
+      reason: "Milník 5 schválených United",
+      countSql: "SELECT COUNT(*) FROM united_history_claims WHERE member_id = ? AND attendance_status = 'approved'",
+      threshold: 5,
+    }),
+  ];
+}
+
+function galleryPointStatements(env, memberId) {
+  const countSql = "SELECT COUNT(*) FROM gallery_submissions WHERE member_id = ? AND status = 'approved'";
+  return [
+    thresholdPointStatement(env, memberId, { delta: 1, sourceType: "community_photo_milestone", sourceKey: "community-photos:5", reason: "5 schválených komunitních fotek", countSql, threshold: 5 }),
+    thresholdPointStatement(env, memberId, { delta: 1, sourceType: "community_photo_milestone", sourceKey: "community-photos:25", reason: "25 schválených komunitních fotek", countSql, threshold: 25 }),
+    thresholdPointStatement(env, memberId, { delta: 3, sourceType: "community_photo_milestone", sourceKey: "community-photos:50", reason: "50 schválených komunitních fotek", countSql, threshold: 50 }),
+  ];
+}
+
+function profilePointStatement(env, memberId) {
+  return env.DB.prepare(`
+    INSERT OR IGNORE INTO united_points_ledger (
+      id, member_id, delta, source_type, source_key, reason
+    )
+    SELECT ?, ?, 1, 'profile_completion', 'profile:complete', 'Kompletní United profil'
+    WHERE EXISTS (
+      SELECT 1 FROM members m
+      WHERE m.id = ?
+        AND trim(COALESCE(m.name, '')) <> ''
+        AND trim(COALESCE(m.email, '')) <> ''
+        AND trim(COALESCE(m.member_code, '')) <> ''
+        AND m.history_completed_at IS NOT NULL
+    )
+      AND EXISTS (SELECT 1 FROM cars WHERE member_id = ?)
+      AND (SELECT COUNT(*) FROM gallery_submissions WHERE member_id = ? AND status = 'approved') >= 5
+  `).bind(crypto.randomUUID(), memberId, memberId, memberId, memberId);
+}
+
+function showShinePointStatements(env, claim) {
+  const statements = [];
+  const placement = Number(claim.sns_placement || 0);
+  if ([1, 2, 3].includes(placement)) {
+    const delta = placement === 1 ? 3 : placement === 2 ? 2 : 1;
+    statements.push(ledgerInsertStatement(env, claim.member_id, delta, "show_shine_placement", `sns:placement:event:${claim.event_id}`, `Show & Shine ${placement}. místo · ${claim.event_year}`, claim.event_id, claim.id));
+  }
+  if (claim.sns_best_of_best) {
+    statements.push(ledgerInsertStatement(env, claim.member_id, 1, "show_shine_award", `sns:best-of-best:event:${claim.event_id}`, `Best of the Best · ${claim.event_year}`, claim.event_id, claim.id));
+  }
+  if (claim.sns_best_exhaust) {
+    statements.push(ledgerInsertStatement(env, claim.member_id, 1, "show_shine_award", `sns:best-exhaust:event:${claim.event_id}`, `Best Exhaust · ${claim.event_year}`, claim.event_id, claim.id));
+  }
+  return statements;
+}
+
+async function getAdminHistoryClaims(env, url, origin) {
+  const q = clean(url.searchParams.get("q")).slice(0, 120);
+  const status = clean(url.searchParams.get("status") || "pending");
+  if (!["all", "pending", "approved", "rejected"].includes(status)) {
+    return json({ ok: false, error: "invalid_status", message: "Neplatný filtr stavu." }, 400, origin);
+  }
+  const rows = await env.DB.prepare(`
+    SELECT
+      c.*, e.year AS event_year, e.event_end_at,
+      m.name AS member_name, m.nickname AS member_nickname,
+      m.email AS member_email, m.member_code
+    FROM united_history_claims c
+    JOIN events e ON e.id = c.event_id
+    JOIN members m ON m.id = c.member_id
+    WHERE (
+      ? = '' OR lower(m.name) LIKE '%' || lower(?) || '%'
+      OR lower(COALESCE(m.nickname, '')) LIKE '%' || lower(?) || '%'
+      OR lower(m.email) LIKE '%' || lower(?) || '%'
+      OR lower(m.member_code) LIKE '%' || lower(?) || '%'
+      OR CAST(e.year AS TEXT) LIKE '%' || ? || '%'
+    )
+      AND (
+        ? = 'all'
+        OR (? = 'pending' AND (c.attendance_status = 'pending' OR c.sns_status = 'pending'))
+        OR (? IN ('approved', 'rejected') AND (c.attendance_status = ? OR c.sns_status = ?))
+      )
+    ORDER BY
+      CASE WHEN c.attendance_status = 'pending' OR c.sns_status = 'pending' THEN 0 ELSE 1 END,
+      c.submitted_at DESC
+    LIMIT 200
+  `).bind(q, q, q, q, q, q, status, status, status, status, status).all();
+  const claims = (rows.results || []).map(publicAdminHistoryClaim);
+  await attachHistoryEvidence(env, claims, true);
+  return json({ ok: true, claims, counts: await getAdminHistoryCounts(env) }, 200, origin);
+}
+
+function publicAdminHistoryClaim(row) {
+  return {
+    id: row.id,
+    eventId: row.event_id,
+    eventYear: Number(row.event_year || 0),
+    submittedAt: row.submitted_at,
+    updatedAt: row.updated_at,
+    attendance: { status: row.attendance_status, reviewNote: row.attendance_review_note || "", reviewedAt: row.attendance_reviewed_at || null },
+    showShine: {
+      competed: !!row.sns_competed,
+      category: row.sns_category || "",
+      placement: row.sns_placement ? Number(row.sns_placement) : null,
+      bestOfBest: !!row.sns_best_of_best,
+      bestExhaust: !!row.sns_best_exhaust,
+      status: row.sns_status,
+      reviewNote: row.sns_review_note || "",
+      reviewedAt: row.sns_reviewed_at || null,
+    },
+    member: { id: row.member_id, name: row.member_name || "", nickname: row.member_nickname || "", email: row.member_email || "", memberCode: row.member_code || "" },
+    evidence: [],
+  };
+}
+
+async function attachHistoryEvidence(env, claims, admin = false) {
+  if (!claims.length) return claims;
+  const ids = claims.map(item => item.id);
+  const placeholders = ids.map(() => "?").join(",");
+  const rows = await env.DB.prepare(`
+    SELECT id, claim_id, mime_type, size_bytes, sort_order, created_at
+    FROM united_history_evidence
+    WHERE claim_id IN (${placeholders})
+    ORDER BY sort_order, created_at
+  `).bind(...ids).all();
+  const byClaim = new Map(claims.map(item => [item.id, item]));
+  for (const row of rows.results || []) {
+    const claim = byClaim.get(row.claim_id);
+    if (claim) claim.evidence.push({ id: row.id, mimeType: row.mime_type, sizeBytes: Number(row.size_bytes || 0), createdAt: row.created_at, imageUrl: `${admin ? "/api/admin" : "/api"}/history/evidence/${encodeURIComponent(row.id)}` });
+  }
+  return claims;
+}
+
+async function historyEvidenceMedia(env, evidenceId, memberId, origin) {
+  const row = memberId
+    ? await env.DB.prepare("SELECT r2_key, mime_type FROM united_history_evidence WHERE id = ? AND member_id = ? LIMIT 1").bind(evidenceId, memberId).first()
+    : await env.DB.prepare("SELECT r2_key, mime_type FROM united_history_evidence WHERE id = ? LIMIT 1").bind(evidenceId).first();
+  if (!row) return json({ ok: false, error: "evidence_not_found", message: "Důkazní fotografie nebyla nalezena." }, 404, origin);
+  const object = await env.MEDIA.get(row.r2_key);
+  if (!object) return json({ ok: false, error: "media_not_found", message: "Soubor důkazu nebyl nalezen." }, 404, origin);
+  const headers = new Headers({ "Content-Type": row.mime_type || "image/jpeg", "Cache-Control": "private, no-store" });
+  return cors(new Response(object.body, { status: 200, headers }), origin);
+}
+
+async function patchAdminHistoryClaim(request, env, auth, claimId, component, origin) {
+  const parsed = await readJsonObject(request, origin);
+  if (parsed.response) return parsed.response;
+  const body = parsed.body;
+  if (Object.keys(body).some(key => !new Set(["status", "reviewNote"]).has(key))) {
+    return json({ ok: false, error: "invalid_fields", message: "Lze změnit pouze stav a důvod rozhodnutí." }, 400, origin);
+  }
+  const status = clean(body.status);
+  const reviewNote = clean(body.reviewNote).slice(0, 1000);
+  if (!["approved", "rejected"].includes(status)) return json({ ok: false, error: "invalid_status", message: "Rozhodnutí musí být schváleno nebo zamítnuto." }, 400, origin);
+  if (status === "rejected" && !reviewNote) return json({ ok: false, error: "rejection_reason_required", message: "Při zamítnutí je důvod povinný." }, 400, origin);
+
+  const claim = await env.DB.prepare(`
+    SELECT c.*, e.year AS event_year
+    FROM united_history_claims c JOIN events e ON e.id = c.event_id
+    WHERE c.id = ? LIMIT 1
+  `).bind(claimId).first();
+  if (!claim) return json({ ok: false, error: "claim_not_found", message: "Žádost nebyla nalezena." }, 404, origin);
+  if (component === "sns" && claim.sns_status === "not_claimed") return json({ ok: false, error: "sns_not_claimed", message: "Show & Shine nebylo nárokováno." }, 409, origin);
+  if (component === "sns" && status === "approved" && claim.attendance_status !== "approved") {
+    return json({ ok: false, error: "attendance_not_approved", message: "Nejdřív schval docházku na United." }, 409, origin);
+  }
+  const currentStatus = component === "attendance" ? claim.attendance_status : claim.sns_status;
+  const currentNote = (component === "attendance" ? claim.attendance_review_note : claim.sns_review_note) || "";
+  if (currentStatus === status && currentNote === reviewNote) return json({ ok: true, unchanged: true }, 200, origin);
+  if (currentStatus === "approved") {
+    return json({ ok: false, error: "approved_history_locked", message: "Schválený výsledek je uzamčený. Destruktivní oprava vyžaduje samostatný Admin reversal workflow." }, 409, origin);
+  }
+
+  const statusColumn = component === "attendance" ? "attendance_status" : "sns_status";
+  const noteColumn = component === "attendance" ? "attendance_review_note" : "sns_review_note";
+  const byColumn = component === "attendance" ? "attendance_reviewed_by" : "sns_reviewed_by";
+  const atColumn = component === "attendance" ? "attendance_reviewed_at" : "sns_reviewed_at";
+  const oldState = JSON.stringify({ component, status: currentStatus, reviewNote: currentNote });
+  const newState = JSON.stringify({ component, status, reviewNote });
+  const statements = [
+    env.DB.prepare(`UPDATE united_history_claims SET ${statusColumn} = ?, ${noteColumn} = ?, ${byColumn} = ?, ${atColumn} = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ?`)
+      .bind(status, reviewNote || null, auth.uid, claimId),
+    env.DB.prepare(`
+      INSERT INTO admin_actions (id, admin_member_id, action_type, entity_type, entity_id, old_state_json, new_state_json, note, created_at)
+      VALUES (?, ?, ?, 'united_history_claim', ?, ?, ?, ?, CURRENT_TIMESTAMP)
+    `).bind(crypto.randomUUID(), auth.uid, `history_${component}_reviewed`, claimId, oldState, newState, reviewNote || null),
+  ];
+  if (status === "approved" && component === "attendance") statements.push(...attendancePointStatements(env, claim), profilePointStatement(env, claim.member_id));
+  if (status === "approved" && component === "sns") statements.push(...showShinePointStatements(env, claim));
+  const results = await env.DB.batch(statements);
+  if (!results[0]?.meta?.changes) throw new Error("History claim was not updated");
+  return json({ ok: true, claimId, component, status, reviewNote }, 200, origin);
+}
+
+function formBoolean(value) {
+  return ["1", "true", "yes", "on"].includes(clean(value).toLowerCase());
+}
+
+function parseShowShineClaim(form, origin) {
+  const competed = formBoolean(form.get("snsCompeted"));
+  if (!competed) return { value: { competed: false, category: null, placement: null, bestOfBest: false, bestExhaust: false, status: "not_claimed" } };
+  const category = clean(form.get("snsCategory")).toLowerCase();
+  const rawPlacement = clean(form.get("snsPlacement"));
+  const placement = rawPlacement ? Number(rawPlacement) : null;
+  if (!SHOW_SHINE_CATEGORIES.has(category)) return { response: json({ ok: false, error: "invalid_sns_category", message: "Vyber platnou Show & Shine kategorii." }, 400, origin) };
+  if (placement !== null && ![1, 2, 3].includes(placement)) return { response: json({ ok: false, error: "invalid_sns_placement", message: "Umístění může být pouze 1., 2. nebo 3. místo." }, 400, origin) };
+  return { value: { competed: true, category, placement, bestOfBest: formBoolean(form.get("snsBestOfBest")), bestExhaust: formBoolean(form.get("snsBestExhaust")), status: "pending" } };
+}
+
+async function submitHistoryClaim(request, env, auth, origin) {
+  let form;
+  try { form = await request.formData(); } catch { return json({ ok: false, error: "invalid_form", message: "Formulář se nepodařilo přečíst." }, 400, origin); }
+  const eventId = clean(form.get("eventId"));
+  const event = await env.DB.prepare(`
+    SELECT id, year, event_end_at FROM events
+    WHERE id = ? AND event_end_at IS NOT NULL AND date(event_end_at) < date('now')
+    LIMIT 1
+  `).bind(eventId).first();
+  if (!event) return json({ ok: false, error: "event_not_concluded", message: "Historii lze upravit jen u skutečně skončeného ročníku." }, 409, origin);
+  const parsedSns = parseShowShineClaim(form, origin);
+  if (parsedSns.response) return parsedSns.response;
+  const sns = parsedSns.value;
+  const existing = await env.DB.prepare("SELECT * FROM united_history_claims WHERE member_id = ? AND event_id = ? LIMIT 1").bind(auth.uid, eventId).first();
+
+  if (existing?.attendance_status === "approved") {
+    if (!sns.competed) return json({ ok: false, error: "attendance_locked", message: "Schválenou docházku už nelze odebrat. Lze pouze doplnit Show & Shine." }, 409, origin);
+    if (["pending", "approved"].includes(existing.sns_status)) return json({ ok: false, error: "sns_locked", message: "Show & Shine už čeká na kontrolu nebo je schválené." }, 409, origin);
+    await env.DB.prepare(`
+      UPDATE united_history_claims
+      SET sns_competed = 1, sns_category = ?, sns_placement = ?, sns_best_of_best = ?, sns_best_exhaust = ?,
+          sns_status = 'pending', sns_review_note = NULL, sns_reviewed_by = NULL, sns_reviewed_at = NULL,
+          submitted_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ? AND member_id = ?
+    `).bind(sns.category, sns.placement, sns.bestOfBest ? 1 : 0, sns.bestExhaust ? 1 : 0, existing.id, auth.uid).run();
+    return json({ ok: true, claimId: existing.id, attendanceStatus: "approved", snsStatus: "pending" }, 200, origin);
+  }
+  if (existing?.attendance_status === "pending") return json({ ok: false, error: "claim_pending", message: "Tento ročník už čeká na kontrolu." }, 409, origin);
+
+  const files = form.getAll("files");
+  if (!files.length || files.length > MAX_HISTORY_EVIDENCE) return json({ ok: false, error: "evidence_required", message: `Přilož 1 až ${MAX_HISTORY_EVIDENCE} důkazní fotografie.` }, 400, origin);
+  for (const file of files) {
+    const validation = validateImageFile(file);
+    if (validation) return json({ ok: false, error: "invalid_evidence", message: validation }, 400, origin);
+  }
+
+  const claimId = existing?.id || crypto.randomUUID();
+  const uploaded = [];
+  try {
+    for (let index = 0; index < files.length; index += 1) {
+      const file = files[index];
+      const evidenceId = crypto.randomUUID();
+      const key = `history-proof/${auth.uid}/${claimId}/${evidenceId}.${extensionFor(file.type)}`;
+      await env.MEDIA.put(key, file.stream(), { httpMetadata: { contentType: file.type }, customMetadata: { owner: auth.uid, kind: "history-proof", claimId, evidenceId } });
+      uploaded.push({ id: evidenceId, key, file, index });
+    }
+    const statements = [];
+    if (existing) {
+      statements.push(env.DB.prepare(`
+        UPDATE united_history_claims
+        SET attendance_status = 'pending', attendance_review_note = NULL, attendance_reviewed_by = NULL, attendance_reviewed_at = NULL,
+            sns_competed = ?, sns_category = ?, sns_placement = ?, sns_best_of_best = ?, sns_best_exhaust = ?, sns_status = ?,
+            sns_review_note = NULL, sns_reviewed_by = NULL, sns_reviewed_at = NULL,
+            submitted_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+        WHERE id = ? AND member_id = ?
+      `).bind(sns.competed ? 1 : 0, sns.category, sns.placement, sns.bestOfBest ? 1 : 0, sns.bestExhaust ? 1 : 0, sns.status, claimId, auth.uid));
+      statements.push(env.DB.prepare("DELETE FROM united_history_evidence WHERE claim_id = ? AND member_id = ?").bind(claimId, auth.uid));
+    } else {
+      statements.push(env.DB.prepare(`
+        INSERT INTO united_history_claims (
+          id, member_id, event_id, attendance_status,
+          sns_competed, sns_category, sns_placement, sns_best_of_best, sns_best_exhaust, sns_status
+        ) VALUES (?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?)
+      `).bind(claimId, auth.uid, eventId, sns.competed ? 1 : 0, sns.category, sns.placement, sns.bestOfBest ? 1 : 0, sns.bestExhaust ? 1 : 0, sns.status));
+    }
+    for (const item of uploaded) {
+      statements.push(env.DB.prepare(`INSERT INTO united_history_evidence (id, claim_id, member_id, r2_key, mime_type, size_bytes, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?)`)
+        .bind(item.id, claimId, auth.uid, item.key, item.file.type, item.file.size, item.index));
+    }
+    const previous = existing ? await env.DB.prepare("SELECT r2_key FROM united_history_evidence WHERE claim_id = ? AND member_id = ?").bind(claimId, auth.uid).all() : { results: [] };
+    await env.DB.batch(statements);
+    for (const item of previous.results || []) {
+      try { await env.MEDIA.delete(item.r2_key); } catch (error) { console.warn("Unable to delete replaced history evidence", error); }
+    }
+  } catch (error) {
+    for (const item of uploaded) {
+      try { await env.MEDIA.delete(item.key); } catch (cleanupError) { console.warn("Unable to clean up history evidence", cleanupError); }
+    }
+    throw error;
+  }
+  return json({ ok: true, claimId, attendanceStatus: "pending", snsStatus: sns.status }, existing ? 200 : 201, origin);
+}
+
+async function completeMemberHistory(env, auth, origin) {
+  const results = await env.DB.batch([
+    env.DB.prepare("UPDATE members SET history_completed_at = COALESCE(history_completed_at, CURRENT_TIMESTAMP), updated_at = CURRENT_TIMESTAMP WHERE id = ?").bind(auth.uid),
+    profilePointStatement(env, auth.uid),
+  ]);
+  if (!results[0]?.meta?.changes) return json({ ok: false, error: "member_not_found", message: "Členský profil nebyl nalezen." }, 404, origin);
+  return json({ ok: true }, 200, origin);
+}
+
+function deriveMemberRating(lifetimePoints) {
+  const points = Math.max(0, Number(lifetimePoints || 0));
+  if (points >= 12) return { key: "m-power", name: "M POWER", minPoints: 12 };
+  if (points >= 10) return { key: "328i", name: "328i", minPoints: 10 };
+  if (points >= 8) return { key: "325i", name: "325i", minPoints: 8 };
+  if (points >= 6) return { key: "323i", name: "323i", minPoints: 6 };
+  if (points >= 4) return { key: "320i", name: "320i", minPoints: 4 };
+  if (points >= 2) return { key: "318is", name: "318is", minPoints: 2 };
+  return { key: "316i", name: "316i", minPoints: 0 };
+}
+
+function deriveUnitedAchievements(history, approvedPhotoCount) {
+  const approved = history.filter(item => item.attendance.status === "approved");
+  const count = approved.length;
+  const statusLevels = [
+    { min: 6, name: "UNITED LEGEND", tier: "Platinum" },
+    { min: 4, name: "UNITED VETERAN", tier: "Gold" },
+    { min: 2, name: "UNITED REGULAR", tier: "Silver" },
+    { min: 0, name: "UNITED MEMBER", tier: "Member" },
+  ];
+  const status = statusLevels.find(item => count >= item.min);
+  const statusPriority = status.min >= 6 ? 94 : status.min >= 4 ? 93 : status.min >= 2 ? 92 : 70;
+  const achievements = [{ id: `attendance-${status.min}`, type: "attendance", name: status.name, tier: status.tier, condition: `${count} schválených účastí`, priority: statusPriority }];
+  const photoLevels = [
+    { min: 50, name: "BMW PROSPEKT", tier: "Gold", points: 3 },
+    { min: 25, name: "BMW PROSPEKT", tier: "Silver", points: 1 },
+    { min: 5, name: "BMW PROSPEKT", tier: "Bronze", points: 1 },
+  ];
+  const photo = photoLevels.find(item => approvedPhotoCount >= item.min);
+  if (photo) achievements.push({ id: `photos-${photo.min}`, type: "community", name: photo.name, tier: photo.tier, condition: `${approvedPhotoCount} schválených komunitních fotek`, points: photo.points, priority: photo.min >= 50 ? 84 : photo.min >= 25 ? 83 : 82 });
+  if (approved.some(item => item.eventYear <= 2023)) achievements.push({ id: "oldschool", type: "history", name: "OLD SCHOOL", tier: "Legacy", condition: "Schválená účast na United 2023 nebo dříve", priority: 85 });
+  if (approved.some(item => item.eventYear === 2021)) achievements.push({ id: "united-first", type: "history", name: "UNITED FIRST", tier: "Founding", condition: "Schválená účast na prvním United 2021", priority: 90 });
+  for (const item of approved.filter(entry => entry.showShine.status === "approved")) {
+    const placement = Number(item.showShine.placement || 0);
+    if ([1, 2, 3].includes(placement)) achievements.push({ id: `sns-top3-${item.eventId}`, type: "show-shine", name: `S&S TOP 3 · ${item.eventYear}`, tier: placement === 1 ? "Gold" : placement === 2 ? "Silver" : "Bronze", condition: `${placement}. místo v kategorii ${item.showShine.category}`, eventId: item.eventId, eventYear: item.eventYear, points: placement === 1 ? 3 : placement === 2 ? 2 : 1, priority: 95 + (4 - placement) });
+    if (item.showShine.bestOfBest) achievements.push({ id: `sns-bob-${item.eventId}`, type: "show-shine", name: `BEST OF THE BEST · ${item.eventYear}`, tier: "Gold", condition: `Schválené ocenění Best of the Best na United ${item.eventYear}`, eventId: item.eventId, eventYear: item.eventYear, points: 1, priority: 100 });
+    if (item.showShine.bestExhaust) achievements.push({ id: `sns-exhaust-${item.eventId}`, type: "show-shine", name: `NEJ ZVUK VÝFUKU · ${item.eventYear}`, tier: "Gold", condition: `Schválené ocenění Nej zvuk výfuku na United ${item.eventYear}`, eventId: item.eventId, eventYear: item.eventYear, points: 1, priority: 95 });
+  }
+  const featured = [...achievements].sort((a, b) => b.priority - a.priority || a.name.localeCompare(b.name, "cs")).slice(0, 4);
+  return { achievements: achievements.map(({ priority, ...item }) => item), featured: featured.map(({ priority, ...item }) => item) };
+}
+
+async function getUnitedClub(env, auth, origin) {
+  const member = await env.DB.prepare("SELECT id, name, email, member_code, history_completed_at FROM members WHERE id = ? LIMIT 1").bind(auth.uid).first();
+  if (!member) return json({ ok: false, error: "member_not_found", message: "Členský profil nebyl nalezen." }, 404, origin);
+  const rows = await env.DB.prepare(`
+    SELECT
+      e.id AS event_id, e.year AS event_year, e.event_end_at,
+      c.id, c.attendance_status, c.attendance_review_note, c.attendance_reviewed_at,
+      c.sns_competed, c.sns_category, c.sns_placement, c.sns_best_of_best, c.sns_best_exhaust,
+      c.sns_status, c.sns_review_note, c.sns_reviewed_at, c.submitted_at, c.updated_at
+    FROM events e
+    LEFT JOIN united_history_claims c ON c.event_id = e.id AND c.member_id = ?
+    ORDER BY e.year DESC
+  `).bind(auth.uid).all();
+  const history = (rows.results || []).map(row => ({
+    id: row.id || null,
+    eventId: row.event_id,
+    eventYear: Number(row.event_year || 0),
+    eventEndAt: row.event_end_at || null,
+    concluded: !!row.event_end_at && row.event_end_at < new Date().toISOString().slice(0, 10),
+    attendance: { status: row.attendance_status || "not_claimed", reviewNote: row.attendance_review_note || "", reviewedAt: row.attendance_reviewed_at || null },
+    showShine: { competed: !!row.sns_competed, category: row.sns_category || "", placement: row.sns_placement ? Number(row.sns_placement) : null, bestOfBest: !!row.sns_best_of_best, bestExhaust: !!row.sns_best_exhaust, status: row.sns_status || "not_claimed", reviewNote: row.sns_review_note || "", reviewedAt: row.sns_reviewed_at || null },
+    submittedAt: row.submitted_at || null,
+    updatedAt: row.updated_at || null,
+    evidence: [],
+  }));
+  await attachHistoryEvidence(env, history.filter(item => item.id), false);
+  const pointRow = await env.DB.prepare(`
+    SELECT COALESCE(SUM(delta), 0) AS available, COALESCE(SUM(CASE WHEN delta > 0 THEN delta ELSE 0 END), 0) AS lifetime
+    FROM united_points_ledger WHERE member_id = ?
+  `).bind(auth.uid).first();
+  const photoRow = await env.DB.prepare("SELECT COUNT(*) AS count FROM gallery_submissions WHERE member_id = ? AND status = 'approved'").bind(auth.uid).first();
+  const carRow = await env.DB.prepare("SELECT COUNT(*) AS count FROM cars WHERE member_id = ?").bind(auth.uid).first();
+  const approvedPhotoCount = Number(photoRow?.count || 0);
+  const available = Number(pointRow?.available || 0);
+  const lifetime = Number(pointRow?.lifetime || 0);
+  const derived = deriveUnitedAchievements(history, approvedPhotoCount);
+  const approvedYears = history.filter(item => item.attendance.status === "approved").map(item => item.eventYear);
+  const profileCriteria = {
+    requiredFields: !!(clean(member.name) && clean(member.email) && clean(member.member_code)),
+    historyReviewed: !!member.history_completed_at,
+    hasCar: Number(carRow?.count || 0) > 0,
+    approvedPhotos: approvedPhotoCount,
+  };
+  return json({
+    ok: true,
+    points: { available, lifetime },
+    rewardThreshold: UNITED_REWARD_THRESHOLD,
+    rating: deriveMemberRating(lifetime),
+    memberSince: approvedYears.length ? Math.min(...approvedYears) : null,
+    historyCompletedAt: member.history_completed_at || null,
+    history,
+    approvedPhotoCount,
+    profileCompletion: { ...profileCriteria, complete: profileCriteria.requiredFields && profileCriteria.historyReviewed && profileCriteria.hasCar && approvedPhotoCount >= 5 },
+    achievements: derived.achievements,
+    featuredAchievements: derived.featured,
+  }, 200, origin);
 }
 
 async function bootstrapMember(request, env, auth, origin) {
@@ -1121,18 +1601,21 @@ async function bootstrapMember(request, env, auth, origin) {
   const existing = await env.DB.prepare("SELECT id, member_code FROM members WHERE id = ? LIMIT 1").bind(auth.uid).first();
   const memberCode = existing?.member_code || await createMemberCode(auth.uid);
 
-  await env.DB.prepare(`
-    INSERT INTO members (id, member_code, email, name, nickname, phone, role, status, email_verified, last_login_at)
-    VALUES (?, ?, ?, ?, ?, ?, 'member', 'active', ?, CURRENT_TIMESTAMP)
-    ON CONFLICT(id) DO UPDATE SET
-      email = excluded.email,
-      name = excluded.name,
-      nickname = excluded.nickname,
-      phone = excluded.phone,
-      email_verified = excluded.email_verified,
-      updated_at = CURRENT_TIMESTAMP,
-      last_login_at = CURRENT_TIMESTAMP
-  `).bind(auth.uid, memberCode, auth.email.toLowerCase(), name, nickname || null, phone || null, auth.emailVerified ? 1 : 0).run();
+  await env.DB.batch([
+    env.DB.prepare(`
+      INSERT INTO members (id, member_code, email, name, nickname, phone, role, status, email_verified, last_login_at)
+      VALUES (?, ?, ?, ?, ?, ?, 'member', 'active', ?, CURRENT_TIMESTAMP)
+      ON CONFLICT(id) DO UPDATE SET
+        email = excluded.email,
+        name = excluded.name,
+        nickname = excluded.nickname,
+        phone = excluded.phone,
+        email_verified = excluded.email_verified,
+        updated_at = CURRENT_TIMESTAMP,
+        last_login_at = CURRENT_TIMESTAMP
+    `).bind(auth.uid, memberCode, auth.email.toLowerCase(), name, nickname || null, phone || null, auth.emailVerified ? 1 : 0),
+    profilePointStatement(env, auth.uid),
+  ]);
 
   return await getMember(env, auth, origin);
 }
@@ -1678,6 +2161,7 @@ async function createCar(request, env, auth, origin) {
     INSERT INTO cars (id, member_id, nickname, model, body, year, color, is_primary)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `).bind(id, auth.uid, nickname || null, model, carBody, year, color || null, primary ? 1 : 0));
+  statements.push(profilePointStatement(env, auth.uid));
   await env.DB.batch(statements);
 
   return json({ ok: true, car: { id, nickname, model, body: carBody, year, color, primary, photos: [] } }, 201, origin);

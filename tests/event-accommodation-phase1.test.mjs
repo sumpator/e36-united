@@ -20,6 +20,7 @@ function database(events = [{ id: 'event-2026', year: 2026, status: 'open' }]) {
       booking_commitment_czk INTEGER NOT NULL DEFAULT 0,
       booking_due_at TEXT,
       booking_paid_czk INTEGER NOT NULL DEFAULT 0,
+      event_end_at TEXT,
       currency TEXT NOT NULL DEFAULT 'CZK', payment_deadline TEXT
     );
     CREATE TABLE reservations (
