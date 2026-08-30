@@ -546,35 +546,26 @@ function authOrApiError(error){return error?.status||error?.message==='api_netwo
 $$('.member-nav-item[data-member-section]').forEach(button=>button.addEventListener('click',()=>openSection(button.dataset.memberSection)));
 $$('[data-jump]').forEach(button=>button.addEventListener('click',()=>openSection(button.dataset.jump)));
 const memberPortalNavigation=initPortalNavigation({root:$('[data-portal-nav="member"]'),onSelect:openSection});
-let activeClubTab='history';
-const mobileClubQuery=window.matchMedia('(max-width: 700px)');
-function openClubTab(id,{scroll=false}={}){
-  const tab=['history','points','badges','perks'].includes(id)?id:'history';activeClubTab=tab;
-  $$('[data-club-tab]').forEach(button=>button.classList.toggle('is-active',button.dataset.clubTab===tab));
-  if(mobileClubQuery.matches){$$('[data-club-panel]').forEach(panel=>{panel.hidden=false;panel.classList.add('is-active')});return}
-  const panelId=['points','badges','perks'].includes(tab)?'progress':tab;
-  $$('[data-club-panel]').forEach(panel=>{const active=panel.dataset.clubPanel===panelId;panel.hidden=!active;panel.classList.toggle('is-active',active)});
-  if(scroll&&['badges','perks'].includes(tab))requestAnimationFrame(()=>$(`[data-club-anchor="${tab}"]`)?.scrollIntoView({behavior:'smooth',block:'start'}));
-}
 function openSection(id){
-  const legacyClubTab={history:'history',rewards:'points'}[id];if(legacyClubTab){id='club';openClubTab(legacyClubTab)}
+  if(['history','rewards'].includes(id))id='club';
   $$('.member-nav-item[data-member-section]').forEach(button=>button.classList.toggle('is-active',button.dataset.memberSection===id));
   $$('[data-main-member-section]').forEach(button=>button.classList.toggle('is-active',button.dataset.mainMemberSection===id));
   $$('[data-member-panel]').forEach(panel=>panel.classList.toggle('is-active',panel.dataset.memberPanel===id));
-  if(id==='club')openClubTab(activeClubTab);
   memberPortalNavigation?.sync(id);if(innerWidth<700)window.scrollTo({top:82,behavior:'smooth'});
 }
-$$('[data-club-tab]').forEach(button=>button.addEventListener('click',()=>openClubTab(button.dataset.clubTab,{scroll:true})));
-mobileClubQuery.addEventListener('change',()=>openClubTab(activeClubTab));
 $('[data-member-hero-cta]')?.addEventListener('click',()=>{openSection('garage');if(!data.cars.length){openCarModal();return}requestAnimationFrame(()=>$('[data-primary-car-card]')?.scrollIntoView({behavior:'smooth',block:'center'}))});
 
 const memberHelpContent={
   since:{kicker:'UNITED OD',title:'Začátek tvé United stopy',copy:'Nejstarší ročník, který máš ve své historii účastí.'},
   verified:{kicker:'OVĚŘENÉ UNITED',title:'Potvrzené účasti',copy:'Počítají se jen ročníky ověřené United týmem.'},
-  points:{kicker:'UNITED POINTS',title:'Aktuální zůstatek',copy:'Body získáváš za ověřené United aktivity. Aktivní metr má limit 12 U.'},
+  points:{kicker:'UNITED POINTS',title:'Aktuální zůstatek',copy:'Body získáváš za ověřené United aktivity. Aktivní metr má limit 12 bodů.'},
   rating:{kicker:'MEMBER RATING',title:'Tvoje členská úroveň',copy:'Rating roste s dlouhodobým United progressem od 316i až po M POWER.'},
-  verification:{kicker:'MOJE STOPA',title:'Proč ověření?',copy:'Účast můžeš přidat hned. Body a milníky se započítají až po potvrzení United týmem.'},
-  'points-system':{kicker:'UNITED POINTS',title:'Jak to funguje',copy:'• Ověřený United ročník připíše body.\n• Show & Shine TOP 3 má vlastní bodování.\n• Schválené komunitní fotky odemykají další body.\n• Aktivní zůstatek míří k United Merch reward.'},
+  verification:{kicker:'MOJE STOPA',title:'Proč ověření?',copy:'Účast můžeš přidat hned. Body a související Achievements se započítají až po potvrzení United týmem.'},
+  'points-system':{kicker:'UNITED POINTS',title:'Jak fungují body?',copy:'Body odměňují ověřenou účast a přínos komunitě. Při 12 bodech se odemkne United Merch reward; jeho konkrétní podoba závisí na aktuálním dropu.'},
+  'earn-attendance':{kicker:'OVĚŘENÝ UNITED',title:'+2 body',copy:'Nahraj důkaz z ročníku. Po schválení Adminem se účast ověří a připíšou se 2 body.'},
+  'earn-showshine':{kicker:'SHOW & SHINE',title:'TOP 3 bodování',copy:'1. místo = +3 body\n2. místo = +2 body\n3. místo = +1 bod\nPočítá se pouze ověřený výsledek.'},
+  'earn-photos':{kicker:'COMMUNITY FOTKY',title:'Až 4 body',copy:'5 schválených fotek = +1 bod\n20 schválených fotek = +1 bod\n50 schválených fotek = +2 body\nNad 50 už se další body nepřipisují.'},
+  'earn-achievements':{kicker:'ACHIEVEMENTS',title:'Odemkni svůj United profil',copy:'Achievements ukazují důležité momenty tvé United historie. Některé jsou čistě profilové a samy o sobě další body nepřidávají.'},
 };
 const memberHelpPopover=$('[data-member-help-popover]');
 let memberHelpTrigger=null;
@@ -589,21 +580,26 @@ function openMemberHelp(button){
   const same=memberHelpTrigger===button&&!memberHelpPopover.hidden;closeMemberHelp();if(same)return;
   memberHelpTrigger=button;button.setAttribute('aria-expanded','true');$('[data-member-help-kicker]',memberHelpPopover).textContent=content.kicker;$('[data-member-help-title]',memberHelpPopover).textContent=content.title;$('[data-member-help-copy]',memberHelpPopover).textContent=content.copy;memberHelpPopover.hidden=false;
 }
-$$('[data-member-help]').forEach(button=>button.addEventListener('click',()=>openMemberHelp(button)));
+document.addEventListener('click',event=>{const button=event.target.closest('[data-member-help]');if(button)openMemberHelp(button)});
 $('[data-member-help-close]')?.addEventListener('click',()=>closeMemberHelp({restoreFocus:true}));
 document.addEventListener('keydown',event=>{if(event.key==='Escape')closeMemberHelp({restoreFocus:true})});
 document.addEventListener('click',event=>{if(!memberHelpPopover?.hidden&&!memberHelpPopover.contains(event.target)&&!event.target.closest('[data-member-help]'))closeMemberHelp()});
 
 const pictogram=body=>`<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${body}</svg>`;
-const badgeDefs=[
-  {id:'first',icon:pictogram('<path d="M6 20V5m0 1h10l-2.5 3L16 12H6"/><path d="M4 20h5"/>'),name:'První United',desc:'První potvrzená účast',test:d=>verified(d)>=1},
-  {id:'regular',icon:pictogram('<path d="M7 7a7 7 0 1 1-1.2 8"/><path d="M7 3v4H3"/><path d="M9.5 10.2h2.8a2 2 0 0 1 0 4H9.5"/>'),name:'United Regular',desc:'3 ověřené účasti',test:d=>verified(d)>=3},
-  {id:'veteran',icon:pictogram('<path d="M12 3 19 6v5c0 4.5-2.8 8-7 10-4.2-2-7-5.5-7-10V6l7-3Z"/><path d="m9 12 2 2 4-5"/>'),name:'Veterán United',desc:'5 ověřených účastí',test:d=>verified(d)>=5},
-  {id:'winner',icon:pictogram('<path d="M8 4h8v4a4 4 0 0 1-8 0V4Z"/><path d="M8 6H5v1a4 4 0 0 0 4 4m7-5h3v1a4 4 0 0 1-4 4m-3 1v5m-3 3h6"/>'),name:'S&S vítěz',desc:'Ověřená výhra v Show & Shine',test:d=>d.history.some(h=>h.verified&&h.winner)}
+const achievementDefs=[
+  {id:'winner',priority:100,icon:pictogram('<path d="M8 4h8v4a4 4 0 0 1-8 0V4Z"/><path d="M8 6H5v1a4 4 0 0 0 4 4m7-5h3v1a4 4 0 0 1-4 4m-3 1v5m-3 3h6"/>'),name:'S&S vítěz',desc:'Ověřená výhra v Show & Shine',test:d=>d.history.some(h=>h.verified&&h.winner)},
+  {id:'regular',priority:90,icon:pictogram('<path d="M7 7a7 7 0 1 1-1.2 8"/><path d="M7 3v4H3"/><path d="M9.5 10.2h2.8a2 2 0 0 1 0 4H9.5"/>'),name:'United Regular',desc:'5 ověřených účastí',test:d=>verified(d)>=5},
+  {id:'veteran',priority:80,icon:pictogram('<path d="M12 3 19 6v5c0 4.5-2.8 8-7 10-4.2-2-7-5.5-7-10V6l7-3Z"/><path d="m9 12 2 2 4-5"/>'),name:'Veterán',desc:'3 nebo více ověřených účastí',test:d=>verified(d)>=3},
+  {id:'old-school',priority:70,icon:pictogram('<circle cx="12" cy="12" r="8"/><path d="M12 7v5l3 2"/>'),name:'Old School',desc:'United od roku 2022 nebo dříve',test:d=>(memberSince(d)||9999)<=2022},
+  {id:'first',priority:40,icon:pictogram('<path d="M6 20V5m0 1h10l-2.5 3L16 12H6"/><path d="M4 20h5"/>'),name:'První United',desc:'První ověřená účast',test:d=>verified(d)>=1},
+  {id:'bmw-prospekt',priority:30,icon:pictogram('<rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 15-5-4L5 19"/>'),name:'BMW Prospekt',desc:'25 schválených komunitních fotek · automatické odemčení zatím čeká na spolehlivý počet',deferred:true,test:()=>false}
 ];
 function attended(d=data){return d.history.filter(h=>h.attended).length}
 function verified(d=data){return d.history.filter(h=>h.attended&&h.verified).length}
 function memberSince(d=data){const years=d.history.filter(h=>h.attended).map(h=>h.year);return years.length?Math.min(...years):null}
+function pointWord(value){const absolute=Math.abs(Number(value)||0);return absolute===1?'bod':absolute>=2&&absolute<=4?'body':'bodů'}
+function formatPoints(value){return `${value} ${pointWord(value)}`}
+function pointsRemainingVerb(value){const absolute=Math.abs(Number(value)||0);return absolute>=2&&absolute<=4?'zbývají':'zbývá'}
 function points(d=data){const p=portalConfig.points;return Math.min(p.rewardThreshold,d.history.reduce((n,h)=>n+(h.attended&&h.verified?p.attendance:0)+(h.winner&&h.verified?p.showShineWin:0),0)+(d.bonuses||[]).reduce((n,b)=>n+(b.points||0),0))}
 function lifetimePoints(d=data){const p=portalConfig.points;return d.history.reduce((n,h)=>n+(h.attended&&h.verified?p.attendance:0)+(h.winner&&h.verified?p.showShineWin:0),0)+(d.bonuses||[]).reduce((n,b)=>n+(b.points||0),0)}
 
@@ -620,7 +616,7 @@ function renderMemberHero(){
   })();
 }
 
-function renderAll(){renderProfile();renderPoints();renderBadges();renderGarage();renderHistory();renderReservation();renderRewards();renderMemberGallery();renderAccount()}
+function renderAll(){renderProfile();renderPoints();renderAchievements();renderGarage();renderHistory();renderReservation();renderRewards();renderMemberGallery();renderAccount()}
 function renderProfile(){
   const p=data.profile||{},nick=p.nickname||p.name?.split(' ')[0]||'Driver';
   const nickEl=$('[data-member-nickname]');if(nickEl)nickEl.textContent=nick;
@@ -628,7 +624,6 @@ function renderProfile(){
   const code=p.memberCode?String(p.memberCode).replace(/^EU-?/i,'').slice(-6):String((p.email||nick).split('').reduce((a,c)=>a+c.charCodeAt(0),0)%900+100);
   const idEl=$('[data-card-id]');if(idEl)idEl.textContent=code;
   const summaryCode=$('[data-summary-member-code]');if(summaryCode)summaryCode.textContent=p.memberCode||`EU${code}`;
-  const identityMarkers=$('[data-identity-markers]');if(identityMarkers)identityMarkers.hidden=!((memberSince()||9999)<=2022);
   const car=data.cars.find(c=>c.primary)||data.cars[0];const carEl=$('[data-card-car]');if(carEl)carEl.textContent=car?`${car.body} · ${car.model}${car.nickname?' · '+car.nickname:''}`:'BMW E36 · Garáž čeká na první auto';
   const sinceEl=$('[data-member-since]'),historySinceEl=$('[data-history-since]'),attendanceEl=$('[data-attendance-count]'),ratingEl=$('[data-member-rating]');if(sinceEl)sinceEl.textContent=memberSince()||'—';if(historySinceEl)historySinceEl.textContent=memberSince()||'—';if(attendanceEl)attendanceEl.textContent=verified();if(ratingEl)ratingEl.textContent=deriveMemberRating(lifetimePoints());renderMemberHero();
 }
@@ -638,7 +633,11 @@ function renderAccount(){
   const code=$('[data-account-member-code]'),since=$('[data-account-since]'),verification=$('[data-account-verification]');if(code)code.textContent=profile.memberCode||'—';if(since)since.textContent=memberSince()||'—';if(verification){verification.textContent=profile.emailVerified?'OVĚŘENÝ':'NEOVĚŘENÝ';verification.classList.toggle('is-verified',profile.emailVerified)}
 }
 function renderPoints(){const p=points(),threshold=portalConfig.points.rewardThreshold,overview=$('[data-overview-points]'),overviewFill=$('[data-overview-points-fill]'),value=$('[data-points]'),track=$('[data-points-track]'),copy=$('[data-points-copy]');if(overview)overview.textContent=p;if(overviewFill)overviewFill.style.width=`${Math.min(100,p/threshold*100)}%`;if(value)value.textContent=p;if(track)track.innerHTML=Array.from({length:threshold},(_,i)=>`<i class="${i<p?'is-on':''}"></i>`).join('');if(copy)copy.textContent=p>=threshold?`${threshold} / ${threshold}. United Merch reward je odemčený.`:`Ještě ${threshold-p} bodů a odemykáš United Merch reward.`}
-function renderBadges(){const unlocked=badgeDefs.filter(b=>b.test(data));const html=arr=>arr.map(b=>{const active=b.test(data);return `<div class="badge ${active?'':'is-locked'}"><span class="badge-icon">${b.icon}</span><div class="badge-copy"><b>${b.name}</b><small>${b.desc}</small></div><span class="badge-status">${active?'ACTIVE':'LOCKED'}</span></div>`}).join(''),preview=$('[data-badges-preview]'),cabinet=$('[data-badge-cabinet]');if(preview)preview.innerHTML=html((unlocked.length?unlocked:badgeDefs).slice(0,5));if(cabinet)cabinet.innerHTML=html(badgeDefs)}
+function renderAchievements(){
+  const unlocked=achievementDefs.filter(achievement=>achievement.test(data)).sort((a,b)=>b.priority-a.priority),featured=$('[data-featured-achievements]'),catalog=$('[data-achievement-catalog]');
+  if(featured)featured.innerHTML=unlocked.length?unlocked.slice(0,4).map(achievement=>`<span class="featured-achievement"><i>${achievement.icon}</i><b>${achievement.name}</b></span>`).join(''):'<span class="featured-achievement-empty">První Achievement čeká na odemčení.</span>';
+  if(catalog)catalog.innerHTML=achievementDefs.map(achievement=>{const active=achievement.test(data);return `<article class="achievement-card ${active?'is-unlocked':'is-locked'}${achievement.deferred?' is-deferred':''}"><span class="achievement-icon">${achievement.icon}</span><div class="achievement-copy"><b>${achievement.name}</b><p>${achievement.desc}</p></div><span class="achievement-status">${active?'ODEMČENO':achievement.deferred?'PŘIPRAVENO':'ZAMČENO'}</span></article>`}).join('');
+}
 function renderGarage(){
   const grid=$('[data-garage-grid]');
   if(!grid)return;
@@ -966,20 +965,16 @@ function renderReservation(){
   if(mailState){mailState.classList.toggle('is-confirmed',r.status==='approved');mailState.querySelector('span').textContent=description}
 }
 function renderRewards(){
-  const p=points(),attendanceCount=verified(),winCount=data.history.filter(item=>item.attended&&item.verified&&item.winner).length,threshold=portalConfig.points.rewardThreshold,rules=portalConfig.points;
-  document.querySelectorAll('[data-reward-score]').forEach(element=>element.textContent=p);
-  const lock=$('[data-reward-lock]');lock.classList.toggle('is-unlocked',p>=threshold);lock.querySelector('span').textContent=p>=threshold?'UNLOCKED':'LOCKED';$('[data-reward-remaining]').textContent=p>=threshold?'United Merch reward je aktivní':`${threshold-p} bodů zbývá`;
+  const p=points(),threshold=portalConfig.points.rewardThreshold,rules=portalConfig.points,remaining=Math.max(0,threshold-p);
+  const rewardState=$('[data-points-reward-state]'),rewardRemaining=$('[data-reward-remaining]');if(rewardState)rewardState.classList.toggle('is-unlocked',p>=threshold);if(rewardRemaining)rewardRemaining.textContent=p>=threshold?'ODMĚNA ODEMČENA':`${formatPoints(remaining)} ${pointsRemainingVerb(remaining)}`;
   const journey=$('[data-points-journey]'),journeyScore=$('[data-points-journey-score]'),journeyCopy=$('[data-points-journey-copy]'),journeyMarker=$('[data-points-journey-marker]'),progress=Math.min(100,p/threshold*100);
-  if(journey){journey.setAttribute('aria-valuemax',String(threshold));journey.setAttribute('aria-valuenow',String(p));journey.style.setProperty('--points-progress',`${progress}%`)}if(journeyScore)journeyScore.textContent=p;if(journeyCopy)journeyCopy.textContent=p>=threshold?'United Merch reward je odemčený.':`${threshold-p} bodů do United Merch reward.`;if(journeyMarker)journeyMarker.textContent=String(p);
-  const nextMilestone=attendanceCount<3?3:5;
+  if(journey){journey.setAttribute('aria-valuemax',String(threshold));journey.setAttribute('aria-valuenow',String(p));journey.setAttribute('aria-label',`United Points: ${p} z ${formatPoints(threshold)}`);journey.style.setProperty('--points-progress',`${progress}%`)}if(journeyScore)journeyScore.textContent=p;if(journeyCopy)journeyCopy.textContent=p>=threshold?'United Merch reward je odemčený.':`Do odměny ${pointsRemainingVerb(remaining)} ${formatPoints(remaining)}.`;if(journeyMarker)journeyMarker.textContent=String(p);
   const earnStrip=$('[data-earn-strip]');if(earnStrip)earnStrip.innerHTML=[
-    [pictogram('<path d="M5 12.5 9.5 17 19 7.5"/>'),'OVĚŘENÝ UNITED',`+${rules.attendance} U`,`Za každý potvrzený ročník · ${attendanceCount}× ověřeno`],
-    [pictogram('<path d="M8 4h8v4a4 4 0 0 1-8 0V4Z"/><path d="M12 12v6m-3 2h6"/>'),'S&S TOP 3',`+${rules.showShineWin} / +2 / +1 U`,`1. / 2. / 3. místo · ${winCount}× ověřená výhra`],
-    [pictogram('<rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 15-5-4L5 19"/>'),'COMMUNITY FOTKY',`5 +${rules.communityBonus} · 20 +${rules.communityBonus} · 50 +${rules.communityBonus*2} U`,'Maximum 4 U · průběh zatím není dostupný'],
-    [pictogram('<path d="M12 3 19 6v5c0 4.5-2.8 8-7 10-4.2-2-7-5.5-7-10V6l7-3Z"/><path d="m9 12 2 2 4-5"/>'),'MILNÍKY','3× / 5× UNITED',`${Math.min(attendanceCount,nextMilestone)} / ${nextMilestone} ověřených účastí · bez přidělené bodové hodnoty`],
-  ].map(([icon,label,value,copy])=>`<article class="earn-card"><i>${icon}</i><small>${label}</small><b>${value}</b><p>${copy}</p></article>`).join('');
-  const perks=[[pictogram('<path d="M6 4h12l2 5-8 11L4 9l2-5Z"/><path d="m4 9 8 3 8-3"/>'),'Členský United Merch','Přístup k členskému výběru se zobrazí, až bude pro konkrétní drop dostupný.',false],[pictogram('<circle cx="12" cy="12" r="9"/><path d="M8 9h2v6m-2 0h4m1-5.2c.4-.6 1-1 1.8-1 1.2 0 2.2.8 2.2 2 0 1.8-3.7 2.4-3.7 4.2H17"/>'),'United Merch odměna',`Odměna se odemkne po dosažení ${threshold} / ${threshold} U; její podoba závisí na konkrétním dropu.`,p>=threshold],[pictogram('<path d="M5 19V9m7 10V5m7 14v-7"/><path d="M3 19h18"/>'),'Další členské výhody','Budoucí výhody se zde objeví až ve chvíli, kdy budou skutečně dostupné.',false]];
-  $('[data-perks-list]').innerHTML=perks.map(x=>`<div class="perk ${x[3]?'':'is-locked'}"><i>${x[0]}</i><div><b>${x[1]}</b><small>${x[2]}</small></div><span>${x[3]?'ACTIVE':'LOCKED'}</span></div>`).join('');
+    ['earn-attendance',pictogram('<path d="M5 12.5 9.5 17 19 7.5"/>'),'OVĚŘENÝ UNITED',`+${rules.attendance} ${pointWord(rules.attendance)}`],
+    ['earn-showshine',pictogram('<path d="M8 4h8v4a4 4 0 0 1-8 0V4Z"/><path d="M12 12v6m-3 2h6"/>'),'S&S TOP 3',`1. +${rules.showShineWin} · 2. +2 · 3. +1`],
+    ['earn-photos',pictogram('<rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 15-5-4L5 19"/>'),'COMMUNITY FOTKY',`5 +${rules.communityBonus} · 20 +${rules.communityBonus} · 50 +${rules.communityBonus*2}`],
+    ['earn-achievements',pictogram('<path d="M12 3 19 6v5c0 4.5-2.8 8-7 10-4.2-2-7-5.5-7-10V6l7-3Z"/><path d="m9 12 2 2 4-5"/>'),'ACHIEVEMENTS','Odemkni svůj United profil'],
+  ].map(([help,icon,label,value])=>`<button aria-controls="member-card-help" aria-expanded="false" class="earn-card" data-member-help="${help}" type="button"><i>${icon}</i><span><small>${label}</small><b>${value}</b></span><em>ⓘ DETAIL</em></button>`).join('');
 }
 
 async function commit(message='Uloženo'){saveUserLocal();renderAll();toast(message)}

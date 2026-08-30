@@ -25,9 +25,9 @@ test('hero keeps identity and onboarding CTA without session controls', () => {
 });
 
 test('mobile auth is compact while desktop auth content and tab behavior remain intact', () => {
-  assert.match(html, /auth-copy-desktop">Historie srazů, tvoje auta, rezervace, body, badges a členské výhody na jednom místě/);
+  assert.match(html, /auth-copy-desktop">Historie srazů, tvoje auta, rezervace, body a Achievements na jednom místě/);
   assert.match(html, /auth-copy-mobile">Tvůj profil, auta a srazy na jednom místě/);
-  for (const proof of ['12 / 12', 'GARAGE', 'PERKS']) assert.match(html, new RegExp(proof));
+  for (const proof of ['12 / 12', 'GARAGE', 'ACHIEVEMENTS']) assert.match(html, new RegExp(proof));
   assert.match(html, /BMW E36 COMMUNITY ACCESS/);
   assert.match(css, /\.member-auth\{grid-template-columns:minmax\(0,1\.12fr\) minmax\(430px,\.88fr\)/);
   assert.match(css, /\.member-auth-media\{min-height:680px/);
@@ -91,15 +91,16 @@ test('Points Journey reads the unchanged production scoring configuration', () =
   for (const key of ['attendance', 'showShineWin', 'communityBonus', 'rewardThreshold']) assert.match(js, new RegExp(`rules\.${key}|portalConfig\.points\.${key}`));
   assert.match(js, /data-earn-strip/);
   assert.match(js, /S&S TOP 3/);
-  assert.match(js, /průběh zatím není dostupný/);
+  assert.match(js, /BMW Prospekt/);
+  assert.doesNotMatch(js, /approvedPhotoCount|communityPhotoProgress/);
 });
 
 test('readability and motion polish preserve reduced-motion behavior', () => {
   assert.match(css, /member-nav-item b\{font-size:14px/);
   assert.match(css, /member-card-identity strong\{[^}]*font-size:clamp/);
   assert.match(css, /history-year-status small\{font-size:12px/);
-  assert.match(css, /badge small\{font-size:12px/);
-  assert.match(css, /perk small\{font-size:12px/);
+  assert.match(css, /achievement-copy p\{[^}]*font-size:12px/);
+  assert.match(css, /achievement-card\.is-locked\{opacity:\.72/);
   assert.match(css, /member-payment-copy dd\{font-size:14px/);
   assert.match(css, /@media\(prefers-reduced-motion:reduce\)[\s\S]*points-journey-track/);
 });

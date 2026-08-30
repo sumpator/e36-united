@@ -162,16 +162,16 @@ test('community submissions keep the existing flow in their own main panel', () 
   assert.match(memberJs, /api\/gallery\/submissions/);
 });
 
-test('United Club keeps four desktop tabs and becomes one vertical mobile page', () => {
+test('United Club is one coherent Points, history and Achievements page on every viewport', () => {
   const clubStart = memberHtml.indexOf('data-member-panel="club"');
   const club = memberHtml.slice(clubStart, memberHtml.indexOf('data-member-panel="photos"', clubStart));
-  const tabs = [...club.matchAll(/data-club-tab="([^"]+)"[^>]*>([^<]+)<\/button>/g)].map(match => [match[1], match[2]]);
-  assert.deepEqual(tabs, [['history', 'Moje stopa'], ['points', 'Points'], ['badges', 'Milníky'], ['perks', 'Výhody']]);
-  assert.ok(club.indexOf('data-club-panel="history"') < club.indexOf('data-club-anchor="points"'));
-  assert.ok(club.indexOf('data-club-anchor="points"') < club.indexOf('data-club-anchor="badges"'));
-  assert.ok(club.indexOf('data-club-anchor="badges"') < club.indexOf('data-club-anchor="perks"'));
-  assert.match(memberCss, /@media\(max-width:700px\)[^\n]*\.united-club-tabs\{display:none\}/);
-  assert.match(memberJs, /mobileClubQuery\.matches[^\n]*panel\.hidden=false/);
+  assert.doesNotMatch(club, /data-club-tab|data-club-panel/);
+  assert.ok(club.indexOf('data-club-anchor="points"') < club.indexOf('data-club-anchor="history"'));
+  assert.ok(club.indexOf('data-club-anchor="history"') < club.indexOf('data-club-anchor="achievements"'));
+  assert.match(club, /MOJE STOPA V UNITED/);
+  assert.match(club, /ACHIEVEMENTS/);
+  assert.doesNotMatch(club, /MILNÍKY|VÝHODY/);
+  assert.doesNotMatch(memberJs, /mobileClubQuery|openClubTab/);
 });
 
 test('responsive hero and hybrid mobile navigation invariants remain explicit', () => {
