@@ -41,9 +41,9 @@ test('focused history claim immediately collects evidence without an attendance 
   assert.match(claimForm,/případně doplň Show/);
   assert.match(claimForm,/data-history-claim-fields=""/);
   assert.doesNotMatch(claimForm,/data-history-claim-fields="" hidden/);
-  assert.match(memberJs,/renderHistoryEditor\(eventId\)/);
-  assert.match(memberJs,/list\.dataset\.focusedEvent=focusedEventId/);
-  assert.match(memberCss,/\.history-editor-list\[data-focused-event\]/);
+  assert.match(memberJs,/renderHistoryEditor\(eventId,eventId\?'view':''\)/);
+  assert.match(memberJs,/list\.dataset\.selectedEvent=historyEditorSelectedEventId/);
+  assert.match(memberJs,/list\.innerHTML=selected\?historyClaimForm\(selected,\{mode:historyEditorMode\}\)/);
   assert.doesNotMatch(submit,/attended/);
   assert.match(worker,/VALUES \(\?, \?, \?, 'pending'/);
 });
@@ -53,8 +53,9 @@ test('history S&S uses NE/ANO, configured custom category options and no native 
   assert.match(memberHtml,/showshine-data\.js/);
   assert.match(memberJs,/window\.E36_SHOWSHINE\?\.categories/);
   assert.match(sns,/data-history-sns-choice="no"[\s\S]*data-history-sns-choice="yes"/);
-  assert.match(sns,/aria-pressed="true" class="is-selected"[^>]*>NE</);
-  assert.match(sns,/aria-pressed="false"[^>]*>ANO</);
+  assert.match(sns,/const prefill=!!sns\.competed/);
+  assert.match(sns,/aria-pressed="\$\{!prefill\}"/);
+  assert.match(sns,/aria-pressed="\$\{prefill\}"/);
   assert.match(sns,/data-history-category-trigger/);
   assert.match(sns,/role="listbox"/);
   assert.match(sns,/data-history-category-value/);
@@ -95,10 +96,57 @@ test('history year cards open and focus the matching editor event while the full
   assert.match(memberJs,/data-open-history-year="\$\{esc\(item\.eventId\)\}"/);
   assert.match(memberJs,/openHistoryEditor\(event\.currentTarget,button\.dataset\.openHistoryYear\)/);
   assert.match(memberJs,/data-history-event="\$\{esc\(item\.eventId\)\}" tabindex="-1"/);
-  assert.match(memberJs,/find\(card=>String\(card\.dataset\.historyEvent\)===String\(eventId\)\)/);
-  assert.match(memberJs,/target\.focus\(\{preventScroll:true\}\)/);
-  assert.match(memberJs,/target\.scrollIntoView\(\{block:'start'\}\)/);
+  assert.match(memberJs,/const selectedEvent=renderHistoryEditor\(eventId,eventId\?'view':''\)/);
+  assert.match(memberJs,/const target=\$\('\[data-history-event\]',historyEditor\)/);
+  assert.match(memberJs,/if\(eventId\)target\.scrollIntoView\(\{block:'start'\}\)/);
   assert.match(memberCss,/button\.history-year:focus-visible/);
+});
+
+test('verified year detail exposes edit action and keeps the same selected event',()=>{
+  const overview=memberJs.slice(memberJs.indexOf('function historyEditorOverview'),memberJs.indexOf('function historyClaimForm'));
+  const editor=memberJs.slice(memberJs.indexOf('function renderHistoryEditor'),memberJs.indexOf('async function submitHistoryEditorForm'));
+  assert.match(overview,/DETAIL HISTORIE/);
+  assert.match(overview,/Upravit údaje/);
+  assert.match(overview,/data-history-edit-selected="\$\{esc\(item\.eventId\)\}"/);
+  assert.match(editor,/renderHistoryEditor\(buttonEvent\.currentTarget\.dataset\.historyEditSelected,'edit'\)/);
+  assert.match(editor,/historyEditorSelectedEventId=selected\?\.eventId/);
+});
+
+test('history editor uses compact stateful year navigation and renders one detail only',()=>{
+  const editor=memberJs.slice(memberJs.indexOf('function preferredHistoryEditorMode'),memberJs.indexOf('async function submitHistoryEditorForm'));
+  assert.match(memberHtml,/data-history-year-nav/);
+  assert.match(memberHtml,/data-history-editor-list/);
+  assert.match(editor,/sort\(\(a,b\)=>Number\(b\.eventYear\)-Number\(a\.eventYear\)\)/);
+  assert.match(editor,/data-history-year-select/);
+  for(const state of ['pending','verified','rejected','empty'])assert.match(memberJs,new RegExp(`key:'${state}'`));
+  assert.match(editor,/list\.innerHTML=selected\?historyClaimForm\(selected/);
+  assert.doesNotMatch(editor,/concluded\.map\(item=>historyClaimForm/);
+  assert.match(memberCss,/\.history-editor-years\{display:grid;grid-template-columns:repeat\(6/);
+  assert.match(memberCss,/scroll-snap-type:x mandatory/);
+});
+
+test('global history editor chooses pending, then incomplete, then the newest year',()=>{
+  const defaults=memberJs.slice(memberJs.indexOf('function preferredHistoryEditorMode'),memberJs.indexOf('function historyYearSelectorMarkup'));
+  assert.match(defaults,/key==='pending'/);
+  assert.match(defaults,/\['empty','rejected'\]\.includes/);
+  assert.match(defaults,/items\[0\]/);
+  assert.match(memberJs,/\$\('\[data-open-history-editor\]'\)\?\.addEventListener\('click',event=>openHistoryEditor\(event\.currentTarget\)\)/);
+});
+
+test('verified attendance is protected while safe S&S amendments are prefilled',()=>{
+  const sns=memberJs.slice(memberJs.indexOf('function historySnsFields'),memberJs.indexOf('function historyEvidenceMarkup'));
+  const claim=memberJs.slice(memberJs.indexOf('function historyClaimForm'),memberJs.indexOf('function closeHistoryCategoryField'));
+  assert.match(claim,/Schválenou účast nelze odebrat/);
+  assert.match(claim,/if\(approved\)return[\s\S]*historyEvidenceMarkup\(item\)/);
+  assert.match(claim,/Schválené Show &amp; Shine nelze bezpečně přepsat/);
+  assert.match(claim,/Současné API neumí schválené S&S bezpečně měnit/);
+  assert.match(sns,/\['not_claimed','rejected'\]\.includes\(sns\.status\)/);
+  assert.match(sns,/value="\$\{esc\(category\)\}"/);
+  assert.match(sns,/placement==='2'\?'checked':''/);
+  assert.match(sns,/sns\.bestOfBest\?'checked':''/);
+  assert.match(sns,/sns\.bestExhaust\?'checked':''/);
+  assert.match(worker,/existing\?\.attendance_status === "approved"/);
+  assert.match(worker,/sns_status = 'pending'/);
 });
 
 test('history cards expose readable unverified, pending, verified and separate S&S states',()=>{
@@ -149,13 +197,36 @@ test('verified history card uses only primary private evidence and approved acco
 
 test('Achievement details stay anchored on desktop and become a mobile sheet',()=>{
   assert.match(memberHtml,/data-achievement-popover/);
-  assert.match(memberJs,/getBoundingClientRect\(\)/);
+  assert.match(memberJs,/function positionContextPopover[\s\S]*getBoundingClientRect\(\)/);
   assert.match(memberJs,/data-achievement-tier/);
   assert.match(memberJs,/data-achievement-condition/);
   assert.match(memberJs,/data-achievement-points/);
   assert.match(memberJs,/event\.key==='Escape'/);
-  assert.match(memberCss,/left:var\(--achievement-left\);top:var\(--achievement-top\)/);
-  assert.match(memberCss,/@media\(max-width:700px\)[\s\S]*\.achievement-detail-popover\{left:10px!important[\s\S]*bottom:10px/);
+  assert.match(memberCss,/left:var\(--context-left\)!important[\s\S]*top:var\(--context-top\)!important/);
+  assert.match(memberCss,/\.contextual-popover\.is-mobile-sheet\{left:10px!important[\s\S]*bottom:10px!important/);
+});
+
+test('all United Club help uses one anchored desktop and mobile-sheet infrastructure',()=>{
+  assert.match(memberHtml,/member-help-popover contextual-popover/);
+  assert.match(memberHtml,/achievement-detail-popover contextual-popover/);
+  assert.match(memberJs,/positionContextPopover\(memberHelpPopover,button,370\)/);
+  assert.match(memberJs,/positionContextPopover\(achievementPopover,button,330\)/);
+  assert.match(memberJs,/closeAchievementDetail\(\);memberHelpTrigger=button/);
+  assert.match(memberJs,/closeMemberHelp\(\);achievementTrigger=button/);
+  assert.match(memberJs,/window\.addEventListener\('resize',refreshContextPopoverPosition/);
+  assert.match(memberJs,/window\.addEventListener\('scroll',refreshContextPopoverPosition/);
+});
+
+test('Points help and Achievement detail use structured sections and rows',()=>{
+  const help=memberJs.slice(memberJs.indexOf('const memberHelpContent'),memberJs.indexOf('const memberHelpPopover'));
+  for(const label of ['BODY ZA ÚČAST','UMÍSTĚNÍ','BONUSY','MILNÍKY','PODMÍNKY'])assert.match(help,new RegExp(label));
+  for(const score of ['+1 bod','+2 body','+3 body'])assert.match(help,new RegExp(score.replace('+','\\+')));
+  assert.match(memberJs,/context-popover-rows/);
+  assert.match(memberHtml,/achievement-detail-head/);
+  assert.match(memberHtml,/>PODMÍNKA</);
+  assert.match(memberHtml,/>ODMĚNA</);
+  assert.match(memberJs,/\[year,achievement\.tier\|\|'ACHIEVEMENT'\]/);
+  assert.match(memberCss,/\.context-popover-rows>div/);
 });
 
 test('Member Card keeps four core blocks with the requested typography lift',()=>{

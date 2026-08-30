@@ -75,9 +75,9 @@ test('Earn Strip keeps only four activity names and moves exact rules into help'
   const rewards = js.slice(js.indexOf('function renderRewards()'), js.indexOf("reservationForm?.addEventListener"));
   for (const label of ['Účast na srazu','Umístění v Show & Shine','Nahrávání fotek','Doplnění profilu']) assert.match(rewards,new RegExp(label));
   assert.doesNotMatch(rewards,/\+1|\+2|\+3|25 schválených|50 schválených/);
-  assert.match(js, /Každý ověřený sraz = \+1 bod[\s\S]*3 ověřené srazy = \+3 body navíc[\s\S]*5 ověřených srazů = \+3 body navíc/);
-  assert.match(js, /5 schválených = \+1[\s\S]*25 = \+1[\s\S]*50 = \+3/);
-  assert.match(js, /Newsletter není potřeba/);
+  assert.match(js, /Každý ověřený sraz','\+1 bod'[\s\S]*3 ověřené srazy','\+3 body navíc'[\s\S]*5 ověřených srazů','\+3 body navíc'/);
+  assert.match(js, /5 schválených fotek','\+1 bod'[\s\S]*25 schválených fotek','\+1 bod'[\s\S]*50 schválených fotek','\+3 body'/);
+  assert.match(js, /Newsletter není podmínkou/);
 });
 
 test('mobile Earn Strip is a compact horizontal snap rail', () => {
@@ -93,8 +93,8 @@ test('Achievements render only authoritative server data with anchored desktop a
   assert.match(club, /data-achievement-catalog/);
   assert.match(html, /data-achievement-popover/);
   assert.match(js, /getBoundingClientRect\(\)/);
-  assert.match(css, /left:var\(--achievement-left\)[\s\S]*top:var\(--achievement-top\)/);
-  assert.match(css, /@media\(max-width:700px\)[\s\S]*\.achievement-detail-popover\{left:10px!important[\s\S]*bottom:10px/);
+  assert.match(css, /left:var\(--context-left\)!important[\s\S]*top:var\(--context-top\)!important/);
+  assert.match(css, /@media\(max-width:700px\)[\s\S]*\.contextual-popover\.is-mobile-sheet\{left:10px!important[\s\S]*bottom:10px!important/);
 });
 
 test('portal preserves closed registration while Club state is loaded from the server', () => {
