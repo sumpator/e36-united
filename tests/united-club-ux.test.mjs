@@ -32,6 +32,62 @@ test('member history editor only lists concluded server events and locks approve
   assert.match(memberJs,/historyCompletedAt/);
 });
 
+test('focused history claim immediately collects evidence without an attendance checkbox',()=>{
+  const claimForm=memberJs.slice(memberJs.indexOf('function historyClaimForm'),memberJs.indexOf('function closeHistoryCategoryField'));
+  const submit=memberJs.slice(memberJs.indexOf('async function submitHistoryEditorForm'),memberJs.indexOf('function openHistoryEditor'));
+  assert.doesNotMatch(claimForm,/Byl\/a jsem tam|data-history-attended-toggle|name="attended"/);
+  assert.match(claimForm,/DOLOŽ SVOJI ÚČAST/);
+  assert.match(claimForm,/Nahraj důkaz účasti/);
+  assert.match(claimForm,/případně doplň Show/);
+  assert.match(claimForm,/data-history-claim-fields=""/);
+  assert.doesNotMatch(claimForm,/data-history-claim-fields="" hidden/);
+  assert.match(memberJs,/renderHistoryEditor\(eventId\)/);
+  assert.match(memberJs,/list\.dataset\.focusedEvent=focusedEventId/);
+  assert.match(memberCss,/\.history-editor-list\[data-focused-event\]/);
+  assert.doesNotMatch(submit,/attended/);
+  assert.match(worker,/VALUES \(\?, \?, \?, 'pending'/);
+});
+
+test('history S&S uses NE/ANO, configured custom category options and no native selects',()=>{
+  const sns=memberJs.slice(memberJs.indexOf('function historySnsFields'),memberJs.indexOf('function historyEvidenceMarkup'));
+  assert.match(memberHtml,/showshine-data\.js/);
+  assert.match(memberJs,/window\.E36_SHOWSHINE\?\.categories/);
+  assert.match(sns,/data-history-sns-choice="no"[\s\S]*data-history-sns-choice="yes"/);
+  assert.match(sns,/aria-pressed="true" class="is-selected"[^>]*>NE</);
+  assert.match(sns,/aria-pressed="false"[^>]*>ANO</);
+  assert.match(sns,/data-history-category-trigger/);
+  assert.match(sns,/role="listbox"/);
+  assert.match(sns,/data-history-category-value/);
+  assert.doesNotMatch(sns,/<select|<option/);
+  assert.match(memberCss,/\.history-category-menu\{position:absolute/);
+});
+
+test('history placement and optional accolades are styled accessible inputs',()=>{
+  const sns=memberJs.slice(memberJs.indexOf('function historySnsFields'),memberJs.indexOf('function historyEvidenceMarkup'));
+  for(const value of ['', '3', '2', '1'])assert.match(sns,new RegExp(`name="snsPlacement" type="radio" value="${value}"`));
+  for(const name of ['snsBestOfBest','snsBestExhaust'])assert.match(sns,new RegExp(`name="${name}" type="checkbox" value="on"`));
+  assert.match(memberCss,/\.history-placement-options \.is-bronze:has\(input:checked\)/);
+  assert.match(memberCss,/\.history-placement-options \.is-silver:has\(input:checked\)/);
+  assert.match(memberCss,/\.history-placement-options \.is-gold:has\(input:checked\)/);
+  assert.match(memberCss,/\.history-award-chip:has\(input:checked\)/);
+});
+
+test('history claim FormData stays compatible and omits unselected S&S defaults',()=>{
+  const submit=memberJs.slice(memberJs.indexOf('async function submitHistoryEditorForm'),memberJs.indexOf('function openHistoryEditor'));
+  assert.match(submit,/upload\.append\('eventId',fd\.get\('eventId'\)\)/);
+  assert.match(submit,/if\(fd\.get\('snsCompeted'\)\)\{/);
+  for(const field of ['snsCompeted','snsCategory','snsPlacement','snsBestOfBest','snsBestExhaust'])assert.match(`${submit}\n${worker}`,new RegExp(field));
+  assert.match(submit,/upload\.append\('files',file,file\.name\)/);
+  assert.doesNotMatch(submit,/upload\.append\('attended'/);
+  assert.match(worker,/if \(!competed\) return \{ value: \{ competed: false, category: null, placement: null/);
+});
+
+test('history header drops its redundant UNITED OD block but keeps the secondary editor action',()=>{
+  assert.doesNotMatch(club,/history-since|data-history-since/);
+  assert.match(club,/MOJE STOPA V UNITED[\s\S]*Tvoje United historie\.[\s\S]*history-edit-all/);
+  assert.match(memberHtml,/data-member-since/);
+});
+
 test('history year cards open and focus the matching editor event while the full editor remains secondary',()=>{
   assert.match(memberHtml,/class="member-secondary history-edit-all" data-open-history-editor/);
   assert.match(memberHtml,/aria-controls="history-editor-modal"/);
@@ -60,9 +116,21 @@ test('pending history summary contains only submitted attendance and S&S details
   const summary=memberJs.slice(memberJs.indexOf('function historySubmittedSummary'),memberJs.indexOf('function renderHistory'));
   assert.match(summary,/Účast na United \$\{item\.eventYear\}/);
   assert.match(summary,/if\(!sns\.competed\)details\.push\('<span>Pouze účast<\/span>'\)/);
-  for(const detail of ['Show &amp; Shine:','místo','Best of the Best','Nej zvuk výfuku'])assert.match(summary,new RegExp(detail));
+  assert.match(summary,/\.join\(' · '\)/);
+  for(const detail of ['místo','Best of the Best','Nej zvuk výfuku'])assert.match(summary,new RegExp(detail));
   assert.match(memberJs,/if\(pending\)return[\s\S]*historySubmittedSummary\(item\)/);
   assert.match(memberJs,/item\.showShine\?\.status==='pending'\?historySubmittedSummary\(item,\{attendance:false\}\)/);
+});
+
+test('featured S&S TOP 3 and BMW Prospekt use only authoritative Bronze Silver Gold tier classes',()=>{
+  const tier=memberJs.slice(memberJs.indexOf('function achievementTierClass'),memberJs.indexOf('function renderAchievements'));
+  assert.match(tier,/sns-top3-/);
+  assert.match(tier,/achievement\.type==='community'&&achievement\.name==='BMW PROSPEKT'/);
+  assert.match(tier,/\['bronze','silver','gold'\]/);
+  assert.match(memberJs,/featured-achievement \$\{tierClass\}/);
+  assert.match(memberJs,/featured-achievement-tier/);
+  for(const value of ['bronze','silver','gold'])assert.match(memberCss,new RegExp(`featured-achievement\\.is-tier-${value} i`));
+  assert.doesNotMatch(tier,/attendance|history/);
 });
 
 test('verified history card uses only primary private evidence and approved accolade data',()=>{
