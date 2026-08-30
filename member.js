@@ -674,16 +674,56 @@ function renderCarSelect(){
   const selected=data.cars.find(car=>String(car.id)===String(selectedId))||preferredReservationCar();if(selected)select.value=String(selected.id);
   if(data.cars.length)setReservationCarError(false);
 }
+const historyCategoryLabels={sedan:'Sedan',coupe:'Coupé',touring:'Touring',cabrio:'Cabrio',compact:'Compact',z3:'Z3',mpower:'///M Power'};
+function historyCategoryLabel(value){return historyCategoryLabels[String(value||'').toLowerCase()]||String(value||'Bez kategorie')}
+function historyAccoladesMarkup(sns={}){
+  if(sns.status!=='approved')return '';
+  const placement=Number(sns.placement),medal=placement===1?'gold':placement===2?'silver':placement===3?'bronze':'';
+  const accolades=[medal?`<i class="history-accolade history-medal history-medal--${medal}"><span aria-hidden="true">●</span>${placement}. MÍSTO</i>`:'',sns.bestOfBest?'<i class="history-accolade history-accolade--bob"><span aria-hidden="true">◆</span>BEST OF THE BEST</i>':'',sns.bestExhaust?'<i class="history-accolade history-accolade--exhaust"><span aria-hidden="true">◈</span>NEJ ZVUK VÝFUKU</i>':''].filter(Boolean);
+  return accolades.length?`<span aria-label="Schválená Show &amp; Shine ocenění" class="history-accolades">${accolades.join('')}</span>`:'';
+}
+function historySubmittedSummary(item,{attendance=true}={}){
+  const sns=item.showShine||{},details=[];
+  if(attendance)details.push(`<b>Účast na United ${item.eventYear}</b>`);
+  if(!sns.competed)details.push('<span>Pouze účast</span>');
+  else{
+    details.push(`<span>Show &amp; Shine: ${esc(historyCategoryLabel(sns.category))}</span>`);
+    if(sns.placement)details.push(`<span>${Number(sns.placement)}. místo</span>`);
+    if(sns.bestOfBest)details.push('<span>Best of the Best</span>');
+    if(sns.bestExhaust)details.push('<span>Nej zvuk výfuku</span>');
+  }
+  return `<div class="history-claim-summary"><small>ODESLÁNO KE KONTROLE</small>${details.join('')}</div>`;
+}
 function renderHistory(){
   const grid=$('[data-history-grid]');if(!grid)return;const history=data.club?.history||[];
-  grid.innerHTML=history.length?history.map(item=>{const status=item.attendance?.status||'not_claimed',approved=status==='approved',pending=status==='pending',rejected=status==='rejected',sns=item.showShine||{},accolades=sns.status==='approved'?[sns.placement?`${sns.placement}. MÍSTO`:null,sns.bestOfBest?'BEST OF THE BEST':null,sns.bestExhaust?'NEJ ZVUK VÝFUKU':null].filter(Boolean):[];return `<article class="history-year ${approved?'is-attended':''} ${pending?'is-pending':''} ${rejected?'is-rejected':''}"><div class="history-year-number">${item.eventYear}</div><div class="history-year-status"><div><b>${approved?'OVĚŘENO':pending?'ČEKÁ NA OVĚŘENÍ':rejected?'VRÁCENO K ÚPRAVĚ':item.concluded?'NEUVEDENO':'ROČNÍK NENÍ UKONČEN'}</b><small>${approved?'Potvrzeno United týmem':pending?'Body zatím nejsou připsané':rejected?esc(item.attendance.reviewNote||'Doplň údaje a odešli znovu.'):item.concluded?'Historii můžeš doplnit v editoru.':'Není možné podat historickou žádost.'}</small>${accolades.length?`<span class="history-accolades">${accolades.map(label=>`<i>◆ ${esc(label)}</i>`).join('')}</span>`:''}</div><span class="history-check">${approved?'✓':pending?'…':rejected?'!':'·'}</span></div></article>`}).join(''):'<article class="history-empty">Zatím nejsou dostupné žádné ročníky.</article>';
+  grid.innerHTML=history.length?history.map(item=>{
+    const status=item.attendance?.status||'not_claimed',approved=status==='approved',pending=status==='pending',rejected=status==='rejected',sns=item.showShine||{},primaryEvidence=approved?item.evidence?.[0]:null,tag=item.concluded?'button':'article';
+    const snsState=sns.status==='pending'?'<span class="history-sns-state is-pending">S&amp;S ČEKÁ NA KONTROLU</span>':historyAccoladesMarkup(sns);
+    const attrs=item.concluded?`aria-controls="history-editor-modal" aria-label="Otevřít historii United ${item.eventYear}" data-open-history-year="${esc(item.eventId)}" type="button"`:'';
+    return `<${tag} ${attrs} class="history-year ${approved?'is-attended':''} ${pending?'is-pending':''} ${rejected?'is-rejected':''} ${primaryEvidence?'has-evidence-photo':''}">${primaryEvidence?`<span aria-hidden="true" class="history-year-media"><img alt="" data-history-card-evidence-id="${esc(primaryEvidence.id)}"/></span>`:''}<div class="history-year-number">${item.eventYear}</div><div class="history-year-status"><div><b>${approved?'OVĚŘENO':pending?'ČEKÁ NA KONTROLU':rejected?'VRÁCENO K ÚPRAVĚ':item.concluded?'NEUVEDENO':'ROČNÍK NENÍ UKONČEN'}</b><small>${approved?'Účast potvrzena United týmem':pending?'Odeslaná účast čeká na ověření.':rejected?esc(item.attendance.reviewNote||'Doplň údaje a odešli znovu.'):item.concluded?'Historii můžeš doplnit.':'Není možné podat historickou žádost.'}</small>${snsState}</div><span aria-hidden="true" class="history-check">${approved?'✓':pending?'…':rejected?'!':'→'}</span></div></${tag}>`;
+  }).join(''):'<article class="history-empty">Zatím nejsou dostupné žádné ročníky.</article>';
+  $$('[data-open-history-year]',grid).forEach(button=>button.addEventListener('click',event=>openHistoryEditor(event.currentTarget,button.dataset.openHistoryYear)));
+  void hydrateHistoryCardEvidence();
 }
 
 const historyEditor=$('[data-history-editor]');
 const historyEvidenceUrls=new Map();
+const historyEvidenceUrlRequests=new Map();
+let historyEvidenceRequestGeneration=0;
 let historyPreviewControllers=[];
 let historyEditorReturnFocus=null;
-function clearHistoryEvidenceUrls(){for(const url of historyEvidenceUrls.values())URL.revokeObjectURL(url);historyEvidenceUrls.clear()}
+function clearHistoryEvidenceUrls(){historyEvidenceRequestGeneration+=1;for(const url of historyEvidenceUrls.values())URL.revokeObjectURL(url);historyEvidenceUrls.clear();historyEvidenceUrlRequests.clear()}
+async function getPrivateHistoryEvidenceUrl(photoId){
+  if(historyEvidenceUrls.has(photoId))return historyEvidenceUrls.get(photoId);
+  if(historyEvidenceUrlRequests.has(photoId))return await historyEvidenceUrlRequests.get(photoId);
+  const generation=historyEvidenceRequestGeneration,userId=currentUser?.uid;
+  let request;request=apiRequestBlob(`/api/history/evidence/${encodeURIComponent(photoId)}`).then(blob=>{
+    const evidenceStillOwned=(data.club?.history||[]).some(item=>(item.evidence||[]).some(photo=>String(photo.id)===String(photoId)));
+    if(generation!==historyEvidenceRequestGeneration||userId!==currentUser?.uid||!evidenceStillOwned)throw new Error('stale_history_evidence_request');
+    const existing=historyEvidenceUrls.get(photoId);if(existing)return existing;const url=URL.createObjectURL(blob);historyEvidenceUrls.set(photoId,url);return url;
+  }).finally(()=>{if(historyEvidenceUrlRequests.get(photoId)===request)historyEvidenceUrlRequests.delete(photoId)});
+  historyEvidenceUrlRequests.set(photoId,request);return await request;
+}
 function historySnsFields(item,{attendanceApproved=false}={}){
   const sns=item.showShine||{},canAmend=attendanceApproved&&['not_claimed','rejected'].includes(sns.status);
   if(attendanceApproved&&!canAmend)return `<div class="history-editor-state"><b>${sns.status==='pending'?'SHOW & SHINE ČEKÁ NA KONTROLU':sns.status==='approved'?'SHOW & SHINE OVĚŘENO':'DOCHÁZKA JE UZAMČENÁ'}</b>${sns.reviewNote?`<small>${esc(sns.reviewNote)}</small>`:''}</div>`;
@@ -692,15 +732,22 @@ function historySnsFields(item,{attendanceApproved=false}={}){
 function historyEvidenceMarkup(item){return item.evidence?.length?`<div class="history-existing-evidence">${item.evidence.map(photo=>`<span><img alt="Důkaz účasti United ${item.eventYear}" data-history-evidence-id="${esc(photo.id)}"/><i>Soukromý důkaz</i></span>`).join('')}</div>`:''}
 function historyClaimForm(item){
   const status=item.attendance?.status||'not_claimed',approved=status==='approved',pending=status==='pending';
-  if(pending)return `<article class="history-editor-card"><header><strong>UNITED ${item.eventYear}</strong><span>ČEKÁ NA KONTROLU</span></header>${historyEvidenceMarkup(item)}<p>United tým zkontroluje docházku a Show & Shine samostatně. Zatím se nepřipisují žádné body.</p></article>`;
-  if(approved&&['pending','approved'].includes(item.showShine?.status))return `<article class="history-editor-card"><header><strong>UNITED ${item.eventYear}</strong><span>DOCHÁZKA OVĚŘENA</span></header>${historyEvidenceMarkup(item)}${historySnsFields(item,{attendanceApproved:true})}</article>`;
-  if(approved)return `<form class="history-editor-card" data-history-claim-form=""><input name="eventId" type="hidden" value="${esc(item.eventId)}"/><header><strong>UNITED ${item.eventYear}</strong><span>DOCHÁZKA OVĚŘENA</span></header><p>Schválenou účast nelze odebrat. Můžeš doplnit zamítnuté nebo dosud neuvedené Show & Shine.</p>${item.showShine?.reviewNote?`<div class="history-rejection-note"><b>DŮVOD S&S ZAMÍTNUTÍ</b><span>${esc(item.showShine.reviewNote)}</span></div>`:''}${historySnsFields(item,{attendanceApproved:true})}<button class="member-primary member-primary--compact" type="submit">Odeslat S&amp;S ke kontrole</button></form>`;
-  return `<form class="history-editor-card" data-history-claim-form=""><input name="eventId" type="hidden" value="${esc(item.eventId)}"/><header><strong>UNITED ${item.eventYear}</strong><span>${status==='rejected'?'UPRAVIT A ODESLAT ZNOVU':'SKONČENÝ ROČNÍK'}</span></header>${status==='rejected'?`<div class="history-rejection-note"><b>DŮVOD ZAMÍTNUTÍ</b><span>${esc(item.attendance.reviewNote||'Doplň důkaz účasti.')}</span></div>`:''}<label class="history-attended-toggle"><input data-history-attended-toggle="" name="attended" type="checkbox"/><span>Byl/a jsem tam</span></label><div class="history-claim-fields" data-history-claim-fields="" hidden><label class="history-evidence-upload"><span>Důkazní fotografie · povinné</span><input accept="image/jpeg,image/png,image/webp" data-history-evidence-input="" multiple name="evidence" type="file"/><b>Vybrat 1–4 soukromé fotografie</b><small>Nezobrazí se v galerii ani ostatním členům.</small></label><div class="image-selection-preview-grid" data-history-evidence-preview=""></div>${historySnsFields(item)}<button class="member-primary member-primary--compact" type="submit">Odeslat ke kontrole</button></div></form>`;
+  const focusAttrs=`data-history-event="${esc(item.eventId)}" tabindex="-1"`;
+  if(pending)return `<article class="history-editor-card" ${focusAttrs}><header><strong>UNITED ${item.eventYear}</strong><span>ČEKÁ NA KONTROLU</span></header>${historyEvidenceMarkup(item)}${historySubmittedSummary(item)}<p>Docházka a Show &amp; Shine se ověřují samostatně. Zatím se nepřipisují žádné body.</p></article>`;
+  if(approved&&['pending','approved'].includes(item.showShine?.status))return `<article class="history-editor-card" ${focusAttrs}><header><strong>UNITED ${item.eventYear}</strong><span>DOCHÁZKA OVĚŘENA</span></header>${historyEvidenceMarkup(item)}${item.showShine?.status==='pending'?historySubmittedSummary(item,{attendance:false}):historySnsFields(item,{attendanceApproved:true})}</article>`;
+  if(approved)return `<form class="history-editor-card" data-history-claim-form="" ${focusAttrs}><input name="eventId" type="hidden" value="${esc(item.eventId)}"/><header><strong>UNITED ${item.eventYear}</strong><span>DOCHÁZKA OVĚŘENA</span></header><p>Schválenou účast nelze odebrat. Můžeš doplnit zamítnuté nebo dosud neuvedené Show & Shine.</p>${item.showShine?.reviewNote?`<div class="history-rejection-note"><b>DŮVOD S&S ZAMÍTNUTÍ</b><span>${esc(item.showShine.reviewNote)}</span></div>`:''}${historySnsFields(item,{attendanceApproved:true})}<button class="member-primary member-primary--compact" type="submit">Odeslat S&amp;S ke kontrole</button></form>`;
+  return `<form class="history-editor-card" data-history-claim-form="" ${focusAttrs}><input name="eventId" type="hidden" value="${esc(item.eventId)}"/><header><strong>UNITED ${item.eventYear}</strong><span>${status==='rejected'?'UPRAVIT A ODESLAT ZNOVU':'SKONČENÝ ROČNÍK'}</span></header>${status==='rejected'?`<div class="history-rejection-note"><b>DŮVOD ZAMÍTNUTÍ</b><span>${esc(item.attendance.reviewNote||'Doplň důkaz účasti.')}</span></div>`:''}<label class="history-attended-toggle"><input data-history-attended-toggle="" name="attended" type="checkbox"/><span>Byl/a jsem tam</span></label><div class="history-claim-fields" data-history-claim-fields="" hidden><label class="history-evidence-upload"><span>Důkazní fotografie · povinné</span><input accept="image/jpeg,image/png,image/webp" data-history-evidence-input="" multiple name="evidence" type="file"/><b>Vybrat 1–4 soukromé fotografie</b><small>Nezobrazí se v galerii ani ostatním členům.</small></label><div class="image-selection-preview-grid" data-history-evidence-preview=""></div>${historySnsFields(item)}<button class="member-primary member-primary--compact" type="submit">Odeslat ke kontrole</button></div></form>`;
+}
+async function hydrateHistoryCardEvidence(){
+  for(const img of $$('[data-history-card-evidence-id]',$('[data-history-grid]')||document)){
+    const id=img.dataset.historyCardEvidenceId;if(!id)continue;
+    try{img.src=await getPrivateHistoryEvidenceUrl(id)}catch(error){console.warn('History card evidence unavailable',id,error);const media=img.closest('.history-year-media');media?.closest('.history-year')?.classList.remove('has-evidence-photo');media?.remove()}
+  }
 }
 async function hydrateHistoryEvidence(){
   for(const img of $$('[data-history-evidence-id]',historyEditor||document)){
-    const id=img.dataset.historyEvidenceId;if(historyEvidenceUrls.has(id)){img.src=historyEvidenceUrls.get(id);continue}
-    try{const blob=await apiRequestBlob(`/api/history/evidence/${encodeURIComponent(id)}`),url=URL.createObjectURL(blob);historyEvidenceUrls.set(id,url);if(img.isConnected)img.src=url}catch(error){console.warn('History evidence thumbnail unavailable',error)}
+    const id=img.dataset.historyEvidenceId;
+    try{const url=await getPrivateHistoryEvidenceUrl(id);if(img.isConnected)img.src=url}catch(error){console.warn('History evidence thumbnail unavailable',error)}
   }
 }
 function renderHistoryEditor(){
@@ -720,7 +767,7 @@ async function submitHistoryEditorForm(event){
   if(!approved){const input=form.querySelector('[data-history-evidence-input]'),files=selectImageFiles(input?.files,{maxFiles:4,maxBytes:8*1024*1024}).files;if(!files.length)return toast('Přilož alespoň jednu důkazní fotografii.');for(const file of files)upload.append('files',file,file.name)}
   setButtonBusy(button,true,'Odesílám…');try{await apiRequestForm('/api/history/claims',upload);data.club=await loadUnitedClub();renderAll();renderHistoryEditor();toast('Žádost byla odeslána United týmu.')}catch(error){console.error('History claim failed',error);toast(apiError(error))}finally{setButtonBusy(button,false)}
 }
-function openHistoryEditor(trigger=null){if(!historyEditor)return;historyEditorReturnFocus=trigger;renderHistoryEditor();historyEditor.hidden=false;document.body.classList.add('modal-open');requestAnimationFrame(()=>$('[data-close-history-editor]:not(.member-modal-backdrop)')?.focus())}
+function openHistoryEditor(trigger=null,eventId=''){if(!historyEditor)return;historyEditorReturnFocus=trigger;renderHistoryEditor();historyEditor.hidden=false;document.body.classList.add('modal-open');requestAnimationFrame(()=>{const target=eventId?$$('[data-history-event]',historyEditor).find(card=>String(card.dataset.historyEvent)===String(eventId)):null;if(target){target.classList.add('is-focused');target.focus({preventScroll:true});target.scrollIntoView({block:'start'})}else $('[data-close-history-editor]:not(.member-modal-backdrop)')?.focus()})}
 function closeHistoryEditor({restoreFocus=false}={}){if(!historyEditor)return;historyEditor.hidden=true;document.body.classList.remove('modal-open');historyPreviewControllers.forEach(controller=>controller.clear());historyPreviewControllers=[];const trigger=historyEditorReturnFocus;historyEditorReturnFocus=null;if(restoreFocus)trigger?.focus?.()}
 $('[data-open-history-editor]')?.addEventListener('click',event=>openHistoryEditor(event.currentTarget));
 $$('[data-close-history-editor]').forEach(button=>button.addEventListener('click',()=>closeHistoryEditor({restoreFocus:true})));
