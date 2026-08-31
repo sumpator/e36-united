@@ -113,6 +113,7 @@ function jsonResponse(route, payload, status = 200) {
 export async function prepareE2ePage(page, {
   authenticated = false,
   carsFailure = false,
+  memberStatus = 'active',
   ignoreConsoleError = () => false,
 } = {}) {
   const observations = { pageErrors: [], consoleErrors: [], unhandledApi: [], requests: [] };
@@ -184,7 +185,7 @@ export async function prepareE2ePage(page, {
           email: 'eva@example.test',
           phone: '+420 700 000 036',
           role: 'member',
-          status: 'active',
+          status: memberStatus,
           emailVerified: true,
           createdAt: '2021-06-01T00:00:00.000Z',
         },

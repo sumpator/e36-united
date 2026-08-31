@@ -2,6 +2,8 @@
 
 This reconciliation uses current `main` at `8bd711ca6c92682b8bef8a3290f7c09fdff0d575`, the 182-test suite, current implementation, and read-only production D1 metadata as evidence.
 
+Phase 1B updates this historical reconciliation from verified checkpoint `fb2c9562c34b92e86b1aa24752f3115d0ec3a9da`. The original pre-refactor evidence remains intact; only the centralized active-member finding and current validation clarification are updated.
+
 The full audit artifact is not present in the repository or in the supplied attachments. The table therefore reconciles the findings explicitly named in the Phase 0A brief and the accompanying project context. Findings not reproduced there are not restated or guessed.
 
 | Audit finding | Current status | Evidence | Future action |
@@ -10,7 +12,7 @@ The full audit artifact is not present in the repository or in the supplied atta
 | `member.js` has too many responsibilities. | VERIFIED CURRENT | About 1,355 lines covering session/bootstrap, profile, Garage/media, gallery, Planner sync, reservations/payments, history, Points, achievements, and portal UI. Some pure helpers are already separate modules. | Modularize by domain in Phase 4 after Worker/shared frontend foundations. |
 | `admin.js` has too many responsibilities. | VERIFIED CURRENT | About 814 lines covering every Admin agenda, API/media helpers, filters, state persistence, moderation, drawers, and lightboxes. `admin-view-model.js` is already separated. | Modularize by agenda in Phase 5. |
 | Protected API routes may lack authentication/Admin guards. | ALREADY RESOLVED | All explicit non-public routes are below Firebase verification at Worker lines 59–63. Every `/api/admin/*` route is additionally below `requireAdmin`, which checks both `role = 'admin'` and `status = 'active'` (lines 65–69 and 201–208). Authentication tests cover Planner, Garage/media, accommodation photo mutation, and history/Admin routes. | Preserve the route-boundary tests during extraction. |
-| Ordinary authenticated routes do not centrally require an active member. | VERIFIED CURRENT | Only `requireAdmin` checks `members.status`. Ordinary member handlers use the verified UID and, where needed, check only that a member row exists; no `requireActiveMember` helper exists. | Treat as the separate Phase 1B security/business change; do not hide it in Worker code movement. |
+| Ordinary authenticated routes do not centrally require an active member. | RESOLVED IN PHASE 1B | Phase 0A/Phase 1 verified that only `requireAdmin` checked `members.status`. Phase 1B adds `worker/auth/member.js::requireActiveMember` and an explicit protected-route classification in `worker/router.js`. Missing members and every non-`active` status now receive a stable `403 active_member_required` before Member domain work. `/api/me` remains the Firebase-only status exception; bootstrap allows missing-member onboarding but rejects an existing non-active member. | Preserve the centralized route-classification, status, missing-member, bootstrap, public, and Admin regression tests. |
 | Unknown API route behavior is inconsistent. | VERIFIED CURRENT | Unknown Admin routes return `404 not_found` at Worker line 148. An authenticated unknown non-Admin `/api/*` route falls through to the generic `200 { ok: true, service: "E36 United API" }` response at line 193. | Decide and test a compatible fallback in a separate functional/security task. |
 | Current D1 schema is not reproducible from repository migration history. | VERIFIED CURRENT | Production metadata has 20 application tables, 20 explicit indexes, and two triggers. The five prior SQL files are deltas that assume an absent base schema. `db/schema.sql` now records the production-verified snapshot, but it is not a historical migration chain. | Add a migration registry and schema-diff process in Phase 7. |
 | Migration state/history is weakly tracked. | VERIFIED CURRENT | SQL files lived at repository root, there was no migration directory/registry table, and several files are intentionally one-time/non-idempotent. None of the three index names in `D1-media-indexes.sql` is present remotely; one equivalent gallery index exists under another name. | Keep the inventory in `db/migrations/README.md`; do not replay or repair history during Phase 0A. |
@@ -24,10 +26,10 @@ The full audit artifact is not present in the repository or in the supplied atta
 
 ## Important current-HEAD clarifications
 
-- The test count remains 182 and all 182 pass; the old count was verified rather than assumed.
+- Phase 1B validation is 199/199 Node tests and 9/9 Playwright tests; the verified pre-Phase 1B baselines were 188/188 and 8/8 respectively.
 - The mobile accommodation-preview report is stale and is not treated as an active bug.
 - Admin-selected accommodation photos and the shared fallback system are already implemented in current HEAD, despite being described as future work in broader planning context.
-- Explicit protected routes are currently authenticated, but this does not equal active-member enforcement.
+- Explicit protected Member routes now require both Firebase identity and centralized active-member authorization; the earlier missing-guard finding remains recorded above as the pre-Phase 1B state.
 - A production-verified schema snapshot can now be checked in, while historical migration completeness remains a separate verified gap.
 
 No audit finding in this document was used to change application behavior.

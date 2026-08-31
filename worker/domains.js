@@ -1492,7 +1492,9 @@ async function bootstrapMember(request, env, auth, origin) {
   if (nickname.length > 40) return json({ ok: false, error: "Invalid nickname" }, 400, origin);
   if (phone.length > 30) return json({ ok: false, error: "Invalid phone" }, 400, origin);
 
-  const existing = await env.DB.prepare("SELECT id, member_code FROM members WHERE id = ? LIMIT 1").bind(auth.uid).first();
+  const existing = auth.member === undefined
+    ? await env.DB.prepare("SELECT id, member_code FROM members WHERE id = ? LIMIT 1").bind(auth.uid).first()
+    : auth.member;
   const memberCode = existing?.member_code || await createMemberCode(auth.uid);
 
   await env.DB.batch([

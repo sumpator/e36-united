@@ -78,6 +78,26 @@ test.describe('desktop member portal', () => {
 
     expectNoUnexpectedClientErrors(observations);
   });
+
+  test('inactive membership remains discoverable while protected portal data stays closed', async ({ page }) => {
+    const observations = await prepareE2ePage(page, {
+      authenticated: true,
+      memberStatus: 'blocked',
+      ignoreConsoleError: entry => entry.text.includes('Unable to restore member session') && entry.text.includes('member_inactive'),
+    });
+
+    await page.goto('/member.html');
+    await expect(page.locator('[data-auth-status-view]')).toBeVisible();
+    await expect(page.locator('[data-auth-status-title]')).toHaveText('Session zůstává aktivní.');
+    await expect(page.locator('[data-auth-status-copy]')).toContainText('Tento členský účet není aktivní.');
+    await expect(page.locator('[data-auth-retry]')).toBeVisible();
+    await expect(page.locator('[data-app-view]')).toBeHidden();
+    await expect.poll(() => page.evaluate(key => localStorage.getItem(key), MEMBER_SESSION_KEY)).toBe('true');
+    expect(observations.requests).toContain('GET /api/me');
+    expect(observations.requests).not.toContain('GET /api/cars');
+
+    expectNoUnexpectedClientErrors(observations);
+  });
 });
 
 test.describe('mobile member portal', () => {

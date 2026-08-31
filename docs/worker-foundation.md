@@ -14,6 +14,7 @@ worker/
   auth/
     firebase.js              Bearer parsing, Firebase JWT/JWKS verification and cache
     admin.js                 existing active-Admin D1 lookup
+    member.js                centralized active-member D1 guard and stable 403 response
   http/
     cors.js                  origin allowlist, CORS headers and OPTIONS responses
     request.js               generic JSON-object parsing response contract
@@ -29,15 +30,24 @@ worker/
 1. `worker/index.js` creates the request context.
 2. OPTIONS requests use the preserved allowlist and 204/403 behavior.
 3. `worker/router.js` checks public routes in their existing order.
-4. Other `/api/*` requests keep the existing Origin check, Firebase verification, and member/Admin route order.
-5. Domain handlers receive the same request, bindings, URL, auth payload and Origin values as before.
-6. Unknown routes retain their existing fallbacks, and unexpected exceptions retain the existing logged 500 JSON response.
+4. Other `/api/*` requests keep the existing Origin check and Firebase verification.
+5. `/api/admin/*` keeps its separate active-Admin authorization branch.
+6. `GET /api/me` remains Firebase-only so a missing or non-active profile can be discovered and the current UI can display its status. `POST /api/bootstrap` remains available to a missing member for onboarding and to an active member for the established profile sync, but rejects an existing non-active member.
+7. The router classifies every explicit protected Member contract and calls the centralized active-member guard before entering its domain handler.
+8. Domain handlers receive the same request, bindings, URL, auth payload and Origin values as before.
+9. Unknown routes retain their existing fallbacks, and unexpected exceptions retain the existing logged 500 JSON response.
 
 ## Authentication flow
 
-`worker/auth/firebase.js` preserves the existing `Bearer ` token format, Firebase project/audience/issuer checks, time validation, RS256 verification, UID interpretation, and JWKS caching. Firebase UID remains the ownership key. `worker/auth/admin.js` preserves the existing requirement that Admin members have both `role = 'admin'` and `status = 'active'`.
+`worker/auth/firebase.js` preserves the existing `Bearer ` token format, Firebase project/audience/issuer checks, time validation, RS256 verification, UID interpretation, and JWKS caching. Firebase UID remains the ownership key.
 
-No member lookup or status check was added to ordinary authenticated requests, and authentication still occurs at the same route boundary.
+`worker/auth/member.js` adds `requireActiveMember`. For an explicit protected Member route, it resolves the UID-owned member record and permits access only when `status === 'active'`. A missing member or any non-active status receives `403` with `error: "active_member_required"` before domain D1/R2 work. The record is attached to the request-scoped auth payload for downstream reuse; no request state is stored globally.
+
+The same module exposes the low-level authorization-record lookup used by the conditional bootstrap exception. This lets missing users create their current profile without allowing an existing inactive user to mutate profile fields through bootstrap.
+
+`worker/auth/admin.js` remains separate and preserves the requirement that Admin members have both `role = 'admin'` and `status = 'active'`. Firebase verification still happens before either authorization policy.
+
+The current status model has `active` as its sole enabled value. Existing frontend behavior explicitly treats `inactive`, `blocked`, and `suspended` as non-active; the schema has no status CHECK constraint, so the server guard deliberately fails closed for any value other than `active`.
 
 ## Preserved behavior
 
@@ -46,12 +56,11 @@ No member lookup or status check was added to ordinary authenticated requests, a
 - public-route ordering before authenticated-Origin enforcement;
 - CORS headers and OPTIONS behavior;
 - the authenticated unknown non-Admin API fallback and non-API fallback;
-- Firebase, Admin, D1 and R2 behavior, including existing GET-side writes;
+- Firebase, Admin, domain D1 and R2 behavior, including existing GET-side writes; Phase 1B changes only the authorization boundary described above;
 - one Worker, one deployment, and the existing `DB` and `MEDIA` binding names.
 
 ## Intentionally deferred
 
-- active-member guard / Phase 1B;
 - domain extraction / Phase 2;
 - unknown-route behavior cleanup;
 - business-rule, authorization-policy, payload, status-code, schema, D1 or R2 changes.

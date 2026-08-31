@@ -1,8 +1,42 @@
 import { requireAdmin } from "./auth/admin.js";
 import { verifyFirebaseRequest } from "./auth/firebase.js";
+import { ACTIVE_MEMBER_STATUS, activeMemberForbidden, findMemberAuthorizationRecord, requireActiveMember } from "./auth/member.js";
 import * as domain from "./domains.js";
 import { isAllowedOrigin } from "./http/cors.js";
 import { json } from "./http/responses.js";
+
+const PROTECTED_MEMBER_EXACT_ROUTES = new Set([
+  "GET /api/navigation-state",
+  "GET /api/united-club",
+  "POST /api/history/claims",
+  "POST /api/history/completed",
+  "GET /api/planner-draft",
+  "PUT /api/planner-draft",
+  "DELETE /api/planner-draft",
+  "GET /api/reservations/current",
+  "PUT /api/reservations/current",
+  "GET /api/cars",
+  "POST /api/cars",
+  "POST /api/gallery/submissions",
+  "GET /api/gallery/mine",
+]);
+
+const PROTECTED_MEMBER_ROUTE_PATTERNS = [
+  ["GET", /^\/api\/history\/evidence\/[^/]+$/],
+  ["GET", /^\/api\/cars\/media\/[^/]+$/],
+  ["PUT", /^\/api\/cars\/[^/]+$/],
+  ["DELETE", /^\/api\/cars\/[^/]+$/],
+  ["POST", /^\/api\/cars\/[^/]+\/primary$/],
+  ["POST", /^\/api\/cars\/[^/]+\/photos$/],
+  ["PUT", /^\/api\/cars\/[^/]+\/photos$/],
+  ["GET", /^\/api\/gallery\/mine\/media\/[^/]+$/],
+];
+
+export function isProtectedMemberRoute(method, pathname) {
+  const normalizedMethod = String(method || "").toUpperCase();
+  if (PROTECTED_MEMBER_EXACT_ROUTES.has(`${normalizedMethod} ${pathname}`)) return true;
+  return PROTECTED_MEMBER_ROUTE_PATTERNS.some(([expectedMethod, pattern]) => expectedMethod === normalizedMethod && pattern.test(pathname));
+}
 
 export async function routeRequest({ request, env, url, origin }) {
   if (url.pathname === "/api/health" && request.method === "GET") {
@@ -121,8 +155,19 @@ export async function routeRequest({ request, env, url, origin }) {
       return json({ ok: false, error: "not_found", message: "Admin endpoint neexistuje." }, 404, origin);
     }
 
-    if (url.pathname === "/api/bootstrap" && request.method === "POST") return await domain.bootstrapMember(request, env, auth, origin);
+    if (url.pathname === "/api/bootstrap" && request.method === "POST") {
+      const member = await findMemberAuthorizationRecord(env, auth);
+      if (member && member.status !== ACTIVE_MEMBER_STATUS) return activeMemberForbidden(origin);
+      auth.member = member;
+      return await domain.bootstrapMember(request, env, auth, origin);
+    }
     if (url.pathname === "/api/me" && request.method === "GET") return await domain.getMember(env, auth, origin);
+
+    if (isProtectedMemberRoute(request.method, url.pathname)) {
+      const member = await requireActiveMember(env, auth);
+      if (!member) return activeMemberForbidden(origin);
+      auth.member = member;
+    }
 
     if (url.pathname === "/api/navigation-state" && request.method === "GET") return await domain.getMemberNavigationState(env, auth, origin);
     if (url.pathname === "/api/united-club" && request.method === "GET") return await domain.getUnitedClub(env, auth, origin);
