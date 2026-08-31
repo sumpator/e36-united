@@ -9,8 +9,10 @@ const memberHtml = read('member.html');
 const memberJs = read('member.js');
 const memberCss = read('member.css');
 const galleryJs = read('gallery.js');
-const workerSource = read('cloudflare-worker-media.js');
-const worker = await import(`data:text/javascript;base64,${Buffer.from(`${workerSource}\nexport { updateCar, replaceCarPhoto, listMyGallery, privateMemberGalleryMedia };`).toString('base64')}`);
+const worker = {
+  ...await import('../worker/domains.js'),
+  default: (await import('../cloudflare-worker-media.js')).default,
+};
 
 function database() {
   const db = new DatabaseSync(':memory:');

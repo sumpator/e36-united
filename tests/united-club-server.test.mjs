@@ -4,8 +4,12 @@ import { readFileSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 
 const migration=readFileSync(new URL('../D1-united-club-v1.sql',import.meta.url),'utf8');
-const source=readFileSync(new URL('../cloudflare-worker-media.js',import.meta.url),'utf8');
-const worker=await import(`data:text/javascript;base64,${Buffer.from(`${source}\nexport { requireAdmin, submitHistoryClaim, patchAdminHistoryClaim, historyEvidenceMedia, completeMemberHistory, getUnitedClub, patchAdminGallery, deriveMemberRating, deriveUnitedAchievements, getAdminHistoryCounts, getAdminHistoryClaims };`).toString('base64')}`);
+const source=readFileSync(new URL('../worker/domains.js',import.meta.url),'utf8');
+const worker={
+  ...await import('../worker/domains.js'),
+  ...await import('../worker/auth/admin.js'),
+  default:(await import('../cloudflare-worker-media.js')).default,
+};
 
 function database(){
   const db=new DatabaseSync(':memory:');

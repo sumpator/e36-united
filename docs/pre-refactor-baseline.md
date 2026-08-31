@@ -94,6 +94,10 @@ All 17 first-party root JavaScript files also pass `node --check`. There is no r
 
 File size alone is not treated as a defect. These files are recorded because responsibility concentration increases change risk.
 
+## Phase 1 physical Worker structure
+
+Phase 1 keeps this historical baseline intact while changing the Worker's physical layout. `cloudflare-worker-media.js` is now a one-line compatibility entry that re-exports `worker/index.js`. Bootstrap/context, routing, CORS/HTTP responses, request parsing, Firebase verification, and the existing Admin lookup live under `worker/`. The still-coupled business handlers, D1 queries, and R2 operations moved mechanically to `worker/domains.js` and remain intentionally unsplit until Phase 2. See `docs/worker-foundation.md` for the current module responsibilities and request flow.
+
 ## Verified behavior boundaries
 
 - The previously reported mobile accommodation-preview issue is not current. The shared accommodation visual code and `tests/accommodation-visual-system.test.mjs` characterize desktop/mobile preview propagation as working behavior to preserve.

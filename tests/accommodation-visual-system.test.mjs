@@ -49,7 +49,7 @@ test('authenticated member can bootstrap/load Member Portal successfully with ac
 });
 
 test('one shared visual module propagates through Planner, Member Portal and Admin contexts',()=>{
-  const main=read('main.js'),html=read('index.html'),member=read('member.js'),admin=read('admin.js'),worker=read('cloudflare-worker-media.js');
+  const main=read('main.js'),html=read('index.html'),member=read('member.js'),admin=read('admin.js'),worker=read('worker/domains.js');
   const selectorSource=main.slice(main.indexOf('const renderPlannerAccommodationOptions'),main.indexOf('const renderPlannerPrice'));
   const standalonePreview=html.slice(html.indexOf('data-context-preview="sleep"'),html.indexOf('</aside>',html.indexOf('data-context-preview="sleep"')));
   assert.match(main,/import\('\.\/accommodation-visual\.js/);assert.match(main,/plannerAccommodationVisual\(liveOption\)/);assert.match(main,/mode:'image-only'/);

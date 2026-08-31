@@ -5,8 +5,8 @@ import { DatabaseSync } from 'node:sqlite';
 import qrcode from '../vendor/qrcode-generator.mjs';
 
 const migration = readFileSync(new URL('../D1-reservation-payments-v1.sql', import.meta.url), 'utf8');
-const workerSource = readFileSync(new URL('../cloudflare-worker-media.js', import.meta.url), 'utf8');
-const worker = await import(`data:text/javascript;base64,${Buffer.from(`${workerSource}\nexport { paymentBalanceCzk, paymentStatusFor, isPaymentOverdue, buildSpayd, reservationPayment, ensureReservationPaymentVs, patchAdminReservationPayment, getAdminOverview };`).toString('base64')}`);
+const workerSource = readFileSync(new URL('../worker/router.js', import.meta.url), 'utf8');
+const worker = await import('../worker/domains.js');
 
 function database() {
   const db = new DatabaseSync(':memory:');
