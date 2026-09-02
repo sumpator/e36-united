@@ -1,10 +1,23 @@
+import {
+  accommodationVisualMetadata,
+  deleteAdminAccommodationPhoto,
+  publicAccommodationMedia,
+  putAdminAccommodationPhoto,
+} from "./domains/accommodation.js";
+import {
+  getAdminEvents,
+  getCurrentEvent,
+  getEventById,
+  getRequestedAdminEvent,
+  publicAdminEvent,
+} from "./domains/events.js";
+import { publicGalleryList, publicGalleryMedia } from "./domains/gallery.js";
+import { extensionFor, validateImageFile } from "./domains/media.js";
 import { cors } from "./http/cors.js";
 import { readJsonObject } from "./http/request.js";
 import { json } from "./http/responses.js";
 import { clean } from "./utils/text.js";
 
-const IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
-const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 const MAX_GALLERY_DAILY = 24;
 const MAX_CAR_PHOTOS = 3;
 const MAX_HISTORY_EVIDENCE = 4;
@@ -13,67 +26,6 @@ const MAX_RESERVATION_CREW = 5;
 const UNITED_REWARD_THRESHOLD = 12;
 const PLANNER_CLOCK_SKEW_MS = 5 * 60 * 1000;
 const SHOW_SHINE_CATEGORIES = new Set(["sedan", "coupe", "touring", "cabrio", "compact", "z3", "mpower"]);
-
-const EVENT_SELECT = `
-  SELECT
-    id, year, registration_status, is_current,
-    accommodation_capacity, reservation_capacity,
-    full_weekend_nights, saturday_only_nights,
-    booking_commitment_czk, booking_due_at, booking_paid_czk,
-    event_end_at,
-    currency, payment_deadline,
-    payment_recipient_name, payment_account_display, payment_iban,
-    payment_message_prefix, payment_test_mode
-  FROM events
-`;
-
-async function getCurrentEvent(env) {
-  return await env.DB.prepare(`${EVENT_SELECT}
-    ORDER BY is_current DESC, year DESC
-    LIMIT 1
-  `).first();
-}
-
-async function getEventById(env, eventId) {
-  if (!eventId) return null;
-  return await env.DB.prepare(`${EVENT_SELECT}
-    WHERE id = ?
-    LIMIT 1
-  `).bind(eventId).first();
-}
-
-async function getRequestedAdminEvent(env, url) {
-  const eventId = clean(url.searchParams.get("eventId"));
-  return eventId ? await getEventById(env, eventId) : await getCurrentEvent(env);
-}
-
-function publicAdminEvent(event) {
-  if (!event) return null;
-  return {
-    id: event.id,
-    year: Number(event.year || 0),
-    isCurrent: !!event.is_current,
-    registrationStatus: event.registration_status || "",
-    accommodationCapacity: Number(event.accommodation_capacity || 0),
-    reservationCapacity: Number(event.reservation_capacity || 0),
-    fullWeekendNights: Number(event.full_weekend_nights ?? 2),
-    saturdayOnlyNights: Number(event.saturday_only_nights ?? 1),
-    bookingCommitmentCzk: Number(event.booking_commitment_czk || 0),
-    bookingDueAt: event.booking_due_at || null,
-    bookingPaidCzk: Number(event.booking_paid_czk || 0),
-    currency: event.currency || "CZK",
-    paymentDeadline: event.payment_deadline || null,
-    eventEndAt: event.event_end_at || null,
-    paymentTestMode: event.payment_test_mode !== 0,
-  };
-}
-
-async function getAdminEvents(env, origin) {
-  const rows = await env.DB.prepare(`${EVENT_SELECT}
-    ORDER BY year DESC
-  `).all();
-  return json({ ok: true, events: (rows.results || []).map(publicAdminEvent) }, 200, origin);
-}
 
 async function getAdminOverview(env, url, origin) {
   const event = await getRequestedAdminEvent(env, url);
@@ -432,25 +384,6 @@ function mapAccommodationOption(row) {
   };
 }
 
-function accommodationPhotoKey(eventId, optionId) {
-  return `accommodation/${encodeURIComponent(String(eventId || ""))}/${encodeURIComponent(String(optionId || ""))}/cover`;
-}
-
-async function accommodationVisualMetadata(env, eventId, optionId) {
-  const fallback = { hasCustomPhoto: false, imageUrl: null, version: null };
-  if (!env.MEDIA?.head || !eventId || !optionId) return fallback;
-  let object = null;
-  try { object = await env.MEDIA.head(accommodationPhotoKey(eventId, optionId)); }
-  catch (error) { console.warn("Accommodation photo metadata unavailable", optionId, error); return fallback; }
-  if (!object) return fallback;
-  const version = object.httpEtag || object.etag || String(object.uploaded?.getTime?.() || object.size || "current");
-  return {
-    hasCustomPhoto: true,
-    imageUrl: `/api/accommodation/media/${encodeURIComponent(optionId)}?v=${encodeURIComponent(version)}`,
-    version,
-  };
-}
-
 async function hydrateReservationAccommodationVisual(env, reservation, cache = new Map()) {
   if (!reservation?.accommodation_option_id) return reservation;
   const key = `${reservation.event_id}:${reservation.accommodation_option_id}`;
@@ -461,51 +394,6 @@ async function hydrateReservationAccommodationVisual(env, reservation, cache = n
   }
   reservation.accommodation_visual = visual;
   return reservation;
-}
-
-async function findAccommodationOption(env, optionId) {
-  if (!optionId || optionId.length > 128) return null;
-  return await env.DB.prepare(`
-    SELECT id, event_id, name
-    FROM event_accommodation_options
-    WHERE id = ?
-    LIMIT 1
-  `).bind(optionId).first();
-}
-
-async function publicAccommodationMedia(env, optionId, url, origin) {
-  const option = await findAccommodationOption(env, optionId);
-  if (!option) return json({ ok: false, error: "accommodation_not_found", message: "Typ ubytování nebyl nalezen." }, 404, origin);
-  const object = await env.MEDIA.get(accommodationPhotoKey(option.event_id, option.id));
-  if (!object?.body) return json({ ok: false, error: "accommodation_photo_not_found", message: "Ubytování používá generovaný vizuál." }, 404, origin);
-  const headers = new Headers();
-  object.writeHttpMetadata(headers);
-  headers.set("ETag", object.httpEtag || object.etag || "");
-  headers.set("Cache-Control", url.searchParams.has("v") ? "public, max-age=31536000, immutable" : "public, max-age=300");
-  return cors(new Response(object.body, { status: 200, headers }), origin);
-}
-
-async function putAdminAccommodationPhoto(request, env, auth, optionId, origin) {
-  const option = await findAccommodationOption(env, optionId);
-  if (!option) return json({ ok: false, error: "accommodation_not_found", message: "Typ ubytování nebyl nalezen." }, 404, origin);
-  let form;
-  try { form = await request.formData(); }
-  catch { return json({ ok: false, error: "invalid_accommodation_photo", message: "Požadavek neobsahuje platný formulář s fotografií." }, 400, origin); }
-  const file = form.get("file");
-  const validation = validateImageFile(file);
-  if (validation) return json({ ok: false, error: "invalid_accommodation_photo", message: validation }, 400, origin);
-  await env.MEDIA.put(accommodationPhotoKey(option.event_id, option.id), file.stream(), {
-    httpMetadata: { contentType: file.type },
-    customMetadata: { owner: auth.uid, kind: "accommodation", eventId: option.event_id, optionId: option.id },
-  });
-  return json({ ok: true, optionId: option.id, visual: await accommodationVisualMetadata(env, option.event_id, option.id) }, 200, origin);
-}
-
-async function deleteAdminAccommodationPhoto(env, auth, optionId, origin) {
-  const option = await findAccommodationOption(env, optionId);
-  if (!option) return json({ ok: false, error: "accommodation_not_found", message: "Typ ubytování nebyl nalezen." }, 404, origin);
-  await env.MEDIA.delete(accommodationPhotoKey(option.event_id, option.id));
-  return json({ ok: true, optionId: option.id, removedBy: auth.uid, visual: { hasCustomPhoto: false, imageUrl: null, version: null } }, 200, origin);
 }
 
 async function getAdminAccommodation(env, url, origin) {
@@ -2282,46 +2170,6 @@ async function privateMemberGalleryMedia(env, auth, submissionId, origin) {
   headers.set("ETag", object.httpEtag || object.etag || "");
   return cors(new Response(object.body, { status: 200, headers }), origin);
 }
-
-async function publicGalleryList(env, url, origin) {
-  const rawLimit = Number(url.searchParams.get("limit") || 60);
-  const limit = Math.max(1, Math.min(100, Number.isFinite(rawLimit) ? rawLimit : 60));
-  const rows = await env.DB.prepare(`
-    SELECT g.id, g.caption, g.created_at, m.nickname, m.name
-    FROM gallery_submissions g
-    JOIN members m ON m.id = g.member_id
-    WHERE g.status = 'approved'
-    ORDER BY COALESCE(g.reviewed_at, g.created_at) DESC
-    LIMIT ?
-  `).bind(limit).all();
-  return json({ ok: true, photos: (rows.results || []).map(row => ({
-    id: row.id,
-    caption: row.caption || "",
-    author: row.nickname || row.name || "United member",
-    createdAt: row.created_at,
-    imageUrl: `/api/gallery/media/${encodeURIComponent(row.id)}`,
-  })) }, 200, origin);
-}
-
-async function publicGalleryMedia(env, submissionId, origin) {
-  const row = await env.DB.prepare("SELECT r2_key FROM gallery_submissions WHERE id = ? AND status = 'approved' LIMIT 1").bind(submissionId).first();
-  if (!row) return json({ ok: false, error: "Photo not found" }, 404, origin);
-  const object = await env.MEDIA.get(row.r2_key);
-  if (!object) return json({ ok: false, error: "Media not found" }, 404, origin);
-  const headers = new Headers();
-  object.writeHttpMetadata(headers);
-  headers.set("Cache-Control", "no-store");
-  headers.set("ETag", object.httpEtag || object.etag || "");
-  return cors(new Response(object.body, { status: 200, headers }), origin);
-}
-
-function validateImageFile(file) {
-  if (!file || typeof file !== "object" || typeof file.size !== "number" || typeof file.type !== "string") return "Missing file";
-  if (!IMAGE_TYPES.has(file.type)) return "Only JPG, PNG and WEBP are allowed";
-  if (file.size < 1 || file.size > MAX_IMAGE_BYTES) return "Image is too large";
-  return "";
-}
-function extensionFor(type) { return type === "image/png" ? "png" : type === "image/webp" ? "webp" : "jpg"; }
 
 async function createMemberCode(uid) {
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(uid));

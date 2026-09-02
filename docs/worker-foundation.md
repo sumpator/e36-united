@@ -10,7 +10,12 @@ worker/
   index.js                   fetch bootstrap and unexpected-error boundary
   context.js                 request, environment, URL and Origin context
   router.js                  ordered public/member/Admin route dispatch
-  domains.js                 preserved business handlers, D1 SQL and R2 operations
+  domains.js                 remaining coupled business handlers, D1 SQL and R2 operations
+  domains/
+    events.js                shared event reads and public Admin event mapping
+    accommodation.js         accommodation-photo metadata and R2 delivery/mutations
+    gallery.js               approved public gallery feed and media delivery
+    media.js                 shared image validation and file-extension mapping
   auth/
     firebase.js              Bearer parsing, Firebase JWT/JWKS verification and cache
     admin.js                 existing active-Admin D1 lookup
@@ -23,7 +28,15 @@ worker/
     text.js                  shared string normalization
 ```
 
-`worker/domains.js` is deliberately still large. Splitting reservation, payment, Points, history, Garage, gallery, accommodation, and Admin behavior belongs to Phase 2; this phase only moved that code behind the extracted router.
+`worker/domains.js` remains the compatibility export surface for the router and tests while the extracted modules take ownership of their low-coupling responsibilities.
+
+## Phase 2A domain extraction
+
+Phase 2A mechanically extracts shared event reads, accommodation-photo R2 behavior, generic image validation, and the approved public gallery feed. Existing handler signatures, SQL, R2 keys and metadata, streamed response bodies, cache headers, CORS behavior, status codes, and payload shapes are unchanged.
+
+The current-event response and accommodation option listing remain in `worker/domains.js` because availability fields aggregate approved and pending reservations. Admin accommodation creation and updates also remain because their validation and concurrency checks enforce confirmed capacity. Keeping these paths together avoids pulling reservation and capacity policy into a low-risk extraction.
+
+Also deferred are reservations, pricing, payments and variable symbols, Points and achievements, history and Show & Shine review, Garage ownership, member gallery ownership, Admin moderation, and business-rule changes. Phase 2A does not change route ordering, public/member/Admin classification, the active-member guard, D1 schema, or R2 authorization.
 
 ## Request flow
 
@@ -61,6 +74,6 @@ The current status model has `active` as its sole enabled value. Existing fronte
 
 ## Intentionally deferred
 
-- domain extraction / Phase 2;
+- further domain extraction after Phase 2A, especially the coupled domains listed above;
 - unknown-route behavior cleanup;
 - business-rule, authorization-policy, payload, status-code, schema, D1 or R2 changes.
