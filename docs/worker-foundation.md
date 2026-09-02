@@ -19,6 +19,11 @@ worker/
     garage.js                member-owned cars, car photos and private car media
     member-gallery.js        member submissions and private member gallery media
     media.js                 shared image validation and file-extension mapping
+    reservations/
+      index.js               Member reads/writes and shared Admin reservation projection
+      pricing.js             authoritative accommodation totals and stored snapshot mapping
+      capacity.js            confirmed availability, usage and visual hydration
+      payments.js            balances, payment projection, SPAYD and variable symbols
   auth/
     firebase.js              Bearer parsing, Firebase JWT/JWKS verification and cache
     admin.js                 existing active-Admin D1 lookup
@@ -47,7 +52,17 @@ Phase 2B mechanically extracts member bootstrap/profile reads, Garage CRUD and c
 
 Bootstrap and car creation still append the established profile-completion Points statement. That statement and all Points policy remain in `worker/domains.js`; two small integration shims pass the existing statement builder into the extracted handlers. This keeps the dependency one-way and avoids a circular import or a premature Points extraction.
 
-Public approved-gallery reads remain in `gallery.js`, while Admin gallery moderation remains in `worker/domains.js`. Reservations, pricing, accommodation capacity, payments, variable symbols, Points and achievements, history/attendance, Show & Shine, and Admin business workflows also remain there because they are higher-risk or mutually coupled.
+Public approved-gallery reads remain in `gallery.js`, while Admin gallery moderation remains in `worker/domains.js`. At the Phase 2B checkpoint, reservations, pricing, accommodation capacity, payments, variable symbols, Points and achievements, history/attendance, Show & Shine, and Admin business workflows also remained there because they were higher-risk or mutually coupled.
+
+## Phase 2C reservation and payment extraction
+
+Phase 2C mechanically moves the reservation business cluster under `worker/domains/reservations/`. `index.js` owns Member reservation reads/writes, stable reservation identity checks, the coordinated reservation/allocation/payment-status/Planner-draft D1 batch, and the shared Admin reservation list projection. `pricing.js` owns the existing server-authoritative accommodation formula and snapshot mapping. `capacity.js` owns reservation-backed availability, approved/pending usage, Member edit availability adjustment, capacity-conflict responses, and accommodation visual hydration. `payments.js` owns amount/balance/status derivation, payment instructions and SPAYD projection, payment-row lookup, and the existing unique event-year variable-symbol allocation.
+
+The reservation write flow still resolves the current event and UID-owned car, validates the same payload, recalculates the same current price snapshot on an explicit edit, preserves the reservation ID and paid amount, executes the same ordered D1 batch, retains confirmed-capacity concurrency predicates, allocates a variable symbol only when absent, and returns the same Member projection. The public current-event and Admin accommodation/status/payment workflows remain in `worker/domains.js`; they consume explicit capacity, payment, and reservation boundaries without moving general Admin policy into this phase.
+
+No schema, SQL semantics, route/auth classification, response contract, pricing value, capacity rule, payment state, variable-symbol format, R2 behavior, or frontend code changes in Phase 2C. Existing tests already characterize identity-preserving edits, duplicate prevention, exact pricing/snapshots, stable variable symbols, payment reconciliation, and concurrent capacity behavior, so no new business expectations were added.
+
+Deferred work includes refunds and credits, automated payment gateways/webhooks, Points/history and Show & Shine extraction, general Admin modularization, and any business-rule cleanup. The two Phase 2B Points integration shims remain unchanged.
 
 ## Request flow
 
@@ -85,6 +100,7 @@ The current status model has `active` as its sole enabled value. Existing fronte
 
 ## Intentionally deferred
 
-- further domain extraction after Phase 2B, especially reservations, payments, capacity, Points, history, Show & Shine, and Admin workflows;
+- further domain extraction after Phase 2C, especially Points, history, Show & Shine, and Admin workflows;
+- refund/credit workflows and automated payment gateways/webhooks;
 - unknown-route behavior cleanup;
 - business-rule, authorization-policy, payload, status-code, schema, D1 or R2 changes.
