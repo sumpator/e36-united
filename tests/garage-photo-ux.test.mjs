@@ -13,6 +13,7 @@ const worker = {
   ...await import('../worker/domains.js'),
   default: (await import('../cloudflare-worker-media.js')).default,
 };
+const garage = await import('../worker/domains/garage.js');
 
 function database() {
   const db = new DatabaseSync(':memory:');
@@ -64,6 +65,36 @@ function d1(db) {
 function jsonRequest(body) {
   return new Request('https://api.e36united.cz/api/cars/car-a', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
 }
+
+test('Garage create keeps UID ownership, current primary behavior and list shape', async () => {
+  const db = database(), DB = d1(db);
+  const profilePointStatement = (env, memberId) => env.DB.prepare('UPDATE members SET id = id WHERE id = ?').bind(memberId);
+  const request = new Request('https://api.e36united.cz/api/cars', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ nickname: 'New', model: '320i', body: 'Cabrio', year: 1995, color: 'Red' }),
+  });
+
+  const response = await garage.createCar(request, { DB }, { uid: 'member-a' }, 'https://e36united.cz', profilePointStatement);
+  const payload = await response.json();
+  const created = db.prepare('SELECT member_id,nickname,model,body,year,color,is_primary FROM cars WHERE id = ?').get(payload.car.id);
+  assert.equal(response.status, 201);
+  assert.deepEqual({ ...created }, { member_id: 'member-a', nickname: 'New', model: '320i', body: 'Cabrio', year: 1995, color: 'Red', is_primary: 0 });
+
+  const listed = await (await garage.listCars({ DB }, { uid: 'member-a' }, 'https://e36united.cz')).json();
+  assert.equal(listed.cars.length, 3);
+  assert.equal(listed.cars.find(car => car.id === payload.car.id).primary, false);
+});
+
+test('Garage delete remains owner-scoped and promotes the next owned car', async () => {
+  const db = database(), DB = d1(db), deleted = [];
+  const response = await garage.deleteCar({ DB, MEDIA: { async delete(key) { deleted.push(key); } } }, { uid: 'member-a' }, 'car-a', 'https://e36united.cz');
+  assert.equal(response.status, 200);
+  assert.equal(db.prepare("SELECT id FROM cars WHERE id='car-a'").get(), undefined);
+  assert.equal(db.prepare("SELECT is_primary FROM cars WHERE id='car-a2'").get().is_primary, 1);
+  assert.deepEqual(deleted, ['cars/member-a/car-a/photo-old.jpg']);
+  assert.equal(db.prepare("SELECT member_id FROM cars WHERE id='car-b'").get().member_id, 'member-b');
+});
 
 test('Garage edit updates the owned row without changing its ID or creating a duplicate', async () => {
   const db = database(), DB = d1(db);

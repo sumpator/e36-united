@@ -10,11 +10,14 @@ worker/
   index.js                   fetch bootstrap and unexpected-error boundary
   context.js                 request, environment, URL and Origin context
   router.js                  ordered public/member/Admin route dispatch
-  domains.js                 remaining coupled business handlers, D1 SQL and R2 operations
+  domains.js                 remaining high-coupling domains and compatibility exports
   domains/
     events.js                shared event reads and public Admin event mapping
     accommodation.js         accommodation-photo metadata and R2 delivery/mutations
     gallery.js               approved public gallery feed and media delivery
+    members.js               bootstrap and current-member profile reads/sync
+    garage.js                member-owned cars, car photos and private car media
+    member-gallery.js        member submissions and private member gallery media
     media.js                 shared image validation and file-extension mapping
   auth/
     firebase.js              Bearer parsing, Firebase JWT/JWKS verification and cache
@@ -37,6 +40,14 @@ Phase 2A mechanically extracts shared event reads, accommodation-photo R2 behavi
 The current-event response and accommodation option listing remain in `worker/domains.js` because availability fields aggregate approved and pending reservations. Admin accommodation creation and updates also remain because their validation and concurrency checks enforce confirmed capacity. Keeping these paths together avoids pulling reservation and capacity policy into a low-risk extraction.
 
 Also deferred are reservations, pricing, payments and variable symbols, Points and achievements, history and Show & Shine review, Garage ownership, member gallery ownership, Admin moderation, and business-rule changes. Phase 2A does not change route ordering, public/member/Admin classification, the active-member guard, D1 schema, or R2 authorization.
+
+## Phase 2B member-data extraction
+
+Phase 2B mechanically extracts member bootstrap/profile reads, Garage CRUD and car-photo handling, and member-owned gallery submission/list/private-media handling. Firebase UID remains the ownership key in every moved SQL query and R2 key. Existing validation, limits, moderation status, response shapes, cache headers, R2 metadata, streaming bodies and cleanup ordering are unchanged. The Garage and member-gallery modules reuse `media.js` for generic image validation and extension mapping while retaining ownership policy locally.
+
+Bootstrap and car creation still append the established profile-completion Points statement. That statement and all Points policy remain in `worker/domains.js`; two small integration shims pass the existing statement builder into the extracted handlers. This keeps the dependency one-way and avoids a circular import or a premature Points extraction.
+
+Public approved-gallery reads remain in `gallery.js`, while Admin gallery moderation remains in `worker/domains.js`. Reservations, pricing, accommodation capacity, payments, variable symbols, Points and achievements, history/attendance, Show & Shine, and Admin business workflows also remain there because they are higher-risk or mutually coupled.
 
 ## Request flow
 
@@ -74,6 +85,6 @@ The current status model has `active` as its sole enabled value. Existing fronte
 
 ## Intentionally deferred
 
-- further domain extraction after Phase 2A, especially the coupled domains listed above;
+- further domain extraction after Phase 2B, especially reservations, payments, capacity, Points, history, Show & Shine, and Admin workflows;
 - unknown-route behavior cleanup;
 - business-rule, authorization-policy, payload, status-code, schema, D1 or R2 changes.
