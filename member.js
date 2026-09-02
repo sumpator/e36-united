@@ -1,25 +1,26 @@
 import { firebaseConfig, portalConfig } from './firebase-config.js?v=20260823-auth2';
 import qrcode from './vendor/qrcode-generator.mjs';
 import { initPortalNavigation } from './portal-navigation.js?v=20260825-mobile1';
-import { initUnitedAuth } from './united-auth.js?v=20260825-phase-a1';
 import { deriveMemberHeroState, deriveOverviewState } from './member-portal-state.js?v=20260828-member-club';
 import { MAX_RESERVATION_CREW, newerPlannerDraft, validatePlannerDraft } from './planner-state.js?v=20260827-reservation-limits';
 import { performMemberLogout } from './member-logout.js?v=20260826-predeploy-fix';
 import { createImagePreviewController, selectImageFiles } from './image-upload.js?v=20260827-garage-photos';
 import { accommodationVisualMarkup, bindAccommodationVisualFallbacks } from './accommodation-visual.js?v=20260827-accommodation1';
+import { createMemberApiClient } from './member/api.js?v=20260902-phase3';
+import { loadMemberSessionSnapshot } from './member/refresh.js?v=20260902-phase3';
+import { apiError, authError, authOrApiError, createMemberSession } from './member/session.js?v=20260902-phase3';
+import { createMemberData as defaultData, normalizeMember as normalizeMemberState } from './member/state.js?v=20260902-phase3';
+import { $, $$, esc, setButtonBusy, toast, uid } from './member/ui.js?v=20260902-phase3';
 
-const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
 const apiBaseUrl=(portalConfig.apiBaseUrl||'https://api.e36united.cz').replace(/\/$/,'');
+const memberSession=createMemberSession({config:firebaseConfig,onStateChange:handleUnitedAuthState});
+const {request:apiRequest,requestForm:apiRequestForm,requestBlob:apiRequestBlob}=createMemberApiClient({baseUrl:apiBaseUrl,getCurrentUser:()=>memberSession.currentUser});
 const plannerDraftKey=portalConfig.plannerDraftKey||'e36UnitedPlannerDraftV19';
 const plannerHandoffPrefix='e36UnitedPlannerHandoff:v1:';
 const memberUrlParams=new URLSearchParams(window.location.search);
 let pendingPlannerHandoffId=memberUrlParams.get('draft')||'';
 const czkFormatter=new Intl.NumberFormat('cs-CZ',{style:'currency',currency:'CZK',maximumFractionDigits:0});
 
-let firebase=null;
-let unitedAuth=null;
-let currentUser=null;
-let authFlowActive=false;
 let memberGallery=[];
 let memberGalleryHasMore=false;
 let memberGalleryLoading=false;
@@ -32,12 +33,6 @@ let carPhotoRequestGeneration=0;
 let memberGalleryRequestGeneration=0;
 let memberHeroPhotoId='';
 
-const defaultData=()=>({
-  profile:{id:'',memberCode:'',name:'United Member',nickname:'Driver',email:'',phone:'',role:'member',status:'active',emailVerified:false,createdAt:''},
-  cars:[],
-  reservation:null,
-  club:{points:{available:0,lifetime:0},rewardThreshold:12,rating:{key:'316i',name:'316i',minPoints:0},memberSince:null,historyCompletedAt:null,history:[],approvedPhotoCount:0,profileCompletion:{},achievements:[],featuredAchievements:[]}
-});
 let data=defaultData();
 let plannerHandoffMemory=null;
 let activePlannerHandoff=null;
@@ -93,10 +88,6 @@ function pruneCarPhotoObjectUrls(){
   for(const id of carPhotoObjectUrlRequests.keys()){if(!activeIds.has(String(id)))carPhotoObjectUrlRequests.delete(id)}
 }
 function resetMemberState(){clearCarPhotoObjectUrls();clearMemberGalleryObjectUrls();clearHistoryEvidenceUrls();memberGallery=[];memberGalleryHasMore=false;reservationState={registrationOpen:false,event:null,message:'',accommodationOptions:[]};plannerDraftSyncState='idle';activePlannerHandoff=null;legacyPlannerDraftApplied=false;data=defaultData();renderAll()}
-function toast(msg){const el=$('[data-toast]');if(!el)return;el.textContent=msg;el.classList.add('is-visible');clearTimeout(toast.t);toast.t=setTimeout(()=>el.classList.remove('is-visible'),3200)}
-function esc(v=''){return String(v).replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]))}
-function uid(){return crypto?.randomUUID?.()||Math.random().toString(36).slice(2,10)}
-
 function setMode(text){
   $$('[data-mode-badge]').forEach(x=>x.textContent=text);
   const sync=$('[data-sync-state]');if(sync)sync.textContent=text;
@@ -136,86 +127,13 @@ function resetAuthForms(){
   $$('[data-auth-form]').forEach(form=>form.reset());
   activateAuthTab('login');
 }
-function setButtonBusy(button,busy,label){
-  if(!button)return;
-  if(busy){button.dataset.originalHtml=button.innerHTML;button.disabled=true;if(label)button.textContent=label}
-  else{button.disabled=false;if(button.dataset.originalHtml){button.innerHTML=button.dataset.originalHtml;delete button.dataset.originalHtml}}
-}
-
-function normalizeMember(payload,user=currentUser){
-  const source=payload?.member||payload?.profile||payload?.data?.member||payload?.data?.profile||payload?.data||payload||{};
-  return {
-    id:source.id||source.uid||user?.uid||'',
-    memberCode:source.memberCode||source.member_code||'',
-    name:source.name||user?.displayName||user?.email?.split('@')[0]||'United Member',
-    nickname:source.nickname||source.name?.split(' ')[0]||user?.displayName?.split(' ')[0]||'Driver',
-    email:source.email||user?.email||'',
-    phone:source.phone||'',
-    role:source.role||'member',
-    status:source.status||'active',
-    emailVerified:typeof source.emailVerified==='boolean'?source.emailVerified:Boolean(source.email_verified??user?.emailVerified),
-    createdAt:source.createdAt||source.created_at||'',
-    updatedAt:source.updatedAt||source.updated_at||''
-  };
-}
-
-async function apiRequest(path,{method='GET',body,token,retry=true}={}){
-  if(!currentUser)throw new Error('api_auth_required');
-  const idToken=token||await currentUser.getIdToken();
-  let response;
-  try{
-    response=await fetch(`${apiBaseUrl}${path}`,{
-      method,
-      headers:{Authorization:`Bearer ${idToken}`,...(body?{'Content-Type':'application/json'}:{})},
-      body:body?JSON.stringify(body):undefined,
-      cache:'no-store'
-    });
-  }catch(error){
-    const wrapped=new Error('api_network_error');wrapped.cause=error;throw wrapped;
-  }
-  if(response.status===401&&retry){
-    const freshToken=await currentUser.getIdToken(true);
-    return apiRequest(path,{method,body,token:freshToken,retry:false});
-  }
-  const text=await response.text();
-  let payload=null;
-  if(text){try{payload=JSON.parse(text)}catch{payload={message:text}}}
-  if(!response.ok){
-    const error=new Error(payload?.message||payload?.error||`API ${response.status}`);
-    error.status=response.status;error.payload=payload;throw error;
-  }
-  return payload;
-}
-
-async function apiRequestForm(path,formData,{method='POST',token,retry=true}={}){
-  if(!currentUser)throw new Error('api_auth_required');
-  const idToken=token||await currentUser.getIdToken();
-  let response;
-  try{
-    response=await fetch(`${apiBaseUrl}${path}`,{method,headers:{Authorization:`Bearer ${idToken}`},body:formData,cache:'no-store'});
-  }catch(error){const wrapped=new Error('api_network_error');wrapped.cause=error;throw wrapped}
-  if(response.status===401&&retry){const freshToken=await currentUser.getIdToken(true);return apiRequestForm(path,formData,{method,token:freshToken,retry:false})}
-  const text=await response.text();let payload=null;if(text){try{payload=JSON.parse(text)}catch{payload={message:text}}}
-  if(!response.ok){const error=new Error(payload?.message||payload?.error||`API ${response.status}`);error.status=response.status;error.payload=payload;throw error}
-  return payload;
-}
-
-async function apiRequestBlob(path,{token,retry=true}={}){
-  if(!currentUser)throw new Error('api_auth_required');
-  const idToken=token||await currentUser.getIdToken();
-  let response;
-  try{response=await fetch(`${apiBaseUrl}${path}`,{headers:{Authorization:`Bearer ${idToken}`},cache:'no-store'})}
-  catch(error){const wrapped=new Error('api_network_error');wrapped.cause=error;throw wrapped}
-  if(response.status===401&&retry){const freshToken=await currentUser.getIdToken(true);return apiRequestBlob(path,{token:freshToken,retry:false})}
-  if(!response.ok){const error=new Error(`API ${response.status}`);error.status=response.status;throw error}
-  return await response.blob();
-}
+function normalizeMember(payload,user=memberSession.currentUser){return normalizeMemberState(payload,user)}
 async function getPrivateCarPhotoUrl(photoId){
   if(carPhotoObjectUrls.has(photoId))return carPhotoObjectUrls.get(photoId);
   if(carPhotoObjectUrlRequests.has(photoId))return await carPhotoObjectUrlRequests.get(photoId);
-  const generation=carPhotoRequestGeneration,userId=currentUser?.uid;
+  const generation=carPhotoRequestGeneration,userId=memberSession.currentUser?.uid;
   let request;request=apiRequestBlob(`/api/cars/media/${encodeURIComponent(photoId)}`).then(blob=>{
-    if(generation!==carPhotoRequestGeneration||userId!==currentUser?.uid||!data.cars.some(car=>(car.photos||[]).some(photo=>String(photo.id)===String(photoId))))throw new Error('stale_car_photo_request');
+    if(generation!==carPhotoRequestGeneration||userId!==memberSession.currentUser?.uid||!data.cars.some(car=>(car.photos||[]).some(photo=>String(photo.id)===String(photoId))))throw new Error('stale_car_photo_request');
     const existing=carPhotoObjectUrls.get(photoId);if(existing)return existing;const url=URL.createObjectURL(blob);carPhotoObjectUrls.set(photoId,url);return url;
   }).finally(()=>{if(carPhotoObjectUrlRequests.get(photoId)===request)carPhotoObjectUrlRequests.delete(photoId)});
   carPhotoObjectUrlRequests.set(photoId,request);
@@ -224,9 +142,9 @@ async function getPrivateCarPhotoUrl(photoId){
 async function getPrivateMemberGalleryPhotoUrl(photoId){
   if(memberGalleryObjectUrls.has(photoId))return memberGalleryObjectUrls.get(photoId);
   if(memberGalleryObjectUrlRequests.has(photoId))return await memberGalleryObjectUrlRequests.get(photoId);
-  const generation=memberGalleryRequestGeneration,userId=currentUser?.uid;
+  const generation=memberGalleryRequestGeneration,userId=memberSession.currentUser?.uid;
   let request;request=apiRequestBlob(`/api/gallery/mine/media/${encodeURIComponent(photoId)}`).then(blob=>{
-    if(generation!==memberGalleryRequestGeneration||userId!==currentUser?.uid||!memberGallery.some(photo=>String(photo.id)===String(photoId)))throw new Error('stale_member_gallery_request');
+    if(generation!==memberGalleryRequestGeneration||userId!==memberSession.currentUser?.uid||!memberGallery.some(photo=>String(photo.id)===String(photoId)))throw new Error('stale_member_gallery_request');
     const existing=memberGalleryObjectUrls.get(photoId);if(existing)return existing;const url=URL.createObjectURL(blob);memberGalleryObjectUrls.set(photoId,url);return url;
   }).finally(()=>{if(memberGalleryObjectUrlRequests.get(photoId)===request)memberGalleryObjectUrlRequests.delete(photoId)});
   memberGalleryObjectUrlRequests.set(photoId,request);
@@ -345,7 +263,7 @@ async function loadUnitedClub(){
 }
 
 async function ensureMemberProfile(user){
-  currentUser=user;
+  memberSession.currentUser=user;
   let payload=await apiRequest('/api/me');
   if(payload?.profileExists===false){
     const fallbackName=(user.displayName||user.email?.split('@')[0]||'United Member').trim();
@@ -362,15 +280,17 @@ async function ensureMemberProfile(user){
 }
 
 async function openAuthenticatedSession(user,{quiet=false}={}){
-  currentUser=user;
+  memberSession.currentUser=user;
   const member=await ensureMemberProfile(user);
-  const [cars,reservation,plannerDraftResult,club]=await Promise.all([
-    loadCarsFromApi().catch(error=>{console.warn('Cars API unavailable',error);return []}),
-    loadCurrentReservation(),
-    loadServerPlannerDraft(),
-    loadUnitedClub(),
-    loadMemberGallery().catch(error=>{console.warn('Gallery status unavailable',error);memberGallery=[];return []}),
-  ]);
+  const {cars,reservation,plannerDraftResult,club}=await loadMemberSessionSnapshot({
+    loadCars:loadCarsFromApi,
+    loadReservation:loadCurrentReservation,
+    loadPlannerDraft:loadServerPlannerDraft,
+    loadClub:loadUnitedClub,
+    loadGallery:loadMemberGallery,
+    onCarsError:error=>console.warn('Cars API unavailable',error),
+    onGalleryError:error=>{console.warn('Gallery status unavailable',error);memberGallery=[]},
+  });
   data={...defaultData(),profile:member,cars,reservation,club};
   setMode('AUTH + PROFIL LIVE');
   showApp();
@@ -380,7 +300,7 @@ async function openAuthenticatedSession(user,{quiet=false}={}){
 }
 
 async function restoreAuthenticatedSession(user,{quiet=true}={}){
-  currentUser=user;
+  memberSession.currentUser=user;
   showAuthStatus({title:'Načítám tvůj United.',copy:'Session je potvrzená. Připravuji profil, garáž a aktuální stav srazu.'});
   try{await openAuthenticatedSession(user,{quiet});return true}
   catch(error){
@@ -393,7 +313,6 @@ async function restoreAuthenticatedSession(user,{quiet=true}={}){
 }
 
 async function handleUnitedAuthState(state){
-  if(state.context)firebase=state.context;
   if(state.status==='loading'){
     showAuthStatus();setMode('AUTH LOADING');return;
   }
@@ -403,9 +322,9 @@ async function handleUnitedAuthState(state){
     showAuthStatus({title:'Přihlášení se nepodařilo ověřit.',copy:'Tvoje uložená session nebyla změněna. Zkontroluj připojení a zkus to znovu.',retry:true});
     return;
   }
-  if(authFlowActive)return;
+  if(memberSession.authFlowActive)return;
   if(state.status==='anonymous'){
-    currentUser=null;resetMemberState();showAuth();setMode('AUTH READY');return;
+    memberSession.currentUser=null;resetMemberState();showAuth();setMode('AUTH READY');return;
   }
   await restoreAuthenticatedSession(state.user);
 }
@@ -414,8 +333,7 @@ async function initFirebase(){
   // Production auth must fail closed. Remove legacy preview/session state so it can never authenticate a user.
   try{['e36UnitedMemberPreviewV19','e36UnitedMemberPreviewV18','e36UnitedMemberSessionV19'].forEach(key=>localStorage.removeItem(key))}catch(error){console.debug('Legacy preview storage cleanup is unavailable.',error)}
   showAuthStatus();
-  unitedAuth=initUnitedAuth({config:firebaseConfig,onStateChange:handleUnitedAuthState});
-  await unitedAuth.ready;
+  await memberSession.initialize();
 }
 
 $$('[data-auth-tab]').forEach(btn=>btn.addEventListener('click',()=>activateAuthTab(btn.dataset.authTab)));
@@ -423,37 +341,39 @@ $$('[data-toggle-password]').forEach(button=>button.addEventListener('click',()=
 
 $('[data-auth-form="login"]')?.addEventListener('submit',async event=>{
   event.preventDefault();
+  const firebase=memberSession.firebase;
   if(!firebase)return toast('Přihlášení teď není dostupné.');
   const form=event.currentTarget,button=form.querySelector('button[type="submit"]'),fd=new FormData(form);
   const email=String(fd.get('email')||'').trim().toLowerCase(),password=String(fd.get('password')||'');
   resetMemberState();showAuth();
-  authFlowActive=true;setButtonBusy(button,true,'Přihlašuji…');
+  memberSession.authFlowActive=true;setButtonBusy(button,true,'Přihlašuji…');
   let credential=null;
   try{
     credential=await firebase.signInWithEmailAndPassword(firebase.auth,email,password);
   }catch(error){
     console.error('Login failed',error);
-    currentUser=null;resetMemberState();showAuth();setMode('AUTH READY');toast(authOrApiError(error));
+    memberSession.currentUser=null;resetMemberState();showAuth();setMode('AUTH READY');toast(authOrApiError(error));
   }
   if(credential){
-    currentUser=credential.user;
+    memberSession.currentUser=credential.user;
     const restored=await restoreAuthenticatedSession(credential.user,{quiet:false});
     if(!restored)toast('Přihlášení je aktivní, ale profil se teď nepodařilo načíst.');
   }
-  authFlowActive=false;setButtonBusy(button,false);
+  memberSession.authFlowActive=false;setButtonBusy(button,false);
 });
 
 $('[data-auth-form="register"]')?.addEventListener('submit',async event=>{
   event.preventDefault();
+  const firebase=memberSession.firebase;
   if(!firebase)return toast('Registrace teď není dostupná.');
   const form=event.currentTarget,button=form.querySelector('button[type="submit"]'),fd=new FormData(form);
   const email=String(fd.get('email')||'').trim().toLowerCase(),password=String(fd.get('password')||''),passwordConfirm=String(fd.get('passwordConfirm')||''),name=String(fd.get('name')||'').trim(),nickname=String(fd.get('nickname')||'').trim()||name.split(/\s+/)[0];
   if(password!==passwordConfirm)return toast('Hesla se neshodují.');
-  authFlowActive=true;setButtonBusy(button,true,'Zakládám United ID…');
+  memberSession.authFlowActive=true;setButtonBusy(button,true,'Zakládám United ID…');
   let createdUser=null,emailSent=false,bootstrapOk=false;
   try{
     const cred=await firebase.createUserWithEmailAndPassword(firebase.auth,email,password);
-    createdUser=cred.user;currentUser=createdUser;
+    createdUser=cred.user;memberSession.currentUser=createdUser;
     await firebase.updateProfile(createdUser,{displayName:name});
     try{await apiRequest('/api/bootstrap',{method:'POST',body:{name,nickname}});bootstrapOk=true}catch(error){console.error('Member bootstrap failed after registration',error)}
     try{await firebase.sendEmailVerification(createdUser);emailSent=true}catch(error){console.error('Verification email failed',error)}
@@ -461,9 +381,9 @@ $('[data-auth-form="register"]')?.addEventListener('submit',async event=>{
     console.error('Registration failed',error);toast(authError(error));return;
   }finally{
     if(createdUser){try{await firebase.signOut(firebase.auth)}catch(error){console.warn('Sign out after registration failed',error)}}
-    currentUser=null;resetMemberState();showAuth();activateAuthTab('login');
+    memberSession.currentUser=null;resetMemberState();showAuth();activateAuthTab('login');
     const loginEmail=$('[data-auth-form="login"] input[name="email"]');if(loginEmail)loginEmail.value=email;
-    authFlowActive=false;setButtonBusy(button,false);
+    memberSession.authFlowActive=false;setButtonBusy(button,false);
   }
   if(bootstrapOk&&emailSent)toast('United ID bylo vytvořeno. Ověření e-mailu jsme odeslali; teď se můžeš přihlásit.');
   else if(bootstrapOk)toast('United ID bylo vytvořeno. Teď se můžeš přihlásit; ověřovací e-mail se nepodařilo odeslat.');
@@ -473,62 +393,37 @@ $('[data-auth-form="register"]')?.addEventListener('submit',async event=>{
 $('[data-password-reset]')?.addEventListener('click',async()=>{
   const email=$('[data-auth-form="login"] input[name="email"]')?.value?.trim().toLowerCase();
   if(!email)return toast('Nejdřív vyplň e-mail.');
+  const firebase=memberSession.firebase;
   if(!firebase)return toast('Reset hesla teď není dostupný.');
   try{await firebase.sendPasswordResetEmail(firebase.auth,email);toast('Odkaz pro nové heslo byl odeslán.')}catch(error){toast(authError(error))}
 });
 
 $('[data-auth-retry]')?.addEventListener('click',async()=>{
-  const user=firebase?.auth?.currentUser||currentUser;
+  const user=memberSession.firebase?.auth?.currentUser||memberSession.currentUser;
   if(user)await restoreAuthenticatedSession(user);
-  else await unitedAuth?.retry();
+  else await memberSession.retry();
 });
 
 async function logoutMember(){
-  if(authFlowActive)return false;
-  authFlowActive=true;
+  if(memberSession.authFlowActive)return false;
+  memberSession.authFlowActive=true;
   const signedOut=await performMemberLogout({
-    signOut:()=>{if(!firebase)throw new Error('firebase_unavailable');return firebase.signOut(firebase.auth)},
-    onSuccess:()=>{memberPortalNavigation?.close({restoreFocus:false});closeMainMenu();currentUser=null;resetMemberState();resetAuthForms();showAuth();setMode('AUTH READY');toast('Odhlášeno.')},
+    signOut:()=>{const firebase=memberSession.firebase;if(!firebase)throw new Error('firebase_unavailable');return firebase.signOut(firebase.auth)},
+    onSuccess:()=>{memberPortalNavigation?.close({restoreFocus:false});closeMainMenu();memberSession.currentUser=null;resetMemberState();resetAuthForms();showAuth();setMode('AUTH READY');toast('Odhlášeno.')},
     onFailure:error=>{console.warn('Firebase logout failed',error);toast('Odhlášení se nepodařilo. Tvoje přihlášení zůstalo aktivní. Zkus to znovu.')},
   });
-  authFlowActive=false;
+  memberSession.authFlowActive=false;
   return signedOut;
 }
 $$('[data-logout]').forEach(button=>button.addEventListener('click',logoutMember));
 
 $('[data-account-form]')?.addEventListener('submit',async event=>{
-  event.preventDefault();if(!currentUser)return toast('Nejdřív se přihlas.');
+  event.preventDefault();if(!memberSession.currentUser)return toast('Nejdřív se přihlas.');
   const form=event.currentTarget,button=form.querySelector('button[type="submit"]'),fd=new FormData(form);setButtonBusy(button,true,'Ukládám profil…');
-  try{const payload=await apiRequest('/api/bootstrap',{method:'POST',body:{name:String(fd.get('name')||'').trim(),nickname:String(fd.get('nickname')||'').trim(),phone:String(fd.get('phone')||'').trim()}});data.profile=normalizeMember(payload,currentUser);data.club=await loadUnitedClub();renderProfile();renderAccount();renderPoints();renderAchievements();toast('Profil byl uložen.')}
+  try{const payload=await apiRequest('/api/bootstrap',{method:'POST',body:{name:String(fd.get('name')||'').trim(),nickname:String(fd.get('nickname')||'').trim(),phone:String(fd.get('phone')||'').trim()}});data.profile=normalizeMember(payload,memberSession.currentUser);data.club=await loadUnitedClub();renderProfile();renderAccount();renderPoints();renderAchievements();toast('Profil byl uložen.')}
   catch(error){console.error('Member profile update failed',error);toast(apiError(error))}
   finally{setButtonBusy(button,false)}
 });
-
-function authError(error){
-  const code=String(error?.code||'');
-  if(code.includes('invalid-credential')||code.includes('wrong-password')||code.includes('user-not-found'))return 'E-mail nebo heslo nesedí.';
-  if(code.includes('email-already-in-use')||code.includes('email-already'))return 'Tento e-mail už United ID má.';
-  if(code.includes('weak-password'))return 'Heslo musí mít alespoň 6 znaků.';
-  if(code.includes('invalid-email'))return 'E-mail nemá platný formát.';
-  if(code.includes('too-many-requests'))return 'Příliš mnoho pokusů. Zkus to za chvíli znovu.';
-  if(code.includes('network-request-failed'))return 'Nepodařilo se spojit s Firebase. Zkontroluj připojení.';
-  if(code.includes('unauthorized-domain'))return 'Tato doména není ve Firebase povolená.';
-  if(code.includes('operation-not-allowed'))return 'Přihlášení e-mailem není ve Firebase povolené.';
-  if(code.includes('user-disabled'))return 'Tento účet je deaktivovaný.';
-  return 'Akci se nepodařilo dokončit.';
-}
-function apiError(error){
-  if(error?.message==='api_network_error')return 'Můj United teď není dostupný. Zkus stránku obnovit.';
-  if(error?.message==='member_identity_mismatch')return 'Bezpečnostní kontrola profilu selhala.';
-  if(error?.message==='member_inactive')return 'Tento členský účet není aktivní.';
-  if(error?.status===401)return 'Přihlášení vypršelo. Přihlas se znovu.';
-  if(error?.status===403)return 'Z této domény se do Můj United nelze připojit.';
-  if(error?.status>=500)return 'Členský profil je dočasně nedostupný.';
-  if(error?.message==='reservation_response_invalid')return 'Rezervaci se nepodařilo správně načíst. Zkus stránku obnovit.';
-  if(error?.payload?.message)return String(error.payload.message);
-  return 'Členský profil se nepodařilo načíst.';
-}
-function authOrApiError(error){return error?.status||error?.message==='api_network_error'?apiError(error):authError(error)}
 
 $$('.member-nav-item[data-member-section]').forEach(button=>button.addEventListener('click',()=>openSection(button.dataset.memberSection)));
 $$('[data-jump]').forEach(button=>button.addEventListener('click',()=>openSection(button.dataset.jump)));
@@ -736,10 +631,10 @@ function clearHistoryEvidenceUrls(){historyEvidenceRequestGeneration+=1;for(cons
 async function getPrivateHistoryEvidenceUrl(photoId){
   if(historyEvidenceUrls.has(photoId))return historyEvidenceUrls.get(photoId);
   if(historyEvidenceUrlRequests.has(photoId))return await historyEvidenceUrlRequests.get(photoId);
-  const generation=historyEvidenceRequestGeneration,userId=currentUser?.uid;
+  const generation=historyEvidenceRequestGeneration,userId=memberSession.currentUser?.uid;
   let request;request=apiRequestBlob(`/api/history/evidence/${encodeURIComponent(photoId)}`).then(blob=>{
     const evidenceStillOwned=(data.club?.history||[]).some(item=>(item.evidence||[]).some(photo=>String(photo.id)===String(photoId)));
-    if(generation!==historyEvidenceRequestGeneration||userId!==currentUser?.uid||!evidenceStillOwned)throw new Error('stale_history_evidence_request');
+    if(generation!==historyEvidenceRequestGeneration||userId!==memberSession.currentUser?.uid||!evidenceStillOwned)throw new Error('stale_history_evidence_request');
     const existing=historyEvidenceUrls.get(photoId);if(existing)return existing;const url=URL.createObjectURL(blob);historyEvidenceUrls.set(photoId,url);return url;
   }).finally(()=>{if(historyEvidenceUrlRequests.get(photoId)===request)historyEvidenceUrlRequests.delete(photoId)});
   historyEvidenceUrlRequests.set(photoId,request);return await request;
@@ -1135,7 +1030,7 @@ function renderRewards(){
 
 reservationForm?.addEventListener('submit',async event=>{
   event.preventDefault();
-  if(!currentUser)return toast('Nejdřív se přihlas.');
+  if(!memberSession.currentUser)return toast('Nejdřív se přihlas.');
   if(!reservationState.registrationOpen)return toast('Registrace na žádný event aktuálně není otevřená.');
   syncMemberSleep();const car=ensureSelectedReservationCar();
   if(!data.cars.length||!car){setReservationCarError(true);toast('Nejdřív přidej auto do garáže.');return}
@@ -1202,7 +1097,7 @@ carPhotoInput?.addEventListener('change',()=>{
 $('[data-car-photo-clear]')?.addEventListener('click',clearSelectedCarPhoto);
 carForm?.addEventListener('submit',async event=>{
   event.preventDefault();
-  if(!currentUser)return toast('Nejdřív se přihlas.');
+  if(!memberSession.currentUser)return toast('Nejdřív se přihlas.');
   const form=event.currentTarget,button=form.querySelector('button[type="submit"]'),fd=new FormData(form),file=selectedCarPhoto,carId=editingCarId;
   setButtonBusy(button,true,'Ukládám auto…');
   try{
@@ -1288,7 +1183,7 @@ if(memberPhotoDropzone){
 }
 
 memberGalleryForm?.addEventListener('submit',async event=>{
-  event.preventDefault();if(!currentUser)return toast('Nejdřív se přihlas.');
+  event.preventDefault();if(!memberSession.currentUser)return toast('Nejdřív se přihlas.');
   const form=event.currentTarget,input=form.elements.photos;if(!memberPhotoSelection.length&&input.files.length)selectMemberPhotos(input.files,{notify:false});
   const files=[...memberPhotoSelection],caption=String(form.elements.caption?.value||'').trim(),button=form.querySelector('button[type="submit"]');
   if(!files.length)return toast('Vyber alespoň jednu fotku.');
@@ -1305,7 +1200,7 @@ memberGalleryForm?.addEventListener('submit',async event=>{
 });
 
 async function applyPlannerDraft(serverResult={available:false,draft:null}){
-  if(!reservationForm||!currentUser)return;
+  if(!reservationForm||!memberSession.currentUser)return;
   const localHandoff=loadPlannerHandoff(),serverHandoff=serverResult.draft;
   let handoff=newerPlannerDraft(localHandoff,serverHandoff);
   plannerDraftSyncState=serverResult.available?'ready':'error';
@@ -1347,7 +1242,7 @@ async function applyPlannerDraft(serverResult={available:false,draft:null}){
 const menuBtn=$('.menu-btn'),nav=$('.nav-links');
 function closeMainMenu(){document.body.classList.remove('menu-open');menuBtn?.setAttribute('aria-expanded','false');nav?.classList.remove('open')}
 if(menuBtn&&nav)menuBtn.addEventListener('click',()=>{const open=document.body.classList.toggle('menu-open');menuBtn.setAttribute('aria-expanded',String(open));nav.classList.toggle('open',open)});
-$('[data-member-entry]')?.addEventListener('click',event=>{if(!currentUser)return;event.preventDefault();openSection('overview');closeMainMenu()});
+$('[data-member-entry]')?.addEventListener('click',event=>{if(!memberSession.currentUser)return;event.preventDefault();openSection('overview');closeMainMenu()});
 $$('[data-main-member-section]').forEach(button=>button.addEventListener('click',()=>{openSection(button.dataset.mainMemberSection);closeMainMenu()}));
 
 hydratePlannerHandoffFromUrl();

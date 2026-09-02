@@ -5,6 +5,7 @@ import { readFileSync } from 'node:fs';
 const read = name => readFileSync(new URL(`../${name}`, import.meta.url), 'utf8');
 const memberHtml = read('member.html');
 const memberJs = read('member.js');
+const memberSessionJs = read('member/session.js');
 const memberStateJs = read('member-portal-state.js');
 const memberCss = read('member.css');
 const portalNavigationJs = read('portal-navigation.js');
@@ -115,7 +116,7 @@ test('initial auth markup is loading, not anonymous', () => {
 });
 
 test('all public member-aware pages use the shared auth bootstrap', () => {
-  for (const source of [memberJs, merchJs, galleryJs]) assert.match(source, /initUnitedAuth/);
+  for (const source of [memberSessionJs, merchJs, galleryJs]) assert.match(source, /initUnitedAuth/);
   for (const source of [merchHtml, galleryHtml]) assert.match(source, /auth-states\.css\?v=20260825-phase-a1/);
   assert.match(authStatesCss, /gallery-auth-state/);
   assert.match(authStatesCss, /member-benefit-loading\[hidden\].*display:none!important/);
