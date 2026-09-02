@@ -19,7 +19,9 @@ function database() {
   const db = new DatabaseSync(':memory:');
   db.exec(`
     PRAGMA foreign_keys=ON;
-    CREATE TABLE members (id TEXT PRIMARY KEY);
+    CREATE TABLE members (
+      id TEXT PRIMARY KEY, member_code TEXT, email TEXT, name TEXT, history_completed_at TEXT
+    );
     CREATE TABLE cars (
       id TEXT PRIMARY KEY, member_id TEXT NOT NULL, nickname TEXT, model TEXT NOT NULL,
       body TEXT NOT NULL, year INTEGER, color TEXT, is_primary INTEGER NOT NULL DEFAULT 0,
@@ -32,6 +34,10 @@ function database() {
     CREATE TABLE gallery_submissions (
       id TEXT PRIMARY KEY, member_id TEXT NOT NULL, r2_key TEXT NOT NULL, caption TEXT,
       status TEXT NOT NULL DEFAULT 'pending', created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, reviewed_at TEXT
+    );
+    CREATE TABLE united_points_ledger (
+      id TEXT PRIMARY KEY, member_id TEXT NOT NULL, delta INTEGER NOT NULL,
+      source_type TEXT NOT NULL, source_key TEXT NOT NULL, reason TEXT NOT NULL
     );
     INSERT INTO members (id) VALUES ('member-a'), ('member-b');
     INSERT INTO cars (id,member_id,nickname,model,body,year,color,is_primary) VALUES
@@ -68,14 +74,13 @@ function jsonRequest(body) {
 
 test('Garage create keeps UID ownership, current primary behavior and list shape', async () => {
   const db = database(), DB = d1(db);
-  const profilePointStatement = (env, memberId) => env.DB.prepare('UPDATE members SET id = id WHERE id = ?').bind(memberId);
   const request = new Request('https://api.e36united.cz/api/cars', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ nickname: 'New', model: '320i', body: 'Cabrio', year: 1995, color: 'Red' }),
   });
 
-  const response = await garage.createCar(request, { DB }, { uid: 'member-a' }, 'https://e36united.cz', profilePointStatement);
+  const response = await garage.createCar(request, { DB }, { uid: 'member-a' }, 'https://e36united.cz');
   const payload = await response.json();
   const created = db.prepare('SELECT member_id,nickname,model,body,year,color,is_primary FROM cars WHERE id = ?').get(payload.car.id);
   assert.equal(response.status, 201);

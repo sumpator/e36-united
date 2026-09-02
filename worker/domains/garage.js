@@ -1,6 +1,7 @@
 import { cors } from "../http/cors.js";
 import { json } from "../http/responses.js";
 import { clean } from "../utils/text.js";
+import { profilePointStatement } from "./club/points.js";
 import { extensionFor, validateImageFile } from "./media.js";
 
 const MAX_CAR_PHOTOS = 3;
@@ -37,7 +38,7 @@ async function listCars(env, auth, origin) {
   return json({ ok: true, cars: [...map.values()] }, 200, origin);
 }
 
-async function createCar(request, env, auth, origin, profilePointStatement) {
+async function createCar(request, env, auth, origin) {
   let body = {};
   try { body = await request.json(); } catch { return json({ ok: false, error: "Invalid JSON" }, 400, origin); }
 

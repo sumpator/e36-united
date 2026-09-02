@@ -19,6 +19,11 @@ worker/
     garage.js                member-owned cars, car photos and private car media
     member-gallery.js        member submissions and private member gallery media
     media.js                 shared image validation and file-extension mapping
+    club/
+      index.js               Member Club projection and history-completion orchestration
+      points.js              immutable ledger statement builders and existing point triggers
+      history.js             Member claims/evidence plus Admin history and S&S review
+      achievements.js        rating ladder and derived achievement projections
     reservations/
       index.js               Member reads/writes and shared Admin reservation projection
       pricing.js             authoritative accommodation totals and stored snapshot mapping
@@ -64,6 +69,14 @@ No schema, SQL semantics, route/auth classification, response contract, pricing 
 
 Deferred work includes refunds and credits, automated payment gateways/webhooks, Points/history and Show & Shine extraction, general Admin modularization, and any business-rule cleanup. The two Phase 2B Points integration shims remain unchanged.
 
+## Phase 2D Club and history extraction
+
+Phase 2D mechanically moves the remaining Club cluster under `worker/domains/club/`. `points.js` owns the existing ledger statement builders for attendance, Show & Shine, gallery milestones and profile completion. `history.js` owns Member attendance/S&S claim validation, private evidence lifecycle, Admin queue projections and the inseparable approval/Points batch. `achievements.js` owns the unchanged rating and achievement derivation, while `index.js` composes the Member Club projection and history-completion flow.
+
+Admin history and S&S routes now call the extracted history handlers through the unchanged `worker/domains.js` compatibility surface. Unrelated Admin overview, gallery moderation, accommodation, event, reservation and payment workflows remain there; gallery moderation imports only the Points statements it already appended to its D1 batch.
+
+The two Phase 2B callback shims are removed. Member bootstrap and Garage creation import the leaf-level profile-completion statement directly from `club/points.js`, preserving its exact position in each existing batch without a dependency cycle. SQL, ledger values and source keys, uniqueness/idempotence, status transitions, response contracts, auth classification, R2 evidence behavior and frontend code are unchanged.
+
 ## Request flow
 
 1. `worker/index.js` creates the request context.
@@ -100,7 +113,7 @@ The current status model has `active` as its sole enabled value. Existing fronte
 
 ## Intentionally deferred
 
-- further domain extraction after Phase 2C, especially Points, history, Show & Shine, and Admin workflows;
-- refund/credit workflows and automated payment gateways/webhooks;
+- any further backend extraction only where the remaining coupled Admin/composition code has clear practical value;
+- Points reversal/correction, Rewards/Merch, refund/credit, and automated payment workflows;
 - unknown-route behavior cleanup;
 - business-rule, authorization-policy, payload, status-code, schema, D1 or R2 changes.

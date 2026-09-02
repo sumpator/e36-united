@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 
 const migration=readFileSync(new URL('../D1-united-club-v1.sql',import.meta.url),'utf8');
-const source=readFileSync(new URL('../worker/domains.js',import.meta.url),'utf8');
+const pointsSource=readFileSync(new URL('../worker/domains/club/points.js',import.meta.url),'utf8');
 const worker={
   ...await import('../worker/domains.js'),
   ...await import('../worker/auth/admin.js'),
@@ -91,7 +91,7 @@ test('community photo milestones are +1/+1/+3 once and exclude private evidence'
 });
 
 test('profile completion awards +1 once only when all four server criteria are true',async()=>{
-  const db=database(),runtime=env(db);assert.equal((await worker.completeMemberHistory(runtime,{uid:'member-a'},null)).status,200);assert.equal(ledgerTotal(db),0,'history alone is incomplete');db.prepare("INSERT INTO cars (id,member_id,model,body) VALUES ('car','member-a','328i','coupe')").run();for(let index=1;index<=4;index+=1)db.prepare("INSERT INTO gallery_submissions (id,member_id,r2_key,status) VALUES (?,?,?,'approved')").run(`p-${index}`,'member-a',`gallery/p-${index}`);await worker.completeMemberHistory(runtime,{uid:'member-a'},null);assert.equal(ledgerTotal(db),0,'four photos are incomplete');db.prepare("INSERT INTO gallery_submissions (id,member_id,r2_key,status) VALUES ('p-5','member-a','gallery/p-5','pending')").run();await worker.patchAdminGallery(reviewRequest('approved'),runtime,{uid:'admin'},'p-5',null);assert.equal(ledgerTotal(db),2,'photo milestone plus profile completion');await worker.patchAdminGallery(reviewRequest('approved'),runtime,{uid:'admin'},'p-5',null);assert.equal(ledgerTotal(db),2);assert.equal(ledger(db).filter(row=>row.source_key==='profile:complete').length,1);assert.doesNotMatch(source.slice(source.indexOf('function profilePointStatement'),source.indexOf('function showShinePointStatements')),/newsletter/i);
+  const db=database(),runtime=env(db);assert.equal((await worker.completeMemberHistory(runtime,{uid:'member-a'},null)).status,200);assert.equal(ledgerTotal(db),0,'history alone is incomplete');db.prepare("INSERT INTO cars (id,member_id,model,body) VALUES ('car','member-a','328i','coupe')").run();for(let index=1;index<=4;index+=1)db.prepare("INSERT INTO gallery_submissions (id,member_id,r2_key,status) VALUES (?,?,?,'approved')").run(`p-${index}`,'member-a',`gallery/p-${index}`);await worker.completeMemberHistory(runtime,{uid:'member-a'},null);assert.equal(ledgerTotal(db),0,'four photos are incomplete');db.prepare("INSERT INTO gallery_submissions (id,member_id,r2_key,status) VALUES ('p-5','member-a','gallery/p-5','pending')").run();await worker.patchAdminGallery(reviewRequest('approved'),runtime,{uid:'admin'},'p-5',null);assert.equal(ledgerTotal(db),2,'photo milestone plus profile completion');await worker.patchAdminGallery(reviewRequest('approved'),runtime,{uid:'admin'},'p-5',null);assert.equal(ledgerTotal(db),2);assert.equal(ledger(db).filter(row=>row.source_key==='profile:complete').length,1);assert.doesNotMatch(pointsSource.slice(pointsSource.indexOf('function profilePointStatement'),pointsSource.indexOf('function showShinePointStatements')),/newsletter/i);
 });
 
 test('claim flow allows concluded evidence, independent S&S review and safe amendment',async()=>{

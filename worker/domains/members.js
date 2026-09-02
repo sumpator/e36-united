@@ -1,7 +1,8 @@
 import { json } from "../http/responses.js";
 import { clean } from "../utils/text.js";
+import { profilePointStatement } from "./club/points.js";
 
-async function bootstrapMember(request, env, auth, origin, profilePointStatement) {
+async function bootstrapMember(request, env, auth, origin) {
   if (!auth.email) return json({ ok: false, error: "Firebase account has no email" }, 400, origin);
   let body = {};
   try { body = await request.json(); } catch {}

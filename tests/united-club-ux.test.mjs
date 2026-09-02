@@ -6,7 +6,14 @@ const read=name=>readFileSync(new URL(`../${name}`,import.meta.url),'utf8');
 const memberHtml=read('member.html'),memberJs=read('member.js'),memberCss=read('member.css');
 const adminHtml=read('admin.html'),adminJs=read('admin.js'),adminCss=read('admin.css');
 const merchJs=read('merch.js');
-const worker=`${read('worker/domains.js')}\n${read('worker/router.js')}`,migration=read('D1-united-club-v1.sql');
+const worker=[
+  'worker/domains.js',
+  'worker/domains/club/history.js',
+  'worker/domains/club/points.js',
+  'worker/domains/club/achievements.js',
+  'worker/domains/club/index.js',
+  'worker/router.js',
+].map(read).join('\n'),migration=read('D1-united-club-v1.sql');
 const club=memberHtml.slice(memberHtml.indexOf('data-member-panel="club"'),memberHtml.indexOf('data-member-panel="photos"'));
 
 test('United Club uses exact heading, explanation and four activity-only earning cards',()=>{
