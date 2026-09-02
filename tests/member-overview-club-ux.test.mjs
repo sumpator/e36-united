@@ -4,7 +4,11 @@ import { readFileSync } from 'node:fs';
 
 const html = readFileSync(new URL('../member.html', import.meta.url), 'utf8');
 const css = readFileSync(new URL('../member.css', import.meta.url), 'utf8');
-const js = readFileSync(new URL('../member.js', import.meta.url), 'utf8');
+const js = [
+  '../member.js',
+  '../member/shell.js',
+  '../member/modules/overview.js',
+].map(path => readFileSync(new URL(path, import.meta.url), 'utf8')).join('\n');
 const overview = html.slice(html.indexOf('data-member-panel="overview"'), html.indexOf('data-member-panel="reservation"'));
 const club = html.slice(html.indexOf('data-member-panel="club"'), html.indexOf('data-member-panel="photos"'));
 

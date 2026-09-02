@@ -5,6 +5,8 @@ import { readFileSync } from 'node:fs';
 const read = name => readFileSync(new URL(`../${name}`, import.meta.url), 'utf8');
 const memberHtml = read('member.html');
 const memberJs = read('member.js');
+const memberShellJs = read('member/shell.js');
+const memberOverviewJs = read('member/modules/overview.js');
 const memberSessionJs = read('member/session.js');
 const memberStateJs = read('member-portal-state.js');
 const memberCss = read('member.css');
@@ -36,8 +38,8 @@ test('authenticated main mobile menu contains all Member Portal sections', () =>
   const labels = [...mobile.matchAll(/data-main-member-section="[^"]+"[^>]*>([^<]+)<\/button>/g)].map(match => match[1].replace('&amp;', '&'));
   assert.deepEqual(labels, ['Přehled', 'Sraz & Ubytování', 'Garáž', 'Platby', 'United Club', 'Moje fotky', 'Účet']);
   assert.match(memberHtml, /data-member-main-mobile-nav="" hidden=""/);
-  assert.match(memberJs, /setMainMobileMemberNavigation\(true\)/);
-  assert.match(memberJs, /setMainMobileMemberNavigation\(false\)/);
+  assert.match(memberShellJs, /setMainMobileMemberNavigation\(true\)/);
+  assert.match(memberShellJs, /setMainMobileMemberNavigation\(false\)/);
 });
 
 test('main mobile menu adds unnumbered logout after its divider and reuses the shared logout function', () => {
@@ -84,9 +86,9 @@ test('duplicate internal mobile hamburger is removed while the horizontal scroll
 });
 
 test('main mobile submenu delegates section state to openSection and closes the hamburger', () => {
-  assert.match(memberJs, /\$\$\('\[data-main-member-section\]'\)\.forEach\(button=>button\.addEventListener\('click',\(\)=>\{openSection\(button\.dataset\.mainMemberSection\);closeMainMenu\(\)\}\)\)/);
-  assert.match(memberJs, /\$\$\('\[data-main-member-section\]'\)\.forEach\(button=>button\.classList\.toggle\('is-active',button\.dataset\.mainMemberSection===id\)\)/);
-  assert.match(memberJs, /data-member-entry[\s\S]*openSection\('overview'\)/);
+  assert.match(memberShellJs, /\$\$\('\[data-main-member-section\]'\)\.forEach\(button=>button\.addEventListener\('click',\(\)=>\{openSection\(button\.dataset\.mainMemberSection\);closeMainMenu\(\)\}\)\)/);
+  assert.match(memberShellJs, /\$\$\('\[data-main-member-section\]'\)\.forEach\(button=>button\.classList\.toggle\('is-active',button\.dataset\.mainMemberSection===id\)\)/);
+  assert.match(memberShellJs, /data-member-entry[\s\S]*openSection\('overview'\)/);
 });
 
 test('Můj United active underline belongs to its label, not the decorative marker', () => {
@@ -102,7 +104,7 @@ test('authenticated entry always starts on Overview without planner or URL auto-
   assert.match(memberJs, /showApp\(\);\s*openSection\('overview'\);\s*await applyPlannerDraft/);
   assert.doesNotMatch(memberJs, /requestedMemberPanel/);
   assert.match(memberJs, /applyPlannerHandoffToForm\(\{navigate:false\}\)/);
-  const draftFlow = memberJs.slice(memberJs.indexOf('async function applyPlannerDraft'), memberJs.indexOf('const menuBtn='));
+  const draftFlow = memberJs.slice(memberJs.indexOf('async function applyPlannerDraft'), memberJs.indexOf('bindMainNavigation();'));
   assert.doesNotMatch(draftFlow, /openSection\('reservation'\)/);
 });
 
@@ -140,7 +142,7 @@ test('overview is an action center with no static Merch or Club promo cards', ()
   assert.match(overview, /Všechno ready/);
   assert.match(overview, /data-reservation-overview-card="" hidden/);
   assert.doesNotMatch(overview, /United Merch|badges-preview|points-card/);
-  assert.match(memberJs, /deriveOverviewState/);
+  assert.match(memberOverviewJs, /deriveOverviewState/);
 });
 
 test('hero follows primary car and the authorized private-photo path', () => {

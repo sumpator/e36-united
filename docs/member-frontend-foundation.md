@@ -34,3 +34,14 @@ Post-mutation refresh sequences remain beside their domain mutations because the
 ## Phase 4 boundary
 
 Phase 4 may extract Overview, Garage, Photos, Weekend Planner, Reservations, Payments, United Club, History, and Account behind this foundation. It must continue preserving their current contracts and UX. Phase 3 deliberately makes no `main.js`, `admin.js`, Worker, API, Firebase-policy, CSS, or business-rule changes.
+
+## Phase 4A: shell and Overview
+
+Phase 4A adds two native modules without changing the portal markup, styling, routes, requests, session rules, or rendered behavior:
+
+- `member/shell.js` owns the auth/app display transitions, desktop and mobile Member Portal navigation, section switching, main-menu integration, and the authenticated member hero.
+- `member/modules/overview.js` owns the Member Card, Overview Points progress, featured Achievements strip, and reservation/Planner Action Center presentation.
+
+`member.js` remains the composition entry. It supplies existing state and callbacks to both modules and retains login/register and logout orchestration plus every domain flow: Garage and car uploads, Weekend Planner, reservations, payments, United Club and history, member photos, and Account. The shared session, refresh, API, state, and UI modules introduced in Phase 3 are unchanged.
+
+Later Phase 4 work may extract those retained domains individually. Phase 4A does not alter default-section behavior, desktop/mobile navigation behavior, Action Center decisions, API/Firebase/session behavior, Worker code, CSS, or business rules.

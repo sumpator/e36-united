@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 const read=name=>readFileSync(new URL(`../${name}`,import.meta.url),'utf8');
-const memberHtml=read('member.html'),memberJs=read('member.js'),memberCss=read('member.css');
+const memberHtml=read('member.html'),memberEntryJs=read('member.js'),memberShellJs=read('member/shell.js'),memberOverviewJs=read('member/modules/overview.js'),memberJs=[memberEntryJs,memberShellJs,memberOverviewJs].join('\n'),memberCss=read('member.css');
 const adminHtml=read('admin.html'),adminJs=read('admin.js'),adminCss=read('admin.css');
 const merchJs=read('merch.js');
 const worker=[
@@ -178,7 +178,7 @@ test('pending history summary contains only submitted attendance and S&S details
 });
 
 test('featured S&S TOP 3 and BMW Prospekt use only authoritative Bronze Silver Gold tier classes',()=>{
-  const tier=memberJs.slice(memberJs.indexOf('function achievementTierClass'),memberJs.indexOf('function renderAchievements'));
+  const tier=memberOverviewJs.slice(memberOverviewJs.indexOf('function achievementTierClass'),memberOverviewJs.indexOf('function renderFeaturedAchievements'));
   assert.match(tier,/sns-top3-/);
   assert.match(tier,/achievement\.type==='community'&&achievement\.name==='BMW PROSPEKT'/);
   assert.match(tier,/\['bronze','silver','gold'\]/);
