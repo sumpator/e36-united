@@ -1,8 +1,6 @@
 -- Mailing A foundation. Forward-only and intentionally not applied by this change.
 PRAGMA foreign_keys = ON;
 
-BEGIN TRANSACTION;
-
 CREATE TABLE IF NOT EXISTS schema_migrations (
   id TEXT PRIMARY KEY,
   description TEXT NOT NULL,
@@ -117,5 +115,3 @@ CREATE INDEX IF NOT EXISTS idx_mailing_campaign_recipients_campaign
 INSERT INTO schema_migrations (id, description)
 VALUES ('2026-09-03-mailing-foundation', 'Mailing contact, segmentation and campaign foundation')
 ON CONFLICT(id) DO NOTHING;
-
-COMMIT;
