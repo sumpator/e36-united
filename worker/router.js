@@ -4,6 +4,7 @@ import { ACTIVE_MEMBER_STATUS, activeMemberForbidden, findMemberAuthorizationRec
 import * as domain from "./domains.js";
 import { isAllowedOrigin } from "./http/cors.js";
 import { json } from "./http/responses.js";
+import { routeAdminMailing } from "./domains/mailing/index.js";
 
 const PROTECTED_MEMBER_EXACT_ROUTES = new Set([
   "GET /api/navigation-state",
@@ -74,6 +75,9 @@ export async function routeRequest({ request, env, url, origin }) {
       if (!admin) {
         return json({ ok: false, error: "admin_forbidden", message: "Nemáš oprávnění pro United Admin" }, 403, origin);
       }
+
+      const mailingResponse = await routeAdminMailing({ request, env, url, auth, origin });
+      if (mailingResponse) return mailingResponse;
 
       if (url.pathname === "/api/admin/overview" && request.method === "GET") {
         return await domain.getAdminOverview(env, url, origin);

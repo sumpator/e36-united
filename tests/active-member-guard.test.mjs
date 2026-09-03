@@ -325,3 +325,17 @@ test('Admin authorization stays separate from the Member guard', async () => {
   assert.equal((await blockedResponse.json()).error, 'admin_forbidden');
   blockedAdmin.database.close();
 });
+
+test('Mailing routes stay behind the existing active-Admin authorization boundary', async () => {
+  const activeAdmin = createRuntime({ role: 'admin', status: 'active' });
+  const activeResponse = await worker.fetch(authenticatedRequest('/api/admin/mailing/unknown'), activeAdmin.env);
+  assert.equal(activeResponse.status, 404);
+  assert.equal((await activeResponse.json()).error, 'mailing_not_found');
+  activeAdmin.database.close();
+
+  const blockedAdmin = createRuntime({ role: 'admin', status: 'blocked' });
+  const blockedResponse = await worker.fetch(authenticatedRequest('/api/admin/mailing/unknown'), blockedAdmin.env);
+  assert.equal(blockedResponse.status, 403);
+  assert.equal((await blockedResponse.json()).error, 'admin_forbidden');
+  blockedAdmin.database.close();
+});

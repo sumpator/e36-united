@@ -1,6 +1,6 @@
 import { initPortalNavigation } from '../portal-navigation.js?v=20260825-mobile1';
-import { ADMIN_VIEW_IDS } from '../admin-view-model.js?v=20260831-admin-badge1';
-import { adminState } from './state.js?v=20260903-phase5';
+import { ADMIN_VIEW_IDS } from '../admin-view-model.js?v=20260903-mailing-a';
+import { adminState } from './state.js?v=20260903-mailing-a';
 import { $, $$, rememberSessionChoice } from './ui.js?v=20260903-phase5';
 
 const adminCollapseStorageKey='e36UnitedAdmin.collapsedSections.v1';
@@ -63,6 +63,7 @@ export function setAdminView(view,{focus=true}={}){
   $$('[data-admin-panel]').forEach(panel=>{const active=panel.dataset.adminPanel===nextView;panel.hidden=!active;panel.classList.toggle('is-active',active);panel.setAttribute('aria-hidden',String(!active))});
   $$('[data-admin-jump]').forEach(button=>{const active=button.dataset.adminJump===nextView;button.classList.toggle('is-active',active);if(active)button.setAttribute('aria-current','page');else button.removeAttribute('aria-current')});
   adminPortalNavigation?.sync(nextView);
+  window.dispatchEvent(new CustomEvent('admin:viewchange',{detail:{view:nextView}}));
   closeOverlays();
   window.scrollTo({top:0,behavior:'auto'});
   if(focus){const heading=$(`[data-admin-panel="${nextView}"] h2`);if(heading){heading.tabIndex=-1;heading.focus({preventScroll:true})}}

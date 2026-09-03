@@ -1,7 +1,7 @@
-import { apiMedia, apiRequest } from '../api.js?v=20260903-phase5';
+import { apiMedia, apiRequest } from '../api.js?v=20260903-mailing-a';
 import { renderAttentionCounts } from './dashboard-events.js?v=20260903-phase5';
-import { adminState } from '../state.js?v=20260903-phase5';
-import { setDenied } from '../shell.js?v=20260903-phase5';
+import { adminState } from '../state.js?v=20260903-mailing-a';
+import { setDenied } from '../shell.js?v=20260903-mailing-a';
 import { $, $$, escapeHtml, formatDate, galleryStatusLabel, numeric, photosLabel, recordsLabel, rememberSessionChoice, toast } from '../ui.js?v=20260903-phase5';
 
 const galleryFilterLabels={pending:'Žádosti',approved:'Schválené',rejected:'Zamítnuté',all:'Všechny'};

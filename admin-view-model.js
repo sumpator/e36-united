@@ -1,4 +1,4 @@
-export const ADMIN_VIEW_IDS = Object.freeze(['dashboard', 'reservations', 'payments', 'gallery', 'accommodation', 'event']);
+export const ADMIN_VIEW_IDS = Object.freeze(['dashboard', 'reservations', 'payments', 'gallery', 'accommodation', 'event', 'mailing']);
 export const RESERVATION_VIEW_MODES = Object.freeze(['quick', 'detail']);
 export const RESERVATION_PRIMARY_FILTERS = Object.freeze(['all', 'action', 'active', 'complete']);
 export const RESERVATION_DETAIL_FILTERS = Object.freeze(['pending', 'approved', 'payment', 'underpaid', 'paid', 'overpaid', 'rejected', 'cancelled']);

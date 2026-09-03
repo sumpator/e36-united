@@ -1,7 +1,7 @@
 import { adminActionCountState, adminModerationCounts, paymentNeedsAttention, reservationMatchesFilter } from '../../admin-view-model.js?v=20260831-admin-badge1';
-import { apiRequest } from '../api.js?v=20260903-phase5';
-import { adminState } from '../state.js?v=20260903-phase5';
-import { setDenied } from '../shell.js?v=20260903-phase5';
+import { apiRequest } from '../api.js?v=20260903-mailing-a';
+import { adminState } from '../state.js?v=20260903-mailing-a';
+import { setDenied } from '../shell.js?v=20260903-mailing-a';
 import { $, $$, escapeHtml, formatDate, formatMoney, numeric, toast } from '../ui.js?v=20260903-phase5';
 
 function setBar(selector,value,total){$(selector).style.width=`${total?Math.min(100,(numeric(value)/total)*100):0}%`}

@@ -58,4 +58,28 @@ test.describe('desktop Admin portal', () => {
 
     expectNoUnexpectedClientErrors(observations);
   });
+
+  test('Mailing opens its overview and previews a deterministic server segment', async ({ page }) => {
+    const observations = await prepareAdminE2ePage(page);
+
+    await page.goto('/admin.html');
+    await expect(page.locator('[data-admin-view]')).toBeVisible();
+    await page.locator('[data-admin-jump="mailing"]').click();
+    await expect(page.locator('[data-admin-panel="mailing"]')).toHaveClass(/is-active/);
+    await expect(page.locator('[data-mailing-kpi="total"]')).toHaveText('4');
+    await expect(page.locator('[data-mailing-kpi="eligible"]')).toHaveText('1');
+
+    await page.locator('[data-mailing-tab="segments"]').click();
+    await page.locator('[data-mailing-segment-form] input[value="active_member"]').check();
+    await page.locator('[data-mailing-segment-form] button[type="submit"]').click();
+    await expect(page.locator('[data-mailing-recipient-count]')).toHaveText('1 příjemce');
+    await expect(page.locator('[data-mailing-recipient-list]')).toContainText('eva@example.test');
+    await expect(page.locator('[data-mailing-recipient-list]')).toContainText('Member');
+
+    expect(observations.requests).toEqual(expect.arrayContaining([
+      'GET /api/admin/mailing/overview',
+      'POST /api/admin/mailing/segments/preview',
+    ]));
+    expectNoUnexpectedClientErrors(observations);
+  });
 });

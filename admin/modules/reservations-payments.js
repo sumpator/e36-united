@@ -1,9 +1,9 @@
 import { accommodationVisualMarkup, bindAccommodationVisualFallbacks } from '../../accommodation-visual.js?v=20260827-accommodation1';
 import { RESERVATION_DETAIL_FILTERS, RESERVATION_PRIMARY_FILTERS, RESERVATION_VIEW_MODES, adminItemPayment, filterAdminPayments, filterAdminReservations, paymentMatchesFilter, reservationMatchesFilter } from '../../admin-view-model.js?v=20260831-admin-badge1';
-import { apiBaseUrl, apiRequest } from '../api.js?v=20260903-phase5';
+import { apiBaseUrl, apiRequest } from '../api.js?v=20260903-mailing-a';
 import { renderAttentionCounts } from './dashboard-events.js?v=20260903-phase5';
-import { adminState } from '../state.js?v=20260903-phase5';
-import { setDenied } from '../shell.js?v=20260903-phase5';
+import { adminState } from '../state.js?v=20260903-mailing-a';
+import { setDenied } from '../shell.js?v=20260903-mailing-a';
 import { $, $$, attendanceLabel, attendanceShortLabel, escapeHtml, formatDate, formatMoney, numeric, paymentLabel, paymentQrSvg, recordsLabel, rememberSessionChoice, statusLabel, toast } from '../ui.js?v=20260903-phase5';
 
 const paymentFilterLabels={attention:'Vyžaduje kontrolu',all:'Vše',unpaid:'K platbě',underpaid:'Doplatek',paid:'Zaplaceno',overpaid:'Přeplatek'};

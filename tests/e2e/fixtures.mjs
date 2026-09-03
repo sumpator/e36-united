@@ -412,6 +412,25 @@ export async function prepareAdminE2ePage(page) {
       });
       return;
     }
+    if (url.pathname === '/api/admin/mailing/overview') {
+      await jsonResponse(route, {
+        overview: { totalContacts: 4, currentMembers: 2, historicalOnly: 1, eligible: 1, suppressed: 1, reviewRequired: 1, campaignDrafts: 1 },
+      });
+      return;
+    }
+    if (url.pathname === '/api/admin/mailing/segments/preview' && request.method() === 'POST') {
+      const segment=request.postDataJSON()?.segment||{};
+      await jsonResponse(route, {
+        definition: { match: segment.match||'all', rules: segment.rules||[], exclusions: segment.exclusions||[] },
+        count: 1,
+        recipients: [{
+          id: 'contact-e2e', email: 'eva@example.test', name: 'Eva Nováková', nickname: 'Eva',
+          memberId, eventYears: [2026,2025], eligibility: { status: 'eligible', reason: 'explicit_mailing_consent' },
+        }],
+        truncated: false,
+      });
+      return;
+    }
 
     observations.unhandledApi.push(`${request.method()} ${url.pathname}`);
     await jsonResponse(route, { message: 'Unhandled Admin E2E API fixture' }, 501);

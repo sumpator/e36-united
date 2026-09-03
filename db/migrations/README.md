@@ -30,9 +30,18 @@ The verified snapshot also contains the original/base and legacy objects below, 
 
 SQLite autoindexes created by primary-key and unique constraints are represented by the table definitions rather than explicit statements. Cloudflare's internal `_cf_KV` table is platform-owned and excluded.
 
+## Pending local migration
+
+`2026-09-03-mailing-foundation.sql` starts the forward-only `schema_migrations`
+identity registry and adds the isolated Mailing A contact, source, tag,
+campaign-draft, and recipient-snapshot foundation. It is committed for
+review only and has not been executed against production D1. It deliberately
+does not import or backfill contact rows and leaves the legacy `mail_*` tables
+unchanged.
+
 ## Safety and future migration requirements
 
 - Do not run any historical file against production merely to make a migration list appear complete.
 - Before any future migration, compare the intended change with `db/schema.sql` and read-only production metadata, then take the separately approved backup required by the deployment procedure.
-- A future registry must record forward-only migrations and checksums/identities; it must not invent entries for historical executions that cannot be proven.
+- The repository-managed registry records forward-only migration identities from Mailing A onward; it must not invent entries for historical executions that cannot be proven.
 - Duplicate-column repair, legacy data conversion, refunds/credits, and Points reversal require separate technical or business decisions. They are not Phase 0A migration work.
