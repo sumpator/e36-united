@@ -53,3 +53,13 @@ Later Phase 4 work may extract those retained domains individually. Phase 4A doe
 - `member/media.js` contains only the image-compression primitive shared by those two upload flows.
 
 Garage connects to Overview and the retained reservation frontend through explicit state and render callbacks; Overview does not import Garage internals. `member.js` remains the composition entry and still owns Weekend Planner, reservations and reservation-only car presentation, payments/QR, United Club, history, Account, authentication orchestration, and cross-domain refresh ordering. Phase 4B changes no markup, CSS, API, Firebase/session, Worker, Admin, or public-site behavior.
+
+## Phase 4C: Weekend Planner, reservations and payments
+
+- `member/modules/planner/index.js` owns Weekend Planner handoff/draft state, reservation loading and saving, attendance/stay, crew, accommodation selection and price preview, Planner Show & Shine choice, reservation-specific car presentation, saved-reservation rendering, and the existing post-save coordination.
+- `member/modules/planner/reservation.js` owns only the existing reservation, accommodation snapshot and payment response normalization.
+- `member/modules/planner/payments.js` owns payment/balance presentation, server-provided variable-symbol instructions, and QR rendering from the existing SPAYD value.
+
+Garage continues to own cars and private car-photo URLs; the Planner receives both through explicit state and callback boundaries and does not import Garage internals. Overview continues to own the Action Center; the Planner supplies the same reservation/window state through a render callback and Overview does not import Planner internals.
+
+`member.js` remains the application composition entry and continues to own authentication/session orchestration, member profile and Account, United Club, history, Points/Achievements, shared contextual help, and cross-domain module wiring. Phase 4C changes no Planner options, reservation payloads, pricing or payment rules, DOM/CSS, Firebase/API behavior, Worker/Admin/public-site code, or deployment strategy.

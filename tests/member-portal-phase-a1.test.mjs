@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 
 const read = name => readFileSync(new URL(`../${name}`, import.meta.url), 'utf8');
 const html = read('member.html');
-const js = [read('member.js'), read('member/shell.js'), read('member/modules/overview.js'), read('member/modules/garage.js'), read('member/modules/photos.js')].join('\n');
+const js = [read('member.js'), read('member/shell.js'), read('member/modules/overview.js'), read('member/modules/garage.js'), read('member/modules/photos.js'), read('member/modules/planner/index.js'), read('member/modules/planner/reservation.js'), read('member/modules/planner/payments.js')].join('\n');
 const css = read('member.css');
 const config = read('firebase-config.js');
 

@@ -21,7 +21,7 @@ test('United Club uses exact heading, explanation and four activity-only earning
   assert.doesNotMatch(club,/Body\. Historie\. Achievements\./);
   assert.match(club,/United Points\. Tvoje odměny\./);
   assert.match(club,/Buď členem United a čerpej výhody![\s\S]*TOP 3 Show &amp; Shine[\s\S]*přidávání fotek/);
-  const rewards=memberJs.slice(memberJs.indexOf('function renderRewards()'),memberJs.indexOf("reservationForm?.addEventListener"));
+  const rewards=memberEntryJs.slice(memberEntryJs.indexOf('function renderRewards()'),memberEntryJs.indexOf('bindGarage();'));
   assert.equal((rewards.match(/\['earn-/g)||[]).length,4);
   for(const label of ['Účast na srazu','Umístění v Show & Shine','Nahrávání fotek','Doplnění profilu'])assert.match(rewards,new RegExp(label));
   assert.doesNotMatch(rewards,/\+1|\+2|\+3/);

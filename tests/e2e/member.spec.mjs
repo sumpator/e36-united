@@ -1,6 +1,42 @@
 import { expect, test } from '@playwright/test';
 import { MEMBER_SESSION_KEY, expectNoUnexpectedClientErrors, prepareE2ePage } from './fixtures.mjs';
 
+const approvedReservation = {
+  id: 'reservation-2026-e2e',
+  eventId: 'united-2026',
+  eventYear: 2026,
+  title: 'E36 United 2026',
+  carId: 'car-001',
+  carSnapshot: { id: 'car-001', nickname: 'Estoril', body: 'Coupé', model: '328i', year: 1996, color: 'Estoril Blau' },
+  arrival: 'Sobota',
+  crew: 3,
+  attendanceType: 'saturday_only',
+  accommodation: 'Chatka',
+  accommodationUnits: 2,
+  accommodationSnapshot: {
+    optionId: 'cabin-premium', optionName: 'Chatka Premium', kind: 'cabin', capacityPerUnit: 3,
+    peopleCount: 2, unitCount: 1, unitPriceCzk: 1_650, personPriceCzk: 0,
+    beddingFeePerPersonCzk: 120, cityTaxPerPersonPerNightCzk: 25, nights: 1,
+    baseTotalCzk: 1_650, personTotalCzk: 0, beddingTotalCzk: 240, cityTaxTotalCzk: 50, totalCzk: 1_940,
+  },
+  showShine: 'Ano',
+  note: 'Příjezd po obědě.',
+  status: 'approved',
+  changePending: false,
+  paymentStatus: 'underpaid',
+  amountDueCzk: 4_800,
+  amountPaidCzk: 1_200,
+  payment: {
+    amountDueCzk: 4_800, amountPaidCzk: 1_200, balanceCzk: 3_600, remainingCzk: 3_600, overpaymentCzk: 0,
+    status: 'underpaid', overdue: false, variableSymbol: '2026123456', recipientName: 'E36 UNITED TEST',
+    accountDisplay: '123 / 9999', iban: 'CZ5099990000000000000123', currency: 'CZK',
+    message: 'E36 UNITED 2026 2026123456', deadline: '2026-12-01', testMode: true,
+    configurationReady: true, actionable: true, awaitingApproval: false,
+    spayd: 'SPD*1.0*ACC:CZ5099990000000000000123*AM:3600.00*CC:CZK*X-VS:2026123456*MSG:E36 UNITED 2026 2026123456*DT:20261201',
+    paidAt: '',
+  },
+};
+
 async function expectMemberOverview(page) {
   await expect(page.locator('[data-app-view]')).toBeVisible();
   await expect(page.locator('[data-member-panel="overview"]')).toHaveClass(/is-active/);
@@ -74,6 +110,62 @@ test.describe('desktop member portal', () => {
     await page.locator('[data-member-photo-clear]').click();
     await expect(page.locator('[data-member-photo-selection]')).toBeHidden();
     await expect(page.locator('[data-member-photo-previews] img')).toHaveCount(0);
+
+    expectNoUnexpectedClientErrors(observations);
+  });
+
+  test('existing reservation prefill keeps update semantics and reservation identity', async ({ page }) => {
+    const observations = await prepareE2ePage(page, { authenticated: true, registrationOpen: true, reservation: approvedReservation });
+
+    await page.goto('/member.html');
+    await expectMemberOverview(page);
+    await page.locator('.member-sidebar [data-member-section="reservation"]').click();
+
+    const form = page.locator('[data-reservation-form]');
+    await expect(form.locator('[name="arrival"]')).toHaveValue('Sobota');
+    await expect(form.locator('[name="crew"]')).toHaveValue('3');
+    await expect(form.locator('[name="sleep"]')).toHaveValue('Chatka');
+    await expect(form.locator('[name="accommodationOptionId"]')).toHaveValue('cabin-premium');
+    await expect(form.locator('[name="showshine"]')).toHaveValue('Ano');
+    await expect(form.locator('[name="note"]')).toHaveValue('Příjezd po obědě.');
+    await expect(page.locator('[data-reservation-submit]')).toContainText('Upravit rezervaci');
+
+    await form.locator('[name="note"]').fill('Aktualizovaný příjezd.');
+    await page.locator('[data-reservation-submit]').click();
+    await expect.poll(() => observations.reservationWrites.length).toBe(1);
+    expect(observations.reservationWrites[0]).toMatchObject({
+      reservationId: 'reservation-2026-e2e',
+      carId: 'car-001',
+      arrival: 'Sobota',
+      crew: 3,
+      attendanceType: 'saturday_only',
+      accommodation: 'Chatka',
+      accommodationOptionId: 'cabin-premium',
+      accommodationUnits: 2,
+      showShine: 'Ano',
+      note: 'Aktualizovaný příjezd.',
+    });
+    expect(observations.requests).toContain('PUT /api/reservations/current');
+
+    expectNoUnexpectedClientErrors(observations);
+  });
+
+  test('approved reservation renders server payment balance, variable symbol and QR', async ({ page }) => {
+    const observations = await prepareE2ePage(page, { authenticated: true, reservation: approvedReservation });
+
+    await page.goto('/member.html');
+    await expectMemberOverview(page);
+    await expect(page.locator('[data-member-payment]')).toContainText('Doplatek');
+    await page.locator('.member-sidebar [data-member-section="payments"]').click();
+
+    const payment = page.locator('[data-payments-list]');
+    await expect(payment).toContainText('TESTOVACÍ PLATBA – NEPLAŤTE');
+    await expect(payment).toContainText('E36 United 2026');
+    await expect(payment).toContainText('Doplatek');
+    await expect(payment).toContainText('E36 UNITED TEST');
+    await expect(payment).toContainText('123 / 9999');
+    await expect(payment).toContainText('2026123456');
+    await expect(payment.locator('.member-payment-qr svg')).toBeVisible();
 
     expectNoUnexpectedClientErrors(observations);
   });

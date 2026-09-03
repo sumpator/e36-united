@@ -10,7 +10,7 @@ const paymentMigration=readFileSync(new URL('../D1-reservation-payments-v1.sql',
 const plannerMigration=readFileSync(new URL('../D1-member-planner-drafts-v1.sql',import.meta.url),'utf8');
 const mainSource=readFileSync(new URL('../main.js',import.meta.url),'utf8');
 const indexSource=readFileSync(new URL('../index.html',import.meta.url),'utf8');
-const memberSource=readFileSync(new URL('../member.js',import.meta.url),'utf8');
+const memberSource=readFileSync(new URL('../member/modules/planner/index.js',import.meta.url),'utf8');
 const memberHtml=readFileSync(new URL('../member.html',import.meta.url),'utf8');
 const worker={...await import('../worker/domains.js'),default:(await import('../cloudflare-worker-media.js')).default};
 

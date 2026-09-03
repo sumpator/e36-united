@@ -9,6 +9,7 @@ const memberShellJs = read('member/shell.js');
 const memberOverviewJs = read('member/modules/overview.js');
 const memberGarageJs = read('member/modules/garage.js');
 const memberPhotosJs = read('member/modules/photos.js');
+const memberPlannerJs = read('member/modules/planner/index.js');
 const memberSessionJs = read('member/session.js');
 const memberStateJs = read('member-portal-state.js');
 const memberCss = read('member.css');
@@ -103,10 +104,10 @@ test('Můj United active underline belongs to its label, not the decorative mark
 test('authenticated entry always starts on Overview without planner or URL auto-navigation', () => {
   assert.match(memberHtml, /member-nav-item is-active" data-member-section="overview"/);
   assert.match(memberHtml, /member-section is-active" data-member-panel="overview"/);
-  assert.match(memberJs, /showApp\(\);\s*openSection\('overview'\);\s*await applyPlannerDraft/);
+  assert.match(memberJs, /showApp\(\);\s*openSection\('overview'\);\s*await memberPlanner\.applyPlannerDraft/);
   assert.doesNotMatch(memberJs, /requestedMemberPanel/);
-  assert.match(memberJs, /applyPlannerHandoffToForm\(\{navigate:false\}\)/);
-  const draftFlow = memberJs.slice(memberJs.indexOf('async function applyPlannerDraft'), memberJs.indexOf('bindMainNavigation();'));
+  assert.match(memberPlannerJs, /applyPlannerHandoffToForm\(\{navigate:false\}\)/);
+  const draftFlow = memberPlannerJs.slice(memberPlannerJs.indexOf('async function applyPlannerDraft'), memberPlannerJs.indexOf('function handleGarageCarSaved'));
   assert.doesNotMatch(draftFlow, /openSection\('reservation'\)/);
 });
 
@@ -149,7 +150,7 @@ test('overview is an action center with no static Merch or Club promo cards', ()
 
 test('hero follows primary car and the authorized private-photo path', () => {
   assert.match(memberHtml, /data-member-hero/);
-  assert.match(memberJs, /data\.cars\.find\(car=>car\.primary\)\|\|data\.cars\[0\]/);
+  assert.match(memberStateJs, /cars\.find\(car => car\?\.primary\) \|\| cars\[0\]/);
   assert.match(memberGarageJs, /getPrivateCarPhotoUrl\(photoId\)/);
   assert.match(memberGarageJs, /URL\.revokeObjectURL/);
   assert.match(memberGarageJs, /carPhotoRequestGeneration/);

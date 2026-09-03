@@ -114,9 +114,11 @@ export async function prepareE2ePage(page, {
   authenticated = false,
   carsFailure = false,
   memberStatus = 'active',
+  registrationOpen = false,
+  reservation = null,
   ignoreConsoleError = () => false,
 } = {}) {
-  const observations = { pageErrors: [], consoleErrors: [], unhandledApi: [], requests: [] };
+  const observations = { pageErrors: [], consoleErrors: [], unhandledApi: [], requests: [], reservationWrites: [] };
   page.on('pageerror', error => observations.pageErrors.push(error.stack || error.message));
   page.on('console', message => {
     if (message.type() !== 'error') return;
@@ -212,10 +214,36 @@ export async function prepareE2ePage(page, {
       return;
     }
     if (url.pathname === '/api/reservations/current') {
+      if (request.method() === 'PUT') {
+        const body = request.postDataJSON();
+        observations.reservationWrites.push(body);
+        await jsonResponse(route, {
+          registrationOpen,
+          event: currentEvent,
+          reservation: {
+            ...(reservation || {}),
+            id: reservation?.id || 'reservation-e2e-created',
+            eventId: reservation?.eventId || currentEvent.id,
+            eventYear: reservation?.eventYear || currentEvent.year,
+            title: reservation?.title || currentEvent.title,
+            carId: body.carId,
+            arrival: body.arrival,
+            crew: body.crew,
+            attendanceType: body.attendanceType,
+            accommodation: body.accommodation,
+            accommodationUnits: body.accommodationUnits,
+            showShine: body.showShine,
+            note: body.note,
+          },
+          message: 'Rezervace byla uložena.',
+          accommodationOptions,
+        });
+        return;
+      }
       await jsonResponse(route, {
-        registrationOpen: false,
+        registrationOpen,
         event: currentEvent,
-        reservation: null,
+        reservation,
         message: 'Registrace zatím není otevřená.',
         accommodationOptions,
       });
