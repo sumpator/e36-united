@@ -1,4 +1,5 @@
 import { expect } from '@playwright/test';
+import { createMailingStarterDraft, renderMailingTemplate } from '../../worker/domains/mailing/template.js';
 
 export const MEMBER_SESSION_KEY = 'e36UnitedE2eAuthenticated';
 const API_BASE = 'https://api.e36united.cz';
@@ -343,7 +344,9 @@ const adminReservation = {
 };
 
 export async function prepareAdminE2ePage(page) {
-  const observations = { pageErrors: [], consoleErrors: [], unhandledApi: [], requests: [] };
+  const observations = { pageErrors: [], consoleErrors: [], unhandledApi: [], requests: [], campaignWrites: [] };
+  const mailingStarter=createMailingStarterDraft();
+  let mailingCampaigns=[];
   page.on('pageerror', error => observations.pageErrors.push(error.stack || error.message));
   page.on('console', message => {
     if (message.type() !== 'error') return;
@@ -355,6 +358,7 @@ export async function prepareAdminE2ePage(page) {
   }, { key: MEMBER_SESSION_KEY });
 
   await page.route('https://static.wixstatic.com/**', route => route.fulfill({ status: 200, contentType: 'image/svg+xml', body: imageSvg }));
+  await page.route('https://e36united.cz/united-logo-blue-silver-transparent.png', route => route.fulfill({ status: 200, contentType: 'image/svg+xml', body: imageSvg }));
   await page.route('https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js', route => route.fulfill({ status: 200, contentType: 'text/javascript; charset=utf-8', body: firebaseAppModule }));
   await page.route('https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js', route => route.fulfill({ status: 200, contentType: 'text/javascript; charset=utf-8', body: firebaseAuthModule }));
 
@@ -429,6 +433,33 @@ export async function prepareAdminE2ePage(page) {
         }],
         truncated: false,
       });
+      return;
+    }
+    if (url.pathname === '/api/admin/mailing/editor-config' && request.method() === 'GET') {
+      await jsonResponse(route,{starter:mailingStarter,blockTypes:['hero','heading','rich_text','image','cta','divider','highlight','survey']});
+      return;
+    }
+    if (url.pathname === '/api/admin/mailing/render-preview' && request.method() === 'POST') {
+      await jsonResponse(route,{preview:renderMailingTemplate(request.postDataJSON())});
+      return;
+    }
+    if (url.pathname === '/api/admin/mailing/campaigns' && request.method() === 'GET') {
+      await jsonResponse(route,{campaigns:mailingCampaigns});
+      return;
+    }
+    if (url.pathname === '/api/admin/mailing/campaigns' && request.method() === 'POST') {
+      const body=request.postDataJSON(),now='2026-09-03T18:00:00Z';
+      const campaign={id:'campaign-e2e',internalName:body.internalName,subject:body.subject,preheader:body.preheader,templateVersion:body.templateVersion,content:body.content,segment:body.segment,recipientCount:0,status:'draft',createdAt:now,updatedAt:now,sentAt:null};
+      mailingCampaigns=[campaign];observations.campaignWrites.push({method:'POST',body});
+      await jsonResponse(route,{campaign},201);
+      return;
+    }
+    const mailingCampaignMatch=url.pathname.match(/^\/api\/admin\/mailing\/campaigns\/([^/]+)$/);
+    if (mailingCampaignMatch && request.method() === 'PATCH') {
+      const body=request.postDataJSON(),current=mailingCampaigns.find(campaign=>campaign.id===mailingCampaignMatch[1]);
+      const campaign={...current,...body,id:current.id,recipientCount:0,status:'draft',updatedAt:'2026-09-03T18:05:00Z'};
+      mailingCampaigns=mailingCampaigns.map(item=>item.id===campaign.id?campaign:item);observations.campaignWrites.push({method:'PATCH',body});
+      await jsonResponse(route,{campaign});
       return;
     }
 

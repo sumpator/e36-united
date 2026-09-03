@@ -1,65 +1,89 @@
 # Mailing Center
 
-Mailing A adds an isolated contact, segmentation, recipient-preview, and campaign-draft foundation. It does not send email, integrate an email provider, import production contacts, or expose public response/unsubscribe routes.
+Mailing A established the isolated contact, consent, segmentation, recipient-preview, and campaign-draft foundation. Mailing B adds structured email composition and a controlled E36 template. Neither phase sends email, integrates a provider, imports production contacts, or exposes public response/unsubscribe mutations.
 
 ## Architecture
 
-- `worker/domains/mailing/contacts.js` owns safe email normalization, contact projection, consent-derived eligibility, filtering, and the deterministic historical-import dry-run planner.
-- `worker/domains/mailing/segments.js` owns the fixed server-authoritative rule vocabulary plus AND/OR/exclusion evaluation.
-- `worker/domains/mailing/campaigns.js` owns draft list/create/update persistence. It deliberately rejects a transition to `sent`.
-- `worker/domains/mailing/index.js` exposes the small Admin-only Mailing route surface through the existing Worker Admin authorization boundary.
-- `admin/modules/mailing/` owns the Mailing overview, contacts, segment preview, and campaign-draft UI. `admin.js` only initializes/resets the domain.
+Worker:
 
-The Worker still uses the existing `DB` D1 binding and Firebase Admin authorization. No new runtime dependency or binding is introduced.
+- `worker/domains/mailing/contacts.js` projects the current contact universe and derives consent/suppression eligibility without read-side writes.
+- `worker/domains/mailing/segments.js` validates and evaluates the fixed server-side segment vocabulary.
+- `worker/domains/mailing/campaigns.js` persists draft metadata, template version, structured content, and the current dynamic recipient count.
+- `worker/domains/mailing/template.js` is the only HTML generator. It validates the block model, escapes content, and renders the versioned email-compatible shell.
+- `worker/domains/mailing/index.js` exposes the Mailing routes inside the existing Firebase Admin authorization boundary.
 
-## Tables and migration status
+Admin:
 
-Pending migration `db/migrations/2026-09-03-mailing-foundation.sql` starts the forward-only `schema_migrations` identity registry and creates:
+- `admin/modules/mailing/campaigns.js` loads, creates, updates, and selects campaign drafts.
+- `admin/modules/mailing/editor.js` owns structured block editing, ordering, duplication, validation-friendly controls, and save state.
+- `admin/modules/mailing/preview.js` requests the server renderer and owns desktop/mobile preview state.
+- `admin/modules/mailing/index.js` coordinates Mailing tabs and passes the current dynamic segment to new drafts.
 
-- `mailing_contacts`: canonical normalized-email identity, optional current Member link, separate privacy/mailing consent metadata, deliverability, suppression, and possible-duplicate flag.
-- `mailing_contact_sources`: multiple retained source relationships, source reference/date, optional event/year, original consent metadata, and an optional original-record JSON snapshot.
-- `mailing_contact_tags`: small manual label vocabulary.
-- `mailing_campaigns`: draft metadata and a stored server segment definition/count. Phase B will add the body/editor model.
-- `mailing_campaign_recipients`: future immutable recipient identities/snapshots. Phase A creates no rows in this table.
+`admin.js` remains bootstrap/session composition only. No new runtime dependency, framework, Worker binding, or storage service was added.
 
-The migration is review-only and has **not** been applied to production. It contains no contact backfill or historical import. Existing legacy `mail_campaigns`, `mail_campaign_recipients`, and `email_outbox` objects remain untouched and are not used by Mailing A.
+## Campaign model and migration
 
-## Contact identity and sources
+`db/migrations/2026-09-03-mailing-editor.sql` adds two columns to `mailing_campaigns`:
 
-Email identity is deterministic: trim, then lowercase. Provider-specific transformations (Gmail dot removal or `+` alias removal) are never applied. Equal normalized emails resolve to one planned canonical contact with multiple sources. Different emails are never merged by name; an exact normalized-name collision can only set a possible-duplicate review flag.
+- `template_version`: stable renderer identity, currently `e36-default-v1`;
+- `content_json`: validated structured editable source with a JSON-validity database constraint.
 
-Current Member fields and participation facts are dynamically derived from `members`, current reservations, verified/approved attendance/history, cars, gallery submissions, and Show & Shine state. A stored contact can link through `current_member_id`; an unmaterialized Member appears as a stable `member:<uid>` projection without a read-side database write. Historical contacts can exist without a Member account and retain every source/year. A later controlled import must materialize canonical/source rows before they can become immutable campaign recipients.
+The existing internal name, subject, preheader, segment definition, dynamic recipient count, and draft status remain authoritative. Drafts do not store a second potentially stale HTML copy. Mailing C can render and persist an immutable delivery snapshot from the saved template version and content immediately before preparation/sending.
 
-`planHistoricalContactImport()` is deterministic and always returns `dryRun: true`. It reports accepted/rejected rows, planned contacts, retained sources, and exact-name/different-email review groups; it never writes D1.
+Existing Mailing A rows receive the current template ID and an empty block model. The migration imports no contacts, creates no recipients, changes no consent, and touches no legacy `mail_*` object.
 
-## Consent and suppression
+## Block model
 
-Privacy consent and mailing consent each support `yes`, `no`, and `unknown`, with source/date metadata. Mailing eligibility is derived conservatively:
+Every draft stores:
 
-- explicit mailing consent `yes` plus no suppression/block is `eligible`;
-- mailing consent `no` is `ineligible`;
-- mailing consent `unknown` is `review_required`;
-- `unsubscribed`, `hard_bounce`, `blocked`, or `manually_suppressed` always produces `suppressed`.
+```json
+{
+  "template": "e36-default-v1",
+  "blocks": [
+    { "id": "...", "type": "hero" },
+    { "id": "...", "type": "rich_text" },
+    { "id": "...", "type": "survey", "questionId": "...", "answers": [] }
+  ]
+}
+```
 
-Privacy consent alone never implies mailing eligibility. Historical unknowns are retained and excluded from the eligible-recipient segment.
+Allowed blocks are Hero, Heading, Rich text, Image, CTA, Divider/Spacer, Highlight, and Survey. The server rejects unknown block types, unstable/duplicate IDs, unsafe URLs, more than 30 blocks, and surveys outside the 2–5 answer range.
 
-## Segmentation and Admin flow
+Rich text is deliberately constrained. It supports paragraphs, simple `- ` lists, `**bold**`, `_italic_`, and `[label](https://…)` links. Arbitrary HTML is escaped; scripts and forms are never emitted.
 
-Supported rules are: all contacts, mailing-eligible, active Member, registered/not registered for the current event, historical event year, incomplete profile (using currently supported profile-completion facts), participation at a configurable minimum of two events, Show & Shine participation, legacy-only, and exact manual tag. Up to ten inclusion rules can use AND or OR, followed by up to ten exclusion rules. The API accepts only this vocabulary, not arbitrary SQL.
+Survey blocks already have stable block, question, and answer IDs. Mailing B renders visual answer links only. It does not record clicks or responses. Mailing D will replace the placeholder destinations with recipient-specific links and persist one logical response per `campaign + recipient + question`.
 
-Admin routes:
+## Template and preview flow
 
-- `GET /api/admin/mailing/overview`
-- `GET /api/admin/mailing/contacts`
-- `POST /api/admin/mailing/segments/preview`
-- `GET|POST /api/admin/mailing/campaigns`
-- `PATCH /api/admin/mailing/campaigns/:id`
+The flow is always:
 
-The Admin Mailing view defaults contacts to current/relevant records, with historical-only contacts behind an explicit filter. Recipient preview shows the current count, identity, Member/historical relationship, source years, and eligibility state. Campaigns support basic draft metadata only; there is no editor, send, test-send, provider, webhook, or public mutation route.
+`structured content → Admin-only Worker renderer → final HTML → iframe preview`
 
-## Planned phases and decisions
+`POST /api/admin/mailing/render-preview` returns the same final HTML generator intended for Mailing C. The Admin does not maintain a second visual approximation. Subject and preheader are shown in the preview chrome; the preheader is also embedded as hidden email preview text.
 
-- Before historical import: approve source-file mapping, stable source references, the legal interpretation of each historical consent field, duplicate-review handling, and a separately controlled backup/dry-run/apply procedure.
-- Mailing B: define the E36 template/body snapshot model, editor blocks, preview behavior, and whether draft segment counts should be refreshed or frozen during preparation.
-- Mailing C: provider integration, immutable recipient materialization, suppression/unsubscribe flow, delivery state, and operational failure handling.
-- Mailing D: questions and responses keyed by stable `campaign + recipient + question`, including first-click and final-confirmed values/timestamps without duplicate logical responses.
+The template uses a 640 px table-based shell, inline critical styles, explicit image widths, absolute URLs, and no JavaScript. Desktop and 390 px mobile preview modes display that exact document. A small media query improves narrow-client spacing without being required for core readability.
+
+The graphical treatment follows the current dark E36 Admin/site language: deep black-blue fallback surfaces, a blue radial atmosphere, subtle technical grid, silver/blue borders, and the real E36 United logo. `bgcolor`, inline `background-color`, and an Outlook conditional VML background preserve readable contrast when gradients are unsupported.
+
+## Starter and images
+
+The starter is `United 2026 — Zbraslavice feedback`. It uses the current website's verified United 2026 Zbraslavice hero asset and the exact survey:
+
+- `SUPER – CHCI TAM UNITED ZNOVU`
+- `LÍBILO SE MI – ALE MÍSTO JE MI VLASTNĚ JEDNO`
+- `RADIĚJI BYCH LETOS JINAM`
+
+No production draft is created automatically. The starter becomes data only when an Admin explicitly saves it.
+
+Mailing B accepts validated absolute `http(s)` image references and shows controlled placeholders for unfinished image blocks. Campaign image upload is deliberately deferred to a small B2 scope so it can reuse private R2 with dedicated Admin authorization and lifecycle rules rather than broadening this editor rollout.
+
+## Recipient behavior and deferred phases
+
+Draft recipient counts remain dynamic and reuse the saved Mailing A segment. `mailing_campaign_recipients` remains empty until a later explicit preparation/freeze step.
+
+- Mailing C: provider credentials, immutable HTML/recipient snapshot, unsubscribe/suppression operations, delivery, and operational failure handling.
+- Mailing D: recipient-specific survey links, immediate click recording, confirmation/change page, and logical response identity.
+- Mailing E: later analytics/automation work after consent and delivery policy are approved.
+- B2 if approved: authenticated campaign-image upload/reference management in the existing R2 bucket.
+
+Brevo, test-send, real send, SPF/DKIM, webhooks, contact import, historical backfill, response persistence, opens, and clicks remain intentionally absent.

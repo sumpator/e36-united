@@ -3,6 +3,12 @@ import { json } from "../../http/responses.js";
 import { filterMailingContacts, loadMailingContacts } from "./contacts.js";
 import { createMailingCampaign, listMailingCampaigns, updateMailingCampaign } from "./campaigns.js";
 import { MailingSegmentDefinitionError, previewMailingSegment } from "./segments.js";
+import {
+  MAILING_BLOCK_TYPES,
+  MailingContentDefinitionError,
+  createMailingStarterDraft,
+  renderMailingTemplate,
+} from "./template.js";
 
 function pageNumber(value, fallback = 1) {
   const number = Number(value);
@@ -10,13 +16,15 @@ function pageNumber(value, fallback = 1) {
 }
 
 function errorResponse(error, origin) {
-  if (error instanceof MailingSegmentDefinitionError) {
-    return json({ ok: false, error: "invalid_segment", message: error.message }, 400, origin);
+  if (error instanceof MailingSegmentDefinitionError || error instanceof MailingContentDefinitionError) {
+    const code = error instanceof MailingSegmentDefinitionError ? "invalid_segment" : "invalid_mailing_content";
+    return json({ ok: false, error: code, message: error.message }, 400, origin);
   }
   const known = {
     campaign_name_required: "Interní název kampaně je povinný.",
     invalid_campaign_status: "Neplatný stav kampaně.",
-    mailing_delivery_not_available: "Odesílání e-mailů není v Mailing A dostupné.",
+    invalid_campaign_template: "Neplatná nebo neodpovídající verze mailingové šablony.",
+    mailing_delivery_not_available: "Odesílání e-mailů není v Mailing B dostupné.",
     sent_campaign_immutable: "Odeslanou kampaň nelze měnit.",
   };
   if (known[error?.message]) return json({ ok: false, error: error.message, message: known[error.message] }, 400, origin);
@@ -95,11 +103,25 @@ async function patchCampaign(request, env, campaignId, origin) {
   }
 }
 
+async function renderPreview(request, origin) {
+  const parsed = await readJsonObject(request, origin);
+  if (parsed.response) return parsed.response;
+  try {
+    return json({ ok: true, preview: renderMailingTemplate(parsed.body) }, 200, origin);
+  } catch (error) {
+    return errorResponse(error, origin);
+  }
+}
+
 export async function routeAdminMailing({ request, env, url, auth, origin }) {
   if (!url.pathname.startsWith("/api/admin/mailing")) return null;
   if (url.pathname === "/api/admin/mailing/overview" && request.method === "GET") return mailingOverview(env, origin);
   if (url.pathname === "/api/admin/mailing/contacts" && request.method === "GET") return mailingContacts(env, url, origin);
   if (url.pathname === "/api/admin/mailing/segments/preview" && request.method === "POST") return mailingSegmentPreview(request, env, origin);
+  if (url.pathname === "/api/admin/mailing/editor-config" && request.method === "GET") {
+    return json({ ok: true, starter: createMailingStarterDraft(), blockTypes: MAILING_BLOCK_TYPES }, 200, origin);
+  }
+  if (url.pathname === "/api/admin/mailing/render-preview" && request.method === "POST") return renderPreview(request, origin);
   if (url.pathname === "/api/admin/mailing/campaigns" && request.method === "GET") {
     return json({ ok: true, campaigns: await listMailingCampaigns(env) }, 200, origin);
   }

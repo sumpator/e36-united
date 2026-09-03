@@ -354,6 +354,8 @@ CREATE TABLE mailing_campaigns (
   internal_name TEXT NOT NULL,
   subject TEXT NOT NULL DEFAULT '',
   preheader TEXT NOT NULL DEFAULT '',
+  template_version TEXT NOT NULL DEFAULT 'e36-default-v1',
+  content_json TEXT NOT NULL DEFAULT '{"template":"e36-default-v1","blocks":[]}' CHECK (json_valid(content_json)),
   segment_definition_json TEXT NOT NULL CHECK (json_valid(segment_definition_json)),
   recipient_count INTEGER NOT NULL DEFAULT 0 CHECK (recipient_count >= 0),
   status TEXT NOT NULL DEFAULT 'draft'
@@ -504,6 +506,8 @@ CREATE INDEX idx_mailing_campaign_recipients_campaign
 
 INSERT INTO schema_migrations (id, description)
 VALUES ('2026-09-03-mailing-foundation', 'Mailing contact, segmentation and campaign foundation');
+INSERT INTO schema_migrations (id, description)
+VALUES ('2026-09-03-mailing-editor', 'Mailing B structured email editor and E36 template');
 CREATE INDEX idx_member_planner_drafts_active
   ON member_planner_drafts(member_id, expires_at, updated_at);
 CREATE UNIQUE INDEX idx_points_ledger_idempotency

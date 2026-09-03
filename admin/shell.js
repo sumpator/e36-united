@@ -1,6 +1,6 @@
 import { initPortalNavigation } from '../portal-navigation.js?v=20260825-mobile1';
-import { ADMIN_VIEW_IDS } from '../admin-view-model.js?v=20260903-mailing-a';
-import { adminState } from './state.js?v=20260903-mailing-a';
+import { ADMIN_VIEW_IDS } from '../admin-view-model.js?v=20260903-mailing-b';
+import { adminState } from './state.js?v=20260903-mailing-b';
 import { $, $$, rememberSessionChoice } from './ui.js?v=20260903-phase5';
 
 const adminCollapseStorageKey='e36UnitedAdmin.collapsedSections.v1';

@@ -1,4 +1,4 @@
-import { apiRequest } from '../../api.js?v=20260903-mailing-a';
+import { apiRequest } from '../../api.js?v=20260903-mailing-b';
 import { $, escapeHtml, numeric } from '../../ui.js?v=20260903-phase5';
 
 export const defaultMailingSegment=Object.freeze({match:'all',rules:[{type:'mailing_eligible'}],exclusions:[]});

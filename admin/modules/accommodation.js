@@ -1,8 +1,8 @@
 import { accommodationVisualMarkup, bindAccommodationVisualFallbacks } from '../../accommodation-visual.js?v=20260827-accommodation1';
 import { selectImageFiles } from '../../image-upload.js?v=20260827-accommodation1';
-import { apiBaseUrl, apiRequest, apiUpload } from '../api.js?v=20260903-mailing-a';
-import { adminState } from '../state.js?v=20260903-mailing-a';
-import { setDenied } from '../shell.js?v=20260903-mailing-a';
+import { apiBaseUrl, apiRequest, apiUpload } from '../api.js?v=20260903-mailing-b';
+import { adminState } from '../state.js?v=20260903-mailing-b';
+import { setDenied } from '../shell.js?v=20260903-mailing-b';
 import { $, escapeHtml, formatMoney, numeric, toast } from '../ui.js?v=20260903-phase5';
 
 const accommodationPhotoSelections=new Map();

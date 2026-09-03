@@ -1,4 +1,4 @@
-import { ADMIN_VIEW_IDS, RESERVATION_VIEW_MODES } from '../admin-view-model.js?v=20260903-mailing-a';
+import { ADMIN_VIEW_IDS, RESERVATION_VIEW_MODES } from '../admin-view-model.js?v=20260903-mailing-b';
 import { readSessionChoice, readSessionValue, readSessionYear } from './ui.js?v=20260903-phase5';
 
 export const adminState={

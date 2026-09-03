@@ -2,15 +2,15 @@ import { firebaseConfig } from './firebase-config.js?v=20260823-auth2';
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js';
 import { getAuth, setPersistence, browserLocalPersistence, onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js';
 
-import { apiRequest } from './admin/api.js?v=20260903-mailing-a';
-import { adminState, resetAdminDomainState, resetAdminFiltersForEvent, resetAdminFiltersForLogin } from './admin/state.js?v=20260903-mailing-a';
-import { initializeAdminShell, setAdminSectionCollapsed, setAdminView, setDenied, setLoading, setView } from './admin/shell.js?v=20260903-mailing-a';
+import { apiRequest } from './admin/api.js?v=20260903-mailing-b';
+import { adminState, resetAdminDomainState, resetAdminFiltersForEvent, resetAdminFiltersForLogin } from './admin/state.js?v=20260903-mailing-b';
+import { initializeAdminShell, setAdminSectionCollapsed, setAdminView, setDenied, setLoading, setView } from './admin/shell.js?v=20260903-mailing-b';
 import { $, toast } from './admin/ui.js?v=20260903-phase5';
 import { renderEventSelector, renderOverview, saveEventSettings } from './admin/modules/dashboard-events.js?v=20260903-phase5';
 import { previewAccommodationPhoto, removeAccommodationPhoto, renderAccommodation, saveAccommodation, uploadAccommodationPhoto } from './admin/modules/accommodation.js?v=20260903-phase5';
 import { clearReservationDetailFilters, closeReservationDrawer, openReservationDrawer, renderReservations, setPaymentFilter, setPaymentSearch, setReservationFilter, setReservationSearch, setReservationViewMode, toggleReservationDetailFilter, toggleReservationFilters, updateReservation, updateReservationPayment } from './admin/modules/reservations-payments.js?v=20260903-phase5';
 import { changeHistoryPage, clearHistoryFilters, closeGalleryLightbox, closeHistoryEvidence, historyRequestPath, hydrateOpenHistoryCard, openGalleryLightbox, openHistoryEvidence, releaseGalleryMedia, releaseHistoryEvidence, renderGallery, renderHistoryClaims, reviewHistoryClaim, setGalleryFilter, setGalleryMode, setHistoryClaimType, setHistoryFilter, setHistorySearch, setHistoryYear, updateGallery } from './admin/modules/moderation.js?v=20260903-phase5';
-import { initializeMailingCenter, resetMailingCenter } from './admin/modules/mailing/index.js?v=20260903-mailing-a';
+import { initializeMailingCenter, resetMailingCenter } from './admin/modules/mailing/index.js?v=20260903-mailing-b';
 
 const app=initializeApp(firebaseConfig);
 const auth=getAuth(app);

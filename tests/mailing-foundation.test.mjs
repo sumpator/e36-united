@@ -11,9 +11,11 @@ import {
 } from '../worker/domains/mailing/contacts.js';
 import { routeAdminMailing } from '../worker/domains/mailing/index.js';
 import { filterMailingSegment } from '../worker/domains/mailing/segments.js';
+import { createMailingStarterDraft } from '../worker/domains/mailing/template.js';
 
 const origin='https://e36united.cz';
 const migration=readFileSync(new URL('../db/migrations/2026-09-03-mailing-foundation.sql',import.meta.url),'utf8');
+const editorMigration=readFileSync(new URL('../db/migrations/2026-09-03-mailing-editor.sql',import.meta.url),'utf8');
 
 function createRuntime(){
   const database=new DatabaseSync(':memory:');
@@ -34,6 +36,7 @@ function createRuntime(){
     CREATE TABLE gallery_submissions (id TEXT PRIMARY KEY, member_id TEXT NOT NULL, status TEXT NOT NULL);
   `);
   database.exec(migration);
+  database.exec(editorMigration);
 
   const prepare=sql=>{
     const statement=database.prepare(sql);let values=[];
@@ -172,6 +175,8 @@ test('campaign foundation creates a draft and cannot mark it sent',async()=>{
   assert.equal(createdResponse.status,201);
   assert.equal(created.campaign.status,'draft');
   assert.equal(created.campaign.recipientCount,2);
+  assert.equal(created.campaign.templateVersion,'e36-default-v1');
+  assert.equal(created.campaign.content.blocks.length,5);
   assert.equal(runtime.database.prepare('SELECT COUNT(*) AS count FROM mailing_campaign_recipients').get().count,0,'recipient snapshot stays unused before delivery preparation');
 
   const send=mailingRequest(`/api/admin/mailing/campaigns/${created.campaign.id}`,{method:'PATCH',body:{status:'sent'}});
@@ -187,11 +192,36 @@ test('campaign foundation creates a draft and cannot mark it sent',async()=>{
   runtime.database.close();
 });
 
+test('campaign draft save/load keeps structured content, template version and segment',async()=>{
+  const runtime=createRuntime();seed(runtime);const starter=createMailingStarterDraft();
+  const segment={match:'all',rules:[{type:'active_member'}],exclusions:[{type:'registered_current_event'}]};
+  const create=mailingRequest('/api/admin/mailing/campaigns',{method:'POST',body:{...starter,segment,status:'draft'}});
+  const createdResponse=await routeAdminMailing({request:create,env:runtime.env,url:new URL(create.url),auth:{uid:'admin'},origin});
+  const created=(await createdResponse.json()).campaign;
+  const changed={...created.content,blocks:created.content.blocks.map(block=>block.id==='copy-zbraslavice'?{...block,text:'Upravený **bezpečný** text.'}:block)};
+  const update=mailingRequest(`/api/admin/mailing/campaigns/${created.id}`,{method:'PATCH',body:{internalName:created.internalName,subject:'Upravený předmět',content:changed,templateVersion:'e36-default-v1'}});
+  const updatedResponse=await routeAdminMailing({request:update,env:runtime.env,url:new URL(update.url),auth:{uid:'admin'},origin});
+  const updated=(await updatedResponse.json()).campaign;
+  assert.equal(updatedResponse.status,200);
+  assert.equal(updated.subject,'Upravený předmět');
+  assert.equal(updated.content.blocks.find(block=>block.id==='copy-zbraslavice').text,'Upravený **bezpečný** text.');
+  assert.deepEqual(updated.segment,segment,'omitting segment on edit preserves the saved server definition');
+  const stored=runtime.database.prepare('SELECT template_version,content_json FROM mailing_campaigns WHERE id=?').get(created.id);
+  assert.equal(stored.template_version,'e36-default-v1');
+  assert.deepEqual(JSON.parse(stored.content_json),updated.content);
+  assert.equal(runtime.database.prepare('SELECT COUNT(*) AS count FROM mailing_campaign_recipients').get().count,0);
+  runtime.database.close();
+});
+
 test('migration creates the five isolated Mailing tables without repurposing legacy names',()=>{
   const runtime=createRuntime();
   const tables=runtime.database.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name LIKE 'mailing_%' ORDER BY name").all().map(row=>row.name);
   assert.deepEqual(tables,['mailing_campaign_recipients','mailing_campaigns','mailing_contact_sources','mailing_contact_tags','mailing_contacts']);
   assert.equal(runtime.database.prepare("SELECT COUNT(*) AS count FROM schema_migrations WHERE id='2026-09-03-mailing-foundation'").get().count,1);
+  assert.equal(runtime.database.prepare("SELECT COUNT(*) AS count FROM schema_migrations WHERE id='2026-09-03-mailing-editor'").get().count,1);
+  const campaignColumns=runtime.database.prepare('PRAGMA table_info(mailing_campaigns)').all().map(row=>row.name);
+  assert.equal(campaignColumns.includes('template_version'),true);
+  assert.equal(campaignColumns.includes('content_json'),true);
   assert.equal(/\b(?:send|deliver|webhook)\b/i.test(readFileSync(new URL('../worker/domains/mailing/campaigns.js',import.meta.url),'utf8')),false);
   runtime.database.close();
 });

@@ -82,4 +82,77 @@ test.describe('desktop Admin portal', () => {
     ]));
     expectNoUnexpectedClientErrors(observations);
   });
+
+  test('Mailing campaign editor uses the E36 starter, block controls and desktop/mobile server preview', async ({ page }) => {
+    const observations = await prepareAdminE2ePage(page);
+
+    await page.goto('/admin.html');
+    await expect(page.locator('[data-admin-view]')).toBeVisible();
+    await page.locator('[data-admin-jump="mailing"]').click();
+    await page.locator('[data-mailing-tab="campaigns"]').click();
+
+    const form=page.locator('[data-mailing-campaign-form]');
+    await expect(form.locator('[name="internalName"]')).toHaveValue('United 2026 — Zbraslavice feedback');
+    await expect(form.locator('[name="subject"]')).toHaveValue('Jak to vidíš se Zbraslavicemi?');
+    await expect(page.locator('[data-mailing-block-id], [data-block-id]')).toHaveCount(5);
+    await expect(page.frameLocator('[data-mailing-preview-frame]').locator('body')).toContainText('Jak to vidíš se Zbraslavicemi?');
+
+    await page.locator('[data-mailing-preview-device="mobile"]').click();
+    await expect(page.locator('[data-mailing-preview-stage]')).toHaveAttribute('data-device','mobile');
+    await expect(page.locator('[data-mailing-preview-device="mobile"]')).toHaveAttribute('aria-pressed','true');
+
+    const richText=page.locator('[data-block-type="rich_text"] textarea');
+    await richText.fill('Nový odstavec pro **United komunitu**.');
+    await expect(page.frameLocator('[data-mailing-preview-frame]').locator('body')).toContainText('Nový odstavec pro United komunitu');
+
+    await page.locator('[data-mailing-add-type]').selectOption('cta');
+    await page.locator('[data-mailing-add-block]').click();
+    await expect(page.locator('[data-block-id]')).toHaveCount(6);
+    await page.locator('[data-block-type="cta"] [data-block-action="duplicate"]').click();
+    await expect(page.locator('[data-block-id]')).toHaveCount(7);
+    await page.locator('[data-block-type="cta"]').last().locator('[data-block-action="remove"]').click();
+    await expect(page.locator('[data-block-id]')).toHaveCount(6);
+
+    expect(observations.requests).toEqual(expect.arrayContaining([
+      'GET /api/admin/mailing/editor-config',
+      'GET /api/admin/mailing/campaigns',
+      'POST /api/admin/mailing/render-preview',
+    ]));
+    expect(observations.campaignWrites).toEqual([]);
+    expectNoUnexpectedClientErrors(observations);
+  });
+
+  test('Mailing draft save, reload and edit retain structured blocks without freezing recipients', async ({ page }) => {
+    const observations = await prepareAdminE2ePage(page);
+
+    await page.goto('/admin.html');
+    await expect(page.locator('[data-admin-view]')).toBeVisible();
+    await page.locator('[data-admin-jump="mailing"]').click();
+    await page.locator('[data-mailing-tab="campaigns"]').click();
+    const form=page.locator('[data-mailing-campaign-form]');
+    await form.locator('[name="internalName"]').fill('E2E Zbraslavice draft');
+    await form.locator('[name="subject"]').fill('První uložený předmět');
+    await page.locator('[data-block-type="rich_text"] textarea').fill('Obsah, který musí přežít reload.');
+    await form.locator('[data-mailing-save]').click();
+    await expect(page.locator('[data-mailing-save-state]')).toHaveText('Uloženo');
+    await expect(page.locator('[data-mailing-campaign-list]')).toContainText('E2E Zbraslavice draft');
+
+    await page.reload();
+    await expect(page.locator('[data-admin-view]')).toBeVisible();
+    await page.locator('[data-admin-jump="mailing"]').click();
+    await page.locator('[data-mailing-tab="campaigns"]').click();
+    await page.locator('[data-mailing-campaign-open="campaign-e2e"]').click();
+    await expect(form.locator('[name="internalName"]')).toHaveValue('E2E Zbraslavice draft');
+    await expect(form.locator('[name="subject"]')).toHaveValue('První uložený předmět');
+    await expect(page.locator('[data-block-type="rich_text"] textarea')).toHaveValue('Obsah, který musí přežít reload.');
+
+    await form.locator('[name="subject"]').fill('Upravený předmět');
+    await form.locator('[data-mailing-save]').click();
+    await expect(page.locator('[data-mailing-save-state]')).toHaveText('Uloženo');
+    expect(observations.campaignWrites.map(write=>write.method)).toEqual(['POST','PATCH']);
+    expect(observations.campaignWrites[0].body.content.template).toBe('e36-default-v1');
+    expect(observations.campaignWrites[0].body.segment).toEqual({match:'all',rules:[{type:'mailing_eligible'}],exclusions:[]});
+    expect(observations.requests.some(entry=>entry.includes('/recipients'))).toBe(false);
+    expectNoUnexpectedClientErrors(observations);
+  });
 });

@@ -8,7 +8,7 @@
   <title>United Admin | E36 United</title>
   <link href="styles.css?v=20260825-mobile1" rel="stylesheet"/>
   <link href="accommodation-visual.css?v=20260827-accommodation1" rel="stylesheet"/>
-  <link href="admin.css?v=20260903-mailing-a" rel="stylesheet"/>
+  <link href="admin.css?v=20260903-mailing-b" rel="stylesheet"/>
 </head>
 <body class="admin-page">
   <header class="site-header scrolled admin-header">
@@ -261,7 +261,7 @@
           </section>
 
           <section class="admin-mailing admin-view-panel" data-admin-panel="mailing" hidden>
-            <div class="admin-section-head"><div><span class="admin-kicker">MAILING CENTER</span><h2>Mailing.</h2><p>Kontakty, serverové segmenty a koncepty kampaní. Odesílání e-mailů v této fázi není dostupné.</p></div><span class="admin-view-label">FOUNDATION A</span></div>
+            <div class="admin-section-head"><div><span class="admin-kicker">MAILING CENTER</span><h2>Mailing.</h2><p>Kontakty, serverové segmenty a hotový E36 editor kampaní. Odesílání e-mailů zatím není dostupné.</p></div><span class="admin-view-label">COMPOSER B</span></div>
             <div class="admin-mailing-tabs" aria-label="Sekce Mailing" role="tablist">
               <button aria-selected="true" class="is-active" data-mailing-tab="overview" role="tab" type="button">Přehled</button>
               <button aria-selected="false" data-mailing-tab="contacts" role="tab" type="button">Kontakty</button>
@@ -278,7 +278,7 @@
                 <article><span>Potlačené</span><strong data-mailing-kpi="suppressed">0</strong></article>
                 <article><span>Koncepty kampaní</span><strong data-mailing-kpi="drafts">0</strong></article>
               </section>
-              <div class="admin-mailing-notice"><strong>Mailing A je bezpečný základ.</strong><span>Žádný provider, testovací odeslání ani produkční import zde není zapojen.</span></div>
+              <div class="admin-mailing-notice"><strong>Mailing B přidává bezpečnou kompozici.</strong><span>Kontakty se neimportují, příjemci se nezmrazují a žádný provider ani odesílání není zapojeno.</span></div>
             </div>
 
             <div data-mailing-area="contacts" hidden>
@@ -314,17 +314,33 @@
             </div>
 
             <div data-mailing-area="campaigns" hidden>
-              <div class="admin-mailing-campaign-layout">
-                <form class="admin-config-card admin-mailing-campaign-form" data-mailing-campaign-form>
-                  <span class="admin-kicker">NEW DRAFT</span><h3>Nový koncept.</h3>
-                  <label class="admin-field"><span>Interní název</span><input maxlength="120" name="internalName" required/></label>
-                  <label class="admin-field"><span>Předmět (volitelně)</span><input maxlength="180" name="subject"/></label>
-                  <label class="admin-field"><span>Preheader (volitelně)</span><input maxlength="240" name="preheader"/></label>
-                  <p>Koncept převezme naposledy zobrazený segment. Editor a odesílání přijdou v dalších fázích.</p>
-                  <button class="admin-button admin-button--primary" type="submit">Uložit koncept</button>
-                </form>
-                <div><div class="admin-mailing-result-head"><span class="admin-kicker">CAMPAIGN DRAFTS</span></div><div class="admin-mailing-campaign-list" data-mailing-campaign-list></div></div>
+              <div class="admin-mailing-editor-head">
+                <div><span class="admin-kicker">E36 EMAIL COMPOSER</span><h3 data-mailing-editor-mode>Nový koncept.</h3><p>Obsah skládáš z bezpečných bloků. Výsledné HTML vždy generuje stejná serverová E36 šablona.</p></div>
+                <div><span class="admin-mailing-save-state" data-mailing-save-state>Nový koncept</span><button class="admin-button" data-mailing-campaign-new type="button">Nový draft</button></div>
               </div>
+              <div class="admin-mailing-editor-layout" data-mailing-editor>
+                <form class="admin-mailing-editor" data-mailing-campaign-form>
+                  <section class="admin-mailing-editor-card admin-mailing-meta-card">
+                    <div class="admin-mailing-card-head"><div><span class="admin-kicker">CAMPAIGN</span><h4>Základ kampaně.</h4></div><span data-mailing-template-version>e36-default-v1</span></div>
+                    <div class="admin-mailing-meta-grid">
+                      <label class="admin-field admin-field--wide"><span>Interní název</span><input maxlength="120" name="internalName" required/></label>
+                      <label class="admin-field"><span>Předmět</span><input maxlength="180" name="subject" required/></label>
+                      <label class="admin-field"><span>Preheader</span><input maxlength="240" name="preheader"/></label>
+                    </div>
+                  </section>
+                  <section class="admin-mailing-editor-card">
+                    <div class="admin-mailing-card-head"><div><span class="admin-kicker">CONTENT BLOCKS</span><h4>Obsah e-mailu.</h4></div><div class="admin-mailing-add-block"><label><span class="sr-only">Typ nového bloku</span><select data-mailing-add-type><option value="heading">Nadpis</option><option value="rich_text">Text</option><option value="image">Obrázek</option><option value="cta">CTA</option><option value="divider">Oddělovač / mezera</option><option value="highlight">Highlight</option><option value="survey">Anketa</option><option value="hero">Hero</option></select></label><button class="admin-button" data-mailing-add-block type="button">+ Přidat blok</button></div></div>
+                    <div class="admin-mailing-block-list" data-mailing-block-list></div>
+                  </section>
+                  <div class="admin-mailing-editor-actions"><p>Draft používá aktuální dynamický segment. Příjemci se zatím nezmrazují.</p><button class="admin-button admin-button--primary" data-mailing-save type="submit">Uložit koncept</button></div>
+                </form>
+                <aside class="admin-mailing-preview-panel">
+                  <div class="admin-mailing-preview-head"><div><span class="admin-kicker">LIVE EMAIL PREVIEW</span><strong>Stejný HTML renderer jako budoucí odeslání</strong></div><div class="admin-mailing-preview-switch" role="group" aria-label="Velikost náhledu"><button aria-pressed="true" class="is-active" data-mailing-preview-device="desktop" type="button">Desktop</button><button aria-pressed="false" data-mailing-preview-device="mobile" type="button">Mobile</button></div></div>
+                  <div class="admin-mailing-envelope"><span>PŘEDMĚT</span><strong data-mailing-preview-subject>—</strong><span>PREHEADER</span><small data-mailing-preview-preheader>—</small></div>
+                  <div class="admin-mailing-preview-stage" data-mailing-preview-stage data-device="desktop"><div class="admin-mailing-preview-status" data-mailing-preview-status>Generuji náhled…</div><iframe data-mailing-preview-frame title="Náhled E36 United e-mailu"></iframe></div>
+                </aside>
+              </div>
+              <section class="admin-mailing-drafts"><div class="admin-mailing-result-head"><span class="admin-kicker">CAMPAIGN DRAFTS</span><strong data-mailing-campaign-count>0 konceptů</strong></div><div class="admin-mailing-campaign-list" data-mailing-campaign-list></div></section>
             </div>
           </section>
 
@@ -349,6 +365,6 @@
     </aside>
   </div>
   <div aria-live="polite" class="admin-toast" data-toast role="status"></div>
-  <script src="admin.js?v=20260903-mailing-a" type="module"></script>
+  <script src="admin.js?v=20260903-mailing-b" type="module"></script>
 </body>
 </html>

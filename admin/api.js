@@ -1,5 +1,5 @@
 import { portalConfig } from '../firebase-config.js?v=20260823-auth2';
-import { adminState } from './state.js?v=20260903-mailing-a';
+import { adminState } from './state.js?v=20260903-mailing-b';
 
 export const apiBaseUrl=(portalConfig.apiBaseUrl||'https://api.e36united.cz').replace(/\/$/,'');
 
