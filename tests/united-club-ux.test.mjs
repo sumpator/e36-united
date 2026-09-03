@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 const read=name=>readFileSync(new URL(`../${name}`,import.meta.url),'utf8');
-const memberHtml=read('member.html'),memberEntryJs=read('member.js'),memberShellJs=read('member/shell.js'),memberOverviewJs=read('member/modules/overview.js'),memberJs=[memberEntryJs,memberShellJs,memberOverviewJs].join('\n'),memberCss=read('member.css');
+const memberHtml=read('member.html'),memberEntryJs=read('member.js'),memberShellJs=read('member/shell.js'),memberOverviewJs=read('member/modules/overview.js'),memberClubIndexJs=read('member/modules/club/index.js'),memberClubPointsJs=read('member/modules/club/points.js'),memberClubHistoryJs=read('member/modules/club/history.js'),memberAccountJs=read('member/modules/account.js'),memberJs=[memberEntryJs,memberShellJs,memberOverviewJs,memberClubIndexJs,memberClubPointsJs,memberClubHistoryJs,memberAccountJs].join('\n'),memberCss=read('member.css');
 const adminHtml=read('admin.html'),adminJs=read('admin.js'),adminCss=read('admin.css');
 const merchJs=read('merch.js');
 const worker=[
@@ -21,7 +21,7 @@ test('United Club uses exact heading, explanation and four activity-only earning
   assert.doesNotMatch(club,/Body\. Historie\. Achievements\./);
   assert.match(club,/United Points\. Tvoje odměny\./);
   assert.match(club,/Buď členem United a čerpej výhody![\s\S]*TOP 3 Show &amp; Shine[\s\S]*přidávání fotek/);
-  const rewards=memberEntryJs.slice(memberEntryJs.indexOf('function renderRewards()'),memberEntryJs.indexOf('bindGarage();'));
+  const rewards=memberClubPointsJs.slice(memberClubPointsJs.indexOf('function renderRewards()'),memberClubPointsJs.indexOf('function bind()'));
   assert.equal((rewards.match(/\['earn-/g)||[]).length,4);
   for(const label of ['Účast na srazu','Umístění v Show & Shine','Nahrávání fotek','Doplnění profilu'])assert.match(rewards,new RegExp(label));
   assert.doesNotMatch(rewards,/\+1|\+2|\+3/);

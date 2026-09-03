@@ -6,10 +6,18 @@ const html = readFileSync(new URL('../member.html', import.meta.url), 'utf8');
 const css = readFileSync(new URL('../member.css', import.meta.url), 'utf8');
 const memberEntryJs = readFileSync(new URL('../member.js', import.meta.url), 'utf8');
 const plannerJs = readFileSync(new URL('../member/modules/planner/index.js', import.meta.url), 'utf8');
+const clubIndexJs = readFileSync(new URL('../member/modules/club/index.js', import.meta.url), 'utf8');
+const clubPointsJs = readFileSync(new URL('../member/modules/club/points.js', import.meta.url), 'utf8');
+const clubHistoryJs = readFileSync(new URL('../member/modules/club/history.js', import.meta.url), 'utf8');
+const accountJs = readFileSync(new URL('../member/modules/account.js', import.meta.url), 'utf8');
 const js = [
   memberEntryJs,
   readFileSync(new URL('../member/shell.js', import.meta.url), 'utf8'),
   readFileSync(new URL('../member/modules/overview.js', import.meta.url), 'utf8'),
+  clubIndexJs,
+  clubPointsJs,
+  clubHistoryJs,
+  accountJs,
 ].join('\n');
 const overview = html.slice(html.indexOf('data-member-panel="overview"'), html.indexOf('data-member-panel="reservation"'));
 const club = html.slice(html.indexOf('data-member-panel="club"'), html.indexOf('data-member-panel="photos"'));
@@ -78,7 +86,7 @@ test('United Points Command Panel consolidates the meter and Merch reward', () =
 });
 
 test('Earn Strip keeps only four activity names and moves exact rules into help', () => {
-  const rewards = memberEntryJs.slice(memberEntryJs.indexOf('function renderRewards()'), memberEntryJs.indexOf('bindGarage();'));
+  const rewards = clubPointsJs.slice(clubPointsJs.indexOf('function renderRewards()'), clubPointsJs.indexOf('function bind()'));
   for (const label of ['Účast na srazu','Umístění v Show & Shine','Nahrávání fotek','Doplnění profilu']) assert.match(rewards,new RegExp(label));
   assert.doesNotMatch(rewards,/\+1|\+2|\+3|25 schválených|50 schválených/);
   assert.match(js, /Každý ověřený sraz','\+1 bod'[\s\S]*3 ověřené srazy','\+3 body navíc'[\s\S]*5 ověřených srazů','\+3 body navíc'/);
@@ -106,6 +114,6 @@ test('Achievements render only authoritative server data with anchored desktop a
 test('portal preserves closed registration while Club state is loaded from the server', () => {
   assert.match(plannerJs, /let reservationState=\{registrationOpen:false,event:null/);
   assert.match(js, /apiRequest\('\/api\/united-club'\)/);
-  assert.match(js, /points\(d=data\)\{return Number\(d\.club\?\.points\?\.available/);
+  assert.match(js, /points\(d=getData\(\)\)\{return Number\(d\.club\?\.points\?\.available/);
   assert.doesNotMatch(js, /d\.history\.reduce|d\.bonuses|portalConfig\.points/);
 });

@@ -116,9 +116,22 @@ export async function prepareE2ePage(page, {
   memberStatus = 'active',
   registrationOpen = false,
   reservation = null,
+  clubPayload = null,
   ignoreConsoleError = () => false,
 } = {}) {
-  const observations = { pageErrors: [], consoleErrors: [], unhandledApi: [], requests: [], reservationWrites: [] };
+  const observations = { pageErrors: [], consoleErrors: [], unhandledApi: [], requests: [], reservationWrites: [], profileWrites: [] };
+  let memberProfile = {
+    id: memberId,
+    memberCode: 'EU036',
+    name: 'Eva Nováková',
+    nickname: 'Eva',
+    email: 'eva@example.test',
+    phone: '+420 700 000 036',
+    role: 'member',
+    status: memberStatus,
+    emailVerified: true,
+    createdAt: '2021-06-01T00:00:00.000Z',
+  };
   page.on('pageerror', error => observations.pageErrors.push(error.stack || error.message));
   page.on('console', message => {
     if (message.type() !== 'error') return;
@@ -179,19 +192,15 @@ export async function prepareE2ePage(page, {
     if (url.pathname === '/api/me') {
       await jsonResponse(route, {
         profileExists: true,
-        member: {
-          id: memberId,
-          memberCode: 'EU036',
-          name: 'Eva Nováková',
-          nickname: 'Eva',
-          email: 'eva@example.test',
-          phone: '+420 700 000 036',
-          role: 'member',
-          status: memberStatus,
-          emailVerified: true,
-          createdAt: '2021-06-01T00:00:00.000Z',
-        },
+        member: memberProfile,
       });
+      return;
+    }
+    if (url.pathname === '/api/bootstrap' && request.method() === 'POST') {
+      const body = request.postDataJSON();
+      observations.profileWrites.push(body);
+      memberProfile = { ...memberProfile, ...body };
+      await jsonResponse(route, { member: memberProfile });
       return;
     }
     if (url.pathname === '/api/cars') {
@@ -266,6 +275,7 @@ export async function prepareE2ePage(page, {
         profileCompletion: {},
         achievements: [],
         featuredAchievements: [],
+        ...(clubPayload || {}),
       });
       return;
     }

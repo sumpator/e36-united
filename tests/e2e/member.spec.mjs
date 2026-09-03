@@ -64,6 +64,74 @@ test.describe('desktop member portal', () => {
     expectNoUnexpectedClientErrors(observations);
   });
 
+  test('United Club renders server Points, Achievements and pending history detail', async ({ page }) => {
+    const achievement = { id: 'sns-top3-2024', name: 'UNITED PÓDIUM', condition: '2. místo · Coupé', tier: 'SILVER', type: 'show-shine', points: 2, eventYear: 2024 };
+    const observations = await prepareE2ePage(page, {
+      authenticated: true,
+      clubPayload: {
+        achievements: [achievement],
+        featuredAchievements: [achievement],
+        history: [{
+          eventId: 'united-2024', eventYear: 2024, concluded: true,
+          attendance: { status: 'pending', reviewNote: '' },
+          showShine: { competed: true, status: 'pending', category: 'coupe', placement: 2, bestOfBest: false, bestExhaust: false },
+          evidence: [],
+        }],
+      },
+    });
+
+    await page.goto('/member.html');
+    await expectMemberOverview(page);
+    await expect(page.locator('[data-overview-points]')).toHaveText('7');
+    await expect(page.locator('[data-featured-achievements]')).toContainText('UNITED PÓDIUM');
+
+    await page.locator('.member-sidebar [data-member-section="club"]').click();
+    await expect(page.locator('[data-points-journey-score]')).toHaveText('7');
+    await expect(page.locator('[data-achievement-catalog]')).toContainText('UNITED PÓDIUM');
+    await page.locator('[data-achievement-catalog] [data-achievement-id="sns-top3-2024"]').click();
+    await expect(page.locator('[data-achievement-popover]')).toBeVisible();
+    await expect(page.locator('[data-achievement-title]')).toHaveText('UNITED PÓDIUM');
+    await page.locator('[data-achievement-close]').click();
+
+    const historyYear = page.locator('[data-open-history-year="united-2024"]');
+    await expect(historyYear).toContainText('ČEKÁ NA KONTROLU');
+    await expect(historyYear).toContainText('S&S ČEKÁ NA KONTROLU');
+    await historyYear.click();
+    await expect(page.locator('[data-history-editor]')).toBeVisible();
+    await expect(page.locator('[data-history-editor-list]')).toContainText('Účast na United 2024');
+    await expect(page.locator('[data-history-editor-list]')).toContainText('Coupé · 2. místo');
+
+    expectNoUnexpectedClientErrors(observations);
+  });
+
+  test('Account keeps profile prefill and the existing bootstrap update payload', async ({ page }) => {
+    const observations = await prepareE2ePage(page, { authenticated: true });
+
+    await page.goto('/member.html');
+    await expectMemberOverview(page);
+    await page.locator('.member-sidebar [data-member-section="account"]').click();
+
+    const form = page.locator('[data-account-form]');
+    await expect(form.locator('[name="name"]')).toHaveValue('Eva Nováková');
+    await expect(form.locator('[name="nickname"]')).toHaveValue('Eva');
+    await expect(form.locator('[name="phone"]')).toHaveValue('+420 700 000 036');
+    await expect(form.locator('[data-account-email]')).toHaveValue('eva@example.test');
+    await expect(page.locator('[data-account-member-code]')).toHaveText('EU036');
+    await expect(page.locator('[data-account-verification]')).toHaveText('OVĚŘENÝ');
+
+    await form.locator('[name="name"]').fill('Eva United');
+    await form.locator('[name="nickname"]').fill('Evi');
+    await form.locator('[name="phone"]').fill('+420 777 111 222');
+    await form.locator('button[type="submit"]').click();
+    await expect.poll(() => observations.profileWrites.length).toBe(1);
+    expect(observations.profileWrites[0]).toEqual({ name: 'Eva United', nickname: 'Evi', phone: '+420 777 111 222' });
+    await expect(form.locator('[name="name"]')).toHaveValue('Eva United');
+    await expect(form.locator('[name="nickname"]')).toHaveValue('Evi');
+    await expect(page.locator('[data-summary-name]')).toHaveText('Eva United');
+
+    expectNoUnexpectedClientErrors(observations);
+  });
+
   test('Garage Add and Edit keep one shared form with the existing prefill behavior', async ({ page }) => {
     const observations = await prepareE2ePage(page, { authenticated: true });
 

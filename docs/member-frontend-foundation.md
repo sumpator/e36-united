@@ -63,3 +63,41 @@ Garage connects to Overview and the retained reservation frontend through explic
 Garage continues to own cars and private car-photo URLs; the Planner receives both through explicit state and callback boundaries and does not import Garage internals. Overview continues to own the Action Center; the Planner supplies the same reservation/window state through a render callback and Overview does not import Planner internals.
 
 `member.js` remains the application composition entry and continues to own authentication/session orchestration, member profile and Account, United Club, history, Points/Achievements, shared contextual help, and cross-domain module wiring. Phase 4C changes no Planner options, reservation payloads, pricing or payment rules, DOM/CSS, Firebase/API behavior, Worker/Admin/public-site code, or deployment strategy.
+
+## Phase 4D: United Club, history and Account
+
+- `member/modules/club/index.js` owns United Club loading/normalization and composes its Points and History submodules behind explicit state, refresh and Overview-render callbacks.
+- `member/modules/club/points.js` owns the existing server-authoritative Points and reward-progress presentation, Achievements catalog/details, shared Club/Member Card contextual help, and the existing Points/attendance/member-since presentation selectors.
+- `member/modules/club/history.js` owns History/attendance rendering, the stateful year editor, Show & Shine category/placement/accolade presentation, claim payload construction, mutation refreshes, and private evidence object-URL lifecycle.
+- `member/modules/account.js` owns Account/profile rendering and the existing `/api/bootstrap` profile-update flow. Account logout buttons continue to invoke the one shared logout implementation bound by `member.js`.
+
+`member.js` is now the application composition layer: it initializes the session and domain modules, assembles initial state, preserves auth/login/logout orchestration, keeps the established render order, and coordinates cross-domain refresh callbacks. Overview still receives Points and featured-Achievement rendering through explicit callbacks; it does not import Club internals.
+
+The final Member Portal module structure is:
+
+```text
+member.js
+member/
+  api.js
+  media.js
+  refresh.js
+  session.js
+  shell.js
+  state.js
+  ui.js
+  modules/
+    account.js
+    garage.js
+    overview.js
+    photos.js
+    club/
+      index.js
+      history.js
+      points.js
+    planner/
+      index.js
+      payments.js
+      reservation.js
+```
+
+Phase 4 Member frontend modularization is complete. Phase 4D changes no visible markup or styling beyond the native-module cache version, no API/Firebase/Worker behavior, no Club/Points/History/Show & Shine/Account rules, and introduces no Rewards/Merch functionality.

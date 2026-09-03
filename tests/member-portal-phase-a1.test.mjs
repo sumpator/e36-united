@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 
 const read = name => readFileSync(new URL(`../${name}`, import.meta.url), 'utf8');
 const html = read('member.html');
-const js = [read('member.js'), read('member/shell.js'), read('member/modules/overview.js'), read('member/modules/garage.js'), read('member/modules/photos.js'), read('member/modules/planner/index.js'), read('member/modules/planner/reservation.js'), read('member/modules/planner/payments.js')].join('\n');
+const js = [read('member.js'), read('member/shell.js'), read('member/modules/overview.js'), read('member/modules/garage.js'), read('member/modules/photos.js'), read('member/modules/planner/index.js'), read('member/modules/planner/reservation.js'), read('member/modules/planner/payments.js'), read('member/modules/club/index.js'), read('member/modules/club/points.js'), read('member/modules/club/history.js'), read('member/modules/account.js')].join('\n');
 const css = read('member.css');
 const config = read('firebase-config.js');
 
@@ -82,7 +82,8 @@ test('Account renders real profile data, safe existing profile update and reloca
   assert.match(account, /Doručovací adresu bude možné uložit/);
   assert.doesNotMatch(account, /name="address|name="street|name="city/);
   assert.match(js, /apiRequest\('\/api\/bootstrap'/);
-  assert.match(js, /data\.profile=normalizeMember/);
+  assert.match(js, /setProfile\(normalizeMember\(payload,getCurrentUser\(\)\)\)/);
+  assert.match(js, /setProfile:profile=>\{data\.profile=profile\}/);
 });
 
 test('Points Journey reads server totals and no longer exposes writable scoring configuration', () => {
