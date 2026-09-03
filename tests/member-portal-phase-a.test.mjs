@@ -7,6 +7,8 @@ const memberHtml = read('member.html');
 const memberJs = read('member.js');
 const memberShellJs = read('member/shell.js');
 const memberOverviewJs = read('member/modules/overview.js');
+const memberGarageJs = read('member/modules/garage.js');
+const memberPhotosJs = read('member/modules/photos.js');
 const memberSessionJs = read('member/session.js');
 const memberStateJs = read('member-portal-state.js');
 const memberCss = read('member.css');
@@ -148,10 +150,10 @@ test('overview is an action center with no static Merch or Club promo cards', ()
 test('hero follows primary car and the authorized private-photo path', () => {
   assert.match(memberHtml, /data-member-hero/);
   assert.match(memberJs, /data\.cars\.find\(car=>car\.primary\)\|\|data\.cars\[0\]/);
-  assert.match(memberJs, /getPrivateCarPhotoUrl\(photoId\)/);
-  assert.match(memberJs, /URL\.revokeObjectURL/);
-  assert.match(memberJs, /carPhotoRequestGeneration/);
-  assert.match(memberJs, /stale_car_photo_request/);
+  assert.match(memberGarageJs, /getPrivateCarPhotoUrl\(photoId\)/);
+  assert.match(memberGarageJs, /URL\.revokeObjectURL/);
+  assert.match(memberGarageJs, /carPhotoRequestGeneration/);
+  assert.match(memberGarageJs, /stale_car_photo_request/);
   assert.match(memberStateJs, /Přidat fotku auta/);
   assert.match(memberStateJs, /Přidat první auto/);
 });
@@ -162,7 +164,7 @@ test('community submissions keep the existing flow in their own main panel', () 
   assert.doesNotMatch(club, /Moje fotky|data-club-tab="photos"|data-member-gallery-form/);
   assert.match(photos, /data-member-gallery-form/);
   assert.match(photos, /fotky z United/i);
-  assert.match(memberJs, /api\/gallery\/submissions/);
+  assert.match(memberPhotosJs, /api\/gallery\/submissions/);
 });
 
 test('United Club is one coherent Points, history and Achievements page on every viewport', () => {

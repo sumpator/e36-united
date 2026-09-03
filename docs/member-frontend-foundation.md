@@ -45,3 +45,11 @@ Phase 4A adds two native modules without changing the portal markup, styling, ro
 `member.js` remains the composition entry. It supplies existing state and callbacks to both modules and retains login/register and logout orchestration plus every domain flow: Garage and car uploads, Weekend Planner, reservations, payments, United Club and history, member photos, and Account. The shared session, refresh, API, state, and UI modules introduced in Phase 3 are unchanged.
 
 Later Phase 4 work may extract those retained domains individually. Phase 4A does not alter default-section behavior, desktop/mobile navigation behavior, Action Center decisions, API/Firebase/session behavior, Worker code, CSS, or business rules.
+
+## Phase 4B: Garage and Member Photos
+
+- `member/modules/garage.js` owns Garage rendering, the shared Add/Edit modal, car mutations, photo upload/replacement, and the private car-photo object-URL lifecycle.
+- `member/modules/photos.js` owns the member-submitted photo list, pagination, moderation-state presentation, upload/dropzone selection, lightbox, and its private-media object-URL lifecycle.
+- `member/media.js` contains only the image-compression primitive shared by those two upload flows.
+
+Garage connects to Overview and the retained reservation frontend through explicit state and render callbacks; Overview does not import Garage internals. `member.js` remains the composition entry and still owns Weekend Planner, reservations and reservation-only car presentation, payments/QR, United Club, history, Account, authentication orchestration, and cross-domain refresh ordering. Phase 4B changes no markup, CSS, API, Firebase/session, Worker, Admin, or public-site behavior.

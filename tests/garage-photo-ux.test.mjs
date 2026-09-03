@@ -6,7 +6,7 @@ import { selectImageFiles } from '../image-upload.js';
 
 const read = name => readFileSync(new URL(`../${name}`, import.meta.url), 'utf8');
 const memberHtml = read('member.html');
-const memberJs = read('member.js');
+const memberJs = [read('member.js'), read('member/modules/garage.js'), read('member/modules/photos.js'), read('member/media.js')].join('\n');
 const memberCss = read('member.css');
 const galleryJs = read('gallery.js');
 const worker = {

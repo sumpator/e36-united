@@ -28,6 +28,56 @@ test.describe('desktop member portal', () => {
     expectNoUnexpectedClientErrors(observations);
   });
 
+  test('Garage Add and Edit keep one shared form with the existing prefill behavior', async ({ page }) => {
+    const observations = await prepareE2ePage(page, { authenticated: true });
+
+    await page.goto('/member.html');
+    await expectMemberOverview(page);
+    await page.locator('.member-sidebar [data-member-section="garage"]').click();
+    await page.locator('[data-edit-car="car-001"]').click();
+
+    const modal = page.locator('[data-car-modal]');
+    const form = modal.locator('[data-car-form]');
+    await expect(modal).toBeVisible();
+    await expect(modal.locator('[data-car-modal-title]')).toHaveText('Upravit auto.');
+    await expect(form.locator('[name="nickname"]')).toHaveValue('Estoril');
+    await expect(form.locator('[name="model"]')).toHaveValue('328i');
+    await expect(form.locator('[name="primary"]')).toBeChecked();
+
+    await modal.locator('.member-modal-close').click();
+    await page.locator('[data-open-car]').click();
+    await expect(modal.locator('[data-car-modal-title]')).toHaveText('Přidat auto.');
+    await expect(form.locator('[name="nickname"]')).toHaveValue('');
+    await expect(form.locator('[name="primary"]')).not.toBeChecked();
+
+    expectNoUnexpectedClientErrors(observations);
+  });
+
+  test('Member Photos keeps its empty state and file-selection preview lifecycle', async ({ page }) => {
+    const observations = await prepareE2ePage(page, { authenticated: true });
+
+    await page.goto('/member.html');
+    await expectMemberOverview(page);
+    await page.locator('.member-sidebar [data-member-section="photos"]').click();
+    await expect(page.locator('[data-member-gallery-list]')).toContainText('Zatím jsi neposlal žádné fotografie.');
+
+    await page.locator('[data-member-photo-input]').setInputFiles({
+      name: 'united.png',
+      mimeType: 'image/png',
+      buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64'),
+    });
+    await expect(page.locator('[data-member-photo-selection]')).toBeVisible();
+    await expect(page.locator('[data-member-photo-count]')).toHaveText('1 fotka připravená k nahrání');
+    await expect(page.locator('[data-member-photo-names]')).toHaveText('united.png');
+    await expect(page.locator('[data-member-photo-previews] img')).toHaveCount(1);
+
+    await page.locator('[data-member-photo-clear]').click();
+    await expect(page.locator('[data-member-photo-selection]')).toBeHidden();
+    await expect(page.locator('[data-member-photo-previews] img')).toHaveCount(0);
+
+    expectNoUnexpectedClientErrors(observations);
+  });
+
   test('authenticated session restores after reload and current behavior returns to Přehled', async ({ page }) => {
     const observations = await prepareE2ePage(page, { authenticated: true });
 
