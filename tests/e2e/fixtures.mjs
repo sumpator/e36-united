@@ -291,6 +291,135 @@ export async function prepareE2ePage(page, {
   return observations;
 }
 
+const adminEvent = {
+  id: 'united-2026',
+  year: 2026,
+  title: 'E36 United 2026',
+  isCurrent: true,
+  registrationStatus: 'open',
+  reservationCapacity: 120,
+  accommodationCapacity: 12,
+  fullWeekendNights: 2,
+  saturdayOnlyNights: 1,
+  bookingCommitmentCzk: 100_000,
+  bookingDueAt: '2026-10-01',
+  bookingPaidCzk: 40_000,
+  eventEndAt: '2026-09-07',
+  paymentTestMode: true,
+};
+
+const adminReservation = {
+  id: 'reservation-admin-e2e',
+  eventId: adminEvent.id,
+  eventYear: adminEvent.year,
+  member: { name: 'Eva Nováková', nickname: 'Eva', email: 'eva@example.test', memberCode: 'EU036' },
+  carSnapshot: { id: 'car-001', nickname: 'Estoril', body: 'Coupé', model: '328i', year: 1996, color: 'Estoril Blau' },
+  arrival: 'Sobota',
+  crew: 3,
+  attendanceType: 'saturday_only',
+  accommodation: 'Chatka',
+  accommodationUnits: 2,
+  accommodationSnapshot: {
+    optionId: 'cabin-premium', optionName: 'Chatka Premium', kind: 'cabin', capacityPerUnit: 3,
+    peopleCount: 2, unitCount: 1, unitPriceCzk: 1_650, personPriceCzk: 0,
+    beddingFeePerPersonCzk: 120, cityTaxPerPersonPerNightCzk: 25, nights: 1,
+    baseTotalCzk: 1_650, personTotalCzk: 0, beddingTotalCzk: 240, cityTaxTotalCzk: 50, totalCzk: 1_940,
+  },
+  showShine: 'Ano',
+  note: 'Příjezd po obědě.',
+  reviewNote: '',
+  status: 'approved',
+  changePending: false,
+  capacityConflict: false,
+  submittedAt: '2026-08-20T09:00:00Z',
+  updatedAt: '2026-08-27T10:00:00Z',
+  reviewedAt: '2026-08-21T10:00:00Z',
+  payment: {
+    amountDueCzk: 4_800, amountPaidCzk: 1_200, balanceCzk: 3_600, remainingCzk: 3_600, overpaymentCzk: 0,
+    status: 'underpaid', overdue: false, variableSymbol: '2026123456', accountDisplay: '123 / 9999',
+    deadline: '2026-12-01', testMode: true, message: 'E36 UNITED 2026 2026123456',
+    spayd: 'SPD*1.0*ACC:CZ5099990000000000000123*AM:3600.00*CC:CZK*X-VS:2026123456*MSG:E36 UNITED 2026 2026123456*DT:20261201',
+  },
+};
+
+export async function prepareAdminE2ePage(page) {
+  const observations = { pageErrors: [], consoleErrors: [], unhandledApi: [], requests: [] };
+  page.on('pageerror', error => observations.pageErrors.push(error.stack || error.message));
+  page.on('console', message => {
+    if (message.type() !== 'error') return;
+    observations.consoleErrors.push({ text: message.text(), url: message.location().url || '' });
+  });
+
+  await page.addInitScript(({ key }) => {
+    try { localStorage.setItem(key, 'true'); } catch {}
+  }, { key: MEMBER_SESSION_KEY });
+
+  await page.route('https://static.wixstatic.com/**', route => route.fulfill({ status: 200, contentType: 'image/svg+xml', body: imageSvg }));
+  await page.route('https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js', route => route.fulfill({ status: 200, contentType: 'text/javascript; charset=utf-8', body: firebaseAppModule }));
+  await page.route('https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js', route => route.fulfill({ status: 200, contentType: 'text/javascript; charset=utf-8', body: firebaseAuthModule }));
+
+  await page.route(`${API_BASE}/**`, async route => {
+    const request = route.request();
+    const url = new URL(request.url());
+    observations.requests.push(`${request.method()} ${url.pathname}`);
+    if (request.method() === 'OPTIONS') {
+      await route.fulfill({ status: 204, headers: { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'Authorization, Content-Type', 'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS' } });
+      return;
+    }
+    if (/\/api\/events\/united-2026\/accommodation\/[^/]+\/photo$/.test(url.pathname)) {
+      await route.fulfill({ status: 200, contentType: 'image/svg+xml', body: imageSvg });
+      return;
+    }
+    if (url.pathname === '/api/admin/events') {
+      await jsonResponse(route, { events: [adminEvent] });
+      return;
+    }
+    if (url.pathname === '/api/admin/overview') {
+      await jsonResponse(route, {
+        event: adminEvent,
+        overview: {
+          reservations: 1, people: 3, cars: 1,
+          statuses: { pending: 0, approved: 1, rejected: 0, cancelled: 0 },
+          attendance: { fullWeekend: 0, saturdayOnly: 1, dayVisit: 0 },
+          showShine: { yes: 1, no: 0, maybe: 0 },
+          accommodation: { units: 1, cabin: 1, tent: 0, none: 0 },
+          payments: { paid: 0, unpaid: 0, underpaid: 1, overpaid: 0, overdue: 0, amountDueCzk: 4_800, amountPaidCzk: 1_200, amountRemainingCzk: 3_600 },
+          gallery: { pending: 0 },
+          history: { attendancePending: 0, snsPending: 0, pending: 0, approved: 0, rejected: 0, total: 0, latestPendingYear: null, latestYear: null, latestYearPending: 0, olderPending: 0 },
+        },
+      });
+      return;
+    }
+    if (url.pathname === '/api/admin/reservations') {
+      await jsonResponse(route, { reservations: [adminReservation] });
+      return;
+    }
+    if (url.pathname === '/api/admin/accommodation') {
+      await jsonResponse(route, { options: [{ ...accommodationOptions[1], approvedUnits: 1, pendingUnits: 0, pendingConflictUnits: 0 }] });
+      return;
+    }
+    if (url.pathname === '/api/admin/gallery') {
+      await jsonResponse(route, { photos: [] });
+      return;
+    }
+    if (url.pathname === '/api/admin/history/claims') {
+      await jsonResponse(route, {
+        claims: [],
+        counts: { attendancePending: 0, snsPending: 0, pending: 0, approved: 0, rejected: 0, total: 0, latestPendingYear: null, latestYear: null, latestYearPending: 0, olderPending: 0 },
+        facets: { years: [] },
+        pagination: { page: 1, pageSize: 24, total: 0, totalPages: 1 },
+        filters: { status: url.searchParams.get('status') || 'pending', type: url.searchParams.get('type') || 'all', year: url.searchParams.get('year') || 'all', q: url.searchParams.get('q') || '' },
+      });
+      return;
+    }
+
+    observations.unhandledApi.push(`${request.method()} ${url.pathname}`);
+    await jsonResponse(route, { message: 'Unhandled Admin E2E API fixture' }, 501);
+  });
+
+  return observations;
+}
+
 export function expectNoUnexpectedClientErrors(observations) {
   expect(observations.pageErrors, 'uncaught page errors').toEqual([]);
   expect(observations.consoleErrors, 'unexpected browser console errors').toEqual([]);

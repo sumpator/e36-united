@@ -49,7 +49,7 @@ test('authenticated member can bootstrap/load Member Portal successfully with ac
 });
 
 test('one shared visual module propagates through Planner, Member Portal and Admin contexts',()=>{
-  const main=read('main.js'),html=read('index.html'),member=read('member/modules/planner/index.js'),admin=read('admin.js'),worker=`${read('worker/domains.js')}\n${read('worker/domains/accommodation.js')}`;
+  const main=read('main.js'),html=read('index.html'),member=read('member/modules/planner/index.js'),admin=`${read('admin/modules/accommodation.js')}\n${read('admin/modules/reservations-payments.js')}`,worker=`${read('worker/domains.js')}\n${read('worker/domains/accommodation.js')}`;
   const selectorSource=main.slice(main.indexOf('const renderPlannerAccommodationOptions'),main.indexOf('const renderPlannerPrice'));
   const standalonePreview=html.slice(html.indexOf('data-context-preview="sleep"'),html.indexOf('</aside>',html.indexOf('data-context-preview="sleep"')));
   assert.match(main,/import\('\.\/accommodation-visual\.js/);assert.match(main,/plannerAccommodationVisual\(liveOption\)/);assert.match(main,/mode:'image-only'/);
@@ -57,13 +57,13 @@ test('one shared visual module propagates through Planner, Member Portal and Adm
   assert.doesNotMatch(selectorSource,/accommodationVisualMarkup|planner-accommodation-visual|<img\b/);assert.match(selectorSource,/planner-accommodation-card/);
   assert.match(standalonePreview,/data-context-sleep-image/);assert.doesNotMatch(standalonePreview,/data-context-sleep-(?:title|capacity|price|availability)|planner-context-copy/);
   assert.match(member,/from '\.\.\/\.\.\/\.\.\/accommodation-visual\.js/);assert.match(member,/member-accommodation-preview/);assert.match(member,/member-summary-accommodation/);
-  assert.match(admin,/from '\.\/accommodation-visual\.js/);assert.match(admin,/admin-accommodation-visual/);assert.match(admin,/admin-drawer-accommodation/);
+  assert.match(admin,/from '\.\.\/\.\.\/accommodation-visual\.js/);assert.match(admin,/admin-accommodation-visual/);assert.match(admin,/admin-drawer-accommodation/);
   assert.match(accommodationFallbackSvg(option,{nights:2}),/Chatka A|4 OSOBY|GENEROVANÝ TECHNICKÝ PŘEHLED/);
   assert.match(worker,/accommodationPhotoKey\(eventId, optionId\)/);assert.match(worker,/\?v=\$\{encodeURIComponent\(version\)\}/);
 });
 
 test('Admin photo picker is styled, locally previews and supports replace/remove without exposing native input',()=>{
-  const admin=read('admin.js'),css=read('admin.css');
+  const admin=read('admin/modules/accommodation.js'),css=read('admin.css');
   assert.match(admin,/data-accommodation-photo-input hidden type="file"/);assert.match(admin,/URL\.createObjectURL\(file\)/);assert.match(admin,/data-accommodation-photo-upload/);assert.match(admin,/data-accommodation-photo-remove/);
   assert.match(css,/\.admin-photo-picker/);assert.match(css,/\.admin-accommodation-photo-preview/);
 });

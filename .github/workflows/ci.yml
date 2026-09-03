@@ -25,7 +25,7 @@ jobs:
       - name: Check first-party JavaScript syntax
         shell: bash
         run: |
-          for file in ./*.js member/*.js member/*/*.js worker/*.js worker/*/*.js; do
+          for file in ./*.js admin/*.js admin/*/*.js member/*.js member/*/*.js worker/*.js worker/*/*.js; do
             node --check "$file"
           done
 

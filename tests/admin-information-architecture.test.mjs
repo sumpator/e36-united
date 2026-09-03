@@ -17,7 +17,15 @@ import {
 
 const read = name => readFileSync(new URL(`../${name}`, import.meta.url), 'utf8');
 const html = read('admin.html');
-const js = read('admin.js');
+const js = [
+  'admin.js',
+  'admin/shell.js',
+  'admin/state.js',
+  'admin/modules/dashboard-events.js',
+  'admin/modules/accommodation.js',
+  'admin/modules/reservations-payments.js',
+  'admin/modules/moderation.js',
+].map(read).join('\n');
 const css = read('admin.css');
 
 const reservations = [
@@ -92,7 +100,7 @@ test('reservation quick/detail modes and operational filters use current reserva
   assert.match(html,/data-reservation-filter-toggle/);
   assert.match(html,/data-reservation-detail-panel[^>]*hidden/);
   assert.match(html,/data-reservation-filter-clear[^>]*>Vymazat filtry/);
-  assert.match(js,/reservationDetailFilters\.clear\(\);renderReservationTabs\(\);renderReservationList\(\)/);
+  assert.match(js,/adminState\.reservationDetailFilters\.clear\(\);renderReservationTabs\(\);renderReservationList\(\)/);
   assert.match(html, /data-reservation-mode="quick"/);
   assert.match(html, /data-reservation-mode="detail"/);
   assert.match(js, /admin-reservation-table--\$\{quick\?'quick':'detail'\}/);
@@ -133,12 +141,12 @@ test('Admin moderation badges share counts with Overview and refresh after revie
   assert.equal((html.match(/data-gallery-nav-count/g) || []).length, 2, 'desktop and mobile navigation both expose the badge');
   assert.match(html, /data-gallery-mode="community"[^>]*>[\s\S]*?data-gallery-mode-count="community"/);
   assert.match(html, /data-gallery-mode="history"[^>]*>[\s\S]*?Ověření účasti[\s\S]*?data-gallery-mode-count="history"/);
-  assert.match(js, /const moderation=adminModerationCounts\(\{communityPending:[^\n]+historyPending:historyCounts\.pending\}\)/);
+  assert.match(js, /const moderation=adminModerationCounts\(\{communityPending:adminState\.galleryItems\.filter\([^\n]+historyPending:adminState\.historyCounts\.pending\}\)/);
   assert.match(js, /galleryAttention\.textContent=moderation\.community/);
   assert.match(js, /historyAttention\.textContent=moderation\.history/);
   assert.match(js, /renderActionCount\('\[data-gallery-nav-count\]',moderation\.total\)/);
   assert.match(js, /renderHistoryClaims\(payload=null\)[\s\S]*?renderAttentionCounts\(\)/);
-  assert.match(js, /await loadHistoryClaims\(\{page:historyPagination\.page\}\)/);
+  assert.match(js, /await loadHistoryClaims\(\{page:adminState\.historyPagination\.page\}\)/);
   assert.match(css, /\.admin-action-count\[hidden\]\{display:none!important\}/);
 });
 

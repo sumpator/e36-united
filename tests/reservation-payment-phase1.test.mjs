@@ -249,7 +249,7 @@ test('payment endpoint routing is inside the existing requireAdmin branch', () =
 
 test('test payment warning is present in both member and admin frontend', () => {
   const member = readFileSync(new URL('../member/modules/planner/payments.js', import.meta.url), 'utf8');
-  const admin = readFileSync(new URL('../admin.js', import.meta.url), 'utf8');
+  const admin = readFileSync(new URL('../admin/modules/reservations-payments.js', import.meta.url), 'utf8');
   assert.match(member, /TESTOVACÍ PLATBA – NEPLAŤTE/);
   assert.match(admin, /TESTOVACÍ PLATBA – NEPLAŤTE/);
 });

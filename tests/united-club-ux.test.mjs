@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 
 const read=name=>readFileSync(new URL(`../${name}`,import.meta.url),'utf8');
 const memberHtml=read('member.html'),memberEntryJs=read('member.js'),memberShellJs=read('member/shell.js'),memberOverviewJs=read('member/modules/overview.js'),memberClubIndexJs=read('member/modules/club/index.js'),memberClubPointsJs=read('member/modules/club/points.js'),memberClubHistoryJs=read('member/modules/club/history.js'),memberAccountJs=read('member/modules/account.js'),memberJs=[memberEntryJs,memberShellJs,memberOverviewJs,memberClubIndexJs,memberClubPointsJs,memberClubHistoryJs,memberAccountJs].join('\n'),memberCss=read('member.css');
-const adminHtml=read('admin.html'),adminJs=read('admin.js'),adminCss=read('admin.css');
+const adminHtml=read('admin.html'),adminJs=`${read('admin.js')}\n${read('admin/state.js')}\n${read('admin/modules/moderation.js')}`,adminCss=read('admin.css');
 const merchJs=read('merch.js');
 const worker=[
   'worker/domains.js',
@@ -264,7 +264,7 @@ test('Admin history review is server-filtered, session-sticky, paginated and com
   assert.match(adminJs,/function historyRequestPath[\s\S]*pageSize/);
   assert.match(adminJs,/<details class="admin-history-card/);
   assert.match(adminJs,/addEventListener\('toggle'[\s\S]*hydrateHistoryEvidence/);
-  assert.match(adminJs,/await loadHistoryClaims\(\{page:historyPagination\.page\}\)/);
+  assert.match(adminJs,/await loadHistoryClaims\(\{page:adminState\.historyPagination\.page\}\)/);
   assert.match(worker,/SUM\(CASE WHEN c\.attendance_status = 'pending' OR c\.sns_status = 'pending' THEN 1 ELSE 0 END\)/);
   assert.match(worker,/LIMIT \? OFFSET \?/);
 });
