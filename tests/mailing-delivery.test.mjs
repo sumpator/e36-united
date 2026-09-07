@@ -96,14 +96,15 @@ for(const [http,code] of [[400,'provider_rejected'],[401,'provider_invalid_key']
   const p=createBrevoAdapter({BREVO_API_KEY:'secret-fixture'},{fetchImpl:async()=>new Response('secret-fixture raw private response',{status:http})});
   await assert.rejects(p.sendNow(1),e=>e.code===code&&!JSON.stringify(e).includes('secret-fixture'));
 });
-test('adapter readiness, contact upsert, test and live requests match Marketing API',async()=>{
+test('adapter readiness, bulk contact import, test and live requests match Marketing API',async()=>{
   const calls=[];const p=createBrevoAdapter({BREVO_API_KEY:'mock-only',BREVO_LIST_FOLDER_ID:'9'},{fetchImpl:async(url,options)=>{
     calls.push({url,options,body:options.body&&JSON.parse(options.body)});
-    return url.endsWith('/senders')?Response.json({senders:[{email:'info@e36united.cz',active:true}]}):url.includes('/senders/domains/')?Response.json({verified:true,authenticated:true}):options.method==='POST'&&!url.endsWith('sendNow')&&!url.endsWith('sendTest')?Response.json({id:4},{status:201}):new Response(null,{status:204});
+    return url.endsWith('/contacts/import')?Response.json({processId:78},{status:202}):url.endsWith('/senders')?Response.json({senders:[{email:'info@e36united.cz',active:true}]}):url.includes('/senders/domains/')?Response.json({verified:true,authenticated:true}):options.method==='POST'&&!url.endsWith('sendNow')&&!url.endsWith('sendTest')?Response.json({id:4},{status:201}):new Response(null,{status:204});
   }});
   assert.equal((await p.checkReadiness()).state,'ready');assert.equal(await p.createDeliveryList('fixture'),4);
   await p.syncRecipients(4,[{normalized_email:'test@example.invalid',phone:'must not leak'}]);await p.createCampaign({name:'fixture'});await p.updateCampaign(4,{subject:'changed'});await p.sendTest(4,['test@example.invalid']);await p.sendNow(4);
-  assert.deepEqual(calls.find(c=>c.url.endsWith('/contacts')).body,{email:'test@example.invalid',listIds:[4],updateEnabled:true});
+  assert.deepEqual(calls.find(c=>c.url.endsWith('/contacts/import')).body,{jsonBody:[{email:'test@example.invalid'}],listIds:[4],updateExistingContacts:true,disableNotification:true});
+  assert.equal(calls.filter(c=>c.url.endsWith('/contacts')).length,0);
   assert.deepEqual(calls.find(c=>c.url.endsWith('/sendTest')).body,{emailTo:['test@example.invalid']});assert.ok(calls.some(c=>c.url.endsWith('/emailCampaigns/4/sendNow')));
 });
 for(const [sender,verified,authenticated,state] of [[false,true,true,'sender_missing'],[true,false,false,'domain_unverified'],[true,true,false,'domain_unauthenticated']])test(`readiness reports ${state}`,async()=>{

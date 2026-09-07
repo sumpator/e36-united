@@ -2,7 +2,7 @@ import {test,expect} from '@playwright/test';
 import {prepareAdminE2ePage,expectNoUnexpectedClientErrors} from './fixtures.mjs';
 import {createMailingStarterDraft,renderMailingTemplate} from '../../worker/domains/mailing/template.js';
 
-async function fixture(page,{state='not_configured',status='draft',testError=false}={}){
+async function fixture(page,{state='not_configured',status='draft',testError=false,importState={status:'synced'}}={}){
   const observations=await prepareAdminE2ePage(page),writes=[];
   const starter=createMailingStarterDraft();starter.content.blocks=starter.content.blocks.filter(b=>b.type!=='survey');
   let campaign={...starter,id:'delivery-fixture',status,recipientCount:2,updatedAt:'2026-09-07T10:00:00Z',preparationId:status==='draft'?null:'frozen-1',providerSyncedAt:status==='sent'?'2026-09-07':null};
@@ -18,7 +18,7 @@ async function fixture(page,{state='not_configured',status='draft',testError=fal
       if(action==='test')return reply(testError?{message:'Brevo odmítlo požadavek kvůli limitu testů.'}:{accepted:true},testError?502:200);
       if(action==='prepare')campaign={...campaign,status:'prepared',preparationId:'frozen-1'};
       if(action==='unprepare')campaign={...campaign,status:'draft',preparationId:null};
-      if(action==='provider-sync')campaign={...campaign,providerListId:11,providerCampaignId:22,providerSyncedAt:'2026-09-07'};
+      if(action==='provider-sync')campaign={...campaign,providerListId:11,providerImportProcessId:body.retryFailedImport?79:(campaign.providerImportProcessId||78),providerStatus:importState.status,providerCampaignId:importState.status==='synced'?22:null,providerSyncedAt:importState.status==='synced'?'2026-09-07':null};
       if(action==='send')campaign={...campaign,status:'sent',sentAt:'2026-09-07T11:00:00Z'};
       return reply({campaign});
     }
@@ -87,4 +87,28 @@ test('Mailing C sent dashboard shows unique delivery stats and read-only recipie
   await expect(page.locator('[data-delivery-tracking] details')).toContainText('Odhlášeno');
   await expect(page.locator('[data-mailing-save]')).toBeDisabled();await expect(page.locator('[data-delivery-action="send"]')).toHaveCount(0);
   expect(writes).toEqual([]);expectNoUnexpectedClientErrors(observations);
+});
+
+test('Mailing C.1 pending import survives refresh; explicit rechecks and confirmed failed retry gate send',async({page})=>{
+  const importState={status:'import_queued'};
+  const {observations,writes}=await fixture(page,{state:'ready',status:'prepared',importState});
+  page.once('dialog',dialog=>dialog.accept());await page.locator('[data-delivery-action="provider-sync"]').click();
+  await expect(page.locator('[data-import-status]')).toContainText('Čeká na Brevo');
+  await expect(page.locator('[data-delivery-action="send"]')).toBeDisabled();
+  await expect(page.locator('[data-delivery-action="provider-sync"]')).toHaveText('Zkontrolovat import');
+  await page.locator('[data-delivery-action="refresh"]').click();
+  await expect(page.locator('[data-import-status]')).toContainText('78');expect(writes).toHaveLength(1);
+  importState.status='import_processing';await page.locator('[data-delivery-action="provider-sync"]').click();
+  await expect(page.locator('[data-import-status]')).toContainText('zpracovává');
+  await expect(page.locator('[data-delivery-action="send"]')).toBeDisabled();
+  importState.status='import_failed';await page.locator('[data-delivery-action="provider-sync"]').click();
+  await expect(page.locator('[data-delivery-action="provider-sync"]')).toHaveText('Opakovat selhaný import');
+  page.once('dialog',dialog=>dialog.dismiss());await page.locator('[data-delivery-action="provider-sync"]').click();expect(writes).toHaveLength(3);
+  importState.status='synced';page.once('dialog',dialog=>dialog.accept());await page.locator('[data-delivery-action="provider-sync"]').click();
+  await expect(page.locator('[data-import-status]')).toContainText('Připraveno k odeslání');
+  await expect(page.locator('[data-delivery-action="send"]')).toBeEnabled();
+  expect(writes.map(w=>w.action)).toEqual(Array(4).fill('provider-sync'));
+  expect(writes.slice(0,3).map(w=>w.body)).toEqual([{}, {}, {}]);
+  expect(writes[3].body).toEqual({retryFailedImport:true,processId:78});
+  expectNoUnexpectedClientErrors(observations);
 });

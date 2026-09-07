@@ -29,4 +29,8 @@ export const deliveryMessages = {
   provider_timeout: 'Brevo neodpovědělo včas. Výsledek mutace musí být ověřen před opakováním.',
   provider_unavailable: 'Brevo není dostupné. Výsledek mutace může vyžadovat kontrolu.',
   provider_malformed: 'Brevo vrátilo neočekávanou odpověď. Výsledek mutace vyžaduje kontrolu.',
+  provider_import_too_large: 'Import překračuje bezpečný limit 8 MB. Nic nebylo importováno.',
+  provider_request_budget: 'Dosažen bezpečný limit požadavků. Obnov stav před další akcí.',
+  provider_import_failed: 'Brevo import selhal. Odeslání je blokováno; nový import vyžaduje výslovné potvrzení.',
+  provider_import_incomplete: 'Brevo seznam neodpovídá zmrazeným příjemcům nebo obsahuje blokovanou adresu. Odeslání je blokováno; ověř import u poskytovatele.',
 };

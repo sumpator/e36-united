@@ -1,4 +1,4 @@
-import { createBrevoAdapter, BREVO_SENDER } from './provider/brevo.js';
+import { createBrevoAdapter, BREVO_SENDER, bulkImportPayload } from './provider/brevo.js';
 import { MailingDeliveryError } from './delivery-errors.js';
 import { campaignRow, frozenRecipients, renderDraft, validDeliveryEmail } from './preparation.js';
 import { loadMailingContacts } from './contacts.js';
@@ -57,22 +57,48 @@ async function validatePrepared(env, row) {
   if (recipients.some(r => !contacts.some(c => c.persistedContactId === r.contact_id && c.eligibility.status === 'eligible'))) throw new MailingDeliveryError('recipients_no_longer_eligible');
   return recipients;
 }
-export async function syncCampaign(env, id, provider = createBrevoAdapter(env)) {
+export async function syncCampaign(env, id, provider = createBrevoAdapter(env), options = {}) {
   let row = await campaignRow(env, id);
   const recipients = await validatePrepared(env, row);
   if (row.provider_synced_at) return row;
   await requireReady(provider);
   // Validate required folder before acquiring a persistent mutation lock.
   if (!row.provider_list_id && (!Number.isSafeInteger(Number(env.BREVO_LIST_FOLDER_ID)) || Number(env.BREVO_LIST_FOLDER_ID) <= 0)) throw new MailingDeliveryError('provider_folder_missing', 503);
-  const token = await lock(env, row, 'sync', 'AND preparation_id=?', [row.preparation_id]);
+  const retry = options.retryFailedImport === true;
+  if (retry && (row.provider_status !== 'import_failed' || options.processId !== row.provider_import_process_id)) throw new MailingDeliveryError('campaign_changed');
+  if (!row.provider_import_process_id || retry) {
+    bulkImportPayload(row.provider_list_id || Number.MAX_SAFE_INTEGER, recipients); // Reject oversized payload before any mutation.
+    const token = await lock(env, row, 'sync', 'AND preparation_id=? AND provider_import_process_id IS ?', [row.preparation_id, row.provider_import_process_id]);
+    try {
+      if (!row.provider_list_id) {
+        const listId = await provider.createDeliveryList(`E36 delivery ${id} ${row.preparation_id}`);
+        await env.DB.prepare("UPDATE mailing_campaigns SET provider='brevo',provider_list_id=? WHERE id=? AND delivery_lock=?").bind(listId, id, token).run();
+        row.provider_list_id = listId;
+      }
+      const processId = await provider.syncRecipients(row.provider_list_id, recipients);
+      // Persist acceptance and release atomically. A lost POST response stays locked for reconciliation.
+      await env.DB.prepare("UPDATE mailing_campaigns SET provider_import_process_id=?,provider_status='import_queued',delivery_lock=NULL,delivery_operation=NULL WHERE id=? AND delivery_lock=?")
+        .bind(processId, id, token).run();
+    } catch (error) { await failOperation(env, id, token, error); throw error; }
+    row = await campaignRow(env, id);
+  }
+  // Exactly one read-only process check per explicit action; timeouts can safely recheck the persisted ID.
+  // No mutation lock is held while waiting, so a disconnected browser cannot strand a pending import.
+  let process;
+  try {
+    process = await provider.getImportProcess(row.provider_import_process_id);
+    if (process.status === 'completed') await provider.verifyRecipients(row.provider_list_id, recipients);
+  } catch (error) {
+    await env.DB.prepare("UPDATE mailing_campaigns SET provider_status='import_check_failed',delivery_error=? WHERE id=? AND provider_import_process_id=? AND delivery_lock IS NULL AND provider_synced_at IS NULL")
+      .bind(error.code || 'provider_unavailable', id, row.provider_import_process_id).run();
+    throw error;
+  }
+  await env.DB.prepare('UPDATE mailing_campaigns SET provider_status=?,delivery_error=? WHERE id=? AND provider_import_process_id=? AND delivery_lock IS NULL AND provider_synced_at IS NULL')
+    .bind(`import_${process.status}`, process.status === 'failed' ? 'provider_import_failed' : null, id, row.provider_import_process_id).run();
+  if (process.status !== 'completed') return campaignRow(env, id);
+  const token = await lock(env, row, 'sync', 'AND preparation_id=? AND provider_import_process_id=? AND provider_synced_at IS NULL', [row.preparation_id, row.provider_import_process_id]);
   try {
     row = await campaignRow(env, id);
-    if (!row.provider_list_id) {
-      const listId = await provider.createDeliveryList(`E36 delivery ${id} ${row.preparation_id}`);
-      await env.DB.prepare("UPDATE mailing_campaigns SET provider='brevo',provider_list_id=? WHERE id=? AND delivery_lock=?").bind(listId, id, token).run();
-      row.provider_list_id = listId;
-    }
-    await provider.syncRecipients(row.provider_list_id, recipients);
     if (!row.provider_campaign_id) {
       const campaignId = await provider.createCampaign(campaignPayload(row));
       await env.DB.prepare('UPDATE mailing_campaigns SET provider_campaign_id=? WHERE id=? AND delivery_lock=?').bind(campaignId, id, token).run();

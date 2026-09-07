@@ -3,6 +3,17 @@ import { MailingDeliveryError } from '../delivery-errors.js';
 export const BREVO_SENDER = Object.freeze({ name: 'E36 United', email: 'info@e36united.cz' });
 export const BREVO_DOMAIN = 'e36united.cz';
 const BASE = 'https://api.brevo.com/v3';
+export const BREVO_REQUEST_BUDGET = 12;
+export const BREVO_IMPORT_MAX_BYTES = 8_000_000;
+
+export function bulkImportPayload(listId, recipients) {
+  const body = { jsonBody: recipients.map(r => ({ email: r.normalized_email })),
+    listIds: [Number(listId)], updateExistingContacts: true, disableNotification: true };
+  if (new TextEncoder().encode(JSON.stringify(body)).length > BREVO_IMPORT_MAX_BYTES) {
+    throw new MailingDeliveryError('provider_import_too_large', 413);
+  }
+  return body;
+}
 
 export function normalizeProviderError(status) {
   const code = status === 401 || status === 403 ? 'provider_invalid_key' : status === 402 ? 'provider_quota'
@@ -14,8 +25,11 @@ export function normalizeProviderError(status) {
 
 // fetch is injectable; tests never use live transport. No requests at construction time.
 export function createBrevoAdapter(env, { fetchImpl = fetch, timeoutMs = 18000 } = {}) {
+  let requests = 0; // One adapter per Worker invocation. Includes readiness and every page/check.
   async function request(path, method = 'GET', body) {
     if (!env.BREVO_API_KEY) throw new MailingDeliveryError('provider_not_configured', 503);
+    if (requests >= BREVO_REQUEST_BUDGET) throw new MailingDeliveryError('provider_request_budget', 503);
+    requests++;
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
@@ -72,10 +86,31 @@ export function createBrevoAdapter(env, { fetchImpl = fetch, timeoutMs = 18000 }
       return created('/contacts/lists', { name, folderId });
     },
     async syncRecipients(listId, recipients) {
-      // Email is unique in Brevo. Never clear a blacklist, replace unrelated lists, or copy Member data.
-      for (const recipient of recipients) await request('/contacts', 'POST', {
-        email: recipient.normalized_email, listIds: [Number(listId)], updateEnabled: true,
-      });
+      // No Member attributes, blacklist resets, notifications, or unrelated list replacement.
+      const result = await request('/contacts/import', 'POST', bulkImportPayload(listId, recipients));
+      if (!Number.isSafeInteger(result?.processId) || result.processId <= 0) throw new MailingDeliveryError('provider_malformed', 502);
+      return result.processId;
+    },
+    async getImportProcess(id) {
+      const result = await request(`/processes/${Number(id)}`);
+      if (result?.id !== Number(id) || !['queued', 'processing', 'completed', 'failed'].includes(result?.status)) {
+        throw new MailingDeliveryError('provider_malformed', 502);
+      }
+      return { id: result.id, status: result.status }; // Never expose provider report URLs/payloads.
+    },
+    async verifyRecipients(listId, recipients) {
+      // A completed asynchronous job can still have rejected rows. Verify the dedicated list exactly.
+      const expected = new Set(recipients.map(r => r.normalized_email)), seen = new Set();
+      for (let offset = 0; offset < recipients.length; offset += 500) {
+        const result = await request(`/contacts/lists/${Number(listId)}/contacts?limit=500&offset=${offset}`);
+        if (result?.count !== recipients.length || !Array.isArray(result.contacts)
+          || result.contacts.length !== Math.min(500, recipients.length - offset)) throw new MailingDeliveryError('provider_import_incomplete', 409);
+        for (const contact of result.contacts) {
+          const email = String(contact.email || '').trim().toLowerCase();
+          if (!expected.has(email) || seen.has(email) || contact.emailBlacklisted === true) throw new MailingDeliveryError('provider_import_incomplete', 409);
+          seen.add(email);
+        }
+      }
     },
     createCampaign: body => created('/emailCampaigns', body),
     updateCampaign: (id, body) => request(`/emailCampaigns/${Number(id)}`, 'PUT', body),

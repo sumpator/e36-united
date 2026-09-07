@@ -591,6 +591,7 @@ ALTER TABLE mailing_campaigns ADD COLUMN provider TEXT;
 ALTER TABLE mailing_campaigns ADD COLUMN provider_campaign_id INTEGER;
 ALTER TABLE mailing_campaigns ADD COLUMN provider_test_campaign_id INTEGER;
 ALTER TABLE mailing_campaigns ADD COLUMN provider_list_id INTEGER;
+ALTER TABLE mailing_campaigns ADD COLUMN provider_import_process_id INTEGER;
 ALTER TABLE mailing_campaigns ADD COLUMN provider_status TEXT;
 ALTER TABLE mailing_campaigns ADD COLUMN provider_synced_at TEXT;
 ALTER TABLE mailing_campaigns ADD COLUMN delivery_lock TEXT;

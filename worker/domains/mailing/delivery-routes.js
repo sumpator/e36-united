@@ -10,6 +10,7 @@ export function deliveryCampaign(row) {
   return { id: row.id, internalName: row.internal_name, status: row.status, subject: row.prepared_subject ?? row.subject,
     preparedAt: row.prepared_at, preparationId: row.preparation_id, recipientCount: row.recipient_count, updatedAt: row.updated_at,
     providerStatus: row.provider_status, providerListId: row.provider_list_id, providerCampaignId: row.provider_campaign_id,
+    providerImportProcessId: row.provider_import_process_id,
     providerSyncedAt: row.provider_synced_at, busy: !!row.delivery_lock, error: row.delivery_error, sentAt: row.sent_at };
 }
 export async function routeMailingDelivery({ request, env, url, origin }) {
@@ -30,7 +31,7 @@ export async function routeMailingDelivery({ request, env, url, origin }) {
     let result;
     if (action === 'prepare') result = deliveryCampaign(await prepareCampaign(env, id, body.confirmation));
     if (action === 'unprepare') result = deliveryCampaign(await unprepareCampaign(env, id));
-    if (action === 'provider-sync') result = deliveryCampaign(await syncCampaign(env, id));
+    if (action === 'provider-sync') result = deliveryCampaign(await syncCampaign(env, id, createBrevoAdapter(env), body));
     if (action === 'send') result = deliveryCampaign(await sendCampaign(env, id, body.confirmation));
     if (action === 'test') return json({ ok: true, ...await testCampaign(env, id, body.addresses) }, 200, origin);
     return json({ ok: true, campaign: result }, 200, origin);

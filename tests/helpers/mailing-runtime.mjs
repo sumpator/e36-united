@@ -35,7 +35,9 @@ export function providerMock() {
   const calls=[];
   return { calls, checkReadiness:async()=>({state:'ready',ready:true}),
     createDeliveryList:async(...args)=>{calls.push(['list',...args]);return 11},
-    syncRecipients:async(...args)=>{calls.push(['recipients',...args])},
+    syncRecipients:async(...args)=>{calls.push(['recipients',...args]);return 78},
+    getImportProcess:async id=>({id,status:'completed'}),
+    verifyRecipients:async()=>{},
     createCampaign:async(...args)=>{calls.push(['campaign',...args]);return 22},
     updateCampaign:async(...args)=>{calls.push(['update',...args])},
     sendTest:async(...args)=>{calls.push(['test',...args])},

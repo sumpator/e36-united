@@ -100,13 +100,13 @@ Admin routes: `GET /api/admin/mailing/provider-status`, `GET /api/admin/mailing/
 
 - Secrets (future activation only): `BREVO_API_KEY`, `BREVO_WEBHOOK_SECRET`. Neither is sent to Admin or logged. An absent API key produces `not_configured` with zero provider requests.
 - Fixed sender: **E36 United <info@e36united.cz>**, reply-to `info@e36united.cz`, domain `e36united.cz`. Readiness checks `/senders` and `/senders/domains/e36united.cz`; UI only receives safe readiness states, never DNS records or credentials.
-- Non-secret `BREVO_LIST_FOLDER_ID` is required for Brevo's create-list API. Configure an explicitly approved E36 folder later; this task creates none. Each prepared campaign owns a dedicated list and Marketing campaign. Only frozen normalized email addresses are upserted with `updateEnabled:true`; blacklist flags, unrelated list memberships and Member attributes are not overwritten.
-- Modeled Marketing endpoints: `POST /contacts/lists`, `POST /contacts`, `POST /emailCampaigns`, `PUT /emailCampaigns/:id`, `POST /emailCampaigns/:id/sendTest`, `POST /emailCampaigns/:id/sendNow`. Adapter list deletion exists but is not exposed or automatic: only reconciled E36-owned lists may ever be cleaned up later.
+- Non-secret `BREVO_LIST_FOLDER_ID` is required for Brevo's create-list API. Configure an explicitly approved E36 folder later; this task creates none. Each prepared campaign owns a dedicated list and Marketing campaign. C.1 bulk-imports only frozen normalized email addresses with `updateExistingContacts:true`; no Member attributes, blacklist flags or unrelated list replacements are supplied. Import notifications are disabled.
+- Modeled Marketing endpoints: `POST /contacts/lists`, `POST /contacts/import`, `GET /processes/:id`, `GET /contacts/lists/:id/contacts`, `POST /emailCampaigns`, `PUT /emailCampaigns/:id`, `POST /emailCampaigns/:id/sendTest`, `POST /emailCampaigns/:id/sendNow`. Adapter list deletion exists but is not exposed or automatic: only reconciled E36-owned lists may ever be cleaned up later.
 - Draft tests use canonical **current saved draft** content and a separate reusable provider test campaign. Explicit 1–5 addresses are mandatory; an empty Brevo test-address list would target the provider's whole test list, so it is refused. Test addresses are never persisted as contacts/recipients/events and do not affect live stats. Brevo's test quota is provider-enforced; raw provider errors are never shown.
 - Live send uses only exact frozen HTML and list ID, requires provider readiness and completed sync, positive matching frozen population, confirmation, and configured quota. Any Survey block refuses live sync/send (`survey_delivery_not_ready`) until Mailing D. Survey test links stay non-destructive placeholders. A post-freeze opt-out vetoes delivery without modifying the historical snapshot.
 - `MAILING_DAILY_SEND_LIMIT` defaults to 300; an invalid explicit value fails closed. Per-campaign limits and atomic daily admission include previously accepted and unresolved in-flight sends. This is a conservative E36 admission budget, not a claim about remaining Brevo account quota; external sends/test usage and provider quota must also be checked before activation. No partial/multi-day scheduler exists.
 - Persistent per-campaign operation locks prevent simultaneous sends. IDs are stored immediately and reused. Only accepted `sendNow` changes the campaign to sent/scheduled. Finite 18-second timeouts apply to each provider request. No mutating call automatically retries. Definite HTTP 4xx rejections release the lock; ambiguous network/5xx/malformed outcomes or process death retain a reconciliation lock indefinitely. Do not clear it or resend blindly: inspect the stored IDs and Brevo outcome under a separate approved operational procedure.
-- Sync performs one contact upsert per frozen recipient. Before activation verify the Worker plan's per-request subrequest budget accommodates the chosen send limit (300 recipients needs more than the Free Workers 50-subrequest allowance). No plan/configuration changes are performed here.
+- C.1 replaces the original per-contact upserts with a bounded asynchronous bulk import; see the request-count review below. No plan/configuration changes are performed here.
 
 ### Additive schema / review boundary
 
@@ -130,7 +130,7 @@ The tracking commit also adds suppression checks directly to preparation/send ad
 
 ### Later activation checklist — separate authorization required
 
-1. Review both local commits; rerun all gates. Confirm the desired Brevo account and actual current production state without assuming zero campaigns.
+1. Review all three local Mailing C/C.1 commits; rerun all gates. Confirm the desired Brevo account and actual current production state without assuming zero campaigns.
 2. Create/login to Brevo, create an API key, and add/verify `info@e36united.cz` as sender (verification may itself send email; this task does not do it).
 3. Add sender domain `e36united.cz`. Copy **only Brevo-generated DNS values** into Cloudflare DNS after explicit approval. Verify both domain `verified` and `authenticated`; do not invent SPF/DKIM/DMARC records or replace existing records blindly.
 4. Create/select an approved E36 delivery-list folder; record its numeric ID as Worker configuration `BREVO_LIST_FOLDER_ID`. Set `MAILING_DAILY_SEND_LIMIT` (initially 300), verify Workers subrequest capacity, Brevo remaining daily quota and account sending approval. No lists/contacts need importing at this step.
@@ -156,3 +156,35 @@ References: [Brevo Marketing events](https://developers.brevo.com/docs/marketing
 - Read-only static import traversal from Admin/Worker entry points: 64 modules, no circular dependencies or missing relative imports. No dependency/configuration changes.
 - Existing test adaptations are limited to the newly available guarded send route (draft rejection remains explicit), the sixth Mailing table, additional read-only API fixtures, and avoiding duplicate Feedback migration setup. No existing behavior coverage was dropped.
 - All Brevo transport was mocked. No real contact imports, emails, provider objects, secret changes, production D1/R2 writes, push or deployment occurred.
+
+### Mailing C.1 — bulk synchronization and Free Worker budget
+
+The original fresh sync was two readiness GETs, one list POST, **N contact POSTs**, then one campaign POST: **N + 4** (5 / 54 / 304 for 1 / 50 / 300 recipients). Provider-object creation alone contributed two requests inside that invocation. Readiness alone was two; draft test was four (readiness + create/update test campaign + sendTest); real send was three (readiness + sendNow), each in separate Worker invocations. D1 preparation/reads are not external HTTP subrequests.
+
+The replacement is `POST /v3/contacts/import` with `{jsonBody:[{email:<frozen normalized email>}],listIds:[<campaign list ID>],updateExistingContacts:true,disableNotification:true}`. No attributes, blacklist-reset options, remote file URL, notify URL or unrelated list IDs are supplied. The complete UTF-8 JSON payload is capped at **8,000,000 bytes**, below Brevo's documented 10 MB maximum. Oversize input is rejected before creating provider objects. There is no per-recipient HTTP loop.
+
+An accepted positive `processId` is saved as nullable integer `provider_import_process_id`, atomically releasing the submission lock. This one additional field is added to the still-unpublished C migration and canonical schema in a third commit: the existing status/error/lock fields are not repurposed to hide an external identifier. Existing commits are not amended; no migration is applied remotely.
+
+Each explicit synchronization action performs **one** `GET /v3/processes/:id`, with the existing 18-second timeout. `import_queued` and `import_processing` return without campaign creation, synced timestamp or send permission. There are no timers, sleeps, automatic UI polling, cron or queues. The existing Delivery panel shows the process ID/state and offers `Zkontrolovat import`; reload/refresh alone does not submit another sync/import.
+
+Only a `completed` process proceeds to exact dedicated-list verification (500 contacts per page, also bounded by the adapter budget). Missing/extra/duplicate/blacklisted recipients block readiness, since a completed import may contain rejected rows. Provider report URLs are neither followed nor exposed. The existing campaign ID is reused or a single campaign is created with the immutable prepared HTML; only then is `provider_synced_at` set.
+
+Read-only timeout, malformed process response or incomplete-list verification persists `import_check_failed`, retaining the process/list IDs without a mutation lock. An explicit recheck is safe and never reimports. Terminal `failed` is persisted as `import_failed` and blocks send; only an explicitly confirmed retry with `{retryFailedImport:true,processId:<current failed ID>}` starts a replacement import into the same dedicated list. Stale retry confirmations fail closed. Frozen D1 recipients never change. Ambiguous **mutating** failures still retain the original indefinite reconciliation lock; an unknown import-submit response is not retried blindly. Concurrent imports/campaign creation remain protected by conditional mutation locks and process-ID checks.
+
+| Separate Worker invocation | Brevo fetches for 1 / 50 / 300 recipients |
+| --- | --- |
+| Fresh sync, process immediately complete | **7 / 7 / 7**: readiness 2 + list 1 + import 1 + process 1 + list verification 1 + campaign 1 |
+| Fresh sync, process pending | 5 / 5 / 5 |
+| Explicit pending recheck | 3 / 3 / 3 |
+| Recheck completing an existing import | 5 / 5 / 5 |
+| Explicit failed-import retry, immediately complete | 6 / 6 / 6 (existing list reused) |
+| Already synchronized | 0 / 0 / 0 |
+| Subsequent real send | 3 / 3 / 3 |
+
+One adapter is constructed per delivery route invocation with a hard **12-fetch ceiling**, including readiness, process checks and every verification page; redirects are refused. Normal 300-person sync peaks at seven Brevo fetches. Existing Firebase authentication can additionally fetch JWKS (up to two direct requests on key refresh); no other external requests are made by these routes. Thus the direct request budget is at most **14**, comfortably below Workers Free's 50 external-subrequest limit. D1 is an internal binding, not N extra external requests. Admin reload/readiness calls are separate invocations, not additions to the sync invocation. This is a subrequest-budget proof, not a claim of live provider availability or production load testing. Much larger future audiences must re-review CPU, payload/response size, pagination, provider quota and request budget before changing the send limit; the adapter fails closed at its ceiling.
+
+The Cloudflare Workers guidance informed the per-invocation hard budget and finite asynchronous boundary. No runtime framework, dependency, scheduler, provider configuration or production data changes are part of C.1. Prepare/freeze, daily admission, Survey guard, webhook, unsubscribe/suppression and metrics remain unchanged.
+
+References: [Brevo bulk import and limits](https://developers.brevo.com/reference/import-contacts), [process status](https://developers.brevo.com/reference/get-process), [paginated list verification](https://developers.brevo.com/reference/get-contacts-from-list), [Workers limits](https://developers.cloudflare.com/workers/platform/limits/).
+
+C.1 local verification (2026-09-07): pre-flight unchanged Node **299/299**, syntax **95/95**, Chromium **38/38**, focused WebKit **8/8**. Final Node **313/313** (14 new bulk/budget/state cases), syntax **95/95**, Chromium **39/39** (one added pending/retry UI regression), WebKit **8/8** unchanged. Import traversal: **64 modules**, no missing relative imports/cycles. Exact unpublished migration/canonical parity, existing-draft preservation and FK checks pass in local in-memory SQLite. Existing assertions remain intact except the deliberately superseded per-contact API payload expectation, replaced with strict bulk-payload and zero-per-contact-call assertions. All provider transport is mocked; no production/provider mutation, email, push or deployment occurred. Browser runs emitted the existing harmless `NO_COLOR`/`FORCE_COLOR` warning.

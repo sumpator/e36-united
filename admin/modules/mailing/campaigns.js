@@ -1,7 +1,7 @@
 import { apiRequest } from '../../api.js?v=20260903-mailing-b';
 import { $, escapeHtml, formatDate, numeric, toast } from '../../ui.js?v=20260903-phase5';
 import { activeMailingCampaignId, initializeMailingEditor, markMailingEditorSaved, openMailingEditorDraft, resetMailingEditor } from './editor.js?v=20260907-mailing-c';
-import { initializeMailingDelivery, openMailingDelivery, resetMailingDelivery } from './delivery.js?v=20260907-mailing-c';
+import { initializeMailingDelivery, openMailingDelivery, resetMailingDelivery } from './delivery.js?v=20260907-mailing-c1';
 import { defaultMailingSegment } from './segments.js?v=20260903-mailing-b';
 
 const statusLabels={draft:'Koncept',prepared:'Připravená',sent:'Odeslaná',archived:'Archiv'};
