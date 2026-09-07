@@ -6,7 +6,7 @@ import {
   normalizeMailingContent,
 } from "./template.js";
 
-const EDITABLE_STATUSES = new Set(["draft", "prepared", "archived"]);
+const EDITABLE_STATUSES = new Set(["draft", "archived"]);
 
 function publicCampaign(row) {
   let segment = { match: "all", rules: [{ type: "mailing_eligible" }], exclusions: [] };
@@ -96,13 +96,15 @@ export async function updateMailingCampaign(env, campaignId, candidate) {
   const current = await env.DB.prepare("SELECT * FROM mailing_campaigns WHERE id = ? LIMIT 1").bind(campaignId).first();
   if (!current) return null;
   if (current.status === "sent") throw new Error("sent_campaign_immutable");
+  if (current.status === "prepared") throw new Error("prepared_campaign_immutable");
+  if (current.delivery_lock) throw new Error("campaign_busy");
   const fields = campaignFields(candidate, current);
   const preview = await previewMailingSegment(env, fields.segment);
   await env.DB.prepare(`
     UPDATE mailing_campaigns
     SET internal_name = ?, subject = ?, preheader = ?, template_version = ?, content_json = ?,
       segment_definition_json = ?, recipient_count = ?, status = ?, updated_at = CURRENT_TIMESTAMP
-    WHERE id = ? AND status <> 'sent'
+    WHERE id = ? AND status IN ('draft','archived') AND delivery_lock IS NULL
   `).bind(
     fields.internalName,
     fields.subject,

@@ -456,6 +456,13 @@ export async function prepareAdminE2ePage(page) {
       await jsonResponse(route,{campaigns:mailingCampaigns});
       return;
     }
+    if (url.pathname === '/api/admin/mailing/provider-status') {
+      await jsonResponse(route,{provider:{state:'not_configured',ready:false,dailyLimit:300,folderConfigured:false}});return;
+    }
+    const deliveryMatch=url.pathname.match(/^\/api\/admin\/mailing\/campaigns\/([^/]+)\/delivery$/);
+    if(deliveryMatch&&request.method()==='GET'){
+      await jsonResponse(route,{campaign:mailingCampaigns.find(c=>c.id===deliveryMatch[1]),frozenPreview:null});return;
+    }
     if (url.pathname === '/api/admin/mailing/campaigns' && request.method() === 'POST') {
       const body=request.postDataJSON(),now='2026-09-03T18:00:00Z';
       const campaign={id:'campaign-e2e',internalName:body.internalName,subject:body.subject,preheader:body.preheader,templateVersion:body.templateVersion,content:body.content,segment:body.segment,recipientCount:0,status:'draft',createdAt:now,updatedAt:now,sentAt:null};

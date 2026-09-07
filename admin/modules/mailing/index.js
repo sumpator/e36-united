@@ -2,7 +2,7 @@ import { apiRequest } from '../../api.js?v=20260903-mailing-b';
 import { adminState } from '../../state.js?v=20260903-mailing-b';
 import { $, $$, numeric, toast } from '../../ui.js?v=20260903-phase5';
 import { loadMailingContacts } from './contacts.js?v=20260903-mailing-b';
-import { initializeMailingCampaigns, loadMailingCampaigns, resetMailingCampaigns } from './campaigns.js?v=20260903-mailing-b';
+import { initializeMailingCampaigns, loadMailingCampaigns, resetMailingCampaigns } from './campaigns.js?v=20260907-mailing-c';
 import { defaultMailingSegment, previewMailingSegment } from './segments.js?v=20260903-mailing-b';
 
 let initialized=false,overviewLoaded=false,overviewPromise=null,lastSegment=defaultMailingSegment;

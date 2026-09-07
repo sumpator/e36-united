@@ -1,8 +1,8 @@
 import { $, $$, escapeHtml, toast } from '../../ui.js?v=20260903-phase5';
-import { resetMailingPreview, scheduleMailingPreview, setMailingPreviewDevice } from './preview.js?v=20260903-mailing-b';
+import { resetMailingPreview, scheduleMailingPreview, setMailingPreviewDevice } from './preview.js?v=20260907-mailing-c';
 
 const typeLabels={hero:'Hero',heading:'Nadpis',rich_text:'Text',image:'Obrázek',cta:'CTA',divider:'Oddělovač',highlight:'Highlight',survey:'Anketa'};
-let initialized=false,currentCampaignId='',blocks=[],templateVersion='e36-default-v1',saveHandler=null;
+let initialized=false,currentCampaignId='',blocks=[],templateVersion='e36-default-v1',saveHandler=null,openHandler=()=>{},readOnly=false;
 
 const copy=value=>JSON.parse(JSON.stringify(value));
 const field=(label,key,value='',options={})=>`<label class="admin-field${options.wide?' admin-field--wide':''}"><span>${escapeHtml(label)}</span>${options.textarea?`<textarea data-block-field="${key}" rows="${options.rows||4}">${escapeHtml(value)}</textarea>`:`<input data-block-field="${key}" maxlength="${options.max||600}" value="${escapeHtml(value)}"${options.type?` type="${options.type}"`:''}/>`}</label>`;
@@ -56,11 +56,15 @@ function dirty(){const state=$('[data-mailing-save-state]');state.textContent='N
 function replaceBlocks(next){blocks=copy(next||[]);renderBlocks();preview()}
 
 export function openMailingEditorDraft(draft,{campaignId=''}={}){
+  readOnly=['prepared','sent','archived'].includes(draft.status);
+  $$('input,textarea,select,button',$('[data-mailing-campaign-form]')).forEach(node=>node.disabled=false);
   currentCampaignId=campaignId;templateVersion=draft.templateVersion||draft.content?.template||'e36-default-v1';blocks=copy(draft.content?.blocks||[]);
   const form=$('[data-mailing-campaign-form]');form.elements.internalName.value=draft.internalName||'';form.elements.subject.value=draft.subject||'';form.elements.preheader.value=draft.preheader||'';
   $('[data-mailing-template-version]').textContent=templateVersion;$('[data-mailing-editor-mode]').textContent=campaignId?(draft.internalName||'Upravit koncept'):'Nový koncept.';
   const state=$('[data-mailing-save-state]');state.textContent=campaignId?'Koncept uložen':'Nový koncept';state.classList.remove('is-dirty');
   renderBlocks();scheduleMailingPreview(readMailingEditorDraft(),{immediate:true});
+  if(readOnly){$$('input,textarea,select,button',form).forEach(node=>node.disabled=true);state.textContent='Neměnný obsah kampaně'}
+  openHandler(campaignId);
 }
 
 export function activeMailingCampaignId(){return currentCampaignId}
@@ -73,14 +77,15 @@ function cloneBlock(block){
   return cloned;
 }
 
-export function initializeMailingEditor({onSave}){
-  if(initialized)return;initialized=true;saveHandler=onSave;
+export function initializeMailingEditor({onSave,onOpen=()=>{}}){
+  if(initialized)return;initialized=true;saveHandler=onSave;openHandler=onOpen;
   const form=$('[data-mailing-campaign-form]');
   form.addEventListener('input',event=>{const node=event.target.closest('[data-block-id]');if(node)readBlock(node);dirty()});
   form.addEventListener('change',event=>{const node=event.target.closest('[data-block-id]');if(node)readBlock(node);dirty()});
   form.addEventListener('submit',async event=>{event.preventDefault();if(!saveHandler)return;const button=$('[data-mailing-save]');button.disabled=true;try{await saveHandler(readMailingEditorDraft())}catch(error){const state=$('[data-mailing-save-state]');state.textContent='Uložení selhalo';state.classList.add('is-dirty');toast(error.message||'Koncept kampaně se nepodařilo uložit.')}finally{button.disabled=false}});
   document.addEventListener('click',event=>{
     const device=event.target.closest('[data-mailing-preview-device]');if(device){setMailingPreviewDevice(device.dataset.mailingPreviewDevice);return}
+    if(readOnly)return;
     if(event.target.closest('[data-mailing-add-block]')){const type=$('[data-mailing-add-type]').value;blocks.push(freshBlock(type));renderBlocks();dirty();return}
     const article=event.target.closest('[data-block-id]');if(!article)return;
     readBlock(article);const index=blocks.findIndex(block=>block.id===article.dataset.blockId);if(index<0)return;

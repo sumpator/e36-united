@@ -1,6 +1,7 @@
 import { apiRequest } from '../../api.js?v=20260903-mailing-b';
 import { $, escapeHtml, formatDate, numeric, toast } from '../../ui.js?v=20260903-phase5';
-import { activeMailingCampaignId, initializeMailingEditor, markMailingEditorSaved, openMailingEditorDraft, resetMailingEditor } from './editor.js?v=20260903-mailing-b';
+import { activeMailingCampaignId, initializeMailingEditor, markMailingEditorSaved, openMailingEditorDraft, resetMailingEditor } from './editor.js?v=20260907-mailing-c';
+import { initializeMailingDelivery, openMailingDelivery, resetMailingDelivery } from './delivery.js?v=20260907-mailing-c';
 import { defaultMailingSegment } from './segments.js?v=20260903-mailing-b';
 
 const statusLabels={draft:'Koncept',prepared:'Připravená',sent:'Odeslaná',archived:'Archiv'};
@@ -43,7 +44,8 @@ async function newDraft(){openMailingEditorDraft(await editorConfig());renderMai
 
 export function initializeMailingCampaigns(options={}){
   if(initialized)return;initialized=true;getSegment=options.getSegment||getSegment;onSaved=options.onSaved||onSaved;
-  initializeMailingEditor({onSave:saveMailingCampaign});
+  initializeMailingDelivery({onChange:id=>loadMailingCampaigns({selectId:id})});
+  initializeMailingEditor({onSave:saveMailingCampaign,onOpen:openMailingDelivery});
   document.addEventListener('click',event=>{
     if(event.target.closest('[data-mailing-campaign-new]')){newDraft().catch(error=>toast(error.message||'Nový koncept se nepodařilo připravit.'));return}
     const open=event.target.closest('[data-mailing-campaign-open]');if(!open)return;
@@ -51,4 +53,4 @@ export function initializeMailingCampaigns(options={}){
   });
 }
 
-export function resetMailingCampaigns(){starter=null;campaigns=[];resetMailingEditor();const list=$('[data-mailing-campaign-list]');if(list)list.innerHTML=''}
+export function resetMailingCampaigns(){starter=null;campaigns=[];resetMailingEditor();resetMailingDelivery();const list=$('[data-mailing-campaign-list]');if(list)list.innerHTML=''}

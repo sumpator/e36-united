@@ -33,3 +33,11 @@ export async function renderMailingPreview(draft){
 }
 
 export function resetMailingPreview(){clearTimeout(previewTimer);previewSequence++;const frame=$('[data-mailing-preview-frame]');if(frame)frame.removeAttribute('srcdoc');setMailingPreviewDevice('desktop')}
+
+export function showFrozenMailingPreview(snapshot){
+  clearTimeout(previewTimer);previewSequence++;
+  $('[data-mailing-preview-subject]').textContent=snapshot.subject;
+  $('[data-mailing-preview-preheader]').textContent=snapshot.preheader;
+  $('[data-mailing-preview-frame]').srcdoc=snapshot.html;
+  $('[data-mailing-preview-status]').hidden=true;
+}

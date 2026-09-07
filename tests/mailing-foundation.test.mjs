@@ -17,7 +17,7 @@ const origin='https://e36united.cz';
 const migration=readFileSync(new URL('../db/migrations/2026-09-03-mailing-foundation.sql',import.meta.url),'utf8');
 const editorMigration=readFileSync(new URL('../db/migrations/2026-09-03-mailing-editor.sql',import.meta.url),'utf8');
 
-function createRuntime(){
+function createRuntime({delivery=true}={}){
   const database=new DatabaseSync(':memory:');
   database.exec(`
     PRAGMA foreign_keys=ON;
@@ -37,6 +37,7 @@ function createRuntime(){
   `);
   database.exec(migration);
   database.exec(editorMigration);
+  if(delivery)database.exec(readFileSync(new URL('../db/migrations/2026-09-07-mailing-delivery.sql',import.meta.url),'utf8'));
 
   const prepare=sql=>{
     const statement=database.prepare(sql);let values=[];
@@ -187,8 +188,8 @@ test('campaign foundation creates a draft and cannot mark it sent',async()=>{
 
   const delivery=mailingRequest(`/api/admin/mailing/campaigns/${created.campaign.id}/send`,{method:'POST',body:{}});
   const deliveryResponse=await routeAdminMailing({request:delivery,env:runtime.env,url:new URL(delivery.url),auth:{uid:'admin'},origin});
-  assert.equal(deliveryResponse.status,404);
-  assert.equal((await deliveryResponse.json()).error,'mailing_not_found');
+  assert.equal(deliveryResponse.status,409);
+  assert.equal((await deliveryResponse.json()).error,'campaign_not_prepared','Mailing C adds the route but still refuses draft delivery');
   runtime.database.close();
 });
 
@@ -214,7 +215,7 @@ test('campaign draft save/load keeps structured content, template version and se
 });
 
 test('migration creates the five isolated Mailing tables without repurposing legacy names',()=>{
-  const runtime=createRuntime();
+  const runtime=createRuntime({delivery:false});
   const tables=runtime.database.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name LIKE 'mailing_%' ORDER BY name").all().map(row=>row.name);
   assert.deepEqual(tables,['mailing_campaign_recipients','mailing_campaigns','mailing_contact_sources','mailing_contact_tags','mailing_contacts']);
   assert.equal(runtime.database.prepare("SELECT COUNT(*) AS count FROM schema_migrations WHERE id='2026-09-03-mailing-foundation'").get().count,1);
@@ -229,7 +230,8 @@ test('migration creates the five isolated Mailing tables without repurposing leg
 test('canonical schema snapshot remains executable with the pending Mailing foundation',()=>{
   const database=new DatabaseSync(':memory:');
   database.exec(readFileSync(new URL('../db/schema.sql',import.meta.url),'utf8'));
-  assert.equal(database.prepare("SELECT COUNT(*) AS count FROM sqlite_master WHERE type='table' AND name LIKE 'mailing_%'").get().count,5);
+  assert.equal(database.prepare("SELECT COUNT(*) AS count FROM sqlite_master WHERE type='table' AND name LIKE 'mailing_%'").get().count,6);
+  assert.equal(database.prepare("SELECT COUNT(*) AS count FROM sqlite_master WHERE type='table' AND name='mailing_delivery_events'").get().count,1);
   assert.equal(database.prepare("SELECT description FROM schema_migrations WHERE id='2026-09-03-mailing-foundation'").get().description,'Mailing contact, segmentation and campaign foundation');
   database.close();
 });

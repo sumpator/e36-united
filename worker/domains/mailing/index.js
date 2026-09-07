@@ -1,4 +1,5 @@
 import { readJsonObject } from "../../http/request.js";
+import { routeMailingDelivery } from './delivery-routes.js';
 import { json } from "../../http/responses.js";
 import { filterMailingContacts, loadMailingContacts } from "./contacts.js";
 import { createMailingCampaign, listMailingCampaigns, updateMailingCampaign } from "./campaigns.js";
@@ -24,8 +25,10 @@ function errorResponse(error, origin) {
     campaign_name_required: "Interní název kampaně je povinný.",
     invalid_campaign_status: "Neplatný stav kampaně.",
     invalid_campaign_template: "Neplatná nebo neodpovídající verze mailingové šablony.",
-    mailing_delivery_not_available: "Odesílání e-mailů není v Mailing B dostupné.",
+    mailing_delivery_not_available: "Odeslání vyžaduje přípravu a samostatné potvrzení, nikoli úpravu stavu konceptu.",
     sent_campaign_immutable: "Odeslanou kampaň nelze měnit.",
+    prepared_campaign_immutable: "Připravenou kampaň nejdřív vrať do konceptu.",
+    campaign_busy: "Operace kampaně běží nebo vyžaduje kontrolu poskytovatele.",
   };
   if (known[error?.message]) return json({ ok: false, error: error.message, message: known[error.message] }, 400, origin);
   throw error;
@@ -115,6 +118,8 @@ async function renderPreview(request, origin) {
 
 export async function routeAdminMailing({ request, env, url, auth, origin }) {
   if (!url.pathname.startsWith("/api/admin/mailing")) return null;
+  const delivery = await routeMailingDelivery({ request, env, url, origin });
+  if (delivery) return delivery;
   if (url.pathname === "/api/admin/mailing/overview" && request.method === "GET") return mailingOverview(env, origin);
   if (url.pathname === "/api/admin/mailing/contacts" && request.method === "GET") return mailingContacts(env, url, origin);
   if (url.pathname === "/api/admin/mailing/segments/preview" && request.method === "POST") return mailingSegmentPreview(request, env, origin);

@@ -264,7 +264,7 @@
           </section>
 
           <section class="admin-mailing admin-view-panel" data-admin-panel="mailing" hidden>
-            <div class="admin-section-head"><div><span class="admin-kicker">MAILING CENTER</span><h2>Mailing.</h2><p>Kontakty, serverové segmenty a hotový E36 editor kampaní. Odesílání e-mailů zatím není dostupné.</p></div><span class="admin-view-label">COMPOSER B</span></div>
+            <div class="admin-section-head"><div><span class="admin-kicker">MAILING CENTER</span><h2>Mailing.</h2><p>Kontakty, serverové segmenty, E36 editor a řízené doručení kampaní.</p></div><span class="admin-view-label">MAILING C</span></div>
             <div class="admin-mailing-tabs" aria-label="Sekce Mailing" role="tablist">
               <button aria-selected="true" class="is-active" data-mailing-tab="overview" role="tab" type="button">Přehled</button>
               <button aria-selected="false" data-mailing-tab="contacts" role="tab" type="button">Kontakty</button>
@@ -281,7 +281,7 @@
                 <article><span>Potlačené</span><strong data-mailing-kpi="suppressed">0</strong></article>
                 <article><span>Koncepty kampaní</span><strong data-mailing-kpi="drafts">0</strong></article>
               </section>
-              <div class="admin-mailing-notice"><strong>Mailing B přidává bezpečnou kompozici.</strong><span>Kontakty se neimportují, příjemci se nezmrazují a žádný provider ani odesílání není zapojeno.</span></div>
+              <div class="admin-mailing-notice"><strong>E36 Mailing Center.</strong><span>Kontakty se automaticky neimportují. Příprava zmrazí obsah a způsobilé příjemce; odeslání vyžaduje připraveného poskytovatele a výslovné potvrzení.</span></div>
             </div>
 
             <div data-mailing-area="contacts" hidden>
@@ -340,9 +340,10 @@
                 <aside class="admin-mailing-preview-panel">
                   <div class="admin-mailing-preview-head"><div><span class="admin-kicker">LIVE EMAIL PREVIEW</span><strong>Stejný HTML renderer jako budoucí odeslání</strong></div><div class="admin-mailing-preview-switch" role="group" aria-label="Velikost náhledu"><button aria-pressed="true" class="is-active" data-mailing-preview-device="desktop" type="button">Desktop</button><button aria-pressed="false" data-mailing-preview-device="mobile" type="button">Mobile</button></div></div>
                   <div class="admin-mailing-envelope"><span>PŘEDMĚT</span><strong data-mailing-preview-subject>—</strong><span>PREHEADER</span><small data-mailing-preview-preheader>—</small></div>
-                  <div class="admin-mailing-preview-stage" data-mailing-preview-stage data-device="desktop"><div class="admin-mailing-preview-status" data-mailing-preview-status>Generuji náhled…</div><iframe data-mailing-preview-frame title="Náhled E36 United e-mailu"></iframe></div>
+                  <div class="admin-mailing-preview-stage" data-mailing-preview-stage data-device="desktop"><div class="admin-mailing-preview-status" data-mailing-preview-status>Generuji náhled…</div><iframe data-mailing-preview-frame sandbox="allow-scripts" referrerpolicy="no-referrer" title="Náhled E36 United e-mailu"></iframe></div>
                 </aside>
               </div>
+              <section class="admin-mailing-editor-card" data-mailing-delivery aria-label="Doručení kampaně"></section>
               <section class="admin-mailing-drafts"><div class="admin-mailing-result-head"><span class="admin-kicker">CAMPAIGN DRAFTS</span><strong data-mailing-campaign-count>0 konceptů</strong></div><div class="admin-mailing-campaign-list" data-mailing-campaign-list></div></section>
             </div>
           </section>
@@ -368,6 +369,6 @@
     </aside>
   </div>
   <div aria-live="polite" class="admin-toast" data-toast role="status"></div>
-  <script src="admin.js?v=20260907-mobile" type="module"></script>
+  <script src="admin.js?v=20260907-mailing-c" type="module"></script>
 </body>
 </html>
