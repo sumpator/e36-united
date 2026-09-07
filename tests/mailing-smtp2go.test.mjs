@@ -8,7 +8,7 @@ import { createSmtp2goAdapter,SMTP2GO_REQUEST_BUDGET } from '../worker/domains/m
 function transport(env){
   env.SMTP2GO_API_KEY='fixture-only';const state={calls:[],domain:'verified',quota:10000,batch:'ok'};
   state.adapter=()=>createSmtp2goAdapter(env,{timeoutMs:10,fetchImpl:async(url,options)=>{
-    const path=new URL(url).pathname,body=JSON.parse(options.body);state.calls.push({url,path,body,headers:options.headers});
+    const path=new URL(url).pathname,body=JSON.parse(options.body);state.calls.push({url,path,body,headers:options.headers,redirect:options.redirect});
     if(path==='/v3/domain/view')return Response.json({request_id:'domain',data:{domains:state.domain==='missing'?[]:[{domain:{fulldomain:'e36united.cz',dkim_verified:state.domain==='verified',rpath_verified:state.domain==='verified'},trackers:[{fulldomain:'link.e36united.cz',cname_verified:true,enabled:true}]}]}});
     if(path==='/v3/stats/email_cycle')return Response.json({request_id:'quota',data:{cycle_start:'2026-09-01',cycle_end:'2026-09-30',cycle_used:2,cycle_remaining:state.quota,cycle_max:10000}});
     if(path==='/v3/email/batch'){
@@ -48,6 +48,7 @@ test('readiness covers absent key, missing/unverified/verified domain and quota 
     p.domain='unverified';assert.equal((await p.adapter().checkReadiness()).state,'domain_unverified');
     p.domain='verified';const ready=await p.adapter().checkReadiness();assert.equal(ready.state,'ready');assert.equal(ready.monthlyRemaining,10000);assert.equal(ready.trackingVerified,true);
     assert.equal(JSON.stringify(ready).includes('fixture-only'),false);assert.ok(p.calls.every(c=>c.headers['X-Smtp2go-Api-Key']==='fixture-only'));
+    assert.ok(p.calls.every(c=>c.redirect==='manual'));
   }finally{r.close()}
 });
 

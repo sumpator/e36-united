@@ -32,7 +32,7 @@ export function createSmtp2goAdapter(env, { fetchImpl = fetch, timeoutMs = 18000
     requests++;
     const controller = new AbortController(), timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
-      const response = await fetchImpl(`${base}${path}`, { method:'POST', redirect:'error', signal:controller.signal,
+      const response = await fetchImpl(`${base}${path}`, { method:'POST', redirect:'manual', signal:controller.signal,
         headers:{ 'X-Smtp2go-Api-Key':env.SMTP2GO_API_KEY, Accept:'application/json', 'Content-Type':'application/json' },
         body:encodedBody });
       if (!response.ok) { await response.body?.cancel(); throw normalizeProviderError(response.status); }
