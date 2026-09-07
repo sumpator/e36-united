@@ -8,12 +8,40 @@ import { compressImageBlob, IMAGE_ERROR_MESSAGE } from '../member/media.js';
 import { MEMBER_SECTIONS, requestedMemberSection } from '../member/deep-links.js';
 import { getAdminFunnel, linkPlannerReservation, markProfileCompletion, trackOnboarding, trackPlannerHandoff } from '../worker/domains/planner/funnel.js';
 import { trackPublicPlannerDraft } from '../public-planner-handoff.js';
-import { putCurrentReservation, putPlannerDraft } from '../worker/domains.js';
+import { putCurrentReservation, putPlannerDraft, getPublicCurrentEvent, patchAdminEvent } from '../worker/domains.js';
+import { nextEventPresentation } from '../public-event-presentation.js';
 
 const json=(payload,status=200)=>new Response(JSON.stringify(payload),{status,headers:{'Content-Type':'application/json'}});
 const post=body=>new Request('https://api.e36united.cz/api/planner-handoffs',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
 const origin='https://e36united.cz';
 const user={uid:'a',email:'a@example.test',getIdToken:async()=> 'token'};
+
+test('next event uses configured dates only, no invented venue or past/invalid event',()=>{
+  const event={startsOn:'2027-08-13',endsOn:'2027-08-15',venueName:'  Test kemp  '};
+  assert.deepEqual(nextEventPresentation(event,'2027-08-01'),{dateLabel:'13.–15. 8. 2027',venue:'Test kemp'});
+  assert.equal(nextEventPresentation({...event,venueName:null},'2027-08-01').venue,'');
+  assert.equal(nextEventPresentation(event,'2027-08-16'),null);
+  assert.equal(nextEventPresentation({venueName:'Unknown'},'2027-08-01'),null);
+  assert.equal(nextEventPresentation({startsOn:'2027-02-30'},'2027-01-01'),null);
+  assert.equal(nextEventPresentation({startsOn:'2027-08-15',endsOn:'2027-08-13'},'2027-01-01'),null);
+  assert.equal(nextEventPresentation({startsOn:'2027-08-31',endsOn:'2027-09-01'},'2027-01-01').dateLabel,'31. 8. 2027 – 1. 9. 2027');
+});
+
+test('optional venue is editable, audited and public without changing existing event settings',async()=>{
+  const {db,env}=runtime();
+  db.exec("UPDATE events SET starts_on='2027-08-13',ends_on='2027-08-15',reservation_capacity=120 WHERE id='event'");
+  const before=db.prepare("SELECT * FROM events WHERE id='event'").get();
+  assert.equal((await patchAdminEvent(post({venueName:'  Test kemp  '}),env,user,'event',origin)).status,200);
+  const after=db.prepare("SELECT * FROM events WHERE id='event'").get();
+  assert.deepEqual({...after,venue_name:null},{...before});assert.equal(after.venue_name,'Test kemp');
+  assert.equal(db.prepare('SELECT COUNT(*) n FROM admin_actions').get().n,1);
+  const event=(await (await getPublicCurrentEvent(env,origin)).json()).event;
+  assert.equal(event.startsOn,'2027-08-13');assert.equal(event.endsOn,'2027-08-15');assert.equal(event.venueName,'Test kemp');
+  assert.equal((await (await patchAdminEvent(post({venueName:'Test kemp'}),env,user,'event',origin)).json()).unchanged,true);
+  for(const venueName of [123,{},'x'.repeat(121)])assert.equal((await patchAdminEvent(post({venueName}),env,user,'event',origin)).status,400);
+  assert.equal((await patchAdminEvent(post({venueName:''}),env,user,'event',origin)).status,200);
+  assert.equal(db.prepare("SELECT venue_name FROM events WHERE id='event'").get().venue_name,null);db.close();
+});
 function runtime(){
   const db=new DatabaseSync(':memory:');
   db.exec(readFileSync(new URL('../db/schema.sql',import.meta.url),'utf8'));

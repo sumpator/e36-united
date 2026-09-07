@@ -1,5 +1,5 @@
 import { apiMedia, apiRequest } from '../api.js?v=20260903-mailing-b';
-import { renderAttentionCounts } from './dashboard-events.js?v=20260907-feedback';
+import { renderAttentionCounts } from './dashboard-events.js?v=20260907-mobile';
 import { adminState } from '../state.js?v=20260903-mailing-b';
 import { setDenied } from '../shell.js?v=20260903-mailing-b';
 import { $, $$, escapeHtml, formatDate, galleryStatusLabel, numeric, photosLabel, recordsLabel, rememberSessionChoice, toast } from '../ui.js?v=20260903-phase5';

@@ -257,6 +257,7 @@
               <label class="admin-field"><span>Splatnost závazku</span><input name="bookingDueAt" type="date"/></label>
               <label class="admin-field"><span>Booking paid (Kč)</span><input min="0" name="bookingPaidCzk" required type="number"/></label>
               <label class="admin-field"><span>Skutečný konec eventu</span><input name="eventEndAt" type="date"/><small>Teprve po tomto datu se ročník nabídne v historii členů.</small></label>
+              <label class="admin-field"><span>Venue / kemp</span><input name="venueName" type="text" maxlength="120"/><small>Volitelné. Bez názvu se na webu zobrazí jen termín.</small></label>
               <label class="admin-check admin-field--wide"><input name="isCurrent" type="checkbox"/><span>Použít jako aktuální event pro web a členské rezervace</span></label>
               <button class="admin-button admin-button--primary" type="submit">Uložit nastavení <span>→</span></button>
             </form></div>
@@ -367,6 +368,6 @@
     </aside>
   </div>
   <div aria-live="polite" class="admin-toast" data-toast role="status"></div>
-  <script src="admin.js?v=20260907-feedback" type="module"></script>
+  <script src="admin.js?v=20260907-mobile" type="module"></script>
 </body>
 </html>

@@ -2,6 +2,7 @@ import { deriveMemberHeroState } from '../member-portal-state.js?v=20260828-memb
 import { initPortalNavigation } from '../portal-navigation.js?v=20260825-mobile1';
 import { $, $$ } from './ui.js?v=20260902-phase3';
 import { memberSection } from './deep-links.js?v=20260907-feedback';
+import { initScrollAffordance } from '../scroll-affordance.js?v=20260907-mobile';
 
 export function createMemberShell({
   renderApp,
@@ -14,6 +15,7 @@ export function createMemberShell({
 }) {
   const menuBtn=$('.menu-btn'),nav=$('.nav-links');
   let memberHeroPhotoId='';
+  initScrollAffordance(document.querySelector('.member-sidebar[data-portal-tablist]'));
 
   function closeMainMenu(){document.body.classList.remove('menu-open');menuBtn?.setAttribute('aria-expanded','false');nav?.classList.remove('open')}
   function setMode(text){

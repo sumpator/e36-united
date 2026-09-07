@@ -6,13 +6,13 @@ import { apiRequest } from './admin/api.js?v=20260903-mailing-b';
 import { adminState, resetAdminDomainState, resetAdminFiltersForEvent, resetAdminFiltersForLogin } from './admin/state.js?v=20260903-mailing-b';
 import { initializeAdminShell, setAdminSectionCollapsed, setAdminView, setDenied, setLoading, setView } from './admin/shell.js?v=20260903-mailing-b';
 import { $, toast } from './admin/ui.js?v=20260903-phase5';
-import { renderEventSelector, renderOverview, saveEventSettings } from './admin/modules/dashboard-events.js?v=20260907-feedback';
+import { renderEventSelector, renderOverview, saveEventSettings } from './admin/modules/dashboard-events.js?v=20260907-mobile';
 import { previewAccommodationPhoto, removeAccommodationPhoto, renderAccommodation, saveAccommodation, uploadAccommodationPhoto } from './admin/modules/accommodation.js?v=20260903-phase5';
-import { clearReservationDetailFilters, closeReservationDrawer, openReservationDrawer, renderReservations, setPaymentFilter, setPaymentSearch, setReservationFilter, setReservationSearch, setReservationViewMode, toggleReservationDetailFilter, toggleReservationFilters, updateReservation, updateReservationPayment } from './admin/modules/reservations-payments.js?v=20260907-feedback';
-import { changeHistoryPage, clearHistoryFilters, closeGalleryLightbox, closeHistoryEvidence, historyRequestPath, hydrateOpenHistoryCard, openGalleryLightbox, openHistoryEvidence, releaseGalleryMedia, releaseHistoryEvidence, renderGallery, renderHistoryClaims, reviewHistoryClaim, setGalleryFilter, setGalleryMode, setHistoryClaimType, setHistoryFilter, setHistorySearch, setHistoryYear, updateGallery } from './admin/modules/moderation.js?v=20260907-feedback';
+import { clearReservationDetailFilters, closeReservationDrawer, openReservationDrawer, renderReservations, setPaymentFilter, setPaymentSearch, setReservationFilter, setReservationSearch, setReservationViewMode, toggleReservationDetailFilter, toggleReservationFilters, updateReservation, updateReservationPayment } from './admin/modules/reservations-payments.js?v=20260907-mobile';
+import { changeHistoryPage, clearHistoryFilters, closeGalleryLightbox, closeHistoryEvidence, historyRequestPath, hydrateOpenHistoryCard, openGalleryLightbox, openHistoryEvidence, releaseGalleryMedia, releaseHistoryEvidence, renderGallery, renderHistoryClaims, reviewHistoryClaim, setGalleryFilter, setGalleryMode, setHistoryClaimType, setHistoryFilter, setHistorySearch, setHistoryYear, updateGallery } from './admin/modules/moderation.js?v=20260907-mobile';
 import { initializeMailingCenter, resetMailingCenter } from './admin/modules/mailing/index.js?v=20260903-mailing-b';
 import { refreshAdminFunnel } from './admin/modules/funnel.js?v=20260907-feedback';
-import { refreshHistoryAttention } from './admin/modules/dashboard-events.js?v=20260907-feedback';
+import { refreshHistoryAttention } from './admin/modules/dashboard-events.js?v=20260907-mobile';
 
 const app=initializeApp(firebaseConfig);
 const auth=getAuth(app);

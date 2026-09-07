@@ -1,6 +1,10 @@
 (() => {
 const qs = (selector, root = document) => root.querySelector(selector);
 const plannerTrackingHelper=import('./public-planner-handoff.js?v=20260907-feedback').catch(()=>null);
+const eventPresentation=import('./public-event-presentation.js?v=20260907-mobile').catch(()=>null);
+void import('./scroll-affordance.js?v=20260907-mobile').then(({initScrollAffordance})=>{
+  document.querySelectorAll('.category-selector').forEach(initScrollAffordance);
+}).catch(error=>console.debug('Scroll hint unavailable.',error));
 const qsa = (selector, root = document) => [...root.querySelectorAll(selector)];
 const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -891,6 +895,7 @@ const loadPlannerCurrentEvent=async()=>{
     const cfg=await import('./firebase-config.js?v=20260823-auth2'),base=String(cfg.portalConfig?.apiBaseUrl||'https://api.e36united.cz').replace(/\/$/,'');plannerApiBaseUrl=base;
     const response=await fetch(`${base}/api/events/current`,{cache:'no-store'});if(!response.ok)throw new Error(`Event API ${response.status}`);
     const payload=await response.json();plannerEventData=payload?.event||null;
+    void eventPresentation.then(helper=>helper?.renderNextEvent(plannerEventData));
     plannerAccommodationOptions=(Array.isArray(payload?.accommodationOptions)?payload.accommodationOptions:[]).map((option,index)=>({
       id:String(option.id||''),name:String(option.name||''),kind:option.kind==='tent'?'tent':'cabin',inventoryMode:option.inventoryMode==='unlimited'?'unlimited':'limited',
       unitsTotal:Number(option.unitsTotal||0),freeUnits:option.freeUnits==null?null:Number(option.freeUnits),capacityPerUnit:Math.max(1,Number(option.capacityPerUnit||1)),
@@ -1010,8 +1015,7 @@ const continueToMember=async mode=>{
   destination.searchParams.set('draft',draft.draftId);
   destination.hash=`handoff=${encodeURIComponent(encodePlannerHandoff(draft))}`;
   // Start the small helper early enough to use keepalive, but never await analytics to navigate.
-  const tracking=await plannerTrackingHelper;
-  if(tracking)void tracking.trackPublicPlannerDraft(draft,{baseUrl:plannerApiBaseUrl||'https://api.e36united.cz'});
+  void plannerTrackingHelper.then(tracking=>tracking?.trackPublicPlannerDraft(draft,{baseUrl:plannerApiBaseUrl||'https://api.e36united.cz'}));
   closeInquiry();
   window.location.assign(destination.href);
 };

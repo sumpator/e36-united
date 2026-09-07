@@ -190,6 +190,9 @@ async function getPublicCurrentEvent(env, origin) {
       year: Number(event.year || 0),
       registrationStatus: event.registration_status || "closed",
       registrationOpen: event.registration_status === "open",
+      startsOn: event.starts_on || null,
+      endsOn: event.ends_on || null,
+      venueName: event.venue_name || null,
       reservationCapacity: Number(event.reservation_capacity || 0),
       fullWeekendNights: Number(event.full_weekend_nights ?? 2),
       saturdayOnlyNights: Number(event.saturday_only_nights ?? 1),
@@ -339,7 +342,7 @@ async function patchAdminEvent(request, env, auth, eventId, origin) {
   const parsed = await readJsonObject(request, origin);
   if (parsed.response) return parsed.response;
   const body = parsed.body;
-  const allowedKeys = new Set(["isCurrent", "registrationStatus", "reservationCapacity", "fullWeekendNights", "saturdayOnlyNights", "bookingCommitmentCzk", "bookingDueAt", "bookingPaidCzk", "eventEndAt"]);
+  const allowedKeys = new Set(["isCurrent", "registrationStatus", "reservationCapacity", "fullWeekendNights", "saturdayOnlyNights", "bookingCommitmentCzk", "bookingDueAt", "bookingPaidCzk", "eventEndAt", "venueName"]);
   if (!Object.keys(body).length || Object.keys(body).some(key => !allowedKeys.has(key))) return json({ ok: false, error: "invalid_fields", message: "Požadavek obsahuje nepovolená pole." }, 400, origin);
   const current = await getEventById(env, eventId);
   if (!current) return json({ ok: false, error: "event_not_found", message: "Event nebyl nalezen." }, 404, origin);
@@ -354,7 +357,9 @@ async function patchAdminEvent(request, env, auth, eventId, origin) {
     bookingDueAt: Object.prototype.hasOwnProperty.call(body, "bookingDueAt") ? clean(body.bookingDueAt) || null : current.booking_due_at || null,
     bookingPaidCzk: Number(Object.prototype.hasOwnProperty.call(body, "bookingPaidCzk") ? body.bookingPaidCzk : current.booking_paid_czk),
     eventEndAt: Object.prototype.hasOwnProperty.call(body, "eventEndAt") ? clean(body.eventEndAt) || null : current.event_end_at || null,
+    venueName: Object.prototype.hasOwnProperty.call(body, "venueName") ? clean(body.venueName) || null : current.venue_name || null,
   };
+  if (Object.prototype.hasOwnProperty.call(body, "venueName") && body.venueName !== null && typeof body.venueName !== "string" || (next.venueName?.length || 0) > 120) return json({ ok: false, error: "invalid_venue_name", message: "Venue / kemp musí být text do 120 znaků." }, 400, origin);
   if (Object.prototype.hasOwnProperty.call(body, "isCurrent") && body.isCurrent !== true) return json({ ok: false, error: "invalid_current_event", message: "Aktuální event lze pouze přepnout na jiný event." }, 400, origin);
   if (!["open", "closed"].includes(next.registrationStatus)) return json({ ok: false, error: "invalid_registration_status", message: "Stav rezervací musí být open nebo closed." }, 400, origin);
   for (const key of ["reservationCapacity", "fullWeekendNights", "saturdayOnlyNights", "bookingCommitmentCzk", "bookingPaidCzk"]) {
@@ -372,9 +377,9 @@ async function patchAdminEvent(request, env, auth, eventId, origin) {
     UPDATE events
     SET is_current = ?, registration_status = ?, reservation_capacity = ?,
         full_weekend_nights = ?, saturday_only_nights = ?,
-        booking_commitment_czk = ?, booking_due_at = ?, booking_paid_czk = ?, event_end_at = ?
+        booking_commitment_czk = ?, booking_due_at = ?, booking_paid_czk = ?, event_end_at = ?, venue_name = ?
     WHERE id = ?
-  `).bind(next.isCurrent ? 1 : 0, next.registrationStatus, next.reservationCapacity, next.fullWeekendNights, next.saturdayOnlyNights, next.bookingCommitmentCzk, next.bookingDueAt, next.bookingPaidCzk, next.eventEndAt, eventId));
+  `).bind(next.isCurrent ? 1 : 0, next.registrationStatus, next.reservationCapacity, next.fullWeekendNights, next.saturdayOnlyNights, next.bookingCommitmentCzk, next.bookingDueAt, next.bookingPaidCzk, next.eventEndAt, next.venueName, eventId));
   statements.push(env.DB.prepare(`
     INSERT INTO admin_actions (id, admin_member_id, action_type, entity_type, entity_id, old_state_json, new_state_json, note, created_at)
     VALUES (?, ?, 'event_settings_changed', 'event', ?, ?, ?, ?, CURRENT_TIMESTAMP)
@@ -396,6 +401,7 @@ function eventState(row) {
     bookingDueAt: row.booking_due_at || null,
     bookingPaidCzk: Number(row.booking_paid_czk || 0),
     eventEndAt: row.event_end_at || null,
+    venueName: row.venue_name || null,
   };
 }
 

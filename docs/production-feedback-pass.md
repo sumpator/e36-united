@@ -65,4 +65,20 @@ Old assertions for unconditional Overview and visible Garage-empty content after
 
 ## Mobile UX
 
-The second local commit will contain the separate homepage/S&S/mobile-navigation presentation changes and their responsive tests; it does not require another migration.
+- The complete homepage Fun Facts strip is hidden at widths ≤700px; tablet/desktop retain it.
+- Mobile S&S order is photo → category rail → identity/context → explanation/judging. CSS reorders the existing content; desktop photo/copy layout is unchanged. The prominent rules winbar is removed at all sizes; Info Hub rules remain.
+- A shared native-scroll hint adds a small “Posuň →” and edge fade to category, Member section and gallery navigation rails. At the end it becomes “← Posuň”; resize, font/image load and visible-panel changes recalculate overflow. No extra navigation system or large controls.
+- Audit: judging criteria already form a mobile two-column grid, accommodation options have their established cards/sheet, and lightbox thumbnails already have explicit previous/next image controls. Those and non-interactive tables/content overflow are unchanged.
+- The next-event hero cell consumes the existing current-event endpoint's additive `startsOn`/`endsOn` fields, sourced from `events.starts_on`/`ends_on`, plus optional `venueName`. It displays only a configured date/range and venue; absent venue means date only. Missing/invalid dates or a concluded event hide this cell instead of inventing a future event. The existing `event_end_at` history eligibility control is **not** repurposed as a public date.
+- Admin Event settings can edit/clear `venueName` (120 characters); updates use existing Admin authorization and audit. The nullable `venue_name` column is in the single commit-1 migration. No seed venue/date, extra migration or production write. Existing partial settings normalization (e.g. NULL capacity to zero) remains unchanged.
+- Four responsive/browser cases cover mobile/desktop order, scroll-end hints, useful next-event content, optional Admin venue and retained Info Hub rules. Four older test database fixtures only gain the new event projection columns; their behavioral assertions are untouched.
+
+Final review also removed waiting for the optional tracking module download before navigation. A stalled-module regression runs in both engines. This small reliability follow-up is included in the amended second commit to keep the requested two-commit history.
+
+Local validation: 241 Node tests, 34 Chromium tests and 8 focused WebKit tests; 86 first-party JavaScript syntax checks. Native Windows WebKit is Playwright coverage, not proof of the original physical iPhone/Safari incident. Browser warnings about `NO_COLOR`/`FORCE_COLOR` are cosmetic.
+
+## File inventory against the starting checkpoint
+
+Added (16): `admin/funnel.css`, `admin/modules/funnel.js`, `db/migrations/2026-09-07-production-feedback.sql`, `docs/production-feedback-pass.md`, `member/availability.js`, `member/deep-links.js`, `member/reliability.css`, `mobile-feedback.css`, `public-event-presentation.js`, `public-planner-handoff.js`, `scroll-affordance.js`, `tests/e2e/feedback-admin.spec.mjs`, `tests/e2e/feedback-member.spec.mjs`, `tests/e2e/feedback-mobile.spec.mjs`, `tests/production-feedback.test.mjs`, `worker/domains/planner/funnel.js`.
+
+Changed (37): `.github/workflows/ci.yml`, `admin.html`, `admin.js`, `admin/modules/dashboard-events.js`, `admin/modules/moderation.js`, `admin/modules/reservations-payments.js`, `galerie.html`, `gallery.js`, `index.html`, `main.js`, `member.html`, `member.js`, `member/api.js`, `member/media.js`, `member/modules/garage.js`, `member/modules/photos.js`, `member/modules/planner/index.js`, `member/refresh.js`, `member/session.js`, `member/shell.js`, `merch.html`, `o-nas.html`, `playwright.config.mjs`, `tests/active-member-guard.test.mjs`, `tests/e2e/fixtures.mjs`, `tests/e2e/member.spec.mjs`, `tests/event-accommodation-phase1.test.mjs`, `tests/member-frontend-foundation.test.mjs`, `tests/member-portal-phase-a.test.mjs`, `tests/planner-sync.test.mjs`, `tests/reservation-payment-phase1.test.mjs`, `tests/united-club-server.test.mjs`, `worker/domains.js`, `worker/domains/events.js`, `worker/domains/members.js`, `worker/domains/reservations/index.js`, `worker/router.js`.

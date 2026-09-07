@@ -7,7 +7,7 @@ const EVENT_SELECT = `
     accommodation_capacity, reservation_capacity,
     full_weekend_nights, saturday_only_nights,
     booking_commitment_czk, booking_due_at, booking_paid_czk,
-    event_end_at,
+    event_end_at, starts_on, ends_on, venue_name,
     currency, payment_deadline,
     payment_recipient_name, payment_account_display, payment_iban,
     payment_message_prefix, payment_test_mode
@@ -51,6 +51,7 @@ function publicAdminEvent(event) {
     currency: event.currency || "CZK",
     paymentDeadline: event.payment_deadline || null,
     eventEndAt: event.event_end_at || null,
+    venueName: event.venue_name || null,
     paymentTestMode: event.payment_test_mode !== 0,
   };
 }

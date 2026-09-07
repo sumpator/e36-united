@@ -1,6 +1,7 @@
 import { firebaseConfig, portalConfig } from './firebase-config.js?v=20260823-auth2';
 import { initUnitedAuth } from './united-auth.js?v=20260825-phase-a1';
 import { createImagePreviewController, selectImageFiles } from './image-upload.js?v=20260827-garage-photos';
+import { initScrollAffordance } from './scroll-affordance.js?v=20260907-mobile';
 
 const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
 const apiBase=(portalConfig.apiBaseUrl||'https://api.e36united.cz').replace(/\/$/,'');
@@ -21,6 +22,7 @@ function initGalleryNavigation(){
     nav.append(link);item.link=link;
   });
   wrap.append(nav);hero.after(wrap);
+  initScrollAffordance(nav);
   let activeId='';
   const setActive=id=>{
     if(id===activeId)return;activeId=id;

@@ -27,6 +27,7 @@ export function renderEventSettings(event){
   form.elements.bookingDueAt.value=event.bookingDueAt||'';
   form.elements.bookingPaidCzk.value=numeric(event.bookingPaidCzk);
   form.elements.eventEndAt.value=event.eventEndAt||'';
+  form.elements.venueName.value=event.venueName||'';
   form.elements.isCurrent.checked=!!event.isCurrent;
   form.elements.isCurrent.disabled=!!event.isCurrent;
 }
@@ -119,6 +120,7 @@ export async function saveEventSettings(form,reloadAdminData){
   const switchingCurrent=!event.isCurrent&&form.elements.isCurrent.checked;
   if(switchingCurrent&&!window.confirm(`Nastavit United ${numeric(event.year)} jako aktuální event? Změna okamžitě ovlivní veřejný Weekend Planner a členské rezervace.`)){form.elements.isCurrent.checked=false;return}
   const body={
+    venueName:String(data.get('venueName')||''),
     registrationStatus:String(data.get('registrationStatus')||''),reservationCapacity:Number(data.get('reservationCapacity')),
     fullWeekendNights:Number(data.get('fullWeekendNights')),saturdayOnlyNights:Number(data.get('saturdayOnlyNights')),
     bookingCommitmentCzk:Number(data.get('bookingCommitmentCzk')),bookingDueAt:String(data.get('bookingDueAt')||''),bookingPaidCzk:Number(data.get('bookingPaidCzk')),eventEndAt:String(data.get('eventEndAt')||''),

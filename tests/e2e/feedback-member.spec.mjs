@@ -36,6 +36,20 @@ test('one final public Planner click hands off in the same tab through login to 
   expectNoUnexpectedClientErrors(observations);
 });
 
+test('a stalled optional tracking module cannot block the public Planner handoff',async({page,context})=>{
+  const observations=await prepareE2ePage(page);let stalled=false,release;
+  const gate=new Promise(resolve=>{release=resolve});
+  await page.route('**/public-planner-handoff.js?*',async route=>{stalled=true;await gate;await route.abort().catch(()=>{})});
+  try{
+    await page.goto('/#planer',{waitUntil:'domcontentloaded'});
+    await expect.poll(()=>stalled).toBe(true);await expect(page.locator('[data-accommodation-option-id="cabin-standard"]')).toBeVisible();
+    await page.locator('[data-planner-mail]').click();await page.locator('[data-planner-login]').click();
+    await expect(page).toHaveURL(/member.html\?mode=login&section=reservation&draft=/);
+    await login(page);await expect(page.locator('[data-planner-handoff]')).toBeVisible();
+    expect(context.pages()).toHaveLength(1);expectNoUnexpectedClientErrors(observations);
+  }finally{release()}
+});
+
 test('secondary reservation failure opens shell with unavailable state and manual retry recovers',async({page})=>{
   const observations=await prepareE2ePage(page,{authenticated:true,ignoreConsoleError:entry=>entry.url.includes('/api/reservations/current')&&entry.text.includes('503')});
   let calls=0,failed=true;

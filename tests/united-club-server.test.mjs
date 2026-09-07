@@ -21,7 +21,7 @@ function database(){
       full_weekend_nights INTEGER NOT NULL DEFAULT 2, saturday_only_nights INTEGER NOT NULL DEFAULT 1,
       booking_commitment_czk INTEGER NOT NULL DEFAULT 0, booking_due_at TEXT, booking_paid_czk INTEGER NOT NULL DEFAULT 0,
       currency TEXT NOT NULL DEFAULT 'CZK', payment_deadline TEXT, payment_recipient_name TEXT, payment_account_display TEXT,
-      payment_iban TEXT, payment_message_prefix TEXT, payment_test_mode INTEGER NOT NULL DEFAULT 1
+      payment_iban TEXT, payment_message_prefix TEXT, payment_test_mode INTEGER NOT NULL DEFAULT 1, starts_on TEXT, ends_on TEXT, venue_name TEXT
     );
     CREATE TABLE members (
       id TEXT PRIMARY KEY, member_code TEXT NOT NULL UNIQUE, email TEXT NOT NULL, name TEXT NOT NULL, nickname TEXT, phone TEXT,

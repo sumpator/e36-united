@@ -18,7 +18,7 @@ function database() {
       is_current INTEGER NOT NULL DEFAULT 0, accommodation_capacity INTEGER NOT NULL DEFAULT 0,
       reservation_capacity INTEGER NOT NULL DEFAULT 0, full_weekend_nights INTEGER NOT NULL DEFAULT 2,
       saturday_only_nights INTEGER NOT NULL DEFAULT 1, booking_commitment_czk INTEGER NOT NULL DEFAULT 0,
-      booking_due_at TEXT, booking_paid_czk INTEGER NOT NULL DEFAULT 0, event_end_at TEXT
+      booking_due_at TEXT, booking_paid_czk INTEGER NOT NULL DEFAULT 0, event_end_at TEXT, starts_on TEXT, ends_on TEXT, venue_name TEXT
     );
     CREATE TABLE reservations (
       id TEXT PRIMARY KEY, member_id TEXT NOT NULL, event_id TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending',
