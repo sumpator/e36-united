@@ -4,6 +4,7 @@ import { createBrevoAdapter, BREVO_SENDER } from './provider/brevo.js';
 import { MailingDeliveryError, deliveryMessages } from './delivery-errors.js';
 import { campaignRow, preparationPreview, prepareCampaign, unprepareCampaign } from './preparation.js';
 import { dailySendLimit, sendCampaign, syncCampaign, testCampaign } from './delivery.js';
+import { deliveryTracking } from './tracking.js';
 
 export function deliveryCampaign(row) {
   return { id: row.id, internalName: row.internal_name, status: row.status, subject: row.prepared_subject ?? row.subject,
@@ -22,7 +23,7 @@ export async function routeMailingDelivery({ request, env, url, origin }) {
     if (action === 'delivery') {
       const row = await campaignRow(env, id), campaign = deliveryCampaign(row);
       if (row.status === 'draft') campaign.recipientCount = (await preparationPreview(env, row)).length;
-      return json({ ok: true, campaign, frozenPreview: row.prepared_html ? {html:row.prepared_html,subject:row.prepared_subject,preheader:row.prepared_preheader} : null, sender: BREVO_SENDER, dailyLimit: dailySendLimit(env) }, 200, origin);
+      return json({ ok: true, campaign, tracking:await deliveryTracking(env,id), frozenPreview: row.prepared_html ? {html:row.prepared_html,subject:row.prepared_subject,preheader:row.prepared_preheader} : null, sender: BREVO_SENDER, dailyLimit: dailySendLimit(env) }, 200, origin);
     }
     let body;
     try { body = await readMailingBody(request, 4096); if (Array.isArray(body)) throw new Error(); } catch { throw new MailingDeliveryError('confirmation_required', 400); }

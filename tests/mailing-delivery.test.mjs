@@ -12,8 +12,17 @@ test('exact additive C migration applies to pre-C schema and retains fixtures / 
   const schema=readFileSync(new URL('../db/schema.sql',import.meta.url),'utf8');
   const db=new DatabaseSync(':memory:'); db.exec(schema.slice(0,schema.indexOf('-- Mailing C.'))+'COMMIT;');
   db.exec("INSERT INTO members(id,member_code,email,name) VALUES('a','A','a@example.invalid','A');");
+  db.exec(readFileSync(new URL('../db/migrations/2026-09-07-production-feedback.sql',import.meta.url),'utf8'));
+  db.exec("INSERT INTO mailing_campaigns(id,created_by,internal_name,subject,segment_definition_json) VALUES('existing','a','Existing draft','Existing subject','{}');");
   db.exec(readFileSync(new URL('../db/migrations/2026-09-07-mailing-delivery.sql',import.meta.url),'utf8'));
-  assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(),[]);assert.equal(db.prepare('SELECT COUNT(*) n FROM members').get().n,1);db.close();
+  assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(),[]);assert.equal(db.prepare('SELECT COUNT(*) n FROM members').get().n,1);
+  const existing=db.prepare("SELECT * FROM mailing_campaigns WHERE id='existing'").get();assert.equal(existing.status,'draft');assert.equal(existing.subject,'Existing subject');assert.equal(existing.prepared_html,null);assert.equal(existing.provider_campaign_id,null);
+  const canonical=new DatabaseSync(':memory:');canonical.exec(schema);
+  for(const table of ['mailing_campaigns','mailing_campaign_recipients','mailing_delivery_events','events','member_onboarding','public_planner_handoffs']){
+    assert.deepEqual(db.prepare(`PRAGMA table_info(${table})`).all(),canonical.prepare(`PRAGMA table_info(${table})`).all());
+    assert.deepEqual(db.prepare(`PRAGMA foreign_key_list(${table})`).all(),canonical.prepare(`PRAGMA foreign_key_list(${table})`).all());
+  }
+  canonical.close();db.close();
 });
 for(const [suppression,consent,deliverability] of [['unsubscribed','yes','deliverable'],['hard_bounce','yes','deliverable'],['blocked','yes','deliverable'],['manually_suppressed','yes','deliverable'],['eligible','no','deliverable'],['eligible','unknown','deliverable'],['eligible','yes','hard_bounce']]){
   test(`prepare excludes ${suppression}/${consent}/${deliverability} even in all-contacts segment`,async()=>{
@@ -129,4 +138,18 @@ test('daily admission includes previously accepted campaigns and no over-limit p
     if(i===0)await send();else await assert.rejects(send(),/send_limit_exceeded/);
   }
   assert.equal(provider.calls.filter(x=>x[0]==='send').length,1);r.close();
+});
+
+test('opt-out arriving during readiness is caught by atomic send admission',async()=>{
+  const r=mailingRuntime();contact(r.db);const c=await draft(r.env),p=await prepareCampaign(r.env,c.id,confirmation(c)),provider=providerMock();await syncCampaign(r.env,c.id,provider);
+  provider.checkReadiness=async()=>{r.db.exec("UPDATE mailing_contacts SET suppression_status='unsubscribed'");return {ready:true}};
+  await assert.rejects(sendCampaign(r.env,c.id,{preparationId:p.preparation_id,recipientCount:1},provider),/recipients_no_longer_eligible/);
+  assert.equal(provider.calls.some(x=>x[0]==='send'),false);r.close();
+});
+
+test('suppression arriving before the preparation transaction cannot be frozen as eligible',async()=>{
+  const r=mailingRuntime();contact(r.db);const c=await draft(r.env),batch=r.env.DB.batch;
+  r.env.DB.batch=statements=>{r.db.exec("UPDATE mailing_contacts SET suppression_status='unsubscribed'");return batch(statements)};
+  await assert.rejects(prepareCampaign(r.env,c.id,confirmation(c)),/campaign_changed/);
+  assert.equal((await campaignRow(r.env,c.id)).status,'draft');assert.deepEqual(await frozenRecipients(r.env,c.id),[]);r.close();
 });

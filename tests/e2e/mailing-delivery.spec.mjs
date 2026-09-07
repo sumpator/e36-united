@@ -12,7 +12,7 @@ async function fixture(page,{state='not_configured',status='draft',testError=fal
     const request=route.request(),url=new URL(request.url()),path=url.pathname,reply=(body,code=200)=>route.fulfill({status:code,contentType:'application/json',body:JSON.stringify(body)});
     if(path.endsWith('/provider-status'))return reply({provider});
     if(path.endsWith('/campaigns')&&request.method()==='GET')return reply({campaigns:[campaign]});
-    if(path.endsWith('/delivery'))return reply({campaign,frozenPreview:campaign.status==='draft'?null:{...renderMailingTemplate(campaign),subject:campaign.subject,preheader:campaign.preheader}});
+    if(path.endsWith('/delivery'))return reply({campaign,tracking:{counts:{recipients:2,sent:2,delivered:1,opened:1,clicked:1,bounced:1,unsubscribed:1},detailLimit:500,recipients:[{email:'test1@example.invalid',name:'Synthetic recipient',status:'unsubscribed',deliveredAt:'2026-09-07T11:01:00Z',openedAt:'2026-09-07T11:02:00Z',clickedAt:'2026-09-07T11:03:00Z'}]},frozenPreview:campaign.status==='draft'?null:{...renderMailingTemplate(campaign),subject:campaign.subject,preheader:campaign.preheader}});
     if(path.includes('/campaigns/delivery-fixture/')&&request.method()==='POST'){
       const action=path.split('/').at(-1),body=request.postDataJSON();writes.push({action,body});
       if(action==='test')return reply(testError?{message:'Brevo odmítlo požadavek kvůli limitu testů.'}:{accepted:true},testError?502:200);
@@ -76,4 +76,15 @@ test('Mailing C readiness gates sync and real send requires a frozen explicit co
   await expect(page.locator('[data-delivery-status]')).toHaveText('Odesláno');
   expect(writes.at(-1)).toEqual({action:'send',body:{confirmation:{preparationId:'frozen-1',recipientCount:2}}});
   await expect(page.locator('[data-mailing-save]')).toBeDisabled();expectNoUnexpectedClientErrors(observations);
+});
+
+test('Mailing C sent dashboard shows unique delivery stats and read-only recipient detail',async({page})=>{
+  const {observations,writes}=await fixture(page,{state:'ready',status:'sent'});
+  for(const [key,count] of Object.entries({recipients:2,sent:2,delivered:1,opened:1,clicked:1,bounced:1,unsubscribed:1}))await expect(page.locator(`[data-delivery-metric="${key}"]`)).toHaveText(String(count));
+  await expect(page.locator('[data-delivery-tracking]')).toContainText('Otevření je orientační');
+  await page.locator('[data-delivery-tracking] summary').click();
+  await expect(page.locator('[data-delivery-tracking] details')).toContainText('test1@example.invalid');
+  await expect(page.locator('[data-delivery-tracking] details')).toContainText('Odhlášeno');
+  await expect(page.locator('[data-mailing-save]')).toBeDisabled();await expect(page.locator('[data-delivery-action="send"]')).toHaveCount(0);
+  expect(writes).toEqual([]);expectNoUnexpectedClientErrors(observations);
 });

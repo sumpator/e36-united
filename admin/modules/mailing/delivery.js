@@ -1,6 +1,7 @@
 import { apiRequest } from '../../api.js?v=20260903-mailing-b';
 import { $, escapeHtml, toast } from '../../ui.js?v=20260903-phase5';
 import { showFrozenMailingPreview } from './preview.js?v=20260907-mailing-c';
+import { renderMailingTracking } from './tracking.js?v=20260907-mailing-c';
 
 const providerLabels={not_configured:'Brevo není nakonfigurováno',api_connected:'API připojeno',sender_missing:'Odesílatel není připraven',domain_unverified:'Doména čeká na ověření',domain_unauthenticated:'Doména čeká na autentizaci',ready:'Připraveno k testu/odeslání'};
 let selected='',sequence=0,current=null,provider=null,onChanged=async()=>{},initialized=false;
@@ -26,6 +27,7 @@ export async function openMailingDelivery(id=''){
     const [status,detail]=await Promise.all([apiRequest('/api/admin/mailing/provider-status'),id?apiRequest(`/api/admin/mailing/campaigns/${encodeURIComponent(id)}/delivery`):null]);
     if(own!==sequence)return;
     provider=status.provider;current=detail?.campaign||null;render();
+    if(current?.status==='sent')renderMailingTracking($('[data-delivery-tracking]'),detail.tracking);
     if(detail?.frozenPreview)showFrozenMailingPreview(detail.frozenPreview);
   }catch(error){if(own===sequence)panel().innerHTML=`<p role="alert">${escapeHtml(error.message||'Stav doručení se nepodařilo načíst.')}</p>${button('refresh','Obnovit stav')}`}
 }

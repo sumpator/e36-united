@@ -21,9 +21,17 @@ async function requireReady(provider) {
 }
 async function lock(env, row, operation, extra = '', values = []) {
   const token = crypto.randomUUID(), now = new Date().toISOString();
+  // Recheck persisted consent/suppression atomically after possibly slow readiness calls.
+  const eligibility = operation === 'test' ? '' : `AND NOT EXISTS (
+    SELECT 1 FROM mailing_campaign_recipients r LEFT JOIN mailing_contacts c ON c.id=r.contact_id
+    WHERE r.campaign_id=mailing_campaigns.id AND (c.id IS NULL OR c.mailing_consent_status<>'yes'
+      OR c.suppression_status<>'eligible' OR c.deliverability_status IN ('hard_bounce','blocked'))) `;
   const result = await env.DB.prepare(`UPDATE mailing_campaigns SET delivery_lock=?,delivery_operation=?,delivery_operation_at=?,delivery_error=NULL
-    WHERE id=? AND status=? AND delivery_lock IS NULL ${extra}`).bind(token, operation, now, row.id, row.status, ...values).run();
-  if (!result.meta?.changes) throw new MailingDeliveryError(operation === 'send' ? 'send_limit_exceeded' : 'campaign_busy');
+    WHERE id=? AND status=? AND delivery_lock IS NULL ${eligibility} ${extra}`).bind(token, operation, now, row.id, row.status, ...values).run();
+  if (!result.meta?.changes) {
+    if(operation!=='test')await validatePrepared(env,await campaignRow(env,row.id));
+    throw new MailingDeliveryError(operation === 'send' ? 'send_limit_exceeded' : 'campaign_busy');
+  }
   return token;
 }
 async function release(env, id, token) {

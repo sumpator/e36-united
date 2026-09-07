@@ -41,8 +41,10 @@ export async function prepareCampaign(env, id, confirmation) {
     env.DB.prepare(`UPDATE mailing_campaigns SET status='prepared',prepared_subject=subject,prepared_preheader=preheader,
       prepared_template_version=template_version,prepared_content_json=content_json,prepared_html=?,prepared_at=?,preparation_id=?,
       recipient_count=?,updated_at=? WHERE id=? AND status='draft' AND delivery_lock IS NULL
-      AND subject=? AND preheader=? AND content_json=? AND segment_definition_json=? AND updated_at=?`)
-      .bind(html, now, token, snapshot.length, now, id, row.subject, row.preheader, row.content_json, row.segment_definition_json, row.updated_at),
+      AND subject=? AND preheader=? AND content_json=? AND segment_definition_json=? AND updated_at=?
+      AND NOT EXISTS(SELECT 1 FROM json_each(?) j LEFT JOIN mailing_contacts c ON c.id=json_extract(j.value,'$.contactId')
+        WHERE c.id IS NULL OR c.mailing_consent_status<>'yes' OR c.suppression_status<>'eligible' OR c.deliverability_status IN ('hard_bounce','blocked'))`)
+      .bind(html, now, token, snapshot.length, now, id, row.subject, row.preheader, row.content_json, row.segment_definition_json, row.updated_at, JSON.stringify(snapshot)),
     env.DB.prepare(`INSERT INTO mailing_campaign_recipients
       (id,campaign_id,contact_id,member_id,email,normalized_email,name,source_snapshot_json,eligibility_status)
       SELECT json_extract(j.value,'$.id'),c.id,json_extract(j.value,'$.contactId'),json_extract(j.value,'$.memberId'),

@@ -45,7 +45,8 @@ test('optional venue is editable, audited and public without changing existing e
 function runtime(){
   const db=new DatabaseSync(':memory:');
   db.exec(readFileSync(new URL('../db/schema.sql',import.meta.url),'utf8'));
-  db.exec(readFileSync(new URL('../db/migrations/2026-09-07-production-feedback.sql',import.meta.url),'utf8'));
+  // The post-Mailing-C canonical schema now includes the unchanged Feedback migration.
+  assert.equal(db.prepare("SELECT COUNT(*) n FROM schema_migrations WHERE id='2026-09-07-production-feedback'").get().n,1);
   db.exec("INSERT INTO events(id,year,title,is_current) VALUES('event',2027,'United',1),('old',2026,'Old',0); INSERT INTO members(id,member_code,email,name) VALUES('a','A','a@example.test','A'),('b','B','b@example.test','B');");
   const prepare=(sql,bindings=[])=>({bind:(...values)=>prepare(sql,values),async first(){return db.prepare(sql).get(...bindings)||null},async all(){return{results:db.prepare(sql).all(...bindings)}},async run(){return{meta:{changes:Number(db.prepare(sql).run(...bindings).changes)}}}});
   return {db,env:{DB:{prepare,async batch(statements){db.exec('BEGIN');try{const results=[];for(const statement of statements)results.push(await statement.run());db.exec('COMMIT');return results}catch(error){db.exec('ROLLBACK');throw error}}}}};
