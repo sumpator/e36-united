@@ -46,6 +46,7 @@ export function authError(error) {
 }
 
 export function apiError(error) {
+  if (['active_member_required','member_inactive'].includes(error?.payload?.error)) return 'Aktivní členství je vyžadováno. Tento členský účet není aktivní.';
   if (error?.message === 'api_network_error') return 'Můj United teď není dostupný. Zkus stránku obnovit.';
   if (error?.message === 'member_identity_mismatch') return 'Bezpečnostní kontrola profilu selhala.';
   if (error?.message === 'member_inactive') return 'Tento členský účet není aktivní.';

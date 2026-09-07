@@ -100,6 +100,19 @@ function renderActionCount(selector,count){
   $$(selector).forEach(badge=>{badge.textContent=state.label;badge.hidden=state.hidden});
 }
 
+let attentionRequestPending=false;
+export async function refreshHistoryAttention(){
+  if(!adminState.currentUser||attentionRequestPending)return;
+  attentionRequestPending=true;const user=adminState.currentUser;
+  try{
+    const payload=await apiRequest('/api/admin/attention');
+    if(adminState.currentUser!==user)return;
+    adminState.historyCounts={...adminState.historyCounts,...payload.history};
+    renderAttentionCounts();
+  }catch(error){if(error.status===403)setDenied()}
+  finally{attentionRequestPending=false}
+}
+
 export async function saveEventSettings(form,reloadAdminData){
   const event=selectedEvent();if(!event)return;
   const data=new FormData(form);

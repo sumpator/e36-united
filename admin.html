@@ -9,6 +9,7 @@
   <link href="styles.css?v=20260825-mobile1" rel="stylesheet"/>
   <link href="accommodation-visual.css?v=20260827-accommodation1" rel="stylesheet"/>
   <link href="admin.css?v=20260903-mailing-b" rel="stylesheet"/>
+  <link href="admin/funnel.css?v=20260907-feedback" rel="stylesheet"/>
 </head>
 <body class="admin-page">
   <header class="site-header scrolled admin-header">
@@ -59,7 +60,7 @@
                 <button class="is-active" data-admin-jump="dashboard" data-portal-target="dashboard" type="button">Přehled</button>
                 <button data-admin-jump="reservations" data-portal-target="reservations" type="button">Rezervace <b data-reservation-nav-count>0</b></button>
                 <button data-admin-jump="payments" data-portal-target="payments" type="button">Platby <b data-payment-nav-count>0</b></button>
-                <button data-admin-jump="gallery" data-portal-target="gallery" type="button">Fotky <b class="admin-action-count" data-gallery-nav-count hidden>0</b></button>
+                <button data-admin-jump="gallery" data-portal-target="gallery" type="button">Fotky a historie <b class="admin-action-count" data-gallery-nav-count hidden>0</b></button>
                 <button data-admin-jump="accommodation" data-portal-target="accommodation" type="button">Ubytování</button>
                 <button data-admin-jump="event" data-portal-target="event" type="button">Event</button>
                 <button data-admin-jump="mailing" data-portal-target="mailing" type="button">Mailing</button>
@@ -74,7 +75,7 @@
                   <button class="is-active" data-portal-target="dashboard" type="button"><span>01</span><b>Přehled</b></button>
                   <button data-portal-target="reservations" type="button"><span>02</span><b>Rezervace</b></button>
                   <button data-portal-target="payments" type="button"><span>03</span><b>Platby</b></button>
-                  <button data-portal-target="gallery" type="button"><span>04</span><b>Fotky <i class="admin-action-count" data-gallery-nav-count hidden>0</i></b></button>
+                  <button data-portal-target="gallery" type="button"><span>04</span><b>Fotky a historie <i class="admin-action-count" data-gallery-nav-count hidden>0</i></b></button>
                   <button data-portal-target="accommodation" type="button"><span>05</span><b>Ubytování</b></button>
                   <button data-portal-target="event" type="button"><span>06</span><b>Event</b></button>
                   <button data-portal-target="mailing" type="button"><span>07</span><b>Mailing</b></button>
@@ -119,6 +120,7 @@
             </div>
           </section>
 
+          <section class="admin-funnel" data-admin-funnel aria-label="Registrace a Planner funnel">Načítám funnel…</section>
           <section class="admin-attention" aria-labelledby="admin-attention-title">
             <div class="admin-attention-head"><div><span class="admin-kicker">VYŽADUJE POZORNOST</span><h3 id="admin-attention-title">Co je potřeba vyřešit.</h3></div><small>Aktuální data · bez nových pravidel</small></div>
             <div class="admin-attention-list">
@@ -365,6 +367,6 @@
     </aside>
   </div>
   <div aria-live="polite" class="admin-toast" data-toast role="status"></div>
-  <script src="admin.js?v=20260903-mailing-b" type="module"></script>
+  <script src="admin.js?v=20260907-feedback" type="module"></script>
 </body>
 </html>

@@ -178,6 +178,7 @@ async function forbiddenBody(response) {
 
 test('route classification covers every explicit protected Member contract and excludes public, bootstrap, Admin and unknown routes', () => {
   const protectedRoutes = [
+    ['POST', '/api/planner-handoffs/claim'],
     ['GET', '/api/navigation-state'],
     ['GET', '/api/united-club'],
     ['POST', '/api/history/claims'],
@@ -338,4 +339,13 @@ test('Mailing routes stay behind the existing active-Admin authorization boundar
   assert.equal(blockedResponse.status, 403);
   assert.equal((await blockedResponse.json()).error, 'admin_forbidden');
   blockedAdmin.database.close();
+});
+
+test('funnel identity and Admin endpoints preserve authorization before tracking writes',async()=>{
+  const blocked=createRuntime({status:'blocked'});
+  await forbiddenBody(await worker.fetch(authenticatedRequest('/api/planner-handoffs/claim','POST'),blocked.env));
+  for(const path of ['/api/admin/funnel','/api/admin/attention']){
+    const response=await worker.fetch(authenticatedRequest(path),blocked.env);assert.equal(response.status,403);assert.equal((await response.json()).error,'admin_forbidden');
+  }
+  assert.equal(blocked.queries.some(sql=>/public_planner_handoffs|member_onboarding/.test(sql)),false);blocked.database.close();
 });

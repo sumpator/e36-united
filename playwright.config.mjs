@@ -10,6 +10,10 @@ export default defineConfig({
   forbidOnly: Boolean(process.env.CI),
   retries: 0,
   reporter: [['line'], ['html', { open: 'never' }]],
+  projects: [
+    { name: 'chromium', use: { browserName: 'chromium' } },
+    { name: 'webkit', testMatch: '**/feedback-member.spec.mjs', use: { browserName: 'webkit' } },
+  ],
   expect: { timeout: 7_000 },
   use: {
     baseURL,

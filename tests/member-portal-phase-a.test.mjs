@@ -101,10 +101,11 @@ test('Můj United active underline belongs to its label, not the decorative mark
   assert.match(memberCss, /\.member-top-nav a\.nav-member\.active\{text-decoration:none\}/);
 });
 
-test('authenticated entry always starts on Overview without planner or URL auto-navigation', () => {
+test('authenticated entry keeps Overview fallback but applies a handoff before canonical navigation', () => {
   assert.match(memberHtml, /member-nav-item is-active" data-member-section="overview"/);
   assert.match(memberHtml, /member-section is-active" data-member-panel="overview"/);
-  assert.match(memberJs, /showApp\(\);\s*openSection\('overview'\);\s*await memberPlanner\.applyPlannerDraft/);
+  assert.match(memberJs, /showApp\(\);\s*if\(!errors.reservation\)await memberPlanner\.applyPlannerDraft/);
+  assert.match(memberJs, /openSection\(new URLSearchParams\(window.location.search\).has\('draft'\)&&memberPlanner.hasActiveHandoff\(\)\?'reservation':requestedMemberSection\(window.location.search\)\)/);
   assert.doesNotMatch(memberJs, /requestedMemberPanel/);
   assert.match(memberPlannerJs, /applyPlannerHandoffToForm\(\{navigate:false\}\)/);
   const draftFlow = memberPlannerJs.slice(memberPlannerJs.indexOf('async function applyPlannerDraft'), memberPlannerJs.indexOf('function handleGarageCarSaved'));

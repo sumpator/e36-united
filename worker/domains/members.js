@@ -1,6 +1,7 @@
 import { json } from "../http/responses.js";
 import { clean } from "../utils/text.js";
 import { profilePointStatement } from "./club/points.js";
+import { markProfileCompletion } from './planner/funnel.js';
 
 async function bootstrapMember(request, env, auth, origin) {
   if (!auth.email) return json({ ok: false, error: "Firebase account has no email" }, 400, origin);
@@ -34,6 +35,7 @@ async function bootstrapMember(request, env, auth, origin) {
     profilePointStatement(env, auth.uid),
   ]);
 
+  await markProfileCompletion(env, auth.uid);
   return await getMember(env, auth, origin);
 }
 

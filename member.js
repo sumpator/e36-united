@@ -1,19 +1,22 @@
 import { firebaseConfig, portalConfig } from './firebase-config.js?v=20260823-auth2';
 import { performMemberLogout } from './member-logout.js?v=20260826-predeploy-fix';
-import { createMemberApiClient } from './member/api.js?v=20260902-phase3';
-import { loadMemberSessionSnapshot } from './member/refresh.js?v=20260902-phase3';
-import { apiError, authError, authOrApiError, createMemberSession } from './member/session.js?v=20260902-phase3';
+import { createMemberApiClient } from './member/api.js?v=20260907-feedback';
+import { loadMemberSessionSnapshot } from './member/refresh.js?v=20260907-feedback';
+import { apiError, authError, authOrApiError, createMemberSession } from './member/session.js?v=20260907-feedback';
 import { createMemberData as defaultData, normalizeMember as normalizeMemberState } from './member/state.js?v=20260902-phase3';
 import { $, $$, setButtonBusy, toast } from './member/ui.js?v=20260902-phase3';
-import { createMemberShell } from './member/shell.js?v=20260903-phase4a';
+import { createMemberShell } from './member/shell.js?v=20260907-feedback';
 import { createMemberOverview } from './member/modules/overview.js?v=20260903-phase4a';
-import { createMemberGarage } from './member/modules/garage.js?v=20260903-phase4b';
-import { createMemberPhotos } from './member/modules/photos.js?v=20260903-phase4b';
-import { createMemberPlanner } from './member/modules/planner/index.js?v=20260903-phase4c';
+import { createMemberGarage } from './member/modules/garage.js?v=20260907-feedback';
+import { createMemberPhotos } from './member/modules/photos.js?v=20260907-feedback';
+import { createMemberPlanner } from './member/modules/planner/index.js?v=20260907-feedback';
 import { formatCzk } from './member/modules/planner/payments.js?v=20260903-phase4c';
 import { createMemberClub } from './member/modules/club/index.js?v=20260903-phase4d';
 import { achievementIcon, pictogram } from './member/modules/club/points.js?v=20260903-phase4d';
 import { createMemberAccount } from './member/modules/account.js?v=20260903-phase4d';
+import { requestedMemberSection } from './member/deep-links.js?v=20260907-feedback';
+import { renderMemberAvailability } from './member/availability.js?v=20260907-feedback';
+import { isAuthorizationFailure } from './member/refresh.js?v=20260907-feedback';
 
 const apiBaseUrl=(portalConfig.apiBaseUrl||'https://api.e36united.cz').replace(/\/$/,'');
 const memberSession=createMemberSession({config:firebaseConfig,onStateChange:handleUnitedAuthState});
@@ -22,7 +25,9 @@ const memberUrlParams=new URLSearchParams(window.location.search);
 
 let data=defaultData();
 let memberPlanner=null;
-function resetMemberState(){resetGarage();resetMemberPhotos();memberClub.reset();memberPlanner.reset();data=defaultData();renderAll()}
+let startupErrors={},lastPlannerDraftResult=null;
+const trackOnboarding=stage=>apiRequest('/api/onboarding',{method:'POST',body:{stage}}).catch(error=>console.warn('Onboarding tracking unavailable',error));
+function resetMemberState(){startupErrors={};lastPlannerDraftResult=null;resetGarage();resetMemberPhotos();memberClub.reset();memberPlanner.reset();data=defaultData();renderAll()}
 function normalizeMember(payload,user=memberSession.currentUser){return normalizeMemberState(payload,user)}
 
 async function ensureMemberProfile(user){
@@ -44,8 +49,10 @@ async function ensureMemberProfile(user){
 
 async function openAuthenticatedSession(user,{quiet=false}={}){
   memberSession.currentUser=user;
+  void trackOnboarding('seen');
   const member=await ensureMemberProfile(user);
-  const {cars,reservation,plannerDraftResult,club}=await loadMemberSessionSnapshot({
+  void trackOnboarding('profile');
+  const {cars,reservation,plannerDraftResult,club,errors}=await loadMemberSessionSnapshot({
     loadCars:loadCarsFromApi,
     loadReservation:()=>memberPlanner.loadCurrentReservation(),
     loadPlannerDraft:()=>memberPlanner.loadServerPlannerDraft(),
@@ -54,12 +61,36 @@ async function openAuthenticatedSession(user,{quiet=false}={}){
     onCarsError:error=>console.warn('Cars API unavailable',error),
     onGalleryError:error=>{console.warn('Gallery status unavailable',error);handleMemberGalleryLoadError()},
   });
-  data={...defaultData(),profile:member,cars,reservation,club};
+  if(memberSession.currentUser?.uid!==user.uid)return;
+  startupErrors=errors;lastPlannerDraftResult=plannerDraftResult;
+  data={...defaultData(),profile:member,cars,reservation,club:club||defaultData().club};
   setMode('AUTH + PROFIL LIVE');
   showApp();
-  openSection('overview');
-  await memberPlanner.applyPlannerDraft(plannerDraftResult);
+  if(!errors.reservation)await memberPlanner.applyPlannerDraft(plannerDraftResult);
+  openSection(new URLSearchParams(window.location.search).has('draft')&&memberPlanner.hasActiveHandoff()?'reservation':requestedMemberSection(window.location.search));
+  renderMemberAvailability(startupErrors,retryMemberDomain,{hasHandoff:memberPlanner.hasActiveHandoff()});
+  void trackOnboarding('portal');
   if(!quiet)toast(`Přihlášen jako ${member.nickname||member.name}.`);
+}
+
+async function retryMemberDomain(key){
+  try{
+    if(key==='garage')data.cars=await loadCarsFromApi();
+    if(key==='reservation')data.reservation=await memberPlanner.loadCurrentReservation();
+    if(key==='club')data.club=await memberClub.load();
+    if(key==='photos')await loadMemberGallery();
+    if(key==='planner'){
+      lastPlannerDraftResult=await memberPlanner.loadServerPlannerDraft();
+      if(!lastPlannerDraftResult.available)throw lastPlannerDraftResult.error;
+    }
+    delete startupErrors[key];
+    renderAll();
+    if(['reservation','planner'].includes(key)&&!startupErrors.reservation)await memberPlanner.applyPlannerDraft(lastPlannerDraftResult);
+  }catch(error){
+    if(isAuthorizationFailure(error)){await restoreAuthenticatedSession(memberSession.currentUser);return}
+    startupErrors[key]=error;toast('Stále nedostupné. Zkus to prosím za chvíli.');
+  }
+  renderMemberAvailability(startupErrors,retryMemberDomain,{hasHandoff:memberPlanner.hasActiveHandoff()});
 }
 
 async function restoreAuthenticatedSession(user,{quiet=true}={}){
@@ -133,24 +164,20 @@ $('[data-auth-form="register"]')?.addEventListener('submit',async event=>{
   const email=String(fd.get('email')||'').trim().toLowerCase(),password=String(fd.get('password')||''),passwordConfirm=String(fd.get('passwordConfirm')||''),name=String(fd.get('name')||'').trim(),nickname=String(fd.get('nickname')||'').trim()||name.split(/\s+/)[0];
   if(password!==passwordConfirm)return toast('Hesla se neshodují.');
   memberSession.authFlowActive=true;setButtonBusy(button,true,'Zakládám United ID…');
-  let createdUser=null,emailSent=false,bootstrapOk=false;
+  let createdUser=null;
   try{
     const cred=await firebase.createUserWithEmailAndPassword(firebase.auth,email,password);
     createdUser=cred.user;memberSession.currentUser=createdUser;
-    await firebase.updateProfile(createdUser,{displayName:name});
-    try{await apiRequest('/api/bootstrap',{method:'POST',body:{name,nickname}});bootstrapOk=true}catch(error){console.error('Member bootstrap failed after registration',error)}
-    try{await firebase.sendEmailVerification(createdUser);emailSent=true}catch(error){console.error('Verification email failed',error)}
+    void trackOnboarding('seen');
+    try{await firebase.updateProfile(createdUser,{displayName:name})}catch(error){console.warn('Firebase display name update unavailable; D1 profile keeps the submitted name.',error)}
+    try{await apiRequest('/api/bootstrap',{method:'POST',body:{name,nickname}})}catch(error){console.warn('Member bootstrap will be retried during restore',error)}
+    await restoreAuthenticatedSession(createdUser,{quiet:false});
   }catch(error){
     console.error('Registration failed',error);toast(authError(error));return;
   }finally{
-    if(createdUser){try{await firebase.signOut(firebase.auth)}catch(error){console.warn('Sign out after registration failed',error)}}
-    memberSession.currentUser=null;resetMemberState();showAuth();activateAuthTab('login');
-    const loginEmail=$('[data-auth-form="login"] input[name="email"]');if(loginEmail)loginEmail.value=email;
+    if(!createdUser){showAuth();activateAuthTab('register')}
     memberSession.authFlowActive=false;setButtonBusy(button,false);
   }
-  if(bootstrapOk&&emailSent)toast('United ID bylo vytvořeno. Ověření e-mailu jsme odeslali; teď se můžeš přihlásit.');
-  else if(bootstrapOk)toast('United ID bylo vytvořeno. Teď se můžeš přihlásit; ověřovací e-mail se nepodařilo odeslat.');
-  else toast('United ID bylo vytvořeno. Profil se doplní při prvním přihlášení.');
 });
 
 $('[data-password-reset]')?.addEventListener('click',async()=>{
@@ -267,7 +294,7 @@ const memberAccount=createMemberAccount({
   formatApiError:apiError,
 });
 
-function renderAll(){renderProfile();memberClub.renderPoints();memberClub.renderAchievements();renderGarage();memberClub.renderHistory();memberPlanner.renderReservation();memberClub.renderRewards();renderMemberGallery();memberAccount.render()}
+function renderAll(){renderProfile();memberClub.renderPoints();memberClub.renderAchievements();renderGarage();memberClub.renderHistory();memberPlanner.renderReservation();memberClub.renderRewards();renderMemberGallery();memberAccount.render();renderMemberAvailability(startupErrors,retryMemberDomain,{hasHandoff:memberPlanner.hasActiveHandoff()})}
 function renderProfile(){memberOverview.renderMemberCard();renderMemberHero()}
 
 memberAccount.bind();

@@ -1,3 +1,7 @@
+export function isAuthorizationFailure(error) {
+  return [401, 403].includes(error?.status) || ['member_inactive', 'api_auth_required'].includes(error?.message);
+}
+
 export async function loadMemberSessionSnapshot({
   loadCars,
   loadReservation,
@@ -7,12 +11,23 @@ export async function loadMemberSessionSnapshot({
   onCarsError,
   onGalleryError,
 }) {
+  const errors = {};
+  async function secondary(key, loader, fallback, onError) {
+    try { return await loader(); }
+    catch (error) {
+      if (isAuthorizationFailure(error)) throw error;
+      errors[key] = error;
+      onError?.(error);
+      return fallback;
+    }
+  }
   const [cars, reservation, plannerDraftResult, club] = await Promise.all([
-    loadCars().catch(error => { onCarsError?.(error); return []; }),
-    loadReservation(),
-    loadPlannerDraft(),
-    loadClub(),
-    loadGallery().catch(error => { onGalleryError?.(error); return []; }),
+    secondary('garage', loadCars, [], onCarsError),
+    secondary('reservation', loadReservation, null),
+    secondary('planner', loadPlannerDraft, { available: false, draft: null }),
+    secondary('club', loadClub, null),
+    secondary('photos', loadGallery, [], onGalleryError),
   ]);
-  return { cars, reservation, plannerDraftResult, club };
+  if (plannerDraftResult?.available === false) errors.planner ||= plannerDraftResult.error || new Error('planner_unavailable');
+  return { cars, reservation, plannerDraftResult, club, errors };
 }

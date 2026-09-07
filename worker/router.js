@@ -5,9 +5,12 @@ import * as domain from "./domains.js";
 import { isAllowedOrigin } from "./http/cors.js";
 import { json } from "./http/responses.js";
 import { routeAdminMailing } from "./domains/mailing/index.js";
+import { getAdminFunnel, trackOnboarding, trackPlannerHandoff } from './domains/planner/funnel.js';
+import { getAdminHistoryCounts } from './domains/club/history.js';
 
 const PROTECTED_MEMBER_EXACT_ROUTES = new Set([
   "GET /api/navigation-state",
+  "POST /api/planner-handoffs/claim",
   "GET /api/united-club",
   "POST /api/history/claims",
   "POST /api/history/completed",
@@ -66,6 +69,7 @@ export async function routeRequest({ request, env, url, origin }) {
 
   if (url.pathname.startsWith("/api/")) {
     if (!isAllowedOrigin(origin)) return json({ ok: false, error: "Origin not allowed" }, 403, origin);
+    if (url.pathname === '/api/planner-handoffs' && request.method === 'POST') return trackPlannerHandoff(request,env,null,origin);
 
     const auth = await verifyFirebaseRequest(request);
     if (!auth) return json({ ok: false, authenticated: false, error: "Unauthorized" }, 401, origin);
@@ -78,6 +82,8 @@ export async function routeRequest({ request, env, url, origin }) {
 
       const mailingResponse = await routeAdminMailing({ request, env, url, auth, origin });
       if (mailingResponse) return mailingResponse;
+      if (url.pathname === '/api/admin/funnel' && request.method === 'GET') return getAdminFunnel(env,url,origin);
+      if (url.pathname === '/api/admin/attention' && request.method === 'GET') return json({history:await getAdminHistoryCounts(env)},200,origin);
 
       if (url.pathname === "/api/admin/overview" && request.method === "GET") {
         return await domain.getAdminOverview(env, url, origin);
@@ -166,6 +172,7 @@ export async function routeRequest({ request, env, url, origin }) {
       return await domain.bootstrapMember(request, env, auth, origin);
     }
     if (url.pathname === "/api/me" && request.method === "GET") return await domain.getMember(env, auth, origin);
+    if (url.pathname === '/api/onboarding' && request.method === 'POST') return trackOnboarding(request,env,auth,origin);
 
     if (isProtectedMemberRoute(request.method, url.pathname)) {
       const member = await requireActiveMember(env, auth);
@@ -174,6 +181,7 @@ export async function routeRequest({ request, env, url, origin }) {
     }
 
     if (url.pathname === "/api/navigation-state" && request.method === "GET") return await domain.getMemberNavigationState(env, auth, origin);
+    if (url.pathname === '/api/planner-handoffs/claim' && request.method === 'POST') return trackPlannerHandoff(request,env,auth,origin);
     if (url.pathname === "/api/united-club" && request.method === "GET") return await domain.getUnitedClub(env, auth, origin);
     if (url.pathname === "/api/history/claims" && request.method === "POST") return await domain.submitHistoryClaim(request, env, auth, origin);
     if (url.pathname === "/api/history/completed" && request.method === "POST") return await domain.completeMemberHistory(env, auth, origin);

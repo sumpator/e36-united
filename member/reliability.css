@@ -1,0 +1,11 @@
+.domain-unavailable > :not([data-domain-retry-state]) { display: none !important; }
+.member-domain-error { padding: 20px; margin: 12px 0; border: 1px solid #7698bd; border-radius: 12px; background: #121e2c; color: #edf4ff; }
+.member-domain-error button { padding: 10px 16px; border: 1px solid #7698bd; border-radius: 8px; background: #1b3755; color: inherit; cursor: pointer; }
+.member-garage-unavailable [data-member-hero-car]::after { content: 'Garáž je dočasně nedostupná'; font-size: 14px; }
+.member-garage-unavailable [data-member-hero-car] { font-size: 0; }
+.member-garage-unavailable [data-member-hero-cta],
+.member-club-unavailable [data-member-hero-attended],
+.member-club-unavailable .member-card-stat,
+.member-club-unavailable .member-card-achievements,
+.member-process-unavailable [data-action-center-empty],
+.member-process-unavailable [data-reservation-overview-card] { display: none !important; }

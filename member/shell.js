@@ -1,6 +1,7 @@
 import { deriveMemberHeroState } from '../member-portal-state.js?v=20260828-member-club';
 import { initPortalNavigation } from '../portal-navigation.js?v=20260825-mobile1';
 import { $, $$ } from './ui.js?v=20260902-phase3';
+import { memberSection } from './deep-links.js?v=20260907-feedback';
 
 export function createMemberShell({
   renderApp,
@@ -55,7 +56,9 @@ export function createMemberShell({
     activateAuthTab('login');
   }
   function openSection(id){
-    if(['history','rewards'].includes(id))id='club';
+    id=memberSection(id);
+    const url=new URL(window.location.href);url.searchParams.set('section',id);url.searchParams.delete('panel');
+    window.history.replaceState(null,'',url);
     $$('.member-nav-item[data-member-section]').forEach(button=>button.classList.toggle('is-active',button.dataset.memberSection===id));
     $$('[data-main-member-section]').forEach(button=>button.classList.toggle('is-active',button.dataset.mainMemberSection===id));
     $$('[data-member-panel]').forEach(panel=>panel.classList.toggle('is-active',panel.dataset.memberPanel===id));

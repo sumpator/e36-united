@@ -1,5 +1,6 @@
 (() => {
 const qs = (selector, root = document) => root.querySelector(selector);
+const plannerTrackingHelper=import('./public-planner-handoff.js?v=20260907-feedback').catch(()=>null);
 const qsa = (selector, root = document) => [...root.querySelectorAll(selector)];
 const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -826,7 +827,7 @@ if (accommodationOptionTitle) accommodationOptionTitle.textContent=plannerState.
 if (partialAccommodationInput) partialAccommodationInput.checked=plannerState.partialAccommodation;
 if (unitedMap) unitedMap.classList.toggle('is-day-pass', dayPass);
 if (plannerActionCopy) plannerActionCopy.textContent = memberPlannerMode ? 'Hotovo. Výběr přeneseme do Můj United.' : 'Hotovo. Teď už jen dokončit rezervaci.';
-if (mail) {mail.innerHTML = 'Dokončit v Můj United <span>→</span>';mail.href='member.html'}
+if (mail) {mail.innerHTML = 'Dokončit v Můj United <span>→</span>';mail.href='member.html?section=reservation'}
 if (peopleEl) peopleEl.textContent = plannerState.people;
 if (peopleLabel) peopleLabel.textContent = personLabel(plannerState.people);
 if (accommodationUnitsEl) accommodationUnitsEl.textContent = plannerState.accommodationUnits;
@@ -1000,14 +1001,18 @@ const createPlannerHandoff=()=>{
   try{localStorage.setItem(`${handoffStoragePrefix}${draftId}`,JSON.stringify(draft))}catch(error){console.debug('Planner handoff local storage unavailable.',error)}
   return draft;
 };
-const continueToMember=mode=>{
+let memberHandoffNavigating=false;
+const continueToMember=async mode=>{
+  if(memberHandoffNavigating)return;memberHandoffNavigating=true;
   const draft=createPlannerHandoff(),destination=new URL('member.html',window.location.href);
   if(mode)destination.searchParams.set('mode',mode);
-  destination.searchParams.set('panel','reservation');
+  destination.searchParams.set('section','reservation');
   destination.searchParams.set('draft',draft.draftId);
   destination.hash=`handoff=${encodeURIComponent(encodePlannerHandoff(draft))}`;
-  const opened=window.open(destination.href,'_blank');
-  if(opened){try{opened.opener=null}catch{}closeInquiry();return}
+  // Start the small helper early enough to use keepalive, but never await analytics to navigate.
+  const tracking=await plannerTrackingHelper;
+  if(tracking)void tracking.trackPublicPlannerDraft(draft,{baseUrl:plannerApiBaseUrl||'https://api.e36united.cz'});
+  closeInquiry();
   window.location.assign(destination.href);
 };
 

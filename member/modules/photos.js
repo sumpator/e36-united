@@ -1,5 +1,5 @@
 import { createImagePreviewController, selectImageFiles } from '../../image-upload.js?v=20260827-garage-photos';
-import { compressImageBlob } from '../media.js?v=20260903-phase4b';
+import { compressImageBlob } from '../media.js?v=20260907-feedback';
 import { $, $$, esc, setButtonBusy, toast } from '../ui.js?v=20260902-phase3';
 
 export function createMemberPhotos({apiRequest,apiRequestForm,apiRequestBlob,getCurrentUser,formatApiError}){

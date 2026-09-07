@@ -8,6 +8,7 @@ import {
 } from "./capacity.js";
 import { ensureReservationPaymentVs, paymentStatusFor, reservationPayment } from "./payments.js";
 import { calculateAccommodationPricing, mapAccommodationSnapshot } from "./pricing.js";
+import { linkPlannerReservation } from '../planner/funnel.js';
 
 const MAX_RESERVATION_CREW = 5;
 
@@ -453,6 +454,13 @@ async function putCurrentReservation(request, env, auth, origin) {
         WHERE member_id = ? AND event_id = ? AND updated_at = ?
       )
   `).bind(auth.uid, event.id, auth.uid, event.id, writeToken));
+  let conversionDraft=null;
+  if(body.plannerDraftId){
+    try{
+      const row=await env.DB.prepare('SELECT payload_json FROM member_planner_drafts WHERE member_id=? AND event_id=? AND draft_id=?').bind(auth.uid,event.id,body.plannerDraftId).first();
+      conversionDraft=row?JSON.parse(row.payload_json):null;
+    }catch{console.warn('planner_conversion_draft_unavailable')}
+  }
   const results = await env.DB.batch(statements);
   if (!results[0]?.meta?.changes) {
     const conflicting = await env.DB.prepare("SELECT id, status FROM reservations WHERE member_id = ? AND event_id = ? LIMIT 1").bind(auth.uid, event.id).first();
@@ -473,6 +481,7 @@ async function putCurrentReservation(request, env, auth, origin) {
   await ensureReservationPaymentVs(env, reservationId, event.year);
   const reservation = await findCurrentReservation(env, auth.uid, event.id);
   if (!reservation) throw new Error("Reservation was not found after upsert");
+  await linkPlannerReservation(env, { draftId: body.plannerDraftId, uid: auth.uid, eventId: event.id, reservationId: reservation.id, ownedDraft: conversionDraft });
   await hydrateReservationAccommodationVisual(env, reservation);
 
   return json({

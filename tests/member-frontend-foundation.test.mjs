@@ -67,7 +67,7 @@ test('Member API keeps FormData and blob request behavior distinct from JSON req
   assert.equal(calls[1].options.cache, 'no-store');
 });
 
-test('Member startup refresh preserves domain fallbacks and returns the original session snapshot', async () => {
+test('Member startup refresh retains successful data and explicitly reports unavailable domains', async () => {
   const failures = [];
   const snapshot = await loadMemberSessionSnapshot({
     loadCars: async () => { throw new Error('cars_down'); },
@@ -80,6 +80,7 @@ test('Member startup refresh preserves domain fallbacks and returns the original
   });
 
   assert.deepEqual(snapshot, {
+    errors: {garage:new Error('cars_down'),photos:new Error('gallery_down')},
     cars: [],
     reservation: { id: 'reservation-1' },
     plannerDraftResult: { available: true, draft: { draftId: 'draft-1' } },

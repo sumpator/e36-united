@@ -1,0 +1,7 @@
+.admin-funnel { padding: 24px; margin-top: 24px; border: 1px solid #344357; border-radius: 16px; background: #101823; }
+.admin-funnel p, .admin-funnel small { color: #b3c4d6; }
+.admin-funnel-metrics { display: grid; grid-template-columns: repeat(auto-fit,minmax(150px,1fr)); gap: 14px; margin: 20px 0; }
+.admin-funnel-metrics article { display: grid; gap: 8px; align-content: start; padding: 16px; background: #172231; border-radius: 10px; }
+.admin-funnel-metrics b { font-size: 28px; color: #8cc8ff; }
+.admin-funnel details { margin: 12px 0; overflow-wrap: anywhere; }
+.admin-funnel li { margin: 12px 0; }

@@ -91,9 +91,9 @@ export function onAuthStateChanged(target, next) {
 }
 export async function signOut() { localStorage.setItem(sessionKey, 'false'); publish(null); }
 export async function signInWithEmailAndPassword() { localStorage.setItem(sessionKey, 'true'); const user = createUser(); publish(user); return { user }; }
-export async function createUserWithEmailAndPassword() { const user = createUser(); return { user }; }
+export async function createUserWithEmailAndPassword() { localStorage.setItem(sessionKey, 'true'); const user = createUser(); publish(user); return { user }; }
 export async function updateProfile() {}
-export async function sendEmailVerification() {}
+export async function sendEmailVerification() { throw new Error('Unexpected verification email'); }
 export async function sendPasswordResetEmail() {}
 `;
 
@@ -189,6 +189,9 @@ export async function prepareE2ePage(page, {
     if (url.pathname === '/api/navigation-state') {
       await jsonResponse(route, { hasWaitingPlan: false, hasReservation: false });
       return;
+    }
+    if (['/api/onboarding','/api/planner-handoffs','/api/planner-handoffs/claim'].includes(url.pathname)) {
+      await jsonResponse(route,{ok:true});return;
     }
     if (url.pathname === '/api/me') {
       await jsonResponse(route, {
@@ -377,6 +380,12 @@ export async function prepareAdminE2ePage(page) {
     if (url.pathname === '/api/admin/events') {
       await jsonResponse(route, { events: [adminEvent] });
       return;
+    }
+    if (url.pathname === '/api/admin/funnel') {
+      await jsonResponse(route,{counts:{members:1,incomplete:0,created:0,claimed:0,unclaimed:0,converted:0,claimedWithoutReservation:0},details:{}});return;
+    }
+    if (url.pathname === '/api/admin/attention') {
+      await jsonResponse(route,{history:{pending:0}});return;
     }
     if (url.pathname === '/api/admin/overview') {
       await jsonResponse(route, {

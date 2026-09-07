@@ -3,6 +3,7 @@ import { MAX_RESERVATION_CREW, newerPlannerDraft, validatePlannerDraft } from '.
 import { $, esc, setButtonBusy, toast } from '../../ui.js?v=20260902-phase3';
 import { createReservationPayments, formatCzk } from './payments.js?v=20260903-phase4c';
 import { normalizeAccommodationOption, normalizeReservation } from './reservation.js?v=20260903-phase4c';
+import { isAuthorizationFailure } from '../../refresh.js?v=20260907-feedback';
 
 const plannerHandoffPrefix='e36UnitedPlannerHandoff:v1:';
 
@@ -63,7 +64,7 @@ export function createMemberPlanner({
     const handoff=validatePlannerHandoff(decodePlannerHandoff(encoded));
     if(handoff&&(!pendingPlannerHandoffId||handoff.draftId===pendingPlannerHandoffId)){
       pendingPlannerHandoffId=handoff.draftId;plannerHandoffMemory=handoff;
-      try{localStorage.setItem(`${plannerHandoffPrefix}${handoff.draftId}`,JSON.stringify(handoff))}catch(error){console.debug('Weekend Planner handoff remains in this session.',error)}
+      try{localStorage.setItem(`${plannerHandoffPrefix}${handoff.draftId}`,JSON.stringify(handoff))}catch(error){console.debug('Weekend Planner handoff remains in the URL for reload.',error);return}
     }
     stripHandoffFragment();
   }
@@ -94,7 +95,7 @@ export function createMemberPlanner({
     try{
       const payload=await apiRequest('/api/planner-draft');
       return {available:true,draft:validatePlannerHandoff(payload?.draft)};
-    }catch(error){console.warn('Planner draft API unavailable',error);return {available:false,draft:null,error}}
+    }catch(error){if(isAuthorizationFailure(error))throw error;console.warn('Planner draft API unavailable',error);return {available:false,draft:null,error}}
   }
 
   function preferredReservationCar(){const data=getData();return data.cars.find(car=>car.primary)||data.cars[0]||null}
@@ -359,7 +360,7 @@ export function createMemberPlanner({
     if(accommodationOption?.inventoryMode==='limited'&&numericValue(accommodationOption.freeUnits)<accommodationUnitCount(accommodationUnits,accommodationOption)){toast(`${accommodationOption.name} už nemá dost volné kapacity pro tvoji posádku. Vyber jinou možnost.`);accommodationOptionSelect?.focus();return}
     const button=$('[data-reservation-submit]');setButtonBusy(button,true,'Odesílám rezervaci…');
     try{
-      const payload=await apiRequest('/api/reservations/current',{method:'PUT',body:{reservationId:data.reservation?.id||null,carId:car.id,arrival,crew,attendanceType,accommodation:sleep,accommodationOptionId:accommodationOption?.id||null,accommodationUnits,showShine:fd.get('showshine'),note:fd.get('note')}});
+      const payload=await apiRequest('/api/reservations/current',{method:'PUT',body:{reservationId:data.reservation?.id||null,carId:car.id,arrival,crew,attendanceType,accommodation:sleep,accommodationOptionId:accommodationOption?.id||null,accommodationUnits,showShine:fd.get('showshine'),note:fd.get('note'),...(activePlannerHandoff&&plannerHandoffApplied?{plannerDraftId:activePlannerHandoff.draftId}:{})}});
       const reservation=normalizeReservation(payload?.reservation);if(!reservation)throw new Error('reservation_response_invalid');
       reservationState={registrationOpen:payload?.registrationOpen===true,event:payload?.event||reservationState.event,message:payload?.message||'',accommodationOptions:Array.isArray(payload?.accommodationOptions)?payload.accommodationOptions.map(normalizeAccommodationOption).filter(option=>option.id):reservationState.accommodationOptions};
       setReservation(reservation);if(activePlannerHandoff&&plannerHandoffApplied)clearPlannerHandoff();if(legacyPlannerDraftApplied)clearLegacyPlannerDraft();renderReservation();onReservationSaved();toast(payload?.message||'Rezervace byla uložena.');
@@ -376,12 +377,13 @@ export function createMemberPlanner({
       try{
         const payload=await apiRequest('/api/planner-draft',{method:'PUT',body:{draft:localHandoff}});
         handoff=validatePlannerHandoff(payload?.draft)||localHandoff;plannerDraftSyncState='ready';
-      }catch(error){console.warn('Planner handoff promotion failed; local fallback retained.',error);plannerDraftSyncState='error';handoff=localHandoff}
+      }catch(error){if(isAuthorizationFailure(error))throw error;console.warn('Planner handoff promotion failed; local fallback retained.',error);plannerDraftSyncState='error';handoff=localHandoff}
     }
     if(handoff){
+      void apiRequest('/api/planner-handoffs/claim',{method:'POST',body:{draft:handoff}}).catch(error=>console.warn('Planner tracking unavailable',error));
       activePlannerHandoff=handoff;plannerHandoffApplied=false;plannerHandoffChoice=data.reservation?'pending':'applied';
       if(!data.reservation)applyPlannerHandoffToForm({navigate:false});else renderPlannerHandoff();
-      return;
+      return handoff;
     }
     if(plannerDraftSyncState==='error'){renderReservationOverview(data.reservation);toast('Uložený plán teď nelze ověřit. Přihlášení i případný lokální plán zůstaly beze změny.');return}
     let raw=null;try{raw=localStorage.getItem(plannerDraftKey)||localStorage.getItem('e36UnitedReservationDraftV20')}catch(error){console.debug('Starší výběr z Weekend Planneru není dostupný.',error)}
@@ -428,5 +430,5 @@ export function createMemberPlanner({
     reservationForm?.addEventListener('submit',submitReservation);
   }
 
-  return {applyPlannerDraft,bind,handleGarageCarSaved,hydratePlannerHandoffFromUrl,loadCurrentReservation,loadServerPlannerDraft,renderCarSelect,renderReservation,renderReservationCarPhoto,reset,setReservationCarError};
+  return {hasActiveHandoff:()=>Boolean(activePlannerHandoff),applyPlannerDraft,bind,handleGarageCarSaved,hydratePlannerHandoffFromUrl,loadCurrentReservation,loadServerPlannerDraft,renderCarSelect,renderReservation,renderReservationCarPhoto,reset,setReservationCarError};
 }

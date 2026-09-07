@@ -61,7 +61,7 @@ function setAuthState(state=currentUser?'authenticated':'anonymous'){
     if(submit)submit.disabled=false;
   }else{
     box.classList.remove('is-authenticated');
-    box.innerHTML='<span class="gallery-auth-dot"></span><div><b>Pro upload se přihlas do Můj United</b><small>Fotky jsou vždy svázané s konkrétním členem a čekají na schválení.</small><a href="member.html">Přihlásit / registrovat →</a></div>';
+    box.innerHTML='<span class="gallery-auth-dot"></span><div><b>Pro upload se přihlas do Můj United</b><small>Fotky jsou vždy svázané s konkrétním členem a čekají na schválení.</small><a href="member.html?section=photos">Přihlásit / registrovat →</a></div>';
     if(submit)submit.disabled=true;
   }
 }

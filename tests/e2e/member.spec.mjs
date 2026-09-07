@@ -238,7 +238,7 @@ test.describe('desktop member portal', () => {
     expectNoUnexpectedClientErrors(observations);
   });
 
-  test('authenticated session restores after reload and current behavior returns to Přehled', async ({ page }) => {
+  test('authenticated session restores after reload and retains the selected canonical section', async ({ page }) => {
     const observations = await prepareE2ePage(page, { authenticated: true });
 
     await page.goto('/member.html');
@@ -247,8 +247,10 @@ test.describe('desktop member portal', () => {
     await expect(page.locator('[data-member-panel="garage"]')).toHaveClass(/is-active/);
 
     await page.reload();
-    await expectMemberOverview(page);
-    await expect(page.locator('[data-member-panel="garage"]')).not.toHaveClass(/is-active/);
+    await expect(page.locator('[data-app-view]')).toBeVisible();
+    await expect(page.locator('[data-member-panel="garage"]')).toHaveClass(/is-active/);
+    await expect(page.locator('[data-member-panel="overview"]')).not.toHaveClass(/is-active/);
+    await expect(page).toHaveURL(/section=garage/);
     await expect.poll(() => page.evaluate(key => localStorage.getItem(key), MEMBER_SESSION_KEY)).toBe('true');
 
     expectNoUnexpectedClientErrors(observations);
@@ -280,7 +282,9 @@ test.describe('desktop member portal', () => {
     await expectMemberOverview(page);
     await page.locator('.member-sidebar [data-member-section="garage"]').click();
     await expect(page.locator('[data-member-panel="garage"]')).toHaveClass(/is-active/);
-    await expect(page.locator('[data-garage-grid]')).toBeVisible();
+    await expect(page.locator('[data-member-panel="garage"] [data-domain-retry-state]')).toBeVisible();
+    await expect(page.locator('[data-garage-grid]')).toBeHidden();
+    await expect(page.getByText('Garáž je zatím prázdná.')).toBeHidden();
     await page.locator('.member-sidebar [data-member-section="account"]').click();
     await expect(page.locator('[data-member-panel="account"]')).toHaveClass(/is-active/);
     await expect(page.locator('[data-account-member-code]')).toHaveText('EU036');

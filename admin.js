@@ -6,11 +6,13 @@ import { apiRequest } from './admin/api.js?v=20260903-mailing-b';
 import { adminState, resetAdminDomainState, resetAdminFiltersForEvent, resetAdminFiltersForLogin } from './admin/state.js?v=20260903-mailing-b';
 import { initializeAdminShell, setAdminSectionCollapsed, setAdminView, setDenied, setLoading, setView } from './admin/shell.js?v=20260903-mailing-b';
 import { $, toast } from './admin/ui.js?v=20260903-phase5';
-import { renderEventSelector, renderOverview, saveEventSettings } from './admin/modules/dashboard-events.js?v=20260903-phase5';
+import { renderEventSelector, renderOverview, saveEventSettings } from './admin/modules/dashboard-events.js?v=20260907-feedback';
 import { previewAccommodationPhoto, removeAccommodationPhoto, renderAccommodation, saveAccommodation, uploadAccommodationPhoto } from './admin/modules/accommodation.js?v=20260903-phase5';
-import { clearReservationDetailFilters, closeReservationDrawer, openReservationDrawer, renderReservations, setPaymentFilter, setPaymentSearch, setReservationFilter, setReservationSearch, setReservationViewMode, toggleReservationDetailFilter, toggleReservationFilters, updateReservation, updateReservationPayment } from './admin/modules/reservations-payments.js?v=20260903-phase5';
-import { changeHistoryPage, clearHistoryFilters, closeGalleryLightbox, closeHistoryEvidence, historyRequestPath, hydrateOpenHistoryCard, openGalleryLightbox, openHistoryEvidence, releaseGalleryMedia, releaseHistoryEvidence, renderGallery, renderHistoryClaims, reviewHistoryClaim, setGalleryFilter, setGalleryMode, setHistoryClaimType, setHistoryFilter, setHistorySearch, setHistoryYear, updateGallery } from './admin/modules/moderation.js?v=20260903-phase5';
+import { clearReservationDetailFilters, closeReservationDrawer, openReservationDrawer, renderReservations, setPaymentFilter, setPaymentSearch, setReservationFilter, setReservationSearch, setReservationViewMode, toggleReservationDetailFilter, toggleReservationFilters, updateReservation, updateReservationPayment } from './admin/modules/reservations-payments.js?v=20260907-feedback';
+import { changeHistoryPage, clearHistoryFilters, closeGalleryLightbox, closeHistoryEvidence, historyRequestPath, hydrateOpenHistoryCard, openGalleryLightbox, openHistoryEvidence, releaseGalleryMedia, releaseHistoryEvidence, renderGallery, renderHistoryClaims, reviewHistoryClaim, setGalleryFilter, setGalleryMode, setHistoryClaimType, setHistoryFilter, setHistorySearch, setHistoryYear, updateGallery } from './admin/modules/moderation.js?v=20260907-feedback';
 import { initializeMailingCenter, resetMailingCenter } from './admin/modules/mailing/index.js?v=20260903-mailing-b';
+import { refreshAdminFunnel } from './admin/modules/funnel.js?v=20260907-feedback';
+import { refreshHistoryAttention } from './admin/modules/dashboard-events.js?v=20260907-feedback';
 
 const app=initializeApp(firebaseConfig);
 const auth=getAuth(app);
@@ -21,6 +23,7 @@ function closeDeniedOverlays(){closeGalleryLightbox();closeReservationDrawer()}
 function scopedPath(path){return `${path}?eventId=${encodeURIComponent(adminState.selectedEventId)}`}
 
 async function loadEventData(){
+  void refreshAdminFunnel();
   if(adminState.loading||!adminState.selectedEventId)return;setLoading(true);
   try{
     const [overview,reservations,accommodation]=await Promise.all([apiRequest(scopedPath('/api/admin/overview')),apiRequest(scopedPath('/api/admin/reservations')),apiRequest(scopedPath('/api/admin/accommodation'))]);
@@ -35,6 +38,7 @@ async function loadAdminData({reloadGallery=true}={}){
     adminState.events=Array.isArray(eventsPayload.events)?eventsPayload.events:[];
     if(!adminState.events.some(event=>event.id===adminState.selectedEventId))adminState.selectedEventId=(adminState.events.find(event=>event.isCurrent)||adminState.events[0]||{}).id||'';
     renderEventSelector();
+    void refreshAdminFunnel();
     if(!adminState.selectedEventId){const [gallery,history]=await Promise.all([reloadGallery?apiRequest('/api/admin/gallery'):null,apiRequest(historyRequestPath(1))]);renderOverview({event:null,overview:{history:history.counts}});renderReservations({reservations:[]});renderAccommodation({options:[]});if(gallery)renderGallery(gallery);renderHistoryClaims(history);setGalleryMode(adminState.galleryMode);setView('admin');return}
     const [overview,reservations,accommodation,gallery,history]=await Promise.all([apiRequest(scopedPath('/api/admin/overview')),apiRequest(scopedPath('/api/admin/reservations')),apiRequest(scopedPath('/api/admin/accommodation')),reloadGallery?apiRequest('/api/admin/gallery'):null,apiRequest(historyRequestPath(1))]);
     renderOverview(overview);renderReservations(reservations);renderAccommodation(accommodation);if(gallery)renderGallery(gallery);renderHistoryClaims(history);setGalleryMode(adminState.galleryMode);setView('admin');
@@ -43,6 +47,10 @@ async function loadAdminData({reloadGallery=true}={}){
 
 initializeAdminShell({onCloseOverlays:closeAdminOverlays,onDenied:closeDeniedOverlays});
 initializeMailingCenter();
+// A member can submit while this tab is already open. Refresh badges without replacing an editor/card.
+window.addEventListener('focus',()=>void refreshHistoryAttention());
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)void refreshHistoryAttention()});
+setInterval(()=>{if(!document.hidden)void refreshHistoryAttention()},60_000);
 
 $('[data-login-form]').addEventListener('submit',async event=>{
   event.preventDefault();const button=$('button[type="submit"]',event.currentTarget);const form=new FormData(event.currentTarget);button.disabled=true;$('[data-auth-status]').textContent='';

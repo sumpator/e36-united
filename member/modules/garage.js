@@ -1,5 +1,5 @@
 import { createImagePreviewController, selectImageFiles } from '../../image-upload.js?v=20260827-garage-photos';
-import { compressImageBlob } from '../media.js?v=20260903-phase4b';
+import { compressImageBlob, IMAGE_ERROR_MESSAGE } from '../media.js?v=20260907-feedback';
 import { $, $$, esc, setButtonBusy, toast } from '../ui.js?v=20260902-phase3';
 
 export function createMemberGarage({
@@ -110,23 +110,27 @@ export function createMemberGarage({
       event.preventDefault();
       if(!getCurrentUser())return toast('Nejdřív se přihlas.');
       const form=event.currentTarget,button=form.querySelector('button[type="submit"]'),fd=new FormData(form),file=selectedCarPhoto,carId=editingCarId;
+      if(button.disabled)return;
       setButtonBusy(button,true,'Ukládám auto…');
       try{
         const blob=file?await compressImageBlob(file,1800,.82):null,payload={nickname:fd.get('nickname'),body:fd.get('body'),model:fd.get('model'),year:fd.get('year'),color:fd.get('color'),primary:fd.get('primary')==='on'};
         let savedCarId=carId;
         if(carId)await apiRequest(`/api/cars/${encodeURIComponent(carId)}`,{method:'PUT',body:payload});
         else{const created=await apiRequest('/api/cars',{method:'POST',body:payload});savedCarId=created?.car?.id;if(!savedCarId)throw new Error('car_create_failed')}
+        // Keep the saved identity even if the photo or refresh fails: retry must not create another car.
+        editingCarId=String(savedCarId);carModal.dataset.carId=editingCarId;
         let photoError=null;
         if(blob){
           const upload=new FormData();upload.append('file',blob,`${file.name.replace(/\.[^.]+$/,'')||'car'}.jpg`);
           try{await apiRequestForm(`/api/cars/${encodeURIComponent(savedCarId)}/photos`,upload,{method:carId?'PUT':'POST'})}catch(error){photoError=error}
         }
-        setCars(await loadCarsFromApi());await refreshClub();
+        if(photoError){console.warn('Car photo upload failed',photoError);toast('Auto je uložené, ale fotku se nepodařilo nahrát. Zkus Uložit znovu; původní fotka zůstala beze změny.');return}
+        clearSelectedCarPhoto();
+        setCars(await loadCarsFromApi());await refreshClub().catch(error=>console.warn('Club refresh unavailable',error));
         const resumeReservation=returnToReservationAfterCar;closeCarModal();clearReservationCarError();renderGarage();onCarSaved({resumeReservation});
         returnToReservationAfterCar=false;
-        if(photoError){console.error('Car photo replacement failed',photoError);toast(carId?'Změny auta jsou uložené. Původní fotka zůstala beze změny.':'Auto je uložené, ale fotku se nepodařilo přidat.');return}
         toast(carId?(file?'Auto i nová fotka byly aktualizovány.':'Změny auta byly uloženy.'):(file?'Auto i fotka jsou uložené v Můj United.':'Auto je uložené v Můj United.'));
-      }catch(error){console.error('Car upload failed',error);toast(error?.status===409?'Profilovou fotku se nepodařilo uložit.':formatApiError(error))}
+      }catch(error){console.warn('Car upload failed',error);toast(error?.message===IMAGE_ERROR_MESSAGE?IMAGE_ERROR_MESSAGE:error?.status===409?'Profilovou fotku se nepodařilo uložit.':'Uložení se nepodařilo dokončit. Zkontroluj připojení a zkus to znovu.')}
       finally{setButtonBusy(button,false)}
     });
   }
