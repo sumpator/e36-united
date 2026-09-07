@@ -59,16 +59,16 @@ export async function unprepareCampaign(env, id) {
   const row = await campaignRow(env, id);
   if (row.status !== 'prepared') throw new MailingDeliveryError('campaign_not_prepared');
   if (row.delivery_lock) throw new MailingDeliveryError('campaign_busy');
-  if (row.provider_list_id || row.provider_campaign_id) throw new MailingDeliveryError('provider_already_used');
+  if (row.provider_request_id) throw new MailingDeliveryError('provider_already_used');
   const token = crypto.randomUUID();
   const result = await env.DB.batch([
     env.DB.prepare(`UPDATE mailing_campaigns SET delivery_lock=? WHERE id=? AND status='prepared' AND preparation_id=?
-      AND delivery_lock IS NULL AND provider_list_id IS NULL AND provider_campaign_id IS NULL`).bind(token, id, row.preparation_id),
+      AND delivery_lock IS NULL AND provider_request_id IS NULL`).bind(token, id, row.preparation_id),
     env.DB.prepare(`DELETE FROM mailing_campaign_recipients WHERE campaign_id=? AND EXISTS
       (SELECT 1 FROM mailing_campaigns WHERE id=? AND delivery_lock=?)`).bind(id, id, token),
     env.DB.prepare(`UPDATE mailing_campaigns SET status='draft',prepared_subject=NULL,prepared_preheader=NULL,prepared_template_version=NULL,
       prepared_content_json=NULL,prepared_html=NULL,prepared_at=NULL,preparation_id=NULL,recipient_count=0,delivery_lock=NULL,
-      provider_status=NULL,provider_synced_at=NULL,delivery_error=NULL,updated_at=? WHERE id=? AND delivery_lock=?`)
+      provider=NULL,provider_status=NULL,provider_request_id=NULL,delivery_error=NULL,updated_at=? WHERE id=? AND delivery_lock=?`)
       .bind(new Date().toISOString(), id, token),
   ]);
   if (!result[0].meta?.changes) throw new MailingDeliveryError('campaign_changed');

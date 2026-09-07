@@ -7,7 +7,7 @@ import { json } from "./http/responses.js";
 import { routeAdminMailing } from "./domains/mailing/index.js";
 import { getAdminFunnel, trackOnboarding, trackPlannerHandoff } from './domains/planner/funnel.js';
 import { getAdminHistoryCounts } from './domains/club/history.js';
-import { handleBrevoWebhook } from './domains/mailing/tracking.js';
+import { handleSmtp2goWebhook } from './domains/mailing/tracking.js';
 
 const PROTECTED_MEMBER_EXACT_ROUTES = new Set([
   "GET /api/navigation-state",
@@ -45,7 +45,7 @@ export function isProtectedMemberRoute(method, pathname) {
 
 export async function routeRequest({ request, env, url, origin }) {
   // Provider secret replaces Firebase only for this exact public POST route.
-  if(url.pathname==='/api/mailing/brevo-webhook'&&request.method==='POST')return handleBrevoWebhook(request,env);
+  if(url.pathname==='/api/mailing/smtp2go-webhook'&&request.method==='POST')return handleSmtp2goWebhook(request,env);
   if (url.pathname === "/api/health" && request.method === "GET") {
     const db = await env.DB.prepare("SELECT COUNT(*) AS count FROM events").first();
     return json({ ok: true, service: "e36-united-api", database: true, events: db?.count ?? 0, media: !!env.MEDIA, auth: "firebase" }, 200, origin);

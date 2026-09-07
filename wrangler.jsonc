@@ -3,6 +3,13 @@
   "name": "e36-united-api",
   "main": "cloudflare-worker-media.js",
   "compatibility_date": "2026-08-22",
+  "vars": {
+    "SMTP2GO_API_BASE": "https://eu-api.smtp2go.com/v3",
+    "MAILING_DAILY_SEND_LIMIT": "200",
+    "MAILING_SENDER_NAME": "E36 United",
+    "MAILING_SENDER_EMAIL": "info@e36united.cz",
+    "MAILING_REPLY_TO": "info@e36united.cz"
+  },
   "d1_databases": [
     {
       "binding": "DB",

@@ -14,7 +14,7 @@ export function mailingRuntime() {
   });
   // Serialize batches like D1, preserving atomic rollback for concurrent request tests.
   let tail = Promise.resolve();
-  const env = { BREVO_LIST_FOLDER_ID: '1', DB: { prepare, batch(statements) {
+  const env = { DB: { prepare, batch(statements) {
     const run = tail.then(async () => { db.exec('BEGIN'); try { const result=[]; for (const s of statements) result.push(await s.run()); db.exec('COMMIT'); return result; } catch(e) { db.exec('ROLLBACK'); throw e; } });
     tail = run.catch(() => {}); return run;
   } } };
@@ -33,14 +33,8 @@ export async function draft(env, { survey = false } = {}) {
 export const confirmation = (row, count = 1) => ({ subject: row.subject, updatedAt: row.updatedAt ?? row.updated_at, recipientCount: count });
 export function providerMock() {
   const calls=[];
-  return { calls, checkReadiness:async()=>({state:'ready',ready:true}),
-    createDeliveryList:async(...args)=>{calls.push(['list',...args]);return 11},
-    syncRecipients:async(...args)=>{calls.push(['recipients',...args]);return 78},
-    getImportProcess:async id=>({id,status:'completed'}),
-    verifyRecipients:async()=>{},
-    createCampaign:async(...args)=>{calls.push(['campaign',...args]);return 22},
-    updateCampaign:async(...args)=>{calls.push(['update',...args])},
-    sendTest:async(...args)=>{calls.push(['test',...args])},
-    sendNow:async(...args)=>{calls.push(['send',...args])},
+  return { calls,checkReadiness:async()=>({state:'ready',ready:true,monthlyRemaining:10000}),
+    sendBatch:async emails=>{calls.push(['batch',emails]);return {requestId:'request-fixture',emailIds:emails.map((_,i)=>`email-${i+1}`)}},
+    sendTest:async emails=>{calls.push(['test',emails]);return {requestId:'test-fixture',emailIds:emails.map((_,i)=>`test-${i+1}`)}},
   };
 }

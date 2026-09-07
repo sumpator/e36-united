@@ -275,7 +275,7 @@ export function renderMailingTemplate({ subject = "", preheader = "", content })
       <tr><td class="e36-footer" style="padding:27px 38px;border-top:1px solid #26313d;background:#070a0e;color:#75818e;font:400 11px/1.65 Arial,sans-serif;">
         <strong style="display:block;margin-bottom:5px;color:#c7d4df;font-size:12px;letter-spacing:.6px;">E36 UNITED · STAY UNITED.</strong>
         <span>E36 United</span> · <a href="mailto:info@e36united.cz" style="color:#69b5ff;">info@e36united.cz</a><br/>
-        <a href="${E36_SITE_URL}" style="color:#69b5ff;text-decoration:none;">e36united.cz</a> · <a href="{{ unsubscribe }}" style="color:#b8c5d2;text-decoration:underline;">Odhlásit odběr</a>
+        <a href="${E36_SITE_URL}" style="color:#69b5ff;text-decoration:none;">e36united.cz</a> · <a href="%%UNSUBSCRIBE%%" style="color:#b8c5d2;text-decoration:underline;">Odhlásit odběr</a>
       </td></tr>
     </table>
   </td></tr></table>
