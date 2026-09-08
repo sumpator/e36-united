@@ -128,7 +128,9 @@ export async function routeAdminMailing({ request, env, url, auth, origin }) {
   }
   if (url.pathname === "/api/admin/mailing/render-preview" && request.method === "POST") return renderPreview(request, origin);
   if (url.pathname === "/api/admin/mailing/campaigns" && request.method === "GET") {
-    return json({ ok: true, campaigns: await listMailingCampaigns(env) }, 200, origin);
+    const count=await env.DB.prepare('SELECT COUNT(*) total FROM mailing_campaigns').first();
+    const pageSize=Math.min(100,pageNumber(url.searchParams.get('pageSize'),50)),total=Number(count?.total||0),totalPages=Math.max(1,Math.ceil(total/pageSize)),page=Math.min(pageNumber(url.searchParams.get('page')),totalPages);
+    return json({ ok: true, campaigns: await listMailingCampaigns(env,{page,pageSize}),pagination:{page,pageSize,total,totalPages} }, 200, origin);
   }
   if (url.pathname === "/api/admin/mailing/campaigns" && request.method === "POST") return createCampaign(request, env, auth, origin);
   const campaignMatch = url.pathname.match(/^\/api\/admin\/mailing\/campaigns\/([^/]+)$/);

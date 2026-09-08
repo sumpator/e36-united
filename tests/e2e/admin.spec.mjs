@@ -14,6 +14,8 @@ test.describe('desktop Admin portal', () => {
     await expect(page.locator('[data-kpi-people]')).toHaveText('3');
     await expect(page.locator('[data-admin-account]')).toHaveText('eva@example.test');
 
+    expect(observations.requests).not.toContain('GET /api/admin/gallery');
+    expect(observations.requests).not.toContain('GET /api/admin/reservations');
     await page.locator('[data-admin-jump="reservations"]').click();
     await expect(page.locator('[data-admin-panel="reservations"]')).toHaveClass(/is-active/);
     await expect(page.locator('[data-reservation-list]')).toContainText('Eva');
@@ -22,9 +24,16 @@ test.describe('desktop Admin portal', () => {
     await expect(page.locator('[data-admin-panel="payments"]')).toHaveClass(/is-active/);
     await expect(page.locator('[data-payment-count]')).toHaveText('0 záznamů z 1');
 
+    await page.locator('[data-admin-jump="accommodation"]').click();
+    await expect.poll(()=>observations.requests.includes('GET /api/admin/accommodation')).toBe(true);
+    await page.locator('[data-admin-jump="gallery"]').click();
+    await expect.poll(()=>observations.requests.includes('GET /api/admin/gallery')).toBe(true);
+    await page.locator('[data-gallery-mode="history"]').click();
+    await expect.poll(()=>observations.requests.includes('GET /api/admin/history/claims')).toBe(true);
+
     expect(observations.requests).toEqual(expect.arrayContaining([
       'GET /api/admin/events',
-      'GET /api/admin/overview',
+      'GET /api/admin/summary',
       'GET /api/admin/reservations',
       'GET /api/admin/accommodation',
       'GET /api/admin/gallery',

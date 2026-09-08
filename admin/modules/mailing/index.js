@@ -1,9 +1,11 @@
-import { apiRequest } from '../../api.js?v=20260903-mailing-b';
-import { adminState } from '../../state.js?v=20260903-mailing-b';
-import { $, $$, numeric, toast } from '../../ui.js?v=20260903-phase5';
-import { loadMailingContacts } from './contacts.js?v=20260903-mailing-b';
-import { initializeMailingCampaigns, loadMailingCampaigns, resetMailingCampaigns } from './campaigns.js?v=20260907-mailing-c2';
-import { defaultMailingSegment, previewMailingSegment } from './segments.js?v=20260903-mailing-b';
+import { refreshStoredMailingDelivery } from './delivery.js?v=20260908-admin-safe1';
+import { renderMailingCampaigns, campaignPage } from './campaigns.js?v=20260908-admin-safe1';
+import { apiRequest } from '../../api.js?v=20260908-admin-safe1';
+import { adminState } from '../../state.js?v=20260908-admin-safe1';
+import { $, $$, numeric, toast } from '../../ui.js?v=20260908-admin-safe1';
+import { loadMailingContacts } from './contacts.js?v=20260908-admin-safe1';
+import { initializeMailingCampaigns, loadMailingCampaigns, resetMailingCampaigns } from './campaigns.js?v=20260908-admin-safe1';
+import { defaultMailingSegment, previewMailingSegment } from './segments.js?v=20260908-admin-safe1';
 
 let initialized=false,overviewLoaded=false,overviewPromise=null,lastSegment=defaultMailingSegment;
 
@@ -32,6 +34,15 @@ async function showMailingTab(name){
 
 async function safely(action,message){try{await action()}catch(error){toast(error.message||message)}}
 
+export async function refreshMailingCenter({signal,isCurrent}){
+ const tab=$('[data-mailing-tab].is-active')?.dataset.mailingTab||'overview';
+ if(tab==='overview'){
+   const payload=await apiRequest('/api/admin/mailing/overview',{signal});if(isCurrent())renderMailingOverview(payload);
+ }else if(tab==='campaigns'){
+   const payload=await apiRequest('/api/admin/mailing/campaigns?page='+campaignPage,{signal});
+   if(!isCurrent())return;renderMailingCampaigns(payload);await refreshStoredMailingDelivery({signal,isCurrent});
+ }else if(tab==='contacts')await loadMailingContacts(undefined,{signal,isCurrent});
+}
 export function resetMailingCenter(){overviewLoaded=false;overviewPromise=null;lastSegment=defaultMailingSegment;$('[data-mailing-contact-list]').innerHTML='';$('[data-mailing-recipient-list]').innerHTML='';resetMailingCampaigns()}
 
 export function initializeMailingCenter(){

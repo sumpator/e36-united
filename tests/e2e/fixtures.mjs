@@ -102,7 +102,7 @@ function jsonResponse(route, payload, status = 200) {
     status,
     headers: {
       'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Headers': 'Authorization, Content-Type',
+      'Access-Control-Allow-Headers': 'Authorization, Content-Type, If-Match, Idempotency-Key',
       'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
       'Content-Type': 'application/json; charset=utf-8',
       'Cache-Control': 'no-store',
@@ -172,7 +172,7 @@ export async function prepareE2ePage(page, {
         status: 204,
         headers: {
           'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Headers': 'Authorization, Content-Type',
+          'Access-Control-Allow-Headers': 'Authorization, Content-Type, If-Match, Idempotency-Key',
           'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
         },
       });
@@ -370,7 +370,7 @@ export async function prepareAdminE2ePage(page) {
     const url = new URL(request.url());
     observations.requests.push(`${request.method()} ${url.pathname}`);
     if (request.method() === 'OPTIONS') {
-      await route.fulfill({ status: 204, headers: { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'Authorization, Content-Type', 'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS' } });
+      await route.fulfill({ status: 204, headers: { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'Authorization, Content-Type, If-Match, Idempotency-Key', 'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS' } });
       return;
     }
     if (/\/api\/events\/united-2026\/accommodation\/[^/]+\/photo$/.test(url.pathname)) {
@@ -387,9 +387,11 @@ export async function prepareAdminE2ePage(page) {
     if (url.pathname === '/api/admin/attention') {
       await jsonResponse(route,{history:{pending:0}});return;
     }
-    if (url.pathname === '/api/admin/overview') {
+    if (url.pathname === '/api/admin/overview' || url.pathname === '/api/admin/summary') {
       await jsonResponse(route, {
         event: adminEvent,
+        attention:{reservations:0,payments:0,gallery:0,history:0},
+        freshness:{generatedAt:'2026-09-08T00:00:00Z',businessUpdatedAt:null,consistency:'single-primary-statement'},
         overview: {
           reservations: 1, people: 3, cars: 1,
           statuses: { pending: 0, approved: 1, rejected: 0, cancelled: 0 },

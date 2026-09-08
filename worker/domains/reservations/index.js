@@ -1,3 +1,4 @@
+import { reservationListQuery, reservationFilterSql } from '../../admin/lists.js';
 import { getCurrentEvent, getRequestedAdminEvent, publicAdminEvent } from "../events.js";
 import { json } from "../../http/responses.js";
 import { clean } from "../../utils/text.js";
@@ -21,12 +22,14 @@ async function getAdminReservations(env, url, origin) {
     return json({ ok: true, event: null, reservations: [] }, 200, origin);
   }
 
-  const rows = await env.DB.prepare(`
+  const page = reservationListQuery(url);
+  const query = `
     SELECT
-      r.id, r.event_id, r.car_id, r.car_model, r.car_body, r.car_year, r.car_color, r.car_nickname,
+      r.id, r.member_id, r.event_id, r.car_id, r.car_model, r.car_body, r.car_year, r.car_color, r.car_nickname,
       r.attendance_type, r.arrival, r.crew, r.accommodation, r.accommodation_units,
       r.show_shine, r.note, r.status, r.payment_status, r.payment_vs, r.paid_at,
       r.amount_due_czk, r.amount_paid_czk,
+      ${env.ADMIN_READ ? "COALESCE((SELECT revision FROM admin_resource_versions WHERE resource_type='reservation' AND resource_id=r.id),0)" : '0'} AS admin_revision,
       r.submitted_at, r.updated_at, r.reviewed_at, r.review_note,
       e.year AS event_year, e.currency AS payment_currency, e.payment_deadline,
       e.payment_recipient_name, e.payment_account_display, e.payment_iban,
@@ -65,15 +68,28 @@ async function getAdminReservations(env, url, origin) {
     JOIN events e ON e.id = r.event_id
     LEFT JOIN reservation_accommodation ra ON ra.reservation_id = r.id
     LEFT JOIN event_accommodation_options ao ON ao.id = ra.option_id
-    WHERE r.event_id = ?
+    WHERE r.event_id = ? ${env.ADMIN_READ ? 'AND '+page.where : ''}
     ORDER BY
       CASE r.status WHEN 'pending' THEN 0 WHEN 'rejected' THEN 1 WHEN 'approved' THEN 2 ELSE 3 END,
       r.submitted_at DESC,
-      r.updated_at DESC
-  `).bind(event.id).all();
+      r.updated_at DESC, r.id
+    ${env.ADMIN_READ ? 'LIMIT ? OFFSET ?' : ''}
+  `;
+  let rows, pagination, counts;
+  if(env.ADMIN_READ){
+    const base="FROM reservations r JOIN members m ON m.id=r.member_id JOIN events e ON e.id=r.event_id WHERE r.event_id=?";
+    const tabs=['all','action','active','complete','pending','approved','rejected','cancelled','payment','unpaid','underpaid','paid','overpaid','attention'];
+    const results=await env.DB.batch([
+      env.DB.prepare(query).bind(event.id,...page.bindings,page.pageSize,(page.page-1)*page.pageSize),
+      env.DB.prepare(`SELECT COUNT(*) total ${base} AND ${page.where}`).bind(event.id,...page.bindings),
+      env.DB.prepare('SELECT '+tabs.map(key=>`COUNT(CASE WHEN ${reservationFilterSql(key,key==='attention')} THEN 1 END) AS "${key}"`).join(',')+' '+base).bind(event.id),
+    ]);
+    rows=results[0];const total=Number(results[1].results[0].total);counts=results[2].results[0];
+    pagination={page:page.page,pageSize:page.pageSize,total,totalPages:Math.max(1,Math.ceil(total/page.pageSize))};
+  }else rows=await env.DB.prepare(query).bind(event.id).all();
 
   for (const reservation of rows.results || []) {
-    if (!reservation.payment_vs) reservation.payment_vs = await ensureReservationPaymentVs(env, reservation.id, reservation.event_year);
+    if (!env.ADMIN_READ && !reservation.payment_vs) reservation.payment_vs = await ensureReservationPaymentVs(env, reservation.id, reservation.event_year);
   }
   const visualCache = new Map();
   await Promise.all((rows.results || []).map(reservation => hydrateReservationAccommodationVisual(env, reservation, visualCache)));
@@ -82,13 +98,18 @@ async function getAdminReservations(env, url, origin) {
     ok: true,
     event: publicAdminEvent(event),
     reservations: (rows.results || []).map(publicAdminReservation),
+    ...(env.ADMIN_READ?{pagination,counts,context:{eventId:event.id,sourceType:'reservation'},freshness:{generatedAt:new Date().toISOString(),businessUpdatedAt:null,consistency:'primary-batch-list-and-total'}}:{}),
   }, 200, origin);
 }
 
 function publicAdminReservation(reservation) {
   return {
     id: reservation.id,
+    eventId: reservation.event_id,
+    revision: Number(reservation.admin_revision || 0),
+    sourceType: 'reservation', sourceId: reservation.id, memberId: reservation.member_id,
     member: {
+      id: reservation.member_id,
       name: reservation.member_name || "",
       nickname: reservation.member_nickname || "",
       email: reservation.member_email || "",

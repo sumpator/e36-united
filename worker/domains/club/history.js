@@ -125,6 +125,7 @@ async function getAdminHistoryClaims(env, url, origin) {
   const rows = await env.DB.prepare(`
     SELECT
       c.*, e.year AS event_year, e.event_end_at,
+      ${env.ADMIN_READ ? "COALESCE((SELECT revision FROM admin_resource_versions WHERE resource_type='history' AND resource_id=c.id),0)" : '0'} AS admin_revision,
       m.name AS member_name, m.nickname AS member_nickname,
       m.email AS member_email, m.member_code
     FROM united_history_claims c
@@ -152,6 +153,7 @@ async function getAdminHistoryClaims(env, url, origin) {
 function publicAdminHistoryClaim(row) {
   return {
     id: row.id,
+    revision: Number(row.admin_revision || 0),
     eventId: row.event_id,
     eventYear: Number(row.event_year || 0),
     submittedAt: row.submitted_at,
@@ -284,13 +286,14 @@ async function submitHistoryClaim(request, env, auth, origin) {
   if (existing?.attendance_status === "approved") {
     if (!sns.competed) return json({ ok: false, error: "attendance_locked", message: "Schválenou docházku už nelze odebrat. Lze pouze doplnit Show & Shine." }, 409, origin);
     if (["pending", "approved"].includes(existing.sns_status)) return json({ ok: false, error: "sns_locked", message: "Show & Shine už čeká na kontrolu nebo je schválené." }, 409, origin);
-    await env.DB.prepare(`
+    const changed = await env.DB.prepare(`
       UPDATE united_history_claims
       SET sns_competed = 1, sns_category = ?, sns_placement = ?, sns_best_of_best = ?, sns_best_exhaust = ?,
           sns_status = 'pending', sns_review_note = NULL, sns_reviewed_by = NULL, sns_reviewed_at = NULL,
           submitted_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
-      WHERE id = ? AND member_id = ?
+      WHERE id = ? AND member_id = ? AND attendance_status = 'approved' AND sns_status NOT IN ('pending','approved')
     `).bind(sns.category, sns.placement, sns.bestOfBest ? 1 : 0, sns.bestExhaust ? 1 : 0, existing.id, auth.uid).run();
+    if (!changed.meta?.changes) return json({ok:false,error:'claim_conflict',message:'Žádost se mezitím změnila. Obnov historii.'},409,origin);
     return json({ ok: true, claimId: existing.id, attendanceStatus: "approved", snsStatus: "pending" }, 200, origin);
   }
   if (existing?.attendance_status === "pending") return json({ ok: false, error: "claim_pending", message: "Tento ročník už čeká na kontrolu." }, 409, origin);
@@ -320,8 +323,10 @@ async function submitHistoryClaim(request, env, auth, origin) {
             sns_competed = ?, sns_category = ?, sns_placement = ?, sns_best_of_best = ?, sns_best_exhaust = ?, sns_status = ?,
             sns_review_note = NULL, sns_reviewed_by = NULL, sns_reviewed_at = NULL,
             submitted_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
-        WHERE id = ? AND member_id = ?
+        WHERE id = ? AND member_id = ? AND attendance_status NOT IN ('pending','approved')
       `).bind(sns.competed ? 1 : 0, sns.category, sns.placement, sns.bestOfBest ? 1 : 0, sns.bestExhaust ? 1 : 0, sns.status, claimId, auth.uid));
+      // A failed Member state predicate must roll back before evidence is replaced.
+      statements.push(env.DB.prepare("UPDATE admin_resource_versions SET revision = -1 WHERE resource_type = 'history' AND resource_id = ? AND changes() = 0").bind(claimId));
       statements.push(env.DB.prepare("DELETE FROM united_history_evidence WHERE claim_id = ? AND member_id = ?").bind(claimId, auth.uid));
     } else {
       statements.push(env.DB.prepare(`

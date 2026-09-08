@@ -48,10 +48,11 @@ test('mobile Member navigation and gallery rail have position-aware hints withou
 
 test('Admin event venue is optional and saved with existing settings',async({page})=>{
   const observations=await prepareAdminE2ePage(page);let submitted;
-  await page.route('https://api.e36united.cz/api/admin/events/united-2026',route=>{submitted=route.request().postDataJSON();return route.fulfill({json:{ok:true}})});
+  await page.route('https://api.e36united.cz/api/admin/events/united-2026',route=>{submitted=route.request().postDataJSON();return route.fulfill({json:{ok:true,operation:{id:route.request().headers()['idempotency-key'],state:'confirmed',revision:Number(route.request().headers()['if-match'])+2}}})});
   await page.goto('/admin.html');const form=page.locator('[data-event-settings-form]');
   await page.locator('[data-admin-jump="event"]').click();
   await form.locator('[name="venueName"]').fill('Test kemp');await form.locator('button[type="submit"]').click();
-  await expect.poll(()=>submitted?.venueName).toBe('Test kemp');expect(submitted.registrationStatus).toBe('open');expect(submitted.eventEndAt).toBe('2026-09-07');
+  await expect.poll(()=>submitted?.venueName).toBe('Test kemp');expect(submitted).toEqual({venueName:'Test kemp'}); // Untouched/nullable settings are not resubmitted.
+  await expect(form.locator('[name="registrationStatus"]')).toHaveValue('open');await expect(form.locator('[name="eventEndAt"]')).toHaveValue('2026-09-07');
   expectNoUnexpectedClientErrors(observations);
 });

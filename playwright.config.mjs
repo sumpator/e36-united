@@ -12,7 +12,7 @@ export default defineConfig({
   reporter: [['line'], ['html', { open: 'never' }]],
   projects: [
     { name: 'chromium', use: { browserName: 'chromium' } },
-    { name: 'webkit', testMatch: '**/feedback-member.spec.mjs', use: { browserName: 'webkit' } },
+    { name: 'webkit', testMatch: ['**/feedback-member.spec.mjs','**/admin-safety.spec.mjs'], use: { browserName: 'webkit' } },
   ],
   expect: { timeout: 7_000 },
   use: {

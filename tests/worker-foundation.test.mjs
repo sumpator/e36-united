@@ -13,7 +13,7 @@ test('allowed OPTIONS keeps the existing 204 CORS contract', () => {
   assert.equal(response.status, 204);
   assert.equal(response.headers.get('Access-Control-Allow-Origin'), allowedOrigin);
   assert.equal(response.headers.get('Access-Control-Allow-Methods'), 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
-  assert.equal(response.headers.get('Access-Control-Allow-Headers'), 'Authorization, Content-Type');
+  assert.equal(response.headers.get('Access-Control-Allow-Headers'), 'Authorization, Content-Type, If-Match, Idempotency-Key');
   assert.equal(response.headers.get('Vary'), 'Origin');
 });
 

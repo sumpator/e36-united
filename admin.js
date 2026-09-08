@@ -1,18 +1,22 @@
-import { firebaseConfig } from './firebase-config.js?v=20260823-auth2';
+import {reservationRequestPath,galleryRequestPath} from './admin/lists.js?v=20260908-admin-safe1';
+import { initializeAdminNavigation } from './admin/navigation.js?v=20260908-admin-safe1';
+import { createAdminRefresh } from './admin/refresh.js?v=20260908-admin-safe1';
+import { initializeAdminEditors, bindCurrentEditors, forgetAdminEditor, allowAdminNavigation, clearAdminPrivateEdits } from './admin/editors.js?v=20260908-admin-safe1';
+import { firebaseConfig } from './firebase-config.js?v=20260908-admin-safe1';
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js';
 import { getAuth, setPersistence, browserLocalPersistence, onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js';
 
-import { apiRequest } from './admin/api.js?v=20260903-mailing-b';
-import { adminState, resetAdminDomainState, resetAdminFiltersForEvent, resetAdminFiltersForLogin } from './admin/state.js?v=20260903-mailing-b';
-import { initializeAdminShell, setAdminSectionCollapsed, setAdminView, setDenied, setLoading, setView } from './admin/shell.js?v=20260903-mailing-b';
-import { $, toast } from './admin/ui.js?v=20260903-phase5';
-import { renderEventSelector, renderOverview, saveEventSettings } from './admin/modules/dashboard-events.js?v=20260907-mobile';
-import { previewAccommodationPhoto, removeAccommodationPhoto, renderAccommodation, saveAccommodation, uploadAccommodationPhoto } from './admin/modules/accommodation.js?v=20260903-phase5';
-import { clearReservationDetailFilters, closeReservationDrawer, openReservationDrawer, renderReservations, setPaymentFilter, setPaymentSearch, setReservationFilter, setReservationSearch, setReservationViewMode, toggleReservationDetailFilter, toggleReservationFilters, updateReservation, updateReservationPayment } from './admin/modules/reservations-payments.js?v=20260907-mobile';
-import { changeHistoryPage, clearHistoryFilters, closeGalleryLightbox, closeHistoryEvidence, historyRequestPath, hydrateOpenHistoryCard, openGalleryLightbox, openHistoryEvidence, releaseGalleryMedia, releaseHistoryEvidence, renderGallery, renderHistoryClaims, reviewHistoryClaim, setGalleryFilter, setGalleryMode, setHistoryClaimType, setHistoryFilter, setHistorySearch, setHistoryYear, updateGallery } from './admin/modules/moderation.js?v=20260907-mobile';
-import { initializeMailingCenter, resetMailingCenter } from './admin/modules/mailing/index.js?v=20260907-mailing-c2';
-import { refreshAdminFunnel } from './admin/modules/funnel.js?v=20260907-feedback';
-import { refreshHistoryAttention } from './admin/modules/dashboard-events.js?v=20260907-mobile';
+import { apiRequest } from './admin/api.js?v=20260908-admin-safe1';
+import { adminState, resetAdminDomainState, resetAdminFiltersForEvent, resetAdminFiltersForLogin } from './admin/state.js?v=20260908-admin-safe1';
+import { initializeAdminShell, setAdminSectionCollapsed, setAdminView, setDenied, setLoading, setView } from './admin/shell.js?v=20260908-admin-safe1';
+import { $, toast } from './admin/ui.js?v=20260908-admin-safe1';
+import { renderEventSelector, renderOverview, saveEventSettings } from './admin/modules/dashboard-events.js?v=20260908-admin-safe1';
+import { previewAccommodationPhoto, resetAccommodationMedia, removeAccommodationPhoto, renderAccommodation, saveAccommodation, uploadAccommodationPhoto } from './admin/modules/accommodation.js?v=20260908-admin-safe1';
+import { clearReservationDetailFilters, closeReservationDrawer, openReservationDrawer, renderReservations, renderReservationDetail, setPaymentFilter, setPaymentSearch, setReservationFilter, setReservationSearch, setReservationViewMode, toggleReservationDetailFilter, toggleReservationFilters, updateReservation, updateReservationPayment } from './admin/modules/reservations-payments.js?v=20260908-admin-safe1';
+import { changeHistoryPage, clearHistoryFilters, closeGalleryLightbox, closeHistoryEvidence, historyRequestPath, hydrateOpenHistoryCard, openGalleryLightbox, openHistoryEvidence, releaseGalleryMedia, releaseHistoryEvidence, renderGallery, renderHistoryClaims, reviewHistoryClaim, setGalleryFilter, setGalleryMode, setHistoryClaimType, setHistoryFilter, setHistorySearch, setHistoryYear, updateGallery } from './admin/modules/moderation.js?v=20260908-admin-safe1';
+import { initializeMailingCenter, resetMailingCenter, refreshMailingCenter } from './admin/modules/mailing/index.js?v=20260908-admin-safe1';
+import { refreshAdminFunnel } from './admin/modules/funnel.js?v=20260908-admin-safe1';
+import { refreshHistoryAttention } from './admin/modules/dashboard-events.js?v=20260908-admin-safe1';
 
 const app=initializeApp(firebaseConfig);
 const auth=getAuth(app);
@@ -22,35 +26,108 @@ function closeAdminOverlays(){closeReservationDrawer();closeGalleryLightbox();cl
 function closeDeniedOverlays(){closeGalleryLightbox();closeReservationDrawer()}
 function scopedPath(path){return `${path}?eventId=${encodeURIComponent(adminState.selectedEventId)}`}
 
-async function loadEventData(){
-  void refreshAdminFunnel();
-  if(adminState.loading||!adminState.selectedEventId)return;setLoading(true);
-  try{
-    const [overview,reservations,accommodation]=await Promise.all([apiRequest(scopedPath('/api/admin/overview')),apiRequest(scopedPath('/api/admin/reservations')),apiRequest(scopedPath('/api/admin/accommodation'))]);
-    renderOverview(overview);renderReservations(reservations);renderAccommodation(accommodation);renderEventSelector();setView('admin');
-  }catch(error){if(error.status===403){setDenied();return}toast(error.message||'Data vybraného eventu se nepodařilo načíst.')}finally{setLoading(false)}
+const resourceCache=new Map();
+let startupGeneration=0,funnelContext='',displayEvent=null;
+function beginEventContext(eventId){
+  if(displayEvent===eventId)return;displayEvent=eventId;resourceCache.clear();
+  adminState.summary=null;adminState.reservationItems=[];adminState.reservationDetail=null;adminState.reservationCounts=null;adminState.reservationPagination=null;adminState.accommodationItems=[];
+  for(const name of ['summary','reservations','reservation-detail','accommodation','events'])delete adminState.resourceStates[name];
+  for(const selector of ['[data-reservation-list]','[data-payment-list]','[data-accommodation-list]']){const node=$(selector);if(node)node.textContent='Data tohoto eventu zatím nejsou načtena.';}
+  document.querySelectorAll('[data-list-pagination]').forEach(node=>node.remove());
+  for(const selector of ['[data-event-settings-form]','[data-accommodation-create-form]']){const form=$(selector);if(form){forgetAdminEditor(form);form.reset();form.inert=true;delete form.dataset.hydratedEvent;delete form.dataset.hydratedRevision;}}
+  document.querySelectorAll('strong,b,dd,span').forEach(node=>{if(!node.childElementCount&&[...node.attributes].some(attribute=>/^data-(kpi-|attendance-(full|saturday|day)$|show-(total|yes|no|maybe)$|accommodation-(occupancy|cabin|tent|none)$|booking-|payment-(total-|count-)|attention-(reservations|payments|gallery|history)$)/.test(attribute.name)))node.textContent='—';});
+  for(const selector of ['[data-reservation-count]','[data-payment-count]','[data-accommodation-option-count]'])if($(selector))$(selector).textContent='—';
+  $('[data-event-year]').textContent=adminState.events.find(event=>event.id===eventId)?.year||'—';$('[data-event-state]').textContent='Načítám data vybraného eventu…';
 }
 
-async function loadAdminData({reloadGallery=true}={}){
-  if(adminState.loading)return;setLoading(true);
-  try{
-    const eventsPayload=await apiRequest('/api/admin/events');
-    adminState.events=Array.isArray(eventsPayload.events)?eventsPayload.events:[];
-    if(!adminState.events.some(event=>event.id===adminState.selectedEventId))adminState.selectedEventId=(adminState.events.find(event=>event.isCurrent)||adminState.events[0]||{}).id||'';
-    renderEventSelector();
-    void refreshAdminFunnel();
-    if(!adminState.selectedEventId){const [gallery,history]=await Promise.all([reloadGallery?apiRequest('/api/admin/gallery'):null,apiRequest(historyRequestPath(1))]);renderOverview({event:null,overview:{history:history.counts}});renderReservations({reservations:[]});renderAccommodation({options:[]});if(gallery)renderGallery(gallery);renderHistoryClaims(history);setGalleryMode(adminState.galleryMode);setView('admin');return}
-    const [overview,reservations,accommodation,gallery,history]=await Promise.all([apiRequest(scopedPath('/api/admin/overview')),apiRequest(scopedPath('/api/admin/reservations')),apiRequest(scopedPath('/api/admin/accommodation')),reloadGallery?apiRequest('/api/admin/gallery'):null,apiRequest(historyRequestPath(1))]);
-    renderOverview(overview);renderReservations(reservations);renderAccommodation(accommodation);if(gallery)renderGallery(gallery);renderHistoryClaims(history);setGalleryMode(adminState.galleryMode);setView('admin');
-  }catch(error){if(error.status===403){setDenied();return}toast(error.message||'Admin data se nepodařilo načíst.')}finally{setLoading(false)}
+function refreshContext(){
+  return {key:[adminState.sessionGeneration,adminState.selectedEventId,adminState.activeAdminView,adminState.selectedReservationId||adminState.requestedReservationId||'',adminState.galleryMode,historyRequestPath(adminState.historyPagination.page),reservationRequestPath(),galleryRequestPath()].join('|'),
+    authenticated:!!adminState.currentUser,denied:adminState.denied,visible:!document.hidden,
+    eventId:adminState.selectedEventId,view:adminState.activeAdminView};
 }
+function freshness(state){
+  let node=$('[data-admin-freshness]');if(!node){node=document.createElement('p');node.dataset.adminFreshness='';node.setAttribute('role','status');$('[data-admin-view]').prepend(node)}
+  const stamp=state.lastSuccess?new Date(state.lastSuccess).toLocaleTimeString('cs-CZ'):'—';
+  node.dataset.state=state.state;
+  node.textContent=state.state==='fresh'?`Aktualizováno ${stamp}`:state.state==='loading'?'Aktualizuji…':state.state==='denied'?'Přístup byl odebrán.':`Data mohou být zastaralá / bez spojení · poslední úplná aktualizace ${stamp}`;
+}
+async function refreshResources({context,signal,isCurrent,reason}){
+  beginEventContext(context.eventId);
+  const tasks=[['summary',`/api/admin/summary${context.eventId?'?eventId='+encodeURIComponent(context.eventId):''}`,payload=>{
+    if(payload.event){adminState.events=adminState.events.map(event=>event.id===payload.event.id?{...event,...payload.event}:event)}
+    renderOverview(payload);
+  }]];
+  if(['reservations','payments'].includes(context.view)||(adminState.selectedReservationId||adminState.requestedReservationId))tasks.push(['reservations',reservationRequestPath(),renderReservations]);
+  if(context.view==='accommodation')tasks.push(['accommodation',scopedPath('/api/admin/accommodation'),renderAccommodation]);
+  if(context.view==='event')tasks.push(['events','/api/admin/events',payload=>{adminState.events=payload.events||[];renderEventSelector()}]);
+  if(context.view==='gallery')tasks.push(adminState.galleryMode==='history'
+    ?['history',historyRequestPath(adminState.historyPagination.page),renderHistoryClaims]
+    :['gallery',galleryRequestPath(),renderGallery]);
+  const detailId=adminState.selectedReservationId||adminState.requestedReservationId;
+  if(detailId)tasks.push(['reservation-detail',reservationRequestPath(detailId),renderReservationDetail]);
+  const settled=await Promise.allSettled(tasks.map(async([name,path,render])=>{
+    try{
+      const payload=await apiRequest(path,{signal});
+      if(!isCurrent())return;
+      const serialized=JSON.stringify({...payload,freshness:undefined}),cacheKey=context.eventId+':'+name;
+      // Summary includes a generation timestamp; its small text nodes can update without remounting.
+      if(name==='summary'||resourceCache.get(cacheKey)!==serialized){if(render(payload)!==false)resourceCache.set(cacheKey,serialized)}
+      adminState.resourceStates[name]={state:'fresh',lastSuccess:Date.now()};
+      document.querySelector('[data-domain-status="'+name+'"]')?.remove();
+    }catch(error){
+      if(!isCurrent()||error.stale)return;
+      const previous=adminState.resourceStates[name];adminState.resourceStates[name]={...previous,state:previous?.lastSuccess?'stale':'unavailable'};
+      const panel=document.querySelector(name==='reservation-detail'?'[data-reservation-drawer-content]':'[data-admin-panel="'+context.view+'"]');let label=panel?.querySelector('[data-domain-status="'+name+'"]');if(panel&&!label){label=document.createElement('p');label.dataset.domainStatus=name;label.setAttribute('role','status');panel.prepend(label)}if(label){const title={summary:'přehledu',reservations:'rezervací','reservation-detail':'detailu rezervace',accommodation:'ubytování',events:'nastavení',gallery:'fotek',history:'historie'}[name]||name;label.textContent=previous?.lastSuccess||name==='reservation-detail'&&adminState.reservationDetail?'Data '+title+' mohou být zastaralá. Poslední hodnoty zůstaly zachovány.':'Data '+title+' teď nejsou dostupná. Použij Obnovit data / Zkusit spojení.';}
+      throw error;
+    }
+  }));
+  if(!isCurrent())return;
+  if(adminState.requestedReservationId&&(adminState.reservationDetail?.id===adminState.requestedReservationId||adminState.reservationItems.some(item=>item.id===adminState.requestedReservationId))){openReservationDrawer(adminState.requestedReservationId);adminState.requestedReservationId=null}
+  bindCurrentEditors();renderEventSelector();
+  const failed=settled.flatMap((result,index)=>result.status==='rejected'?[tasks[index][0]]:[]);
+  // Funnel is retained, but not an obligatory polling dependency.
+  if(context.view==='dashboard'&&(funnelContext!==context.eventId||reason!=='poll'&&reason!=='coalesced')){funnelContext=context.eventId;void refreshAdminFunnel()}
+  if(context.view==='mailing'){try{await refreshMailingCenter({signal,isCurrent})}catch{failed.push('mailing')}}
+  return {failed:failed.length?failed:null};
+}
+const refreshCoordinator=createAdminRefresh({readContext:refreshContext,refresh:refreshResources,onState:freshness});
+async function loadEventData(){refreshCoordinator.invalidate();return refreshCoordinator.trigger('context')}
+async function loadAdminData(){
+  const generation=++startupGeneration;refreshCoordinator.invalidate();setLoading(true);
+  try{
+    const payload=await apiRequest('/api/admin/events');
+    if(generation!==startupGeneration)return;
+    adminState.events=payload.events||[];
+    if(!adminState.events.some(event=>event.id===adminState.selectedEventId))adminState.selectedEventId=(adminState.events.find(event=>event.isCurrent)||adminState.events[0]||{}).id||'';
+    renderEventSelector();setView('admin');await refreshCoordinator.trigger('startup');
+  }catch(error){if(!error.stale&&!adminState.denied)toast(error.message||'Admin data se nepodařilo načíst.')}
+  finally{if(generation===startupGeneration)setLoading(false)}
+}
+function clearPrivateState(){
+  startupGeneration++;funnelContext='';displayEvent=null;refreshCoordinator.suspend();resourceCache.clear();clearAdminPrivateEdits();
+  adminState.restoringRoute=true;closeAdminOverlays();adminState.restoringRoute=false;releaseGalleryMedia();releaseHistoryEvidence();resetAccommodationMedia();resetAdminDomainState();resetMailingCenter();
+  $('[data-admin-account]').textContent='';$('[data-event-settings-form]')?.reset();
+  adminState.historySearch='';adminState.reservationSearch='';adminState.paymentSearch='';try{sessionStorage.removeItem('e36UnitedAdmin.historySearch')}catch{}
+  document.querySelectorAll('[data-history-search],[data-reservation-search],[data-payment-search],[data-mailing-contact-form] input[name="q"]').forEach(input=>input.value='');
+  document.querySelectorAll('[data-operation-status]').forEach(node=>node.remove());
+  for(const selector of ['[data-reservation-list]','[data-payment-list]','[data-accommodation-list]','[data-gallery-list]','[data-history-list]','[data-reservation-drawer-content]','[data-gallery-lightbox-content]','[data-admin-funnel]']){
+    const node=$(selector);if(node)node.replaceChildren();
+  }
+}
+window.addEventListener('admin:accesslost',()=>{
+  adminState.denied=true;adminState.sessionGeneration++;clearPrivateState();setDenied();
+});
+window.addEventListener('admin:invalidate',()=>{resourceCache.clear();refreshCoordinator.invalidate();void refreshCoordinator.trigger('mutation')});
+for(const event of ['admin:detailopened','admin:detailclosed'])window.addEventListener(event,()=>{if(adminState.currentUser&&!adminState.requestedReservationId&&!adminState.restoringRoute){refreshCoordinator.invalidate();void refreshCoordinator.trigger('detail')}});
+window.addEventListener('admin:viewchange',()=>{if(adminState.currentUser){refreshCoordinator.invalidate();void refreshCoordinator.trigger('navigation')}});
+for(const name of ['focus','online','pageshow'])window.addEventListener(name,()=>void refreshCoordinator.trigger(name));
+window.addEventListener('offline',()=>freshness({state:'stale',lastSuccess:refreshCoordinator.getState().lastSuccess}));
+document.addEventListener('visibilitychange',()=>{if(document.hidden)refreshCoordinator.suspend();else void refreshCoordinator.trigger('visible')});
 
 initializeAdminShell({onCloseOverlays:closeAdminOverlays,onDenied:closeDeniedOverlays});
 initializeMailingCenter();
-// A member can submit while this tab is already open. Refresh badges without replacing an editor/card.
-window.addEventListener('focus',()=>void refreshHistoryAttention());
-document.addEventListener('visibilitychange',()=>{if(!document.hidden)void refreshHistoryAttention()});
-setInterval(()=>{if(!document.hidden)void refreshHistoryAttention()},60_000);
+initializeAdminEditors();
+const navigation=initializeAdminNavigation({state:adminState,setView:setAdminView,openReservation:openReservationDrawer,closeOverlays:closeAdminOverlays,refresh:loadEventData,allowLeave:allowAdminNavigation});
 
 $('[data-login-form]').addEventListener('submit',async event=>{
   event.preventDefault();const button=$('button[type="submit"]',event.currentTarget);const form=new FormData(event.currentTarget);button.disabled=true;$('[data-auth-status]').textContent='';
@@ -60,10 +137,11 @@ $('[data-login-form]').addEventListener('submit',async event=>{
 
 $('[data-event-select]').addEventListener('change',event=>{
   if(!adminState.events.some(item=>item.id===event.target.value))return;
-  adminState.selectedEventId=event.target.value;resetAdminFiltersForEvent();
+  if(!allowAdminNavigation()){event.target.value=adminState.selectedEventId;return}
+  window.dispatchEvent(new CustomEvent('admin:beforenavigation'));adminState.restoringRoute=true;closeAdminOverlays();adminState.restoringRoute=false;adminState.selectedEventId=event.target.value;resetAdminFiltersForEvent();resourceCache.clear();
   const reservationSearchInput=$('[data-reservation-search]');if(reservationSearchInput)reservationSearchInput.value='';
   const paymentSearchInput=$('[data-payment-search]');if(paymentSearchInput)paymentSearchInput.value='';
-  loadEventData();
+  window.dispatchEvent(new CustomEvent('admin:eventchanged'));void loadEventData();
 });
 
 document.addEventListener('submit',event=>{
@@ -76,7 +154,7 @@ document.addEventListener('submit',event=>{
 });
 
 document.addEventListener('click',event=>{
-  const logout=event.target.closest('[data-logout]');if(logout){signOut(auth);return}
+  const logout=event.target.closest('[data-logout]');if(logout){if(!allowAdminNavigation())return;signOut(auth);return}
   const refresh=event.target.closest('[data-refresh]');if(refresh){loadAdminData();return}
   const collapse=event.target.closest('[data-admin-collapse-toggle]');if(collapse){const section=collapse.dataset.adminCollapseToggle;setAdminSectionCollapsed(section,collapse.getAttribute('aria-expanded')==='true',{persist:true});return}
   const jump=event.target.closest('[data-admin-jump]');if(jump){setAdminView(jump.dataset.adminJump);return}
@@ -89,17 +167,17 @@ document.addEventListener('click',event=>{
   const attention=event.target.closest('[data-attention-target]');if(attention){const target=attention.dataset.attentionTarget;if(target==='reservations')setReservationFilter(attention.dataset.attentionFilter);if(target==='payments')setPaymentFilter(attention.dataset.attentionFilter);if(target==='gallery'){setGalleryFilter(attention.dataset.attentionFilter);setGalleryMode(attention.dataset.galleryModeTarget||'community')}setAdminView(target);return}
   const pending=event.target.closest('[data-open-pending]');if(pending){setReservationFilter('pending');setAdminView('reservations');return}
   const galleryPending=event.target.closest('[data-open-gallery-pending]');if(galleryPending){setGalleryMode('community');setGalleryFilter('pending');setAdminView('gallery');return}
-  const galleryModeButton=event.target.closest('[data-gallery-mode]');if(galleryModeButton){setGalleryMode(galleryModeButton.dataset.galleryMode);return}
+  const galleryModeButton=event.target.closest('[data-gallery-mode]');if(galleryModeButton){if(!allowAdminNavigation())return;setGalleryMode(galleryModeButton.dataset.galleryMode);void loadEventData();return}
   const galleryFilterButton=event.target.closest('[data-gallery-filter]');if(galleryFilterButton){setGalleryFilter(galleryFilterButton.dataset.galleryFilter);return}
   const historyFilterButton=event.target.closest('[data-history-filter]');if(historyFilterButton){setHistoryFilter(historyFilterButton.dataset.historyFilter);return}
   if(event.target.closest('[data-history-clear]')){clearHistoryFilters();return}
   const historyPageButton=event.target.closest('[data-history-page]');if(historyPageButton){changeHistoryPage(historyPageButton.dataset.historyPage);return}
-  const reservationOpen=event.target.closest('[data-reservation-open]');if(reservationOpen){openReservationDrawer(reservationOpen.dataset.reservationOpen,reservationOpen);return}
-  if(event.target.closest('[data-reservation-drawer-close]')){closeReservationDrawer();return}
+  const reservationOpen=event.target.closest('[data-reservation-open]');if(reservationOpen){if(!allowAdminNavigation())return;openReservationDrawer(reservationOpen.dataset.reservationOpen,reservationOpen);return}
+  if(event.target.closest('[data-reservation-drawer-close]')){if(!allowAdminNavigation())return;closeReservationDrawer();return}
   const paymentSave=event.target.closest('[data-payment-save]');if(paymentSave){const card=paymentSave.closest('[data-reservation-id]');if(card)updateReservationPayment(card,false,loadEventData);return}
   const paymentFull=event.target.closest('[data-payment-full]');if(paymentFull){const card=paymentFull.closest('[data-reservation-id]');if(card)updateReservationPayment(card,true,loadEventData);return}
   const preview=event.target.closest('[data-gallery-preview]');if(preview){openGalleryLightbox(preview.dataset.galleryPreview,preview);return}
-  if(event.target.closest('[data-gallery-lightbox-close]')){closeGalleryLightbox();return}
+  if(event.target.closest('[data-gallery-lightbox-close]')){if(!allowAdminNavigation())return;closeGalleryLightbox();return}
   const galleryAction=event.target.closest('[data-gallery-action]');if(galleryAction){const card=galleryAction.closest('[data-gallery-id]');if(card)updateGallery(card,galleryAction.dataset.galleryAction);return}
   const historyEvidence=event.target.closest('[data-history-evidence]');if(historyEvidence){openHistoryEvidence(historyEvidence.dataset.historyEvidence,historyEvidence);return}
   if(event.target.closest('[data-history-evidence-close]')){closeHistoryEvidence();return}
@@ -110,10 +188,10 @@ document.addEventListener('click',event=>{
 });
 
 document.addEventListener('keydown',event=>{
-  if(event.key==='Escape'&&!$('[data-reservation-drawer]').hidden){closeReservationDrawer();return}
-  if(event.key==='Escape'&&!$('[data-gallery-lightbox]').hidden){closeGalleryLightbox();return}
+  if(event.key==='Escape'&&!$('[data-reservation-drawer]').hidden){if(!allowAdminNavigation())return;closeReservationDrawer();return}
+  if(event.key==='Escape'&&!$('[data-gallery-lightbox]').hidden){if(!allowAdminNavigation())return;closeGalleryLightbox();return}
   if(event.key==='Escape'&&!$('[data-history-evidence-lightbox]').hidden){closeHistoryEvidence();return}
-  if((event.key==='Enter'||event.key===' ')&&event.target.matches('tr[data-reservation-open]')){event.preventDefault();openReservationDrawer(event.target.dataset.reservationOpen,event.target);return}
+  if((event.key==='Enter'||event.key===' ')&&event.target.matches('tr[data-reservation-open]')){event.preventDefault();if(!allowAdminNavigation())return;openReservationDrawer(event.target.dataset.reservationOpen,event.target);return}
   if((event.key==='Enter'||event.key===' ')&&event.target.closest('[data-open-pending]')){event.preventDefault();setReservationFilter('pending');setAdminView('reservations')}
   if((event.key==='Enter'||event.key===' ')&&event.target.closest('[data-open-gallery-pending]')){event.preventDefault();setGalleryFilter('pending');setAdminView('gallery')}
 });
@@ -129,9 +207,11 @@ document.addEventListener('change',event=>{
 document.addEventListener('toggle',event=>hydrateOpenHistoryCard(event.target),true);
 
 onAuthStateChanged(auth,user=>{
-  adminState.currentUser=user;
-  if(!user){closeGalleryLightbox();closeHistoryEvidence();closeReservationDrawer();releaseGalleryMedia();releaseHistoryEvidence();resetAdminDomainState();resetMailingCenter();setView('auth');$('[data-admin-account]').textContent='';return}
+  adminState.sessionGeneration++;
+  if(adminState.currentUser&&adminState.currentUser!==user)clearPrivateState();
+  adminState.currentUser=user;adminState.denied=false;
+  if(!user){clearPrivateState();setView('auth');$('[data-admin-account]').textContent='';return}
   resetAdminFiltersForLogin();
   $('[data-admin-account]').textContent=user.email||user.uid;
-  loadAdminData();
+  void loadAdminData();
 });

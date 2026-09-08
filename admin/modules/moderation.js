@@ -1,8 +1,10 @@
-import { apiMedia, apiRequest } from '../api.js?v=20260903-mailing-b';
-import { renderAttentionCounts } from './dashboard-events.js?v=20260907-mobile';
-import { adminState } from '../state.js?v=20260903-mailing-b';
-import { setDenied } from '../shell.js?v=20260903-mailing-b';
-import { $, $$, escapeHtml, formatDate, galleryStatusLabel, numeric, photosLabel, recordsLabel, rememberSessionChoice, toast } from '../ui.js?v=20260903-phase5';
+import {listChanged,renderListPagination} from '../lists.js?v=20260908-admin-safe1';
+import { adminCommand, editorProtected } from '../editors.js?v=20260908-admin-safe1';
+import { apiMedia, apiRequest } from '../api.js?v=20260908-admin-safe1';
+import { renderAttentionCounts } from './dashboard-events.js?v=20260908-admin-safe1';
+import { adminState } from '../state.js?v=20260908-admin-safe1';
+import { setDenied } from '../shell.js?v=20260908-admin-safe1';
+import { $, $$, escapeHtml, formatDate, galleryStatusLabel, numeric, photosLabel, recordsLabel, rememberSessionChoice, toast } from '../ui.js?v=20260908-admin-safe1';
 
 const galleryFilterLabels={pending:'Žádosti',approved:'Schválené',rejected:'Zamítnuté',all:'Všechny'};
 const galleryMediaUrls=new Map();
@@ -10,7 +12,7 @@ const galleryMediaPromises=new Map();
 const galleryMediaTokens=new Map();
 const historyEvidenceUrls=new Map();
 const historyEvidencePromises=new Map();
-let historyRequestSequence=0;
+let historyRequestSequence=0,historyMediaGeneration=0,historyOpenGeneration=0;
 let historySearchTimer=null;
 let selectedGalleryId=null;
 let lightboxReturnFocus=null;
@@ -45,30 +47,33 @@ function galleryCard(item){
 function renderGalleryTabs(){
   $$('[data-gallery-filter]').forEach(button=>{
     const filter=button.dataset.galleryFilter;
-    const count=filter==='all'?adminState.galleryItems.length:adminState.galleryItems.filter(item=>item.status===filter).length;
+    const count=adminState.galleryCounts?.[filter==='all'?'total':filter]??(filter==='all'?adminState.galleryItems.length:adminState.galleryItems.filter(item=>item.status===filter).length);
     $(`[data-gallery-filter-count="${filter}"]`,button).textContent=count;
     const active=filter===adminState.galleryFilter;
     button.classList.toggle('is-active',active);button.setAttribute('aria-selected',String(active));button.tabIndex=active?0:-1;
   });
 }
 function renderGalleryCounts(){
-  const pending=adminState.galleryItems.filter(item=>item.status==='pending').length;
+  const pending=adminState.summary?.attention?.gallery??'—';
   $('[data-kpi-gallery-pending]').textContent=pending;
   renderAttentionCounts();
 }
 function renderGalleryList(){
   const photos=adminState.galleryFilter==='all'?adminState.galleryItems:adminState.galleryItems.filter(item=>item.status===adminState.galleryFilter);
   const neededIds=new Set(photos.map(item=>item.id));if(selectedGalleryId)neededIds.add(selectedGalleryId);pruneGalleryMedia(neededIds);
-  $('[data-gallery-count]').textContent=adminState.galleryFilter==='all'?photosLabel(photos.length):`${photosLabel(photos.length)} z ${adminState.galleryItems.length}`;
+  $('[data-gallery-count]').textContent=`${photosLabel(photos.length)} z ${adminState.galleryPagination?.total??adminState.galleryItems.length}`;
   const list=$('[data-gallery-list]');
   if(!photos.length){list.innerHTML=`<div class="admin-empty">V záložce ${escapeHtml(galleryFilterLabels[adminState.galleryFilter].toLowerCase())} nejsou žádné fotografie.</div>`;return}
   list.innerHTML=photos.map(galleryCard).join('');
   hydrateGalleryMedia(list);
 }
-export function renderGallery(payload){adminState.galleryItems=Array.isArray(payload.photos)?payload.photos:[];renderGalleryTabs();renderGalleryCounts();renderGalleryList()}
+export function renderGallery(payload){
+  adminState.galleryPagination=payload.pagination||null;adminState.galleryCounts=payload.counts||null;renderListPagination('gallery',payload.pagination);
+  for(const root of document.querySelectorAll('[data-gallery-id]'))editorProtected(root,payload.photos?.find(item=>item.id===root.dataset.galleryId)?.revision);
+adminState.galleryItems=Array.isArray(payload.photos)?payload.photos:[];renderGalleryTabs();renderGalleryCounts();renderGalleryList()}
 export function setGalleryFilter(filter){
   if(!galleryFilterLabels[filter])return;
-  adminState.galleryFilter=filter;renderGalleryTabs();renderGalleryList();
+  adminState.galleryFilter=filter;listChanged({gallery:true});renderGalleryTabs();renderGalleryList();
 }
 export function setGalleryMode(mode){
   adminState.galleryMode=mode==='history'?'history':'community';
@@ -113,23 +118,26 @@ function renderHistoryPagination(){
   const nav=$('[data-history-pagination]');if(!nav)return;nav.hidden=adminState.historyPagination.totalPages<=1;$('[data-history-page-label]',nav).textContent=`Strana ${adminState.historyPagination.page} z ${adminState.historyPagination.totalPages}`;const previous=$('[data-history-page="previous"]',nav),next=$('[data-history-page="next"]',nav);previous.disabled=adminState.historyPagination.page<=1;next.disabled=adminState.historyPagination.page>=adminState.historyPagination.totalPages;
 }
 export function renderHistoryClaims(payload=null){
-  if(payload){releaseHistoryEvidence();adminState.historyClaims=Array.isArray(payload.claims)?payload.claims:[];adminState.historyCounts={...adminState.historyCounts,...(payload.counts||{})};adminState.historyYears=Array.isArray(payload.facets?.years)?payload.facets.years:[];adminState.historyPagination={...adminState.historyPagination,...(payload.pagination||{})};if(payload.filters){adminState.historyFilter=payload.filters.status||adminState.historyFilter;adminState.historyClaimType=payload.filters.type||adminState.historyClaimType;adminState.historyYear=payload.filters.year||'all';adminState.historySearch=payload.filters.q??adminState.historySearch;rememberHistoryFilters()}}
+  if(payload&&[...document.querySelectorAll('[data-history-id]')].some(root=>editorProtected(root,payload.claims?.find(item=>item.id===root.dataset.historyId)?.revision))){adminState.historyCounts={...adminState.historyCounts,...payload.counts};renderAttentionCounts();return false}
+  if(payload){adminState.historyClaims=Array.isArray(payload.claims)?payload.claims:[];adminState.historyCounts={...adminState.historyCounts,...(payload.counts||{})};adminState.historyYears=Array.isArray(payload.facets?.years)?payload.facets.years:[];adminState.historyPagination={...adminState.historyPagination,...(payload.pagination||{})};if(payload.filters){adminState.historyFilter=payload.filters.status||adminState.historyFilter;adminState.historyClaimType=payload.filters.type||adminState.historyClaimType;adminState.historyYear=payload.filters.year||'all';adminState.historySearch=payload.filters.q??adminState.historySearch;rememberHistoryFilters()}}
   renderHistoryTabs();renderHistoryControls();renderHistoryPagination();renderAttentionCounts();const items=filteredHistoryClaims(),list=$('[data-history-list]');if(!list)return;$('[data-gallery-count]').textContent=`${recordsLabel(items.length)} z ${adminState.historyPagination.total}`;
-  if(!items.length){list.innerHTML='<div class="admin-empty">Tomuto filtru neodpovídá žádná historická žádost.</div>';return}list.innerHTML=items.map(historyClaimCard).join('');
+  const openIds=new Set([...list.querySelectorAll('details[open]')].map(node=>node.dataset.historyId));
+  if(!items.length){list.innerHTML='<div class="admin-empty">Tomuto filtru neodpovídá žádná historická žádost.</div>';return}list.innerHTML=items.map(historyClaimCard).join('');for(const node of list.querySelectorAll('[data-history-id]'))if(openIds.has(node.dataset.historyId))node.open=true;
 }
 function rememberHistoryFilters(){rememberSessionChoice('e36UnitedAdmin.historyStatus',adminState.historyFilter);rememberSessionChoice('e36UnitedAdmin.historyYear',adminState.historyYear);rememberSessionChoice('e36UnitedAdmin.historyType',adminState.historyClaimType);rememberSessionChoice('e36UnitedAdmin.historySearch',adminState.historySearch)}
 export function historyRequestPath(page=1){const params=new URLSearchParams({status:adminState.historyFilter,type:adminState.historyClaimType,page:String(page),pageSize:String(adminState.historyPagination.pageSize)});if(adminState.historyYear)params.set('year',adminState.historyYear);if(adminState.historySearch.trim())params.set('q',adminState.historySearch.trim());return `/api/admin/history/claims?${params}`}
 
 async function historyEvidenceUrl(id){
   if(historyEvidenceUrls.has(id))return historyEvidenceUrls.get(id);if(historyEvidencePromises.has(id))return historyEvidencePromises.get(id);
-  const promise=apiMedia(`/api/admin/history/evidence/${encodeURIComponent(id)}`).then(blob=>{const url=URL.createObjectURL(blob);historyEvidenceUrls.set(id,url);return url}).finally(()=>historyEvidencePromises.delete(id));historyEvidencePromises.set(id,promise);return promise;
+  const generation=historyMediaGeneration;
+  const promise=apiMedia(`/api/admin/history/evidence/${encodeURIComponent(id)}`).then(blob=>{if(generation!==historyMediaGeneration)throw Object.assign(new Error('Náhled byl uzavřen.'),{stale:true});const url=URL.createObjectURL(blob);historyEvidenceUrls.set(id,url);return url}).finally(()=>historyEvidencePromises.delete(id));historyEvidencePromises.set(id,promise);return promise;
 }
 export function hydrateHistoryEvidence(root=document){$$('[data-history-evidence-media]',root).forEach(async image=>{try{image.src=await historyEvidenceUrl(image.dataset.historyEvidenceMedia)}catch{image.alt='Důkaz se nepodařilo načíst.'}})}
-export function releaseHistoryEvidence(){for(const url of historyEvidenceUrls.values())URL.revokeObjectURL(url);historyEvidenceUrls.clear();historyEvidencePromises.clear()}
+export function releaseHistoryEvidence(){historyMediaGeneration++;for(const url of historyEvidenceUrls.values())URL.revokeObjectURL(url);historyEvidenceUrls.clear();historyEvidencePromises.clear()}
 export async function openHistoryEvidence(id,trigger=null){
   const modal=$('[data-history-evidence-lightbox]'),image=$('[data-history-evidence-full]'),claim=adminState.historyClaims.find(item=>item.evidence?.some(photo=>String(photo.id)===String(id))),evidence=claim?.evidence?.find(photo=>String(photo.id)===String(id));if(!modal||!image||!claim||!evidence)return;
   try{
-    image.src=await historyEvidenceUrl(id);if(modal.hidden)historyEvidenceReturnFocus=trigger||historyEvidenceReturnFocus;
+    const own=++historyOpenGeneration,url=await historyEvidenceUrl(id);if(own!==historyOpenGeneration)return;image.src=url;if(modal.hidden)historyEvidenceReturnFocus=trigger||historyEvidenceReturnFocus;
     $('[data-history-evidence-title]',modal).textContent=`United ${numeric(claim.eventYear)}`;
     $('[data-history-evidence-member]',modal).textContent=[claim.member?.nickname||claim.member?.name,claim.member?.name,claim.member?.memberCode,claim.member?.email].filter(Boolean).filter((value,index,items)=>items.indexOf(value)===index).join(' · ');
     $('[data-history-evidence-submitted]',modal).textContent=formatDate(claim.submittedAt);
@@ -138,14 +146,14 @@ export async function openHistoryEvidence(id,trigger=null){
     $('[data-history-evidence-sns]',modal).textContent=`${historyComponentLabel(claim.showShine?.status)} · ${showShineSummary(claim)}`;
     const thumbs=$('[data-history-evidence-thumbs]',modal);thumbs.innerHTML=claim.evidence.map((photo,index)=>`<button aria-label="Otevřít důkaz ${index+1}" class="${String(photo.id)===String(id)?'is-active':''}" data-history-evidence="${escapeHtml(photo.id)}" type="button"><img alt="Důkaz účasti United ${numeric(claim.eventYear)}" data-history-evidence-media="${escapeHtml(photo.id)}"/></button>`).join('');hydrateHistoryEvidence(thumbs);
     modal.hidden=false;document.body.classList.add('admin-lightbox-open');$('[data-history-evidence-close]:not(.admin-gallery-lightbox-backdrop)')?.focus();
-  }catch(error){toast(error.message||'Důkaz se nepodařilo otevřít.')}
+  }catch(error){if(!error.stale)toast(error.message||'Důkaz se nepodařilo otevřít.')}
 }
-export function closeHistoryEvidence(){const modal=$('[data-history-evidence-lightbox]');if(modal)modal.hidden=true;document.body.classList.remove('admin-lightbox-open');const trigger=historyEvidenceReturnFocus;historyEvidenceReturnFocus=null;trigger?.focus?.()}
+export function closeHistoryEvidence(){historyOpenGeneration++;const modal=$('[data-history-evidence-lightbox]');if(modal)modal.hidden=true;$('[data-history-evidence-full]')?.removeAttribute('src');$('[data-history-evidence-thumbs]')?.replaceChildren();$('[data-history-evidence-member]')?.replaceChildren();releaseHistoryEvidence();document.body.classList.remove('admin-lightbox-open');const trigger=historyEvidenceReturnFocus;historyEvidenceReturnFocus=null;trigger?.focus?.()}
 export async function loadHistoryClaims({page=1}={}){const sequence=++historyRequestSequence,payload=await apiRequest(historyRequestPath(page));if(sequence!==historyRequestSequence)return payload;renderHistoryClaims(payload);return payload}
-export function refreshHistoryClaims(page=1){loadHistoryClaims({page}).catch(error=>{if(error.status===403){setDenied();return}toast(error.message||'Historické žádosti se nepodařilo načíst.')})}
+export function refreshHistoryClaims(page=1){adminState.historyPagination.page=page;window.dispatchEvent(new CustomEvent('admin:invalidate'))}
 export async function reviewHistoryClaim(container,component,status){
   const claimId=container.dataset.historyId,review=$(`[data-history-review="${component}"]`,container),note=$('[data-history-review-note]',review)?.value.trim()||'';if(status==='rejected'&&!note){toast('Při zamítnutí je důvod povinný.');$('[data-history-review-note]',review)?.focus();return}
-  $$('[data-history-action]',review).forEach(button=>button.disabled=true);try{await apiRequest(`/api/admin/history/claims/${encodeURIComponent(claimId)}/${component}`,{method:'PATCH',body:{status,reviewNote:note}});toast(component==='attendance'?'Rozhodnutí o docházce bylo uloženo.':'Rozhodnutí o Show & Shine bylo uloženo.');await loadHistoryClaims({page:adminState.historyPagination.page})}catch(error){if(error.status===403){setDenied();return}toast(error.message||'Rozhodnutí se nepodařilo uložit.')}finally{$$('[data-history-action]',review).forEach(button=>button.disabled=false)}
+  $$('[data-history-action]',review).forEach(button=>button.disabled=true);try{await adminCommand(`/api/admin/history/claims/${encodeURIComponent(claimId)}/${component}`,{method:'PATCH',body:{status,reviewNote:note},editor:container});toast(component==='attendance'?'Rozhodnutí o docházce bylo uloženo.':'Rozhodnutí o Show & Shine bylo uloženo.');refreshHistoryClaims(adminState.historyPagination.page)}catch(error){if(error.status===403){setDenied();return}toast(error.message||'Rozhodnutí se nepodařilo uložit.')}finally{$$('[data-history-action]',review).forEach(button=>button.disabled=false)}
 }
 
 async function galleryMediaUrl(id){
@@ -201,7 +209,7 @@ export async function updateGallery(container,status){
   const submissionId=container.dataset.galleryId;const currentItem=adminState.galleryItems.find(photo=>photo.id===submissionId);const noteField=$('[data-gallery-review-note]',container);const note=noteField?noteField.value:(currentItem?.reviewNote||'');
   $$('[data-gallery-action]',container).forEach(button=>button.disabled=true);
   try{
-    await apiRequest(`/api/admin/gallery/${encodeURIComponent(submissionId)}`,{method:'PATCH',body:{status,reviewNote:note}});
+    await adminCommand(`/api/admin/gallery/${encodeURIComponent(submissionId)}`,{method:'PATCH',body:{status,reviewNote:note},editor:container});
     const item=adminState.galleryItems.find(photo=>photo.id===submissionId);if(item){item.status=status;item.reviewNote=note}
     renderGalleryTabs();renderGalleryCounts();renderGalleryList();if(selectedGalleryId===submissionId)renderGalleryLightbox();
     const messages={pending:'Fotografie byla vrácena k posouzení.',approved:'Fotografie byla schválena.',rejected:'Fotografie byla zamítnuta.'};toast(messages[status]||'Stav fotografie byl změněn.');

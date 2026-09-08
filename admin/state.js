@@ -1,13 +1,19 @@
-import { ADMIN_VIEW_IDS, RESERVATION_VIEW_MODES } from '../admin-view-model.js?v=20260903-mailing-b';
-import { readSessionChoice, readSessionValue, readSessionYear } from './ui.js?v=20260903-phase5';
+import { ADMIN_VIEW_IDS, RESERVATION_VIEW_MODES } from '../admin-view-model.js?v=20260908-admin-safe1';
+import { readSessionChoice, readSessionValue, readSessionYear } from './ui.js?v=20260908-admin-safe1';
 
 export const adminState={
   currentUser:null,
+  sessionGeneration:0,
+  denied:false,
+  summary:null,
+  resourceStates:{},
   loading:false,
   events:[],
   selectedEventId:'',
   accommodationItems:[],
   reservationItems:[],
+  reservationPagination:null,reservationCounts:null,reservationPage:1,reservationDetail:null,
+  galleryPagination:null,galleryCounts:null,galleryPage:1,
   reservationFilter:'all',
   reservationDetailFilters:new Set(),
   reservationFiltersOpen:false,
@@ -31,6 +37,11 @@ export const adminState={
 };
 
 export function resetAdminDomainState(){
+  adminState.summary=null;
+  adminState.reservationPagination=null;adminState.reservationCounts=null;adminState.reservationPage=1;adminState.reservationDetail=null;adminState.galleryPage=1;adminState.galleryPagination=null;adminState.galleryCounts=null;
+  adminState.resourceStates={};
+  adminState.selectedReservationId=null;
+  adminState.historyCounts={};
   adminState.galleryItems=[];
   adminState.historyClaims=[];
   adminState.reservationItems=[];
@@ -49,6 +60,7 @@ export function resetAdminFiltersForLogin(){
 }
 
 export function resetAdminFiltersForEvent(){
+  adminState.reservationPage=1;adminState.reservationPagination=null;adminState.reservationDetail=null;
   adminState.reservationFilter='all';
   adminState.reservationDetailFilters.clear();
   adminState.reservationFiltersOpen=false;

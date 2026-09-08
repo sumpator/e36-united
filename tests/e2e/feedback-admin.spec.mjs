@@ -1,14 +1,14 @@
 import {test,expect} from '@playwright/test';
 import {prepareAdminE2ePage,expectNoUnexpectedClientErrors} from './fixtures.mjs';
 const headers={'Access-Control-Allow-Origin':'*','Content-Type':'application/json'};
-const reply=(route,body)=>route.fulfill({status:200,headers,body:JSON.stringify(body)});
+const reply=(route,body)=>route.fulfill({status:200,headers,body:JSON.stringify({...body,...(route.request().headers()['idempotency-key']?{operation:{id:route.request().headers()['idempotency-key'],state:'confirmed',revision:Number(route.request().headers()['if-match'])+2}}:{})})});
 
 test('History and S&S pending badge is visible on desktop/mobile and updates after each review',async({page})=>{
   await page.setViewportSize({width:1440,height:900});
   const observations=await prepareAdminE2ePage(page);
   let attendance='pending',sns='pending';
   const counts=()=>({pending:attendance==='pending'||sns==='pending'?1:0,attendancePending:attendance==='pending'?1:0,snsPending:sns==='pending'?1:0,total:1,approved:attendance==='approved'||sns==='approved'?1:0,rejected:0,latestPendingYear:2026,latestYear:2026,latestYearPending:1,olderPending:0});
-  await page.route('https://api.e36united.cz/api/admin/attention',route=>reply(route,{history:counts()}));
+  await page.route('https://api.e36united.cz/api/admin/summary**',route=>reply(route,{overview:{history:counts()},attention:{reservations:0,payments:0,gallery:0,history:counts().pending}}));
   await page.route('https://api.e36united.cz/api/admin/history/claims**',route=>{
     if(route.request().method()==='PATCH'){
       if(route.request().url().endsWith('/attendance'))attendance=route.request().postDataJSON().status;else sns=route.request().postDataJSON().status;
@@ -25,7 +25,7 @@ test('History and S&S pending badge is visible on desktop/mobile and updates aft
   const card=page.locator('[data-history-id="pending-claim"]');await card.locator('summary').click();
   await card.locator('[data-history-component="attendance"][data-history-action="approved"]').click();
   await expect(page.locator('[data-attention-history]')).toHaveText('1');
-  await expect(card).not.toHaveAttribute('open','');await card.locator('summary').click();
+  await expect(card).toHaveAttribute('open',''); // Refresh preserves the open review context.
   await card.locator('[data-history-component="sns"][data-history-action="approved"]').click();
   await expect(page.locator('[data-attention-history]')).toHaveText('0');await expect(page.locator('[data-history-summary="pending"]')).toHaveText('0');
   await expect(page.locator('[data-gallery-mode-count="history"]')).toBeHidden();

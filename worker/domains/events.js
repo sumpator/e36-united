@@ -1,9 +1,11 @@
 import { json } from "../http/responses.js";
 import { clean } from "../utils/text.js";
 
-const EVENT_SELECT = `
+const eventSelect = env => `
   SELECT
     id, year, registration_status, is_current,
+    ${env.ADMIN_READ ? "COALESCE((SELECT revision FROM admin_resource_versions WHERE resource_type='event-settings' AND resource_id='*'),0)" : '0'} AS admin_revision,
+    ${env.ADMIN_READ ? "COALESCE((SELECT revision FROM admin_resource_versions WHERE resource_type='accommodation-catalog' AND resource_id=events.id),0)" : '0'} AS accommodation_revision,
     accommodation_capacity, reservation_capacity,
     full_weekend_nights, saturday_only_nights,
     booking_commitment_czk, booking_due_at, booking_paid_czk,
@@ -15,7 +17,7 @@ const EVENT_SELECT = `
 `;
 
 async function getCurrentEvent(env) {
-  return await env.DB.prepare(`${EVENT_SELECT}
+  return await env.DB.prepare(`${eventSelect(env)}
     ORDER BY is_current DESC, year DESC
     LIMIT 1
   `).first();
@@ -23,7 +25,7 @@ async function getCurrentEvent(env) {
 
 async function getEventById(env, eventId) {
   if (!eventId) return null;
-  return await env.DB.prepare(`${EVENT_SELECT}
+  return await env.DB.prepare(`${eventSelect(env)}
     WHERE id = ?
     LIMIT 1
   `).bind(eventId).first();
@@ -38,6 +40,8 @@ function publicAdminEvent(event) {
   if (!event) return null;
   return {
     id: event.id,
+    revision: Number(event.admin_revision || 0),
+    accommodationRevision: Number(event.accommodation_revision || 0),
     year: Number(event.year || 0),
     isCurrent: !!event.is_current,
     registrationStatus: event.registration_status || "",
@@ -57,7 +61,7 @@ function publicAdminEvent(event) {
 }
 
 async function getAdminEvents(env, origin) {
-  const rows = await env.DB.prepare(`${EVENT_SELECT}
+  const rows = await env.DB.prepare(`${eventSelect(env)}
     ORDER BY year DESC
   `).all();
   return json({ ok: true, events: (rows.results || []).map(publicAdminEvent) }, 200, origin);

@@ -264,7 +264,7 @@ test('Admin history review is server-filtered, session-sticky, paginated and com
   assert.match(adminJs,/function historyRequestPath[\s\S]*pageSize/);
   assert.match(adminJs,/<details class="admin-history-card/);
   assert.match(adminJs,/addEventListener\('toggle'[\s\S]*hydrateHistoryEvidence/);
-  assert.match(adminJs,/await loadHistoryClaims\(\{page:adminState\.historyPagination\.page\}\)/);
+  assert.match(adminJs,/refreshHistoryClaims\(adminState\.historyPagination\.page\)/);
   assert.match(worker,/SUM\(CASE WHEN c\.attendance_status = 'pending' OR c\.sns_status = 'pending' THEN 1 ELSE 0 END\)/);
   assert.match(worker,/LIMIT \? OFFSET \?/);
 });

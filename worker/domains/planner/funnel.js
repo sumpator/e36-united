@@ -97,13 +97,13 @@ export async function getAdminFunnel(env, url, origin) {
   const eventId = event?.id || '';
   const [members,incomplete,plans,incompleteRows,claimedRows,anonymousRows] = await Promise.all([
     env.DB.prepare('SELECT COUNT(*) AS count FROM members').first(),
-    env.DB.prepare('SELECT COUNT(*) AS count FROM member_onboarding WHERE member_profile_created_at IS NULL').first(),
+    env.DB.prepare('SELECT COUNT(*) AS count FROM member_onboarding WHERE member_profile_created_at IS NULL AND NOT EXISTS (SELECT 1 FROM members WHERE members.id=member_onboarding.firebase_uid)').first(),
     env.DB.prepare(`SELECT COUNT(*) AS created, COALESCE(SUM(member_claimed_at IS NOT NULL),0) AS claimed,
       COALESCE(SUM(member_portal_opened_at IS NOT NULL),0) AS opened, COALESCE(SUM(reservation_created_at IS NOT NULL),0) AS converted,
       COALESCE(SUM(member_claimed_at IS NULL),0) AS unclaimed,
       COALESCE(SUM(member_claimed_at IS NOT NULL AND reservation_created_at IS NULL),0) AS claimedWithoutReservation
       FROM public_planner_handoffs WHERE event_id=?`).bind(eventId).first(),
-    env.DB.prepare('SELECT email,firebase_account_seen_at FROM member_onboarding WHERE member_profile_created_at IS NULL ORDER BY firebase_account_seen_at DESC LIMIT 50').all(),
+    env.DB.prepare('SELECT email,firebase_account_seen_at FROM member_onboarding WHERE member_profile_created_at IS NULL AND NOT EXISTS (SELECT 1 FROM members WHERE members.id=member_onboarding.firebase_uid) ORDER BY firebase_account_seen_at DESC LIMIT 50').all(),
     env.DB.prepare(`SELECT h.created_at,h.payload_json,m.name,m.email FROM public_planner_handoffs h
       LEFT JOIN members m ON m.id=h.member_id WHERE h.event_id=? AND h.member_claimed_at IS NOT NULL AND h.reservation_created_at IS NULL ORDER BY h.created_at DESC LIMIT 50`).bind(eventId).all(),
     env.DB.prepare(`SELECT created_at,payload_json FROM public_planner_handoffs WHERE event_id=? AND member_claimed_at IS NULL ORDER BY created_at DESC LIMIT 50`).bind(eventId).all(),

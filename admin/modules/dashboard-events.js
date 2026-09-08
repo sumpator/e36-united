@@ -1,14 +1,16 @@
-import { adminActionCountState, adminModerationCounts, paymentNeedsAttention, reservationMatchesFilter } from '../../admin-view-model.js?v=20260831-admin-badge1';
-import { apiRequest } from '../api.js?v=20260903-mailing-b';
-import { adminState } from '../state.js?v=20260903-mailing-b';
-import { setDenied } from '../shell.js?v=20260903-mailing-b';
-import { $, $$, escapeHtml, formatDate, formatMoney, numeric, toast } from '../ui.js?v=20260903-phase5';
+import { adminCommand, editorProtected, changedFields } from '../editors.js?v=20260908-admin-safe1';
+import { adminActionCountState, adminModerationCounts, paymentNeedsAttention, reservationMatchesFilter } from '../../admin-view-model.js?v=20260908-admin-safe1';
+import { apiRequest } from '../api.js?v=20260908-admin-safe1';
+import { adminState } from '../state.js?v=20260908-admin-safe1';
+import { setDenied } from '../shell.js?v=20260908-admin-safe1';
+import { $, $$, escapeHtml, formatDate, formatMoney, numeric, toast } from '../ui.js?v=20260908-admin-safe1';
 
 function setBar(selector,value,total){$(selector).style.width=`${total?Math.min(100,(numeric(value)/total)*100):0}%`}
 
 export function renderEventSelector(){
   const select=$('[data-event-select]');
-  select.innerHTML=adminState.events.map(event=>`<option value="${escapeHtml(event.id)}">United ${numeric(event.year)}${event.isCurrent?' · AKTUÁLNÍ':''}</option>`).join('');
+  const options=adminState.events.map(event=>`<option value="${escapeHtml(event.id)}">United ${numeric(event.year)}${event.isCurrent?' · AKTUÁLNÍ':''}</option>`).join('');
+  if(select.innerHTML!==options)select.innerHTML=options;
   select.value=adminState.selectedEventId;
   select.disabled=adminState.loading||adminState.events.length<2;
 }
@@ -17,7 +19,9 @@ export function selectedEvent(){return adminState.events.find(event=>event.id===
 
 export function renderEventSettings(event){
   const form=$('[data-event-settings-form]');
-  if(!form||!event)return;
+  if(!form||!event||editorProtected(form,event.revision))return;
+  if(form.dataset.hydratedEvent===event.id&&form.dataset.hydratedRevision===String(event.revision??0))return;
+  form.inert=false;form.dataset.hydratedEvent=event.id;form.dataset.hydratedRevision=String(event.revision??0);
   const year=$('[data-event-settings-year]');if(year)year.textContent=event.year||'—';
   form.elements.registrationStatus.value=event.registrationStatus||'closed';
   form.elements.reservationCapacity.value=numeric(event.reservationCapacity);
@@ -42,6 +46,7 @@ export function renderOverview(payload){
   const payments=overview.payments||{};
   const gallery=overview.gallery||{};
   const history=overview.history||{};
+  if(payload.attention)adminState.summary=payload;
   adminState.historyCounts={...adminState.historyCounts,...history};
   $('[data-event-year]').textContent=event?.year||'—';
   $('[data-event-state]').textContent=event?`${event.isCurrent?'Aktuální event · ':''}Rezervace: ${event.registrationStatus==='open'?'otevřené':'uzavřené'}`:'Žádný event v databázi';
@@ -64,10 +69,12 @@ export function renderOverview(payload){
   const maybeDegrees=showTotal?((numeric(show.yes)+numeric(show.maybe))/showTotal)*360:0;
   $('[data-show-ring]').style.background=`conic-gradient(#4da3ff 0 ${yesDegrees}deg,#76b9ff ${yesDegrees}deg ${maybeDegrees}deg,rgba(255,255,255,.08) ${maybeDegrees}deg 360deg)`;
 
-  const accommodationCapacity=numeric(event?.accommodationCapacity);
+  const accommodationCapacity=accommodation.hasUnlimited?0:numeric(accommodation.limitedUnitsTotal);
+  $('[data-accommodation-occupancy]').title='Potvrzené fyzické jednotky; pending požadavky nejsou obsazenost.';
   $('[data-accommodation-occupancy]').textContent=`${numeric(accommodation.units)} / ${accommodationCapacity||'—'}`;
   $('[data-accommodation-cabin]').textContent=numeric(accommodation.cabin);$('[data-accommodation-tent]').textContent=numeric(accommodation.tent);$('[data-accommodation-none]').textContent=numeric(accommodation.none);
   setBar('[data-accommodation-bar]',accommodation.units,accommodationCapacity);
+  const occupancyNote=$('[data-accommodation-occupancy-note]');if(occupancyNote)occupancyNote.textContent=`Čekající poptávka: ${numeric(accommodation.pendingUnits)} jednotek · potvrzeno ${numeric(accommodation.confirmedPeople)} osob.${accommodation.hasUnlimited?' Některé typy nemají limit; společné procento obsazenosti nelze určit.':''}${accommodation.legacyUnclassified?' Starší rezervace bez jednotkového snapshotu: '+accommodation.legacyUnclassified+'.':''}`;
 
   const commitment=numeric(event?.bookingCommitmentCzk);
   const collected=numeric(payments.amountPaidCzk);
@@ -78,14 +85,16 @@ export function renderOverview(payload){
   $('[data-booking-gap]').textContent=formatMoney(Math.max(0,commitment-collected));
   $('[data-payment-total-due]').textContent=formatMoney(payments.amountDueCzk);$('[data-payment-total-paid]').textContent=formatMoney(payments.amountPaidCzk);$('[data-payment-total-remaining]').textContent=formatMoney(payments.amountRemainingCzk);
   $('[data-payment-count-unpaid]').textContent=numeric(payments.unpaid);$('[data-payment-count-underpaid]').textContent=numeric(payments.underpaid);$('[data-payment-count-paid]').textContent=numeric(payments.paid);$('[data-payment-count-overpaid]').textContent=numeric(payments.overpaid);$('[data-payment-count-overdue]').textContent=numeric(payments.overdue);
+  const extra=$('[data-payment-extra]');if(extra)extra.textContent=`Přeplatky: ${formatMoney(payments.overpaymentCzk)} · Úhrady mimo aktivní rezervace: ${formatMoney(payments.inactivePaidCzk)}.`;
   const testWarning=$('[data-admin-payment-test]');if(testWarning)testWarning.hidden=!event?.paymentTestMode;
   renderAttentionCounts();
 }
 
 export function renderAttentionCounts(){
-  const pendingReservations=adminState.reservationItems.filter(item=>reservationMatchesFilter(item,'action')).length;
-  const paymentAttention=adminState.reservationItems.filter(paymentNeedsAttention).length;
-  const moderation=adminModerationCounts({communityPending:adminState.galleryItems.filter(item=>item.status==='pending').length,historyPending:adminState.historyCounts.pending});
+  const pendingReservations=adminState.summary?.attention?.reservations;
+  if(pendingReservations==null){$$('[data-attention-reservations], [data-attention-payments], [data-attention-gallery], [data-attention-history]').forEach(node=>node.textContent='—');return}
+  const paymentAttention=adminState.summary.attention.payments;
+  const moderation=adminModerationCounts({communityPending:adminState.summary.attention.gallery,historyPending:adminState.summary.attention.history});
   const reservationAttention=$('[data-attention-reservations]');if(reservationAttention)reservationAttention.textContent=pendingReservations;
   const paymentAttentionElement=$('[data-attention-payments]');if(paymentAttentionElement)paymentAttentionElement.textContent=paymentAttention;
   const galleryAttention=$('[data-attention-gallery]');if(galleryAttention)galleryAttention.textContent=moderation.community;
@@ -127,6 +136,6 @@ export async function saveEventSettings(form,reloadAdminData){
   };
   if(switchingCurrent)body.isCurrent=true;
   const button=$('button[type="submit"]',form);if(button)button.disabled=true;
-  try{await apiRequest(`/api/admin/events/${encodeURIComponent(event.id)}`,{method:'PATCH',body});toast('Nastavení eventu bylo uloženo.');await reloadAdminData({reloadGallery:false})}
+  try{await adminCommand(`/api/admin/events/${encodeURIComponent(event.id)}`,{method:'PATCH',body:changedFields(form,body),editor:form});toast('Nastavení eventu bylo uloženo.');await reloadAdminData({reloadGallery:false})}
   catch(error){if(error.status===403){setDenied();return}toast(error.message||'Nastavení eventu se nepodařilo uložit.')}finally{if(button)button.disabled=false}
 }

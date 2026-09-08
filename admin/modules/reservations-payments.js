@@ -1,21 +1,25 @@
-import { accommodationVisualMarkup, bindAccommodationVisualFallbacks } from '../../accommodation-visual.js?v=20260827-accommodation1';
-import { RESERVATION_DETAIL_FILTERS, RESERVATION_PRIMARY_FILTERS, RESERVATION_VIEW_MODES, adminItemPayment, filterAdminPayments, filterAdminReservations, paymentMatchesFilter, reservationMatchesFilter } from '../../admin-view-model.js?v=20260831-admin-badge1';
-import { apiBaseUrl, apiRequest } from '../api.js?v=20260903-mailing-b';
-import { renderAttentionCounts } from './dashboard-events.js?v=20260907-mobile';
-import { adminState } from '../state.js?v=20260903-mailing-b';
-import { setDenied } from '../shell.js?v=20260903-mailing-b';
-import { $, $$, attendanceLabel, attendanceShortLabel, escapeHtml, formatDate, formatMoney, numeric, paymentLabel, paymentQrSvg, recordsLabel, rememberSessionChoice, statusLabel, toast } from '../ui.js?v=20260903-phase5';
+import {listChanged,renderListPagination} from '../lists.js?v=20260908-admin-safe1';
+import { adminCommand, editorProtected, allowAdminNavigation } from '../editors.js?v=20260908-admin-safe1';
+import { accommodationVisualMarkup, bindAccommodationVisualFallbacks } from '../../accommodation-visual.js?v=20260908-admin-safe1';
+import { RESERVATION_DETAIL_FILTERS, RESERVATION_PRIMARY_FILTERS, RESERVATION_VIEW_MODES, adminItemPayment, filterAdminPayments, filterAdminReservations, paymentMatchesFilter, reservationMatchesFilter } from '../../admin-view-model.js?v=20260908-admin-safe1';
+import { apiBaseUrl, apiRequest } from '../api.js?v=20260908-admin-safe1';
+import { renderAttentionCounts } from './dashboard-events.js?v=20260908-admin-safe1';
+import { adminState } from '../state.js?v=20260908-admin-safe1';
+import { setDenied } from '../shell.js?v=20260908-admin-safe1';
+import { $, $$, attendanceLabel, attendanceShortLabel, escapeHtml, formatDate, formatMoney, numeric, paymentLabel, paymentQrSvg, recordsLabel, rememberSessionChoice, statusLabel, toast } from '../ui.js?v=20260908-admin-safe1';
 
 const paymentFilterLabels={attention:'Vyžaduje kontrolu',all:'Vše',unpaid:'K platbě',underpaid:'Doplatek',paid:'Zaplaceno',overpaid:'Přeplatek'};
 let reservationDrawerReturnFocus=null;
+const reservationById=id=>adminState.reservationDetail?.id===id?adminState.reservationDetail:adminState.reservationItems.find(item=>item.id===id);
+export function renderReservationDetail(payload){adminState.reservationDetail=payload.reservations?.[0]||null;if(adminState.selectedReservationId)return renderReservationDrawer()}
 
 function itemPayment(item){return adminItemPayment(item)}
 
 function renderReservationTabs(){
-  $('[data-reservation-nav-count]').textContent=adminState.reservationItems.filter(item=>item.status==='pending').length;
+  $('[data-reservation-nav-count]').textContent=adminState.summary?.overview?.statuses?.pending??'—';
   $$('[data-reservation-filter]').forEach(button=>{
     const filter=button.dataset.reservationFilter;
-    const count=adminState.reservationItems.filter(item=>reservationMatchesFilter(item,filter)).length;
+    const count=adminState.reservationCounts?.[filter]??adminState.reservationItems.filter(item=>reservationMatchesFilter(item,filter)).length;
     const counter=$(`[data-reservation-filter-count="${filter}"]`,button);
     if(counter)counter.textContent=count;
     const active=filter===adminState.reservationFilter;
@@ -54,7 +58,7 @@ function reservationDetailRow(item){
 
 function renderReservationList(){
   const reservations=filterAdminReservations(adminState.reservationItems,{filter:adminState.reservationFilter,filters:adminState.reservationDetailFilters,query:adminState.reservationSearch});
-  $('[data-reservation-count]').textContent=`${recordsLabel(reservations.length)} z ${adminState.reservationItems.length}`;
+  $('[data-reservation-count]').textContent=`${recordsLabel(reservations.length)} z ${adminState.reservationPagination?.total??adminState.reservationItems.length}`;
   const list=$('[data-reservation-list]');
   if(!reservations.length){list.innerHTML='<div class="admin-empty">Aktuálním filtrům a hledání neodpovídá žádná rezervace.</div>';return}
   const quick=adminState.reservationViewMode==='quick';
@@ -63,7 +67,9 @@ function renderReservationList(){
 }
 
 function renderReservationDrawer(){
-  const item=adminState.reservationItems.find(reservation=>reservation.id===adminState.selectedReservationId);
+  const editor=$('[data-reservation-drawer-content] article[data-reservation-id]');
+  if(editorProtected(editor,reservationById(adminState.selectedReservationId)?.revision))return false;
+  const item=reservationById(adminState.selectedReservationId);
   if(!item){closeReservationDrawer();return}
   const member=item.member||{},car=item.carSnapshot||{},snapshot=item.accommodationSnapshot||null;
   const accommodation=snapshot?`${numeric(snapshot.peopleCount)} ${numeric(snapshot.peopleCount)===1?'osoba':'osob'} · ${numeric(snapshot.unitCount)}× ${snapshot.optionName}`:`${item.accommodation||'Bez ubytování'} · ${numeric(item.accommodationUnits)} osob`,payment=itemPayment(item),qr=paymentQrSvg(payment.spayd);
@@ -76,7 +82,7 @@ function renderReservationDrawer(){
       <section><small>AUTO</small><b>${escapeHtml([car.body,car.model].filter(Boolean).join(' · ')||'—')}</b><span>${escapeHtml([car.nickname,car.year,car.color].filter(Boolean).join(' · ')||'Bez dalších údajů')}</span></section>
       <section><small>POBYT</small><b>${escapeHtml(attendanceShortLabel(item))} · ${numeric(item.crew)} ${numeric(item.crew)===1?'osoba':'osob'}</b><span>${escapeHtml(attendanceLabel(item.attendanceType))} · příjezd ${escapeHtml(item.arrival||'—')}</span></section>
       <section class="admin-drawer-accommodation"><small>UBYTOVÁNÍ</small>${accommodationVisual}<b>${escapeHtml(accommodation)}</b><span>${snapshot?`max. ${numeric(snapshot.capacityPerUnit)} osob / jednotku · ${numeric(snapshot.nights)} ${numeric(snapshot.nights)===1?'noc':'noci'} · ${escapeHtml(formatMoney(snapshot.totalCzk))}`:'Cena není ve snapshotu'}</span>${item.capacityConflict?'<em>Pending požadavek nyní přesahuje potvrzenou dostupnost.</em>':''}</section>
-      <section><small>SHOW &amp; SHINE</small><b>${escapeHtml(item.showShine||'Ne')}</b><span>Účast v soutěži</span></section>
+      <section><small>SHOW &amp; SHINE</small><b>${escapeHtml(item.showShine||'Ne')}</b><span>Zájem o účast v soutěži</span></section>
       <section><small>PLATBA</small><b>${escapeHtml(paymentLabel(payment.status))}</b><span>${escapeHtml(reservationDifference(item))}</span></section>
       <section><small>ODESLÁNO</small><b>${escapeHtml(formatDate(item.submittedAt))}</b><span>Aktualizováno ${escapeHtml(formatDate(item.updatedAt))}</span></section>
       <section><small>POSOUZENO</small><b>${escapeHtml(formatDate(item.reviewedAt))}</b><span>${escapeHtml(item.reviewNote||'Bez admin poznámky')}</span></section>
@@ -90,15 +96,18 @@ function renderReservationDrawer(){
 }
 
 export function openReservationDrawer(id,source){
-  if(!adminState.reservationItems.some(item=>item.id===id))return;
-  adminState.selectedReservationId=id;reservationDrawerReturnFocus=source||document.activeElement;renderReservationDrawer();
+  if(!reservationById(id))return;
+  adminState.reservationDetail=reservationById(id);adminState.selectedReservationId=id;reservationDrawerReturnFocus=source||document.activeElement;renderReservationDrawer();
   $('[data-reservation-drawer]').hidden=false;document.body.classList.add('admin-overlay-open');
   $('[data-reservation-drawer-close]:not(.admin-reservation-drawer-backdrop)')?.focus();
+  if(!adminState.restoringRoute)window.dispatchEvent(new CustomEvent('admin:detailopened'));
 }
 
 export function closeReservationDrawer(){
+  const wasOpen=adminState.selectedReservationId;
   const drawer=$('[data-reservation-drawer]');if(drawer)drawer.hidden=true;adminState.selectedReservationId=null;document.body.classList.remove('admin-overlay-open');
   if(reservationDrawerReturnFocus?.isConnected)reservationDrawerReturnFocus.focus();reservationDrawerReturnFocus=null;
+  if(wasOpen&&!adminState.restoringRoute)window.dispatchEvent(new CustomEvent('admin:detailclosed'));
 }
 
 function paymentRow(item){
@@ -108,7 +117,7 @@ function paymentRow(item){
 
 function renderPaymentTabs(){
   $$('[data-payment-filter]').forEach(button=>{
-    const filter=button.dataset.paymentFilter,count=adminState.reservationItems.filter(item=>paymentMatchesFilter(item,filter)).length;
+    const filter=button.dataset.paymentFilter,count=adminState.reservationCounts?.[filter]??adminState.reservationItems.filter(item=>paymentMatchesFilter(item,filter)).length;
     const counter=$(`[data-payment-filter-count="${filter}"]`,button);if(counter)counter.textContent=count;
     const active=filter===adminState.paymentFilter;button.classList.toggle('is-active',active);button.setAttribute('aria-selected',String(active));button.tabIndex=active?0:-1;
   });
@@ -116,37 +125,38 @@ function renderPaymentTabs(){
 
 function renderPaymentList(){
   const payments=filterAdminPayments(adminState.reservationItems,{filter:adminState.paymentFilter,query:adminState.paymentSearch});
-  const count=$('[data-payment-count]');if(count)count.textContent=`${recordsLabel(payments.length)} z ${adminState.reservationItems.length}`;
+  const count=$('[data-payment-count]');if(count)count.textContent=`${recordsLabel(payments.length)} z ${adminState.reservationPagination?.total??adminState.reservationItems.length}`;
   const list=$('[data-payment-list]');if(!list)return;
   if(!payments.length){list.innerHTML=`<div class="admin-empty">Filtru ${escapeHtml(paymentFilterLabels[adminState.paymentFilter].toLowerCase())} a hledání neodpovídá žádná platba.</div>`;return}
   list.innerHTML=`<div class="admin-table-scroll"><table class="admin-data-table admin-payment-table"><thead><tr><th>Člen</th><th>VS</th><th>Předepsáno</th><th>Uhrazeno</th><th>Rozdíl</th><th>Stav</th><th>Splatnost</th><th></th></tr></thead><tbody>${payments.map(paymentRow).join('')}</tbody></table></div>`;
 }
 
-export function renderReservations(payload){adminState.reservationItems=Array.isArray(payload.reservations)?payload.reservations:[];renderReservationTabs();renderReservationViewMode();renderReservationList();renderPaymentTabs();renderPaymentList();renderAttentionCounts();if(adminState.selectedReservationId)renderReservationDrawer()}
+export function renderReservations(payload){adminState.reservationPagination=payload.pagination||null;adminState.reservationCounts=payload.counts||null;renderListPagination(adminState.activeAdminView==='payments'?'payments':'reservations',payload.pagination);adminState.reservationItems=Array.isArray(payload.reservations)?payload.reservations:[];renderReservationTabs();renderReservationViewMode();renderReservationList();renderPaymentTabs();renderPaymentList();renderAttentionCounts();if(adminState.selectedReservationId)renderReservationDrawer()}
 
 export function setReservationFilter(filter){
   if(RESERVATION_DETAIL_FILTERS.includes(filter)){adminState.reservationFilter='all';adminState.reservationDetailFilters=new Set([filter]);adminState.reservationFiltersOpen=true}
   else if(RESERVATION_PRIMARY_FILTERS.includes(filter))adminState.reservationFilter=filter;else return;
+  listChanged();
   renderReservationTabs();renderReservationList();
 }
 
 export function toggleReservationFilters(){adminState.reservationFiltersOpen=!adminState.reservationFiltersOpen;renderReservationTabs()}
-export function toggleReservationDetailFilter(value){if(adminState.reservationDetailFilters.has(value))adminState.reservationDetailFilters.delete(value);else adminState.reservationDetailFilters.add(value);renderReservationTabs();renderReservationList()}
-export function clearReservationDetailFilters(){adminState.reservationDetailFilters.clear();renderReservationTabs();renderReservationList()}
+export function toggleReservationDetailFilter(value){if(adminState.reservationDetailFilters.has(value))adminState.reservationDetailFilters.delete(value);else adminState.reservationDetailFilters.add(value);listChanged();renderReservationTabs();renderReservationList()}
+export function clearReservationDetailFilters(){adminState.reservationDetailFilters.clear();listChanged();renderReservationTabs();renderReservationList()}
 export function setReservationViewMode(mode){if(RESERVATION_VIEW_MODES.includes(mode)){adminState.reservationViewMode=mode;rememberSessionChoice('e36UnitedAdmin.reservationViewMode',mode);renderReservationViewMode();renderReservationList()}}
-export function setReservationSearch(value){adminState.reservationSearch=value;renderReservationList()}
+export function setReservationSearch(value){adminState.reservationSearch=value;listChanged({search:true});renderReservationList()}
 
 export function setPaymentFilter(filter){
   if(!paymentFilterLabels[filter])return;
-  adminState.paymentFilter=filter;renderPaymentTabs();renderPaymentList();
+  adminState.paymentFilter=filter;listChanged();renderPaymentTabs();renderPaymentList();
 }
-export function setPaymentSearch(value){adminState.paymentSearch=value;renderPaymentList()}
+export function setPaymentSearch(value){adminState.paymentSearch=value;listChanged({search:true});renderPaymentList()}
 
 export async function updateReservation(card,status,reloadEventData){
   const button=card.querySelector(`[data-review-action="${status}"]`);const note=$('[data-review-note]',card)?.value||'';const reservationId=card.dataset.reservationId;
   if(button)button.disabled=true;
   try{
-    await apiRequest(`/api/admin/reservations/${encodeURIComponent(reservationId)}`,{method:'PATCH',body:{status,reviewNote:note}});
+    await adminCommand(`/api/admin/reservations/${encodeURIComponent(reservationId)}`,{method:'PATCH',body:{status,reviewNote:note},editor:card});
     const reservation=adminState.reservationItems.find(item=>item.id===reservationId);if(reservation){reservation.status=status;reservation.reviewNote=note;renderReservationTabs();renderReservationList();renderPaymentTabs();renderPaymentList();renderAttentionCounts();renderReservationDrawer()}
     const messages={pending:'Rezervace byla vrácena k posouzení.',approved:'Rezervace byla schválena.',rejected:'Rezervace byla zamítnuta.'};toast(messages[status]||'Stav rezervace byl změněn.');
     await reloadEventData();
@@ -160,7 +170,7 @@ export async function updateReservationPayment(card,markFull=false,reloadEventDa
   if(!Number.isInteger(amountPaidCzk)||amountPaidCzk<0||amountPaidCzk>10000000){toast('Zadej celou uhrazenou částku od 0 do 10 000 000 Kč.');input?.focus();return}
   $$('[data-payment-save], [data-payment-full]',card).forEach(button=>button.disabled=true);
   try{
-    const payload=await apiRequest(`/api/admin/reservations/${encodeURIComponent(reservationId)}/payment`,{method:'PATCH',body:{amountPaidCzk}});
+    const payload=await adminCommand(`/api/admin/reservations/${encodeURIComponent(reservationId)}/payment`,{method:'PATCH',body:{amountPaidCzk},editor:card});
     if(item&&payload?.reservation?.payment){item.payment=payload.reservation.payment;item.paymentStatus=item.payment.status;item.amountPaidCzk=item.payment.amountPaidCzk;renderReservationTabs();renderReservationList();renderPaymentTabs();renderPaymentList();renderAttentionCounts();renderReservationDrawer()}
     toast(markFull?'Platba byla označena jako plně uhrazená.':'Uhrazená částka byla uložena.');await reloadEventData();
   }catch(error){if(error.status===403){setDenied();return}toast(error.message||'Platbu se nepodařilo uložit.')}

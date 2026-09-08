@@ -1,11 +1,14 @@
-import { accommodationVisualMarkup, bindAccommodationVisualFallbacks } from '../../accommodation-visual.js?v=20260827-accommodation1';
-import { selectImageFiles } from '../../image-upload.js?v=20260827-accommodation1';
-import { apiBaseUrl, apiRequest, apiUpload } from '../api.js?v=20260903-mailing-b';
-import { adminState } from '../state.js?v=20260903-mailing-b';
-import { setDenied } from '../shell.js?v=20260903-mailing-b';
-import { $, escapeHtml, formatMoney, numeric, toast } from '../ui.js?v=20260903-phase5';
+import { adminCommand, editorProtected } from '../editors.js?v=20260908-admin-safe1';
+import { accommodationVisualMarkup, bindAccommodationVisualFallbacks } from '../../accommodation-visual.js?v=20260908-admin-safe1';
+import { selectImageFiles } from '../../image-upload.js?v=20260908-admin-safe1';
+import { apiBaseUrl, apiRequest, apiUpload } from '../api.js?v=20260908-admin-safe1';
+import { adminState } from '../state.js?v=20260908-admin-safe1';
+import { setDenied } from '../shell.js?v=20260908-admin-safe1';
+import { $, escapeHtml, formatMoney, numeric, toast } from '../ui.js?v=20260908-admin-safe1';
 
 const accommodationPhotoSelections=new Map();
+export function resetAccommodationMedia(){for(const selection of accommodationPhotoSelections.values())URL.revokeObjectURL(selection.url);accommodationPhotoSelections.clear();document.querySelectorAll('[data-local-file]').forEach(node=>delete node.dataset.localFile)}
+window.addEventListener('admin:discardfiles',resetAccommodationMedia);
 
 function accommodationAvailability(item){
   if(item.inventoryMode==='unlimited')return '<strong>bez omezení</strong><small>kapacita se neblokuje</small>';
@@ -45,6 +48,9 @@ function accommodationCard(item){
 }
 
 export function renderAccommodation(payload){
+  const createForm=$('[data-accommodation-create-form]');if(createForm)createForm.inert=false;
+  const protectedCards=[...document.querySelectorAll('[data-accommodation-id]')].some(card=>editorProtected(card,payload.options?.find(item=>item.id===card.dataset.accommodationId)?.revision));
+  if(protectedCards||accommodationPhotoSelections.size){adminState.accommodationItems=payload.options||[];return false}
   for(const selection of accommodationPhotoSelections.values())URL.revokeObjectURL(selection.url);accommodationPhotoSelections.clear();
   adminState.accommodationItems=Array.isArray(payload.options)?payload.options:[];
   $('[data-accommodation-option-count]').textContent=`${adminState.accommodationItems.length} ${adminState.accommodationItems.length===1?'možnost':'možností'}`;
@@ -67,7 +73,7 @@ export async function saveAccommodation(form,optionId='',reloadEventData){
   const button=$('button[type="submit"]',form);if(button)button.disabled=true;
   try{
     const body=accommodationFormPayload(form);if(!optionId)body.eventId=adminState.selectedEventId;
-    await apiRequest(optionId?`/api/admin/accommodation/${encodeURIComponent(optionId)}`:'/api/admin/accommodation',{method:optionId?'PATCH':'POST',body});
+    await adminCommand(optionId?`/api/admin/accommodation/${encodeURIComponent(optionId)}`:'/api/admin/accommodation',{method:optionId?'PATCH':'POST',body,editor:form});
     toast(optionId?'Ubytování bylo upraveno.':'Ubytování bylo přidáno.');
     if(!optionId){form.reset();form.elements.unitsTotal.value=0;form.elements.capacityPerUnit.value=4;form.elements.active.checked=true;form.closest('details').open=false}
     await reloadEventData();
@@ -79,7 +85,7 @@ export function previewAccommodationPhoto(input){
   const selected=selectImageFiles(input.files,{maxFiles:1,maxBytes:8*1024*1024});
   if(selected.invalidType||selected.tooLarge||!selected.files.length){input.value='';toast(selected.tooLarge?'Fotografie může mít maximálně 8 MB.':'Vyber fotografii JPG, PNG nebo WebP.');return}
   const previous=accommodationPhotoSelections.get(optionId);if(previous)URL.revokeObjectURL(previous.url);
-  const file=selected.files[0],url=URL.createObjectURL(file);accommodationPhotoSelections.set(optionId,{file,url});
+  card.dataset.localFile='true';const file=selected.files[0],url=URL.createObjectURL(file);accommodationPhotoSelections.set(optionId,{file,url});
   const preview=$('[data-accommodation-photo-preview]',card);preview.hidden=false;preview.innerHTML=`<img alt="Lokální náhled nové fotografie" src="${escapeHtml(url)}"/><span>${escapeHtml(file.name)}</span>`;
   $('[data-accommodation-photo-upload]',card).disabled=false;
 }
@@ -87,13 +93,13 @@ export function previewAccommodationPhoto(input){
 export async function uploadAccommodationPhoto(card,reloadEventData){
   const optionId=card?.dataset.accommodationId,selection=accommodationPhotoSelections.get(optionId);if(!optionId||!selection)return;
   const button=$('[data-accommodation-photo-upload]',card);button.disabled=true;
-  try{await apiUpload(`/api/admin/accommodation/${encodeURIComponent(optionId)}/photo`,selection.file);toast('Fotografie ubytování byla uložena.');await reloadEventData()}
-  catch(error){if(error.status===403){setDenied();return}toast(error.message||'Fotografii se nepodařilo uložit.');button.disabled=false}
+  try{await apiUpload(`/api/admin/accommodation/${encodeURIComponent(optionId)}/photo`,selection.file);toast('Fotografie ubytování byla uložena.');URL.revokeObjectURL(selection.url);accommodationPhotoSelections.delete(optionId);delete card.dataset.localFile;await reloadEventData()}
+  catch(error){if(error.status===403){setDenied();return}toast(error.status&&error.status<500?error.message:'Výsledek nahrání zatím nelze ověřit. Obnov detail před případným opakováním.');button.disabled=false}
 }
 
 export async function removeAccommodationPhoto(card,reloadEventData){
   const optionId=card?.dataset.accommodationId;if(!optionId)return;
   const button=$('[data-accommodation-photo-remove]',card);button.disabled=true;
   try{await apiRequest(`/api/admin/accommodation/${encodeURIComponent(optionId)}/photo`,{method:'DELETE'});toast('Vlastní fotografie byla odebrána.');await reloadEventData()}
-  catch(error){if(error.status===403){setDenied();return}toast(error.message||'Fotografii se nepodařilo odebrat.');button.disabled=false}
+  catch(error){if(error.status===403){setDenied();return}toast(error.status&&error.status<500?error.message:'Výsledek odebrání zatím nelze ověřit. Obnov detail před případným opakováním.');button.disabled=false}
 }

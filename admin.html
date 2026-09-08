@@ -10,6 +10,7 @@
   <link href="accommodation-visual.css?v=20260827-accommodation1" rel="stylesheet"/>
   <link href="admin.css?v=20260903-mailing-b" rel="stylesheet"/>
   <link href="admin/funnel.css?v=20260907-feedback" rel="stylesheet"/>
+  <link rel="stylesheet" href="admin-safety.css?v=20260908-stage1"/>
 </head>
 <body class="admin-page">
   <header class="site-header scrolled admin-header">
@@ -113,8 +114,8 @@
                 </article>
                 <article class="admin-panel">
                   <div class="admin-panel-head"><div><span class="admin-kicker">ACCOMMODATION</span><h2>Ubytování</h2></div><strong data-accommodation-occupancy>0 / —</strong></div>
-                  <div class="admin-capacity"><i><em data-accommodation-bar></em></i><small>rezervovaná místa / kapacita</small></div>
-                  <dl class="admin-mini-stats"><div><dt>Chatka</dt><dd data-accommodation-cabin>0</dd></div><div><dt>Stan</dt><dd data-accommodation-tent>0</dd></div><div><dt>Bez ubytování</dt><dd data-accommodation-none>0</dd></div></dl>
+                  <div class="admin-capacity"><i><em data-accommodation-bar></em></i><small>potvrzené jednotky / omezená kapacita</small></div><p data-accommodation-occupancy-note></p>
+                  <dl class="admin-mini-stats"><div><dt>Chatka</dt><dd data-accommodation-cabin>0</dd></div><div><dt>Stan</dt><dd data-accommodation-tent>0</dd></div><div><dt>Bez ubytování (rezervace)</dt><dd data-accommodation-none>0</dd></div></dl>
                 </article>
               </section>
             </div>
@@ -200,11 +201,11 @@
                 <div><small>Vybrané peníze</small><b data-booking-collected>0 Kč</b></div>
                 <div><small>Booking paid</small><b data-booking-paid>0 Kč</b></div>
               </div>
-              <div class="booking-gap"><span>United musí předfinancovat</span><strong data-booking-gap>0 Kč</strong></div>
+              <div class="booking-gap"><span>Závazek mínus zaznamenané úhrady (orientačně)</span><strong data-booking-gap>0 Kč</strong></div>
               <div class="admin-payment-overview">
                 <div class="payment-test-warning" data-admin-payment-test hidden>TESTOVACÍ PLATBA – NEPLAŤTE</div>
-                <div class="admin-payment-totals"><span><small>PŘEDEPSÁNO</small><b data-payment-total-due>0 Kč</b></span><span><small>UHRAZENO</small><b data-payment-total-paid>0 Kč</b></span><span><small>ZBÝVÁ</small><b data-payment-total-remaining>0 Kč</b></span></div>
-                <div class="admin-payment-counts"><span>Nezaplaceno <b data-payment-count-unpaid>0</b></span><span>Částečně <b data-payment-count-underpaid>0</b></span><span>Zaplaceno <b data-payment-count-paid>0</b></span><span>Přeplatek <b data-payment-count-overpaid>0</b></span><span>Po splatnosti <b data-payment-count-overdue>0</b></span></div>
+                <div class="admin-payment-totals"><span><small>PŘEDEPSÁNO · PENDING + SCHVÁLENÉ</small><b data-payment-total-due>0 Kč</b></span><span><small>ZAZNAMENANÉ ÚHRADY · VŠECHNY STAVY</small><b data-payment-total-paid>0 Kč</b></span><span><small>NEDOPLATKY · PENDING + SCHVÁLENÉ</small><b data-payment-total-remaining>0 Kč</b></span></div>
+                <p>Ručně zaznamenané částky nejsou bankovní párování. Přeplatky se neodečítají od cizích nedoplatků. <span data-payment-extra></span></p><div class="admin-payment-counts" aria-label="Platební stavy všech rezervací vybraného eventu"><span>Nezaplaceno <b data-payment-count-unpaid>0</b></span><span>Částečně <b data-payment-count-underpaid>0</b></span><span>Zaplaceno <b data-payment-count-paid>0</b></span><span>Přeplatek <b data-payment-count-overpaid>0</b></span><span>Po splatnosti <b data-payment-count-overdue>0</b></span></div>
               </div>
             </div>
             <div class="admin-payment-workspace">
@@ -369,6 +370,6 @@
     </aside>
   </div>
   <div aria-live="polite" class="admin-toast" data-toast role="status"></div>
-  <script src="admin.js?v=20260907-mailing-c2" type="module"></script>
+  <script src="admin.js?v=20260908-admin-safe1" type="module"></script>
 </body>
 </html>

@@ -1,6 +1,8 @@
-import { apiRequest } from '../../api.js?v=20260903-mailing-b';
-import { $, escapeHtml, numeric } from '../../ui.js?v=20260903-phase5';
+import {renderListPagination} from '../../lists.js?v=20260908-admin-safe1';
+import { apiRequest } from '../../api.js?v=20260908-admin-safe1';
+import { $, escapeHtml, numeric } from '../../ui.js?v=20260908-admin-safe1';
 
+let contactPage=1,contactSequence=0;
 const eligibilityLabels={eligible:'Způsobilý',ineligible:'Bez souhlasu',review_required:'Nutná kontrola',suppressed:'Potlačený'};
 const suppressionLabels={eligible:'Bez potlačení',unsubscribed:'Odhlášený',hard_bounce:'Hard bounce',blocked:'Blokovaný',manually_suppressed:'Ručně potlačený'};
 const contactsLabel=count=>`${count} ${count===1?'kontakt':count>1&&count<5?'kontakty':'kontaktů'}`;
@@ -23,16 +25,18 @@ function contactRow(contact){
 
 export function renderMailingContacts(payload={}){
   const contacts=Array.isArray(payload.contacts)?payload.contacts:[];
-  const pagination=payload.pagination||{};
+  const pagination=payload.pagination||{};contactPage=pagination.page||1;
+  renderListPagination('contacts',pagination,page=>loadMailingContacts(undefined,{page}));
   $('[data-mailing-contact-count]').textContent=contactsLabel(numeric(pagination.total));
   const target=$('[data-mailing-contact-list]');
   if(!contacts.length){target.innerHTML='<div class="admin-empty">Tomuto filtru neodpovídají žádné kontakty.</div>';return}
   target.innerHTML=`<div class="admin-table-scroll"><table class="admin-data-table admin-mailing-table"><thead><tr><th>Kontakt</th><th>E-mail</th><th>Vztah / zdroj</th><th>Způsobilost</th><th>Účast</th></tr></thead><tbody>${contacts.map(contactRow).join('')}</tbody></table></div>`;
 }
 
-export async function loadMailingContacts(form=$('[data-mailing-contact-form]')){
-  const data=new FormData(form),params=new URLSearchParams({scope:String(data.get('scope')||'relevant'),eligibility:String(data.get('eligibility')||'all'),q:String(data.get('q')||''),pageSize:'50'});
-  const payload=await apiRequest(`/api/admin/mailing/contacts?${params}`);
-  renderMailingContacts(payload);
+export async function loadMailingContacts(form=$('[data-mailing-contact-form]'),{signal,isCurrent=()=>true,page=contactPage}={}){
+  const data=new FormData(form),params=new URLSearchParams({scope:String(data.get('scope')||'relevant'),eligibility:String(data.get('eligibility')||'all'),q:String(data.get('q')||''),pageSize:'50',page:String(page)});
+  const sequence=++contactSequence;
+  const payload=await apiRequest(`/api/admin/mailing/contacts?${params}`,{signal});
+  if(isCurrent()&&sequence===contactSequence)renderMailingContacts(payload);
   return payload;
 }

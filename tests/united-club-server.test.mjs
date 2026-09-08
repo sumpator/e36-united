@@ -44,6 +44,10 @@ function database(){
       ('member-b','EU-B','b@example.test','Member B','member');
   `);
   db.exec(migration);
+  const safety=readFileSync(new URL('../db/migrations/2026-09-08-admin-safe-operations.sql',import.meta.url),'utf8');
+  // Apply the exact shared table + history trigger definitions to this deliberately minimal legacy fixture.
+  db.exec(safety.match(/CREATE TABLE admin_resource_versions[\s\S]*?\);/)[0]);
+  for(const statement of safety.matchAll(/CREATE TRIGGER admin_version_united_history_claims_[\s\S]*?END;/g))db.exec(statement[0]);
   return db;
 }
 

@@ -1,0 +1,14 @@
+/* Stage 1 status affordances only; no dashboard redesign. */
+[data-admin-freshness] { padding: .65rem 1rem; border: 1px solid #4b6680; color: #d9e8f6; background: #17212b; }
+[data-admin-freshness][data-state="stale"],[data-admin-freshness][data-state="unavailable"] { border-color: #bb915b; color: #ffe0b6; }
+[data-operation-status] { position: sticky; top: 0; z-index: 6; padding: .8rem; background: #192733; color: #f1f6fb; border: 1px solid #7094b3; font: 500 .9rem/1.45 Arial,sans-serif; }
+[data-operation-status]:empty { display: none; }
+[data-operation-state="conflict"] > [data-operation-status],[data-operation-state="outcome_unknown"] > [data-operation-status] { border-color: #d3a261; background: #332a1e; color: #ffe6c5; }
+[data-recovery-action] { display: block; margin-top: .5rem; white-space: normal; min-height: 44px; color: #f1f6fb; }
+[data-list-pagination] { padding: .75rem 0; }
+[data-list-pagination] button { min-height: 44px; margin-right: .5rem; }
+[data-payment-save] { color: #e5f1ff; }
+[data-admin-panel] [data-domain-status], [data-reservation-drawer-content] > [data-domain-status] { padding: .75rem; color: #ffe0b6; background: #30291f; }
+[data-reservation-drawer-content] > [data-domain-status] { position: sticky; top: 0; z-index: 7; }
+.admin-reservation-drawer-close { z-index: 20; width: 44px; height: 44px; }
+[data-reservation-drawer-content] > [data-domain-status], [data-reservation-drawer-content] [data-operation-status] { padding-right: 4.5rem; }

@@ -6,6 +6,7 @@ async function listAccommodationOptions(env, eventId, activeOnly = false) {
   const rows = await env.DB.prepare(`
     SELECT
       o.id, o.event_id, o.name, o.kind, o.inventory_mode,
+      ${env.ADMIN_READ ? "COALESCE((SELECT revision FROM admin_resource_versions WHERE resource_type='accommodation' AND resource_id=o.id),0)" : '0'} AS admin_revision,
       o.units_total, o.capacity_per_unit,
       o.unit_price_czk, o.person_price_czk,
       o.bedding_fee_per_person_czk,
@@ -54,6 +55,7 @@ function mapAccommodationOption(row) {
   const free = limited ? Math.max(0, total - approved) : null;
   return {
     id: row.id,
+    revision: Number(row.admin_revision || 0),
     eventId: row.event_id,
     name: row.name,
     kind: row.kind,
@@ -78,12 +80,8 @@ function mapAccommodationOption(row) {
 async function hydrateReservationAccommodationVisual(env, reservation, cache = new Map()) {
   if (!reservation?.accommodation_option_id) return reservation;
   const key = `${reservation.event_id}:${reservation.accommodation_option_id}`;
-  let visual = cache.get(key);
-  if (!visual) {
-    visual = await accommodationVisualMetadata(env, reservation.event_id, reservation.accommodation_option_id);
-    cache.set(key, visual);
-  }
-  reservation.accommodation_visual = visual;
+  if (!cache.has(key)) cache.set(key, accommodationVisualMetadata(env, reservation.event_id, reservation.accommodation_option_id));
+  reservation.accommodation_visual = await cache.get(key);
   return reservation;
 }
 

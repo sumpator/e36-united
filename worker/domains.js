@@ -508,7 +508,7 @@ async function patchAdminReservationPayment(request, env, auth, reservationId, o
 
   let reservation = await findReservationPayment(env, reservationId);
   if (!reservation) return json({ ok: false, error: "reservation_not_found", message: "Rezervace nebyla nalezena." }, 404, origin);
-  if (!reservation.payment_vs) {
+  if (!reservation.payment_vs && !env.ADMIN_COMMAND) {
     await ensureReservationPaymentVs(env, reservation.id, reservation.event_year);
     reservation = await findReservationPayment(env, reservationId);
   }
@@ -557,27 +557,44 @@ async function patchAdminReservationPayment(request, env, auth, reservationId, o
   return json({ ok: true, reservation: { id: reservationId, payment: reservationPayment(reservation, { admin: true }) } }, 200, origin);
 }
 
-async function getAdminGallery(env, origin) {
-  const rows = await env.DB.prepare(`
+async function getAdminGallery(env, origin, url = new URL('https://local.invalid')) {
+  const status=['pending','approved','rejected'].includes(url.searchParams.get('status'))?url.searchParams.get('status'):null;
+  const page=Math.max(1,parseInt(url.searchParams.get('page'))||1),pageSize=50;
+  const query = `
     SELECT
-      g.id, g.caption, g.status, g.created_at, g.review_note,
+      g.id, g.member_id, g.caption, g.status, g.created_at, g.review_note,
+      ${env.ADMIN_READ ? "COALESCE((SELECT revision FROM admin_resource_versions WHERE resource_type='gallery' AND resource_id=g.id),0)" : '0'} AS admin_revision,
       m.name AS member_name, m.nickname AS member_nickname,
       m.email AS member_email, m.member_code
     FROM gallery_submissions g
     JOIN members m ON m.id = g.member_id
     WHERE g.status IN ('pending', 'approved', 'rejected')
-    ORDER BY g.created_at DESC
-  `).all();
+    ${env.ADMIN_READ&&status?'AND g.status=?':''}
+    ORDER BY g.created_at DESC, g.id
+    ${env.ADMIN_READ?'LIMIT ? OFFSET ?':''}
+  `;
+  let rows,counts,pagination;
+  if(env.ADMIN_READ){
+    const result=await env.DB.batch([
+      env.DB.prepare(query).bind(...(status?[status]:[]),pageSize,(page-1)*pageSize),
+      env.DB.prepare("SELECT COUNT(*) AS total,COUNT(CASE WHEN status='pending' THEN 1 END) pending,COUNT(CASE WHEN status='approved' THEN 1 END) approved,COUNT(CASE WHEN status='rejected' THEN 1 END) rejected FROM gallery_submissions WHERE status IN ('pending','approved','rejected')"),
+    ]);
+    rows=result[0];counts=result[1].results[0];const total=status?counts[status]:counts.total;
+    pagination={page,pageSize,total,totalPages:Math.max(1,Math.ceil(total/pageSize))};
+  }else rows=await env.DB.prepare(query).all();
 
   return json({
     ok: true,
+    ...(env.ADMIN_READ?{counts,pagination,context:{scope:'global'},freshness:{generatedAt:new Date().toISOString(),businessUpdatedAt:null,consistency:'primary-batch-list-and-total'}}:{}),
     photos: (rows.results || []).map(row => ({
       id: row.id,
+      revision: Number(row.admin_revision || 0),
       caption: row.caption || "",
       status: row.status,
       createdAt: row.created_at,
       reviewNote: row.review_note || "",
       member: {
+        id: row.member_id,
         name: row.member_name || "",
         nickname: row.member_nickname || "",
         email: row.member_email || "",

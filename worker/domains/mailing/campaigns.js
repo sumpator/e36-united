@@ -52,13 +52,14 @@ function campaignFields(candidate, current = {}) {
   };
 }
 
-export async function listMailingCampaigns(env) {
+export async function listMailingCampaigns(env,{page=1,pageSize=50}={}) {
   const rows = await env.DB.prepare(`
     SELECT id, internal_name, subject, preheader, template_version, content_json, segment_definition_json,
       recipient_count, status, created_at, updated_at, sent_at
     FROM mailing_campaigns
-    ORDER BY updated_at DESC, created_at DESC
-  `).all();
+    ORDER BY updated_at DESC, created_at DESC, id
+    LIMIT ? OFFSET ?
+  `).bind(pageSize,(page-1)*pageSize).all();
   return (rows.results || []).map(publicCampaign);
 }
 

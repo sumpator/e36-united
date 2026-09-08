@@ -1,3 +1,5 @@
+import { runAdminCommand, getAdminOperation } from './admin/commands.js';
+import { getAdminSummary } from './admin/summary.js';
 import { requireAdmin } from "./auth/admin.js";
 import { verifyFirebaseRequest } from "./auth/firebase.js";
 import { ACTIVE_MEMBER_STATUS, activeMemberForbidden, findMemberAuthorizationRecord, requireActiveMember } from "./auth/member.js";
@@ -88,26 +90,31 @@ export async function routeRequest({ request, env, url, origin }) {
       if (url.pathname === '/api/admin/funnel' && request.method === 'GET') return getAdminFunnel(env,url,origin);
       if (url.pathname === '/api/admin/attention' && request.method === 'GET') return json({history:await getAdminHistoryCounts(env)},200,origin);
 
+      const operationMatch = url.pathname.match(/^\/api\/admin\/operations\/([a-z0-9_-]{1,128})$/i);
+      if (operationMatch && request.method === 'GET') return getAdminOperation(env, auth, operationMatch[1], origin);
+      if (url.pathname === '/api/admin/summary' && request.method === 'GET') return getAdminSummary(env, url, origin);
+
       if (url.pathname === "/api/admin/overview" && request.method === "GET") {
-        return await domain.getAdminOverview(env, url, origin);
+        return getAdminSummary(env, url, origin);
       }
       if (url.pathname === "/api/admin/reservations" && request.method === "GET") {
-        return await domain.getAdminReservations(env, url, origin);
+        return await domain.getAdminReservations({ ...env, ADMIN_READ: true }, url, origin);
       }
       if (url.pathname === "/api/admin/events" && request.method === "GET") {
-        return await domain.getAdminEvents(env, origin);
+        return await domain.getAdminEvents({ ...env, ADMIN_READ: true }, origin);
       }
       if (url.pathname === "/api/admin/accommodation" && request.method === "GET") {
-        return await domain.getAdminAccommodation(env, url, origin);
+        return await domain.getAdminAccommodation({ ...env, ADMIN_READ: true }, url, origin);
       }
       if (url.pathname === "/api/admin/accommodation" && request.method === "POST") {
-        return await domain.createAdminAccommodation(request, env, auth, origin);
+        let commandBody; try { commandBody = await request.clone().json(); } catch { return json({error:'invalid_json'},400,origin); }
+        return runAdminCommand(request, env, auth, 'accommodation-create', commandBody?.eventId, origin, commandEnv => domain.createAdminAccommodation(request, commandEnv, auth, origin));
       }
       if (url.pathname === "/api/admin/gallery" && request.method === "GET") {
-        return await domain.getAdminGallery(env, origin);
+        return await domain.getAdminGallery({ ...env, ADMIN_READ: true }, origin, url);
       }
       if (url.pathname === "/api/admin/history/claims" && request.method === "GET") {
-        return await domain.getAdminHistoryClaims(env, url, origin);
+        return await domain.getAdminHistoryClaims({ ...env, ADMIN_READ: true }, url, origin);
       }
 
       const adminHistoryEvidenceMatch = url.pathname.match(/^\/api\/admin\/history\/evidence\/([^/]+)$/);
@@ -117,14 +124,10 @@ export async function routeRequest({ request, env, url, origin }) {
 
       const adminHistoryReviewMatch = url.pathname.match(/^\/api\/admin\/history\/claims\/([^/]+)\/(attendance|sns)$/);
       if (adminHistoryReviewMatch && request.method === "PATCH") {
-        return await domain.patchAdminHistoryClaim(
-          request,
-          env,
-          auth,
-          decodeURIComponent(adminHistoryReviewMatch[1]),
-          adminHistoryReviewMatch[2],
-          origin,
-        );
+        const entityId = decodeURIComponent(adminHistoryReviewMatch[1]);
+        const component = adminHistoryReviewMatch[2];
+        return runAdminCommand(request, env, auth, 'history-' + component, entityId, origin,
+          commandEnv => domain.patchAdminHistoryClaim(request, commandEnv, auth, entityId, component, origin));
       }
 
       const adminGalleryMediaMatch = url.pathname.match(/^\/api\/admin\/gallery\/media\/([^/]+)$/);
@@ -134,27 +137,32 @@ export async function routeRequest({ request, env, url, origin }) {
 
       const adminGalleryMatch = url.pathname.match(/^\/api\/admin\/gallery\/([^/]+)$/);
       if (adminGalleryMatch && request.method === "PATCH") {
-        return await domain.patchAdminGallery(request, env, auth, decodeURIComponent(adminGalleryMatch[1]), origin);
+        const entityId = decodeURIComponent(adminGalleryMatch[1]);
+        return runAdminCommand(request, env, auth, 'gallery', entityId, origin, commandEnv => domain.patchAdminGallery(request, commandEnv, auth, entityId, origin));
       }
 
       const adminReservationPaymentMatch = url.pathname.match(/^\/api\/admin\/reservations\/([^/]+)\/payment$/);
       if (adminReservationPaymentMatch && request.method === "PATCH") {
-        return await domain.patchAdminReservationPayment(request, env, auth, decodeURIComponent(adminReservationPaymentMatch[1]), origin);
+        const entityId = decodeURIComponent(adminReservationPaymentMatch[1]);
+        return runAdminCommand(request, env, auth, 'payment', entityId, origin, commandEnv => domain.patchAdminReservationPayment(request, commandEnv, auth, entityId, origin));
       }
 
       const adminReservationMatch = url.pathname.match(/^\/api\/admin\/reservations\/([^/]+)$/);
       if (adminReservationMatch && request.method === "PATCH") {
-        return await domain.patchAdminReservation(request, env, auth, decodeURIComponent(adminReservationMatch[1]), origin);
+        const entityId = decodeURIComponent(adminReservationMatch[1]);
+        return runAdminCommand(request, env, auth, 'reservation', entityId, origin, commandEnv => domain.patchAdminReservation(request, commandEnv, auth, entityId, origin));
       }
 
       const adminEventMatch = url.pathname.match(/^\/api\/admin\/events\/([^/]+)$/);
       if (adminEventMatch && request.method === "PATCH") {
-        return await domain.patchAdminEvent(request, env, auth, decodeURIComponent(adminEventMatch[1]), origin);
+        const entityId = decodeURIComponent(adminEventMatch[1]);
+        return runAdminCommand(request, env, auth, 'event', entityId, origin, commandEnv => domain.patchAdminEvent(request, commandEnv, auth, entityId, origin));
       }
 
       const adminAccommodationMatch = url.pathname.match(/^\/api\/admin\/accommodation\/([^/]+)$/);
       if (adminAccommodationMatch && request.method === "PATCH") {
-        return await domain.patchAdminAccommodation(request, env, auth, decodeURIComponent(adminAccommodationMatch[1]), origin);
+        const entityId = decodeURIComponent(adminAccommodationMatch[1]);
+        return runAdminCommand(request, env, auth, 'accommodation', entityId, origin, commandEnv => domain.patchAdminAccommodation(request, commandEnv, auth, entityId, origin));
       }
 
       const adminAccommodationPhotoMatch = url.pathname.match(/^\/api\/admin\/accommodation\/([^/]+)\/photo$/);

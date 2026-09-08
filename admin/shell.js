@@ -1,7 +1,8 @@
-import { initPortalNavigation } from '../portal-navigation.js?v=20260825-mobile1';
-import { ADMIN_VIEW_IDS } from '../admin-view-model.js?v=20260903-mailing-b';
-import { adminState } from './state.js?v=20260903-mailing-b';
-import { $, $$, rememberSessionChoice } from './ui.js?v=20260903-phase5';
+import { allowAdminNavigation } from './editors.js?v=20260908-admin-safe1';
+import { initPortalNavigation } from '../portal-navigation.js?v=20260908-admin-safe1';
+import { ADMIN_VIEW_IDS } from '../admin-view-model.js?v=20260908-admin-safe1';
+import { adminState } from './state.js?v=20260908-admin-safe1';
+import { $, $$, rememberSessionChoice } from './ui.js?v=20260908-admin-safe1';
 
 const adminCollapseStorageKey='e36UnitedAdmin.collapsedSections.v1';
 const adminCollapsePreferences=readAdminCollapsePreferences();
@@ -17,7 +18,7 @@ export function setView(name){
 }
 
 export function setLoading(active){adminState.loading=active;$('[data-loading]').hidden=!active;$$('[data-refresh], [data-review-action], [data-gallery-action], [data-history-action], [data-accommodation-save], [data-event-settings-form] button').forEach(button=>button.disabled=active);const selector=$('[data-event-select]');if(selector)selector.disabled=active||adminState.events.length<2}
-export function setDenied(){closeDeniedOverlays();setView('denied')}
+export function setDenied(){if(!adminState.denied){adminState.denied=true;window.dispatchEvent(new CustomEvent('admin:accesslost'))}closeDeniedOverlays();setView('denied')}
 
 function readAdminCollapsePreferences(){
   try{
@@ -59,13 +60,13 @@ function initializeAdminCollapsibles(){
 
 export function setAdminView(view,{focus=true}={}){
   const nextView=ADMIN_VIEW_IDS.includes(view)?view:'dashboard';
+  const changed=nextView!==adminState.activeAdminView;
+  if(changed&&!allowAdminNavigation())return false;
   adminState.activeAdminView=nextView;rememberSessionChoice('e36UnitedAdmin.activeView',nextView);
   $$('[data-admin-panel]').forEach(panel=>{const active=panel.dataset.adminPanel===nextView;panel.hidden=!active;panel.classList.toggle('is-active',active);panel.setAttribute('aria-hidden',String(!active))});
   $$('[data-admin-jump]').forEach(button=>{const active=button.dataset.adminJump===nextView;button.classList.toggle('is-active',active);if(active)button.setAttribute('aria-current','page');else button.removeAttribute('aria-current')});
   adminPortalNavigation?.sync(nextView);
-  window.dispatchEvent(new CustomEvent('admin:viewchange',{detail:{view:nextView}}));
-  closeOverlays();
-  window.scrollTo({top:0,behavior:'auto'});
+  if(changed){window.dispatchEvent(new CustomEvent('admin:beforenavigation'));const wasRestoring=adminState.restoringRoute;adminState.restoringRoute=true;closeOverlays();adminState.restoringRoute=wasRestoring;window.dispatchEvent(new CustomEvent('admin:viewchange',{detail:{view:nextView}}));window.scrollTo({top:0,behavior:'auto'})}
   if(focus){const heading=$(`[data-admin-panel="${nextView}"] h2`);if(heading){heading.tabIndex=-1;heading.focus({preventScroll:true})}}
 }
 
