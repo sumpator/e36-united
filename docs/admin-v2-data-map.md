@@ -133,3 +133,9 @@ The shared Stage 2 cadence amendment supersedes earlier timing, not the metric d
 | Private images | Exact member/parent/photo relation, then one MEDIA.get | On visibility/request, object URL reused unchanged; no polling R2 LIST or public cache |
 
 Admin sources use immutable memberId/member.id; Mailing adds canonicalMemberId separately from legacy segmentation's email-derived memberId. New errors never convert missing/unavailable data into zeroes. Each header/tab has its own actual load timestamp/context. D1 authorization is repeated on real requests, not cached as permanent permission. Stored-image limitation: no separate thumbnail objects exist; visible thumbnail and clicked fullscreen reuse the same private object. See admin-v2.md and admin-v2-free-tier-budget.md for exact interfaces and unresolved rollout budget.
+
+## Stage 2 read-budget follow-up — 2026-09-08
+
+The reservation source drawer uses the same reservation/member/event/stored allocation/price/payment projection with `id` + `projection=detail`; it does not request list-wide facets it never renders. Default list/detail API responses still contain complete facets. The requested page is selected before hydration; capacity SUM is limited to referenced pending option IDs but keeps the previous all-event scope for each option. Existing write/concurrency/VS/Points semantics do not change.
+
+Read-only Member return preserves resource ages instead of invalidating unrelated fresh data. Normal due/error/focus/own-mutation revalidation remains; no persistent read writes or new identity rules. See [budget](admin-v2-free-tier-budget.md) and raw SQL plans: the budget gate is still **unmet**, not an accepted production guarantee.

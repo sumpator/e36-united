@@ -23,11 +23,20 @@ async function getAdminReservations(env, url, origin) {
   }
 
   const page = reservationListQuery(url);
+  const detailOnly=env.ADMIN_READ && !!url.searchParams.get("id") && url.searchParams.get("projection")==="detail";
+  const order="CASE r.status WHEN 'pending' THEN 0 WHEN 'rejected' THEN 1 WHEN 'approved' THEN 2 ELSE 3 END, r.submitted_at DESC, r.updated_at DESC, r.id";
   const query = `
-    WITH approved_usage AS MATERIALIZED (
+    WITH ${env.ADMIN_READ ? `requested AS MATERIALIZED (
+      SELECT r.* FROM reservations r
+      JOIN members m ON m.id=r.member_id JOIN events e ON e.id=r.event_id
+      WHERE r.event_id=? AND ${page.where}
+      ORDER BY ${order} LIMIT ? OFFSET ?
+    ),` : ''} approved_usage AS MATERIALIZED (
       SELECT a.option_id,SUM(a.unit_count) AS units
       FROM reservation_accommodation a JOIN reservations approved ON approved.id=a.reservation_id
-      WHERE approved.status='approved' GROUP BY a.option_id
+      WHERE approved.status='approved'
+      ${env.ADMIN_READ ? "AND a.option_id IN (SELECT a.option_id FROM requested p JOIN reservation_accommodation a ON a.reservation_id=p.id WHERE p.status='pending')" : ''}
+      GROUP BY a.option_id
     )
     SELECT
       r.id, r.member_id, r.event_id, r.car_id, r.car_model, r.car_body, r.car_year, r.car_color, r.car_nickname,
@@ -62,20 +71,26 @@ async function getAdminReservations(env, url, origin) {
       ra.total_czk AS accommodation_total_czk,
       m.name AS member_name, m.nickname AS member_nickname,
       m.email AS member_email, m.member_code
-    FROM reservations r
+    FROM ${env.ADMIN_READ ? 'requested' : 'reservations'} r
     JOIN members m ON m.id = r.member_id
     JOIN events e ON e.id = r.event_id
     LEFT JOIN reservation_accommodation ra ON ra.reservation_id = r.id
     LEFT JOIN event_accommodation_options ao ON ao.id = ra.option_id
-    WHERE r.event_id = ? ${env.ADMIN_READ ? 'AND '+page.where : ''}
+    ${env.ADMIN_READ ? '' : 'WHERE r.event_id = ?'}
     ORDER BY
       CASE r.status WHEN 'pending' THEN 0 WHEN 'rejected' THEN 1 WHEN 'approved' THEN 2 ELSE 3 END,
       r.submitted_at DESC,
       r.updated_at DESC, r.id
-    ${env.ADMIN_READ ? 'LIMIT ? OFFSET ?' : ''}
+
   `;
   let rows, pagination, counts;
-  if(env.ADMIN_READ){
+  if(detailOnly){
+    // The source drawer does not consume event-wide list facets. Legacy/default
+    // responses retain them; only this explicit read projection omits the scans.
+    rows=await env.DB.prepare(query).bind(event.id,...page.bindings,page.pageSize,0).all();
+    const total=rows.results.length;
+    pagination={page:1,pageSize:page.pageSize,total,totalPages:1};
+  }else if(env.ADMIN_READ){
     const base="FROM reservations r JOIN members m ON m.id=r.member_id JOIN events e ON e.id=r.event_id WHERE r.event_id=?";
     const tabs=['all','action','active','complete','pending','approved','rejected','cancelled','payment','unpaid','underpaid','paid','overpaid','attention'];
     const results=await env.DB.batch([
@@ -97,7 +112,7 @@ async function getAdminReservations(env, url, origin) {
     ok: true,
     event: publicAdminEvent(event),
     reservations: (rows.results || []).map(publicAdminReservation),
-    ...(env.ADMIN_READ?{pagination,counts,context:{eventId:event.id,sourceType:'reservation'},freshness:{generatedAt:new Date().toISOString(),businessUpdatedAt:null,consistency:'primary-batch-list-and-total'}}:{}),
+    ...(env.ADMIN_READ?{pagination,counts,context:{eventId:event.id,sourceType:'reservation'},freshness:{generatedAt:new Date().toISOString(),businessUpdatedAt:null,consistency:detailOnly?'primary-detail':'primary-batch-list-and-total'}}:{}),
   }, 200, origin);
 }
 

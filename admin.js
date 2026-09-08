@@ -1,6 +1,6 @@
 import {initializeMembers,openMember,closeMember,clearMemberPrivateState,memberContextKey,memberRefreshTasks} from './admin/member-detail.js?v=20260908-admin-member2';
 import {ADMIN_REFRESH,resourceDue} from './admin/refresh-policy.js?v=20260908-admin-member2';
-import {reservationRequestPath,galleryRequestPath} from './admin/lists.js?v=20260908-admin-member2';
+import {reservationRequestPath,galleryRequestPath} from './admin/lists.js?v=20260908-admin-budget';
 import { initializeAdminNavigation } from './admin/navigation.js?v=20260908-admin-member2';
 import { createAdminRefresh } from './admin/refresh.js?v=20260908-admin-member2';
 import { initializeAdminEditors, bindCurrentEditors, forgetAdminEditor, allowAdminNavigation, clearAdminPrivateEdits } from './admin/editors.js?v=20260908-admin-member2';
@@ -138,7 +138,8 @@ for(const name of ['focus','online','pageshow'])window.addEventListener(name,()=
 window.addEventListener('offline',()=>refreshCoordinator.suspend());
 document.addEventListener('visibilitychange',()=>{if(document.hidden)refreshCoordinator.suspend();else void refreshCoordinator.trigger('visible')});
 
-window.addEventListener('admin:memberhidden',()=>{for(const key of resourceFreshness.keys())if(!key.includes('/api/admin/members'))resourceFreshness.delete(key)});
+// Closing a read-only Member overlay does not invalidate unchanged source data.
+// The normal context refresh still reloads missing/stale resources at their own cadence.
 window.addEventListener('admin:membercontext',()=>{if(adminState.currentUser&&!adminState.restoringRoute){refreshCoordinator.invalidate();void refreshCoordinator.trigger('context')}});
 initializeMembers({
   openReservation:async(id,eventId)=>{if(!allowAdminNavigation())return;adminState.restoringRoute=true;try{closeMember({route:false});closeReservationDrawer();if(adminState.selectedEventId!==eventId){adminState.selectedEventId=eventId;resetAdminFiltersForEvent()}adminState.requestedReservationId=id;}finally{adminState.restoringRoute=false}navigation.write({replace:true,detail:true});await loadEventData()},

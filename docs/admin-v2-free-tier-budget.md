@@ -1,130 +1,168 @@
-# Admin v2 Stage 2 — conservative Free-tier budget
+# Admin v2 Stage 2 — targeted read-budget follow-up
 
-Dated 2026-09-08. **Local feature checkpoint, NOT a Free-tier acceptance or rollout approval.**
+2026-09-08. **Budget NOT accepted. No rollout approval. Stages 3–4 not started.**
 
-## Decision
+## Decision and scope
 
-The reproducible worked model estimates **5,505,450 D1 rows read for three active contexts / 12h**, including boot/funnel and 12 explicit lifecycle revalidations per context. The engineering target is 1,000,000: **gap 4,505,450 rows**. A 10% read-retry sensitivity is **6,055,995** (gap 5,055,995). Even the earlier base without boot/lifecycle allowance was 4,983,450, too close to the shared hard daily allowance to accept.
+The requested ceiling is **1,000,000 reads including explicit actions and 10% retries**. Narrow local SQL/duplicate-loading fixes reduce the corrected conservative model from **5,373,090 to 3,549,822**, or **5,910,399 to 3,904,805 with retries** (33.93% reduction). The remaining gap is **2,904,805**. Do not mark this acceptance condition complete or infer Free-tier production headroom.
 
-These are deliberately conservative plan-derived estimates, **not measured Cloudflare billing**. This cannot establish actual quota exhaustion either; it establishes insufficient evidence/headroom to accept the requested budget. Finish safe independent local work as authorized, but resolve/measure the gap before any rollout. No paid service, aggregate warehouse, cache service, remote test or general Mailing/security rewrite was added to force acceptance.
+The historical 5,505,450 estimate and 6,055,995 retry sensitivity are reproduced below, not retroactively called measured facts. The corrected before/after use identical call counts, unchanged fixture volume and a common estimation method. They differ from that historical total because its endpoint envelopes had no per-SQL accounting and its startup/operation allowances were bundled.
 
-## Official limits, checked 2026-09-08
+These are **local SQLite measurements plus explicitly conservative engineering estimates**, NOT Cloudflare `meta.rows_read`, NOT a production daily bill, and NOT edge CPU measurements. No production sampling, deployment, D1/R2/provider call or email was performed. A successful application regression suite is not a passing budget gate.
 
-- [Workers limits](https://developers.cloudflare.com/workers/platform/limits/): Free 100,000 incoming requests/day, 10ms CPU/request; memory 128MB.
-- [D1 pricing](https://developers.cloudflare.com/d1/platform/pricing/): Free 5,000,000 rows read/day, 100,000 rows written/day, 5GB total storage. Returned rows, rows examined and statement count are different; index work counts too.
-- [R2 pricing](https://developers.cloudflare.com/r2/pricing/): Standard allowance 10GB-month, 1M Class A and 10M Class B operations/month.
+Preflight: clean `main`, HEAD `b6923ebaa87d0cceb8c4de10f74cbe25cb780018`; parent `24a1b1447608aeb8c3dd7fdef73d276ba05a907e` (Stage 1), then `fc52f24fbf7b2aa42bf7326f2e7268514568b703` (video). Fetched origin remained fc52f24; two reviewed local commits ahead, no unexpected lineage change. No rebase/reset/amend/merge/history rewrite.
 
-Allowances are shared, not per admin/browser or a dedicated Admin budget. Public/Member/other Worker/webhook traffic, storage and legitimate writes remain additional. No plan/config/provider changes.
+## 1. Reconcile the original 5,505,450
 
-## Shared cadence and HTTP
+The unchanged historical calculator is `tests/helpers/admin-budget-model.mjs`. Calls below are for all three administrators/12h, not per person. Shared auth was already inside each envelope; do not add it again.
 
-One existing coordinator: operational/header/list 60s; reservation/gallery lists 120s; summary/history/analytical Member tabs/stored Mailing 300s. Header + selected Member tab replaces obscured workspace polling. At most three periodic data requests in a cycle **including** summary; no independent Member timer. Hidden/denied/anonymous/known-offline contexts: zero periodic calls. Failure delays 120/240/300s; no backlog. Focus/visible/reconnect/pageshow coalesce; visible operational resources/editor revalidate, while fresh analytical/tab caches are not broadly invalidated. Own save applies its authoritative result immediately, then existing invalidation/reconciliation.
+| Resource / original bundle | Calls | Envelope / call | Contribution | Share |
+| --- | ---: | ---: | ---: | ---: |
+| Summary | 240 | 6,000 | 1,440,000 | 26.16% |
+| Reservation list | 276 | 5,000 | 1,380,000 | 25.07% |
+| Reservation detail | 456 | 3,000 | 1,368,000 | 24.85% |
+| Gallery | 90 | 3,000 | 270,000 | 4.90% |
+| Member search | 180 | 5,000 | 900,000 | 16.35% |
+| Member header | 1,620 | 20 | 32,400 | 0.59% |
+| Member Garage | 720 | 100 | 72,000 | 1.31% |
+| Other Member tab | 180 | 100 | 18,000 | 0.33% |
+| Mutation / outcome allowance | 60 | 20 | 1,200 | 0.02% |
+| Private images + auth | 1,170 | 5 | 5,850 | 0.11% |
+| Boot / Funnel allowance | 3 | 6,000 | 18,000 | 0.33% |
+| **Total** | | | **5,505,450** | **100%** |
 
-Table is the ceiling 3 data requests/minute, not measured real traffic. D1 column uses the workload below (therefore is not three worst-case SQL queries every minute).
+Summary's80 calls/person =48 polls +20 mutation reconciliations +12 lifecycle bursts; startup was in the separate 6,000-row bundle. Reservation list 92 =60 polls +20 reconciliations +12 lifecycle. Detail 152 =120+20+12. Header 540 =480 polls +60 explicit openings. Garage 240 and other tab 60 are distinct.
 
-| Visible contexts | Hours | Polling data requests | With one uncached OPTIONS each | Estimated D1 reads, before retry sensitivity |
-| ---: | ---: | ---: | ---: | ---: |
-| 1 | 2 | 360 | 720 | 305,859 |
-| 1 | 12 | 2,160 | 4,320 | 1,835,150 |
-| 1 | 24 | 4,320 | 8,640 | 3,670,300 |
-| 3 | 2 | 1,080 | 2,160 | 917,575 |
-| 3 | 12 | 6,480 | 12,960 | 5,505,450 |
-| 3 | 24 | 12,960 | 25,920 | 11,010,900 |
-| 6 | 2 | 2,160 | 4,320 | 1,835,150 |
-| 6 | 12 | 12,960 | 25,920 | 11,010,900 |
-| 6 | 24 | 25,920 | 51,840 | 22,021,800 |
+**There is no honest exact per-SQL decomposition of those historical hand-picked envelopes.** No SQL counters were saved for them. Allocating the 6,000 or5,000 arbitrarily among SQL statements would fabricate evidence. The [SQL breakdown](admin-v2-budget-sql.md) instead gives every actual captured statement, bindings/EXPLAIN, measured local loop visits or VM steps, per-call estimated reads, call counts, contribution and share for a corrected before/after. Remaining allowance is explicitly unassigned headroom. Raw evidence: [before](admin-budget-before.json), [after](admin-budget-after.json).
 
-Three humans can have six visible PC/phone contexts. Hidden tabs are idle; no cross-device/tab leader was added.
+Original HTTP arithmetic had a separate error:60 search +120Member header/tab +20 mutations +20 outcomes +60 reconciliations +390 images +4 initial/entry reads +36 lifecycle = **710**, not 810, requests/person. This does not change the original row-envelope sum above.
 
-Worked 12h explicit overhead per context: 60 searches + up to120 header/tab reads for 60 interactions +20 mutations +20 outcome lookups +60 affected-resource reconciliations +390 visible image loads +4 initial events/summary/funnel/list requests +36 due focus/reconnect requests = **810 requests beyond the polling ceiling**. Lifecycle estimate assumes 12 occasions with up to3 due resources; coalesced lifecycle storms usually do less. Every authenticated data request has its own active-Admin read, included in SQL estimates. OPTIONS returns before auth/SQL, but counts as incoming Worker traffic.
+## 2. Coordinator/workload audit
 
-Three contexts: 6,480 + 2,430 = **8,910 data/action/image requests**; conservative uncached preflight doubles to **17,820**. Ten percent safe-read retries, pessimistically applied to all for a simple upper sensitivity, gives approximately **19,602 incoming requests**. An every-read-retries-once scenario with uncached OPTIONS approaches 4x data requests; six contexts/24h polling alone reaches **103,680**, over Workers Free before other traffic. Mutations are NOT automatically retried; same-ID reconciliation is explicit existing behavior. Firebase certificate fetching is an external subrequest on cache miss, not an extra incoming request or a cached authorization bypass.
+The new regression evaluates the **actual task-selection body in admin.js**, the actual Member task builder, `resourceDue` and the existing coordinator with a synthetic clock. No independent test-only polling policy is substituted.
 
-## Reproduction / dataset
+| Time/person | Foreground | Periodic calls/person |
+| --- | --- | --- |
+| 4h | Member identity / selected event | 240 header |
+| 4h | Member Garage | 240 header +240Garage |
+| 2h | Reservation list + open source editor | 60 list +120 detail +24 summary |
+| 1h | Dashboard | 12 summary |
+| 1h | Community gallery | 30 gallery +12 summary |
+| **12h** | One active workspace/overlay | **978 data calls** |
 
-Run `node --test tests/admin-member-budget.test.mjs`. The test executes the actual handlers against local Node SQLite, runs EXPLAIN QUERY PLAN for **each captured SELECT**, and prints GROWTH_QUERY_REPORT with SQL/plans, response bytes, wall time and models. It asserts authorization is included, no read-induced total_changes (including triggers), no FK violations, and bounded response/test invariants. It does **not** assert an unmet cost target as passing.
+Member overlay suppresses the obscured source list, detail and summary. Global Mailing also replaces workspace summary polling; only its visible stored-data projection refreshes every 300s. No full Member archive, inactive tabs, all charts or provider readiness is added to a periodic cycle. Existing Stage 1 already polled legacy summary/lists/detail/Mailing; Stage 2 slowed cadences and introduced Member resources. It did **not** create a new global Mailing poll where none existed. Its newly introduced unconditional `memberhidden` invalidation, however, could reload old endpoints on each short read-only return. This follow-up removes that redundant invalidation.
 
-Fixture: 500 members, 3 events, 300 reservations/event (900 total), 750 cars, 750 car photos +750 gallery photos, 1,000 history/S&S claims, 5,000 Points entries, 102 persisted Mailing contacts (50 linked +52 legacy), 501 campaign recipients, 1,000 operation receipts. Reservations include approved/pending/cancelled/rejected states and real allocation rows. No real user data, import, external provider or remote load.
+Intervals remain **60/120/300s**. Operational focus/visible/pageshow/reconnect checks still revalidate even when young; analytical data respects its 300s age. Failed/missing/stale resources reload. Own mutation still invalidates immediately. Hidden/offline/logout/denied: zero periodic requests. The return keeps the real previous fetch timestamp; it does not falsely stamp cached data as newly read.
 
-Latest representative local run (wall time includes handler, serialization and plan inspection; **NOT edge CPU**, and nondeterministic milliseconds):
+Explicit workload is unchanged:60 searches,60Member openings/tab interactions,20 own edits +20 outcome checks +20 three-resource reconciliations,390 images,4 initial/first-entry reads and 12 three-resource lifecycle bursts/person. Startup/entry is events+summary+Funnel+Member list across navigation, not four screens simultaneously. The 12 lifecycle bursts conservatively charge list/detail/summary when all are due. The generic 100-row Member-tab envelope covers any one selected tab; the SQL table illustrates ten interactions each for reservations/photos/history/Points/Club/Mailing, not 60 calls to every tab.
 
-| Projection | SQL statements incl. auth | Response bytes | Local ms | Plan |
-| --- | ---: | ---: | ---: | --- |
-| summary | 2 | 1,808 | 36.26 | See scans below |
-| reservation-list | 5 | 73,287 | 6.93 | See scans below |
-| reservation-detail | 5 | 2,250 | 2.17 | See scans below |
-| accommodation | 3 | 836 | 1.13 | Indexed SEARCH only in this fixture |
-| gallery | 3 | 12,244 | 1.57 | Indexed SEARCH only in this fixture |
-| history-review | 7 | 12,281 | 3.36 | See scans below |
-| events | 2 | 1,129 | 0.44 | See scans below |
-| funnel | 8 | 268 | 0.83 | See scans below |
-| member-list | 3 | 7,359 | 3.45 | See scans below |
-| member-search | 3 | 4,971 | 1.7 | See scans below |
-| member-qr-resolve | 2 | 162 | 1.31 | Indexed SEARCH only in this fixture |
-| member-media | 2 | 15 | 0.41 | Indexed SEARCH only in this fixture |
-| member-header | 4 | 954 | 0.84 | Indexed SEARCH only in this fixture |
-| member-reservations | 4 | 1,627 | 0.82 | Indexed SEARCH only in this fixture |
-| member-garage | 5 | 908 | 0.87 | Indexed SEARCH only in this fixture |
-| member-photos | 4 | 849 | 0.51 | Indexed SEARCH only in this fixture |
-| member-club | 5 | 640 | 0.83 | Indexed SEARCH only in this fixture |
-| member-history | 5 | 915 | 0.79 | Indexed SEARCH only in this fixture |
-| member-points | 4 | 1,545 | 0.65 | Indexed SEARCH only in this fixture |
-| member-mailing | 5 | 758 | 0.76 | Indexed SEARCH only in this fixture |
-| member-qr | 3 | 275 | 0.34 | Indexed SEARCH only in this fixture |
-| mailing-overview | 3 | 152 | 20.26 | See scans below |
-| mailing-contacts | 2 | 39,356 | 18.4 | See scans below |
-| mailing-campaigns | 3 | 451 | 0.78 | See scans below |
-| mailing-campaigns/camp/delivery | 7 | 67,536 | 19.91 | See scans below |
+Three contexts: **2,934 periodic +2,130 explicit/initial =5,064 requests**. With one uncached OPTIONS for each:10,128; with 10% retry sensitivity: **11,141 incoming requests**. The separate theoretical 3-per-minute polling ceiling is6,480, not an actual-workload count. Adding explicit overhead to that ceiling gives 8,610, not the old 8,910.
 
-SQL plans and access-path interpretation:
+OPTIONS dispatches before auth/database and contributes **zero D1 reads**. Each actual protected request rechecks active Admin in D1; that SQL is Q1 in the evidence, including private media and explicit commands. Normal read-profile auth is one index visit plus a conservative table-probe allowance (2), never a permanent cached permission. Firebase certificate network misses are subrequests, not extra D1 rows.
 
-- Summary uses event-indexed reservations and allocation/option/member/revision probes. Its many reservation aggregates now share one metrics CTE instead of repeating the same reservation pass. Still scans global gallery (~750), claims (1,000), member counts (500 twice), and small event/occupancy intermediates. One statement is not one row; thus 300s and a separate genuine timestamp.
-- Reservation page/detail: event/payment index or reservation PK; member/event/revision/allocation probes and complete repeated counts. Existing pending-capacity display now uses one materialized approved_usage aggregation, not the same full SUM per pending row. It still scans approved reservations across the original all-event option scope; capacity mutation predicates/formulas are untouched. Paginated LIMIT does not eliminate count/aggregate work.
-- Accommodation uses event/option and allocation indexes. Gallery uses status index plus member/revision probes and an independent total. History review scans claims for complete global/year facets and performs indexed pending/count/page/evidence queries; hence 300s.
-- Members list uses admin_members_order plus a complete 500-member count. Substring search can examine all500 members twice plus member-indexed car probes (750 cars across the set); no misleading claim that LIMIT20 or LIKE has become an index-only text lookup.
-- Member header uses member/event PK + unique member/event reservation + allocation PK. Reservations, Garage, gallery, evidence, history, ledger and recipients are member/parent indexed. QR resolution uses token UNIQUE + member PK; private media uses owner/parent checks then one object GET. QR/GET handlers perform no provisioning.
-- Existing Mailing overview/contact/delivery still scans stored/projected contacts and correlated legacy email matching (`SCAN matched`), plus repeated member domain subqueries. It is **not** fully bounded by its outgoing page. A trial normalized-email expression index did not remove this plan's scan and was removed before checkpoint; do not claim it helped. The member/status S&S index does remove the per-contact global S&S scan. No redesign of legacy email segmentation was performed.
-- Receipt presence (1,000 rows) does not cause polling scans: outcome reconciliation uses operation identity indexes. Funnel has member/onboarding/handoff queries; boot/lifecycle allowance includes it rather than pretending it is a free derived widget.
+The original scenario did not specify additional standalone Member-close/manual-refresh bursts, prolonged global Mailing use, or many contact-page clicks. We do not silently add their hours to the twelve hours, nor claim they are free. Extra return bursts can cost up to summary+list+detail when due; rapid fresh returns no longer force those reads. These are additional sensitivities, not a reason to accept the failing main budget.
 
-Added six indexes: member created_at/id ordering; car photo parent/order; gallery member/status/time; recipient member/time and contact/time; history member/S&S status. QR adds its PK/unique index. Each is a read/write/storage tradeoff, not free performance. Existing owner indexes are reused. There is no new general utils/query framework.
+## 3. Corrected endpoint accounting
 
-## Conservative row model
+Per-call reads include auth. Read-only entries use actual local scanstatus plus the allowances below. Search/Member/explicit mutation envelopes are deliberately retained/increased, not lowered to manufacture success. The pending reservation detail is the heavier reference, not the cheap approved example.
 
-`tests/helpers/admin-budget-model.mjs` centralizes assumptions. The following bounds are engineering envelopes for this synthetic distribution, not a SQLite-to-D1 billing conversion:
+| Resource | Poll calls /3 contexts | Explicit calls | Before → after /call | After contribution | Share |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| summary | 144 | 99 | 4,271 → 4,271 | 1,037,853 | 29.24% |
+| reservation-list | 180 | 96 | 6,522 → 3,483 | 961,308 | 27.08% |
+| reservation-detail | 360 | 96 | 2,907 → 748 | 341,088 | 9.61% |
+| gallery | 90 | 0 | 1,270 → 1,270 | 114,300 | 3.22% |
+| member-header | 1,440 | 180 | 20 → 20 | 32,400 | 0.91% |
+| member-garage | 720 | 0 | 100 → 100 | 72,000 | 2.03% |
+| member-tab | 0 | 180 | 100 → 100 | 18,000 | 0.51% |
+| search | 0 | 180 | 5,000 → 5,000 | 900,000 | 25.35% |
+| operation | 0 | 60 | 1,000 → 1,000 | 60,000 | 1.69% |
+| receipt | 0 | 60 | 43 → 43 | 2,580 | 0.07% |
+| image | 0 | 1,170 | 6 → 6 | 7,020 | 0.20% |
+| events | 0 | 3 | 16 → 16 | 48 | 0.00% |
+| funnel | 0 | 3 | 513 → 513 | 1,539 | 0.04% |
+| member-list | 0 | 3 | 562 → 562 | 1,686 | 0.05% |
+| **Total before retries** | | | | **3,549,822** | **100%** |
+| **With 10% retry reserve** | | | | **3,904,805** | |
 
-| Resource | Rows/read envelope | Rationale |
-| --- | ---: | --- |
-| Summary | 6,000 | Reservation/occupancy joins + global 750/1,000/500 counts + repeated probes/intermediates/auth |
-| Reservation list | 5,000 | All900 approved-status scan/allocation group, selected300 joins/counts, page/revision probes |
-| Reservation detail | 3,000 | PK row does not remove approved_usage and event-wide tabs/counts |
-| Gallery | 3,000 | Up to750 status entries/count, page member/revision/index work |
-| History review | 12,000 | Global/year passes over1,000 plus filtered joins/count/page/evidence |
-| Accommodation | 2,000 | Selected allocations, options, joined reservations and revisions |
-| Member list | 1,000 | Full500 total + ordered page/index/auth allowance |
-| Search | 5,000 | Two500-member passes, correlated indexed car checks, sort/count/auth allowance |
-| Member header | 20 | PK/unique join probes including auth/event/stored allocation |
-| Member tab | 100 | Uniform fixture ~10 Points /2 claims /1.5 cars /3 photos and count/page joins; not a bound for arbitrarily skewed members |
-| Existing Mailing projection | 1,000,000 | Pessimistic repeated legacy 52x500 email scans expanded through projected fields/subqueries plus500-member domain probes; old projection materialization is not guaranteed |
-| Private image | 5 | Auth plus member/parent/photo probes; object operation separate |
+Existing legacy summary/list/detail/gallery/startup/auth costs remain in the total. Added Stage 2 header/Garage/other tabs/search/Member-list cost **1,024,086** before retries under the retained conservative envelopes; it is not the whole Admin cost. Private-image/auth cost includes existing media access, not a new bulk image prefetch. Legacy source-return invalidation is a Stage 2-added multiplier that is now removed without granting a numerical discount for unspecified extra close actions.
 
-Per context/12h: four hours Member header/event; four hours Garage header+tab; two hours reservation list (120s)+editor (60s)+summary (300s); one hour Dashboard summary; one hour Gallery (120s)+summary. Add 60 searches, 60 Member openings/tab interactions, 20 mutation/reconciliation sets, 390 image loads, a6,000-row startup/Funnel allowance and 12 due lifecycle bursts at14,000 rows. Scale duration/context count linearly for sensitivity.
+All profiled supplemental endpoints, including global Mailing, history review and accommodation, are in the raw SQL/EXPLAIN table with zero main-scenario calls where inactive. Their per-call estimates remain material: summary 4,271; accommodation 733; history-review 8,207; global Mailing overview 374,432 / contacts 374,431 / delivery 376,457 (coarse VM ceilings). Member Mailing is a different, indexed, actually linked projection: local estimate 26 for this sample, inside the 100-row selected-tab allowance. Global Mailing contacts/overview are not accidentally counted as Member Mailing.
 
-Components/context: Member33,600; reservation804,000; Dashboard72,000; Gallery162,000; search300,000; openings7,200; mutations/reconciliation280,400; image/auth1,950; startup6,000; lifecycle168,000 = **1,835,150**. Three contexts **5,505,450**. At10% repeated-read sensitivity **6,055,995**, above both the engineering target and shared hard daily allowance estimate; no claim of safe headroom.
+A one-hour global Mailing overview sensitivity adds 12x374,432 =4,493,184/person before subtracting the replaced foreground hour; this is a deliberately loose **VM ceiling**, not a row bill. It emphatically does not establish a safe Mailing workload. A member holding all 5,000 Points entries would also invalidate the uniform 100-row tab assumption even though the response is paginated. No fixture was shrunk to avoid either risk.
 
-The worked example contains no prolonged Mailing workspace session. Replacing one hour with12 refreshes of the legacy1M-envelope projection is an explicitly worse sensitivity (up to12M rows/context); exact real cost needs counters, not this intentionally loose upper envelope. A heavily skewed Member with all5,000 ledger entries also breaks the uniform100-row tab assumption: count+page/sum can examine thousands, though JSON remains paginated. This is another reason not to accept the budget solely from the worked average. LIMIT/count/indexes are not a guarantee.
+## 4. Causes and narrow fixes actually retained
 
-## Writes, R2, storage, CPU
+1. **Reservation hydration before pagination / global capacity aggregation.** Add one expression-order index and materialize the requested page before member/event/snapshot/revision hydration. Compute approved usage only for the actual option IDs referenced by pending rows on that page. Sum retains the original all-event scope for each option, including legacy cross-event allocation references; no mutation capacity predicate or pricing/payment rule changes.
+2. **Detail fetched complete list facets repeatedly.** The source drawer opts into `GET /api/admin/reservations?...&id=...&projection=detail`. Only that combination omits unused event-wide totals/facets. It returns the same record and bounded single-record pagination; legacy/default responses retain all facets. A broad list cannot activate the shortcut merely by sending projection=detail.
+3. **Fresh source data invalidated by a read-only Member return.** Remove the blanket `memberhidden` cache-age deletion. The existing per-resource freshness policy, stale/error state, mutation invalidation and visible operational auth revalidation remain. No cache service/framework, permission cache or cadence change.
 
-Polling/search/Member/QR resolver: **zero induced D1 writes**, verified both handler write counts and SQLite total_changes before/after actual reads. No last_seen/view/scan counters. Migration and explicit fixture provisioning are separate setup, not polled effects.
+Measured proof: old list 6,522; **index-only**4,346; final page/option-scoped SQL 3,483. The final plan actually visits 50 reservation index entries for the default first page before hydration and uses `idx_reservation_accommodation_option` instead of `SCAN approved`. We do not infer this from LIMIT/index existence alone. Filters, search, later/out-of-range pages, totals and cross-event option cases compare against captured old SQL on the same populated fixture.
 
-For20 own operations/admin/day, use a conservative **100 row/index writes per complex operation** (source UPDATE, source revision triggers, optional allocation/Points/audit, receipt, event/summary revisions, index maintenance):2,000/admin or6,000/three. This is an allowance, not measured rows_written; high-fanout accommodation changes affecting many reservations need separate measurement. QR provisioning500 members is one-time ~500 rows plus PK/token indexes (planning ~1,500 row/index writes), plus backfill cost of six indexes. New-member provisioning inserts one identity/unique entries once. Existing source CAS, operation IDs/receipts and Points grants remain unchanged. Receipt/audit/tombstone retention grows; no automatic deletion is added.
+Approved source detail 926→24; pending 2,907→748. Legacy/default pending detail remains compatible but 1,654 because it still intentionally includes facets. Legacy approved default 930 vs926 adds four local intermediary operations; no claim every shape is cheaper. Arithmetic improvement in the corrected scenario is **1,823,268 before retries**.
 
-390 visible images/context/12h gives1,170 GETs/three,35,100/month if repeated daily. Existing accommodation projections may issue HEAD per distinct option/page (<=50 default page), separately from Member media: worked2h reservation list+detail180 reads plus20 reconciliations can conservatively reach10,000 HEAD/context/day at50 options,30,000/three,900,000/month. Actual fixture uses few options; no production HEAD measurement. These count as Class B; no periodic LIST/Class A. Whole photo archives are not preloaded. Existing storage has one private original: thumbnail display fetches it only when visible, fullscreen reuses the blob. No invented thumbnail-service/bandwidth saving.
+A trial full-result materialization for Member substring search increased the common BMW path's work; it was discarded. A trial Mailing materialization was also discarded without sufficient row-profile benefit. No Member search, Mailing/provider logic, summary metrics or permissions were changed. The remaining dominant costs are complete summaries, full list facets and substring search.
 
-QR/token payloads are tiny (~tens of KB for500 identities before index/page overhead). Six indexes and1,500 photo objects need actual database/object-size measurement; no claim of remaining5GB D1/10GB R2 storage without production metrics. JSON sizes above bound this fixture, not edge CPU. Local36ms summary and18–20ms Mailing wall times are not10ms Workers CPU evidence. Workers CPU must be observed later under an authorized, non-load-test measurement.
+## 5. Measurement, reproduction and limits
 
-## Later read-only measurement / handoff gate
+Unchanged `adminGrowth()`:500 members;3 events;900 reservations (300/event);750 cars;750 car photos +750 gallery photos;1,000 history/S&S claims;5,000Points;102 contacts;501 recipients;1,000 receipts;540 allocation rows. QR fixture provisioning remains the single explicit synthetic identity used by the original growth test. No real data.
 
-Before rollout acceptance, separately authorize a small read-only sampling plan: existing deployment metrics for CPU/requests, existing D1 usage/database size, and representative currently authorized read endpoints with internal D1 meta.rows_read/rows_written collected without tokens/PII or D1 logging. Compare ordinary/heavy/skewed Member and legacy Mailing cases, report auth/helpers/preflights/R2 HEAD separately. Do not create remote databases, seed real data or load-test production. If counters are unavailable, keep this gate unresolved and review narrower SQL/cadence changes explicitly.
+- Real handlers run against Node SQLite and record actual SQL/binds and EXPLAIN. Read-phase `total_changes()` and FK assertions remain unchanged.
+- A disposable copy runs the same statements in the official SQLite 3.53.4 Windows shell with ENABLE_STMT_SCANSTATUS. Measured visits include reported index/table and intermediate loops, not only returned rows. Non-covering index table probes are added conservatively; the fast Count opcode gets a full-population allowance because it has no scanstatus loop.
+- Four stock-shell scanstatus displays fail with exit 3221225477 in 3.53.4; the contact-query failure also reproduced in 3.50.4. Unchanged SQL then runs successfully with statement counters. Raw files mark those profiles null, retain the failure, and use VM-step ceilings instead of inventing row counts. Contact universe:25,552 fullscan steps /374,429 VM steps. See the SQL evidence for this tooling limitation.
+- Explicit local payment/outcome statements are executed/captured, including auth/CAS/receipt/audit and trigger programs. VM ceilings 522→550 for the payment,43 for outcome; the scenario retains 1,000 per operation. This does not establish bounds for unrelated high-fanout catalog edits.
+- **No Cloudflare meta.rows_read/rows_written, edge CPU, production DB size or R2 billing was measured.** Query planner/runtime differences, data skew, additional human actions and other site traffic remain uncertainty. No deployment was made to obtain counters.
 
-Stages3–4 may consume these resources but cannot introduce independent widget timers, aggregate services or faster on-site presets to bypass this gate. No production operation occurred during this task.
+Reproduction (Node runtime on PATH; SQLite executable is an external diagnostic tool, not a new package/dependency):
+
+```powershell
+$env:SQLITE_SCAN_CLI = 'C:\path\to\sqlite3.exe'
+node scripts/admin-budget-profile.mjs test-results/admin-budget-live.json
+node scripts/admin-budget-profile.mjs test-results/admin-budget-before-live.json --replay docs/admin-budget-before.json --before-index
+node scripts/check-admin-budget.mjs test-results/admin-budget-live.json
+node --test tests/*.mjs
+node node_modules/@playwright/test/cli.js test
+```
+
+The budget command intentionally exits **1** while targetMet=false. That is not hidden/skipped or called a passing acceptance. Standard Node regressions assert that this gate reports failure honestly. The snapshot SQL-identity test catches changed handler queries against checked-in evidence. Raw reports include full SQL/binds/plans/loops and endpoint contributions; no Cloudflare credentials or PII.
+
+Diagnostic download source: [official SQLite downloads](https://www.sqlite.org/download.html), version 3.53.4 Windows tools. [SQLite query profiling](https://www.sqlite.org/profile.html) describes visits/loops; [D1 pricing](https://developers.cloudflare.com/d1/platform/pricing/) describes actual rows-read billing. The existing Free allowances remain 5M reads/day,100k writes/day,5GB D1; [Workers](https://developers.cloudflare.com/workers/platform/limits/)100k incoming/day,10ms CPU/request. These are shared allowances, not an Admin reservation.
+
+## 6. Writes, storage and compatibility
+
+One forward-only migration: `2026-09-08-admin-read-budget.sql`, after Stage 2 identity. Canonical schema includes the exact migration. It creates one 900-entry ordering index and one migration registry row; no business data/backfill/token creation. Local index storage: **53,248 bytes (52KiB),900 cells** on this fixture; not production size. Index creation/backfill and future indexed-field updates have real write/storage cost. Plan conservatively for up to two extra index-row operations per affected update (delete/insert), one for insert/delete;60 daily edits would add up to120 to the old 6,000 write allowance if each affects this index. This is not measured Cloudflare rows_written.
+
+Polling/Member/search/QR/media reads: **zero persistent D1 writes**. No schema migration was run remotely. Private media ownership/object-URL lifecycle unchanged; no R2 PUT/DELETE/LIST or image service. Fewer redundant source loads can avoid some existing accommodation HEAD requests; no numerical R2 saving is claimed.
+
+Old clients still receive the default facets. New clients against an old Worker merely receive unused extra facets, not missing data. The query can run without the new index but the improved plan/budget cannot then be assumed. Future rollout must separately review migration ordering; no rollout authorization exists here. Admin HTML only updates the native-module cache version. Public `index.html`, `galerie.html`, `main.js` and video **cGfcolaqczM** remain exact Git-equivalents to starting HEAD.
+
+## 7. Acceptance checklist / stop boundary
+
+| Condition | State |
+| --- | --- |
+| Expected HEAD, clean preflight, verified lineage/origin | PASS |
+| Historical arithmetic + endpoint/SQL/HTTP/auth audit | PASS, old per-SQL allocation explicitly unknown |
+| Same fixture volume and 12h/3-admin workload; explicit/retry costs retained | PASS |
+| Narrow list/detail/duplicate-loading fixes and actual plans | PASS |
+| Read-only Member 360, dirty source editors, media auth, stable QR, resolver identification only | PASS |
+| No read-side QR generation or polling writes; lifecycle suspension preserved | PASS |
+| Existing assertions unchanged; added 6Node and 2 dual-browser regressions | PASS (validation record below) |
+| <=1,000,000 reads including 10% | **FAIL: 3,904,805 conservative estimate** |
+| Actual Cloudflare billing/CPU/storage assurance | NOT MEASURED / NOT APPROVED |
+| Stage 3/4 and rollout | NOT STARTED / NOT AUTHORIZED |
+
+At least **2,640,732** further pre-retry savings would be required under this model. Do not keep expanding this task into a general cache/read-model architecture to force the checkbox.
+
+Concrete next options for a separately approved scope, with benefits bounded rather than promised:
+
+- A **targeted conditional/versioned read design for summary + list facets**, including every writer and wall-clock overdue invalidation, could address at most **1,999,161** current reads before retries. Even eliminating both costs entirely leaves 1,550,661 before retries, still too high. Impact: source-version completeness, race/snapshot/auth tests and possibly new trigger/write overhead; existing revision rows are not a complete summary change feed.
+- Combine that with a **semantics-preserving substring-search read design** (including two-character/escaped/non-ASCII queries and multiple cars). Search currently reserves 900,000; the optimistic combined ceiling of those three categories is2,899,161 savings, not a verified achievable result. Impact: additional search/index or narrow read-model design, write/storage tradeoff and whole-fixture validation. No FTS policy substitution or feature reduction is approved here.
+- Changing polling intervals alone cannot solve this estimate: even removing **all** periodic cost (1,726,344) leaves 1,823,478 before retries. Cadences remain unchanged. A paid plan would not satisfy the 1M engineering target and was not introduced.
+
+This is a stop before broader architectural/behavioral options, **not a claim that no possible small SQL improvement exists**. The safe local checkpoint remains reviewable with the budget condition explicitly unmet. No push/deploy/production migration/write/provider change/email.
+
+## 8. Final validation record
+
+Preflight unchanged: Node 336/336, production syntax 107, Chromium 57/57 and focused WebKit 26/26. Final: **Node 342/342; Chromium 59/59; WebKit 28/28** (87 total, no retries). Production syntax 107 +49 diagnostic/test JS/MJS checks pass; import graph 107 has no missing/circular imports. Exact migration/canonical schema checks pass,7 migration entries, integrity OK, FK violations 0. Existing assertions were not weakened or removed; six new Node tests and two desktop/mobile browser cases (both engines) protect the corrected causes.
+
+Desktop 1440px Chromium and mobile 390px WebKit source-drawer screenshots were inspected after Member return with dirty state retained. No physical iPhone or production browser claim. The separate budget acceptance command exits 1 as required; passing regression tests do **not** override it. Harmless existing NO_COLOR/FORCE_COLOR warning; profiler limitation remains explicitly disclosed above.

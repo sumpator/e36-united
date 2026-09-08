@@ -27,6 +27,29 @@ async function fixture(page){
  return{r,calls,observations,get failure(){return failure},set failure(v){failure=v},set delay(v){delay=v}};
 }
 const drawer=page=>page.locator('[data-member-dialog]');
+
+for(const width of [1440,390])test('read-only Member return preserves fresh source cache and dirty editor; due/focus refresh still runs '+width,async({page},info)=>{
+ await page.setViewportSize({width,height:900});await page.clock.install();const c=await fixture(page);
+ await page.goto('/admin.html?section=payments');await page.locator('[data-payment-filter="all"]').click();
+ const detailRequest=page.waitForRequest(q=>q.method()==='GET'&&q.url().includes('/api/admin/reservations?')&&new URL(q.url()).searchParams.get('projection')==='detail');
+ await page.locator('[data-payment-list] button[data-reservation-open]').first().click();await detailRequest;
+ const source=page.locator('[data-reservation-drawer]'),amount=source.locator('[data-payment-amount]');await expect(amount).toBeVisible();await amount.fill('1700');
+ const reads=[];page.on('request',q=>{if(q.method()==='GET'&&/\/api\/admin\/(summary|reservations)(\?|$)/.test(q.url()))reads.push(new URL(q.url()));});
+ const writes=c.r.writes;await source.locator('[data-member-open="m"]').click();await expect(drawer(page)).toContainText('EU-MEMBER');
+ await drawer(page).locator('[data-member-close]').click();await expect(drawer(page)).not.toBeVisible();await page.clock.runFor(1000);
+ expect(reads).toHaveLength(0);await expect(amount).toHaveValue('1700');
+ await page.evaluate(()=>window.dispatchEvent(new Event('focus')));
+ await expect.poll(()=>reads.filter(u=>u.searchParams.get('projection')==='detail').length).toBeGreaterThan(0);
+ expect(reads.filter(u=>u.pathname.endsWith('/summary'))).toHaveLength(0);await expect(amount).toHaveValue('1700');
+ reads.length=0;await source.locator('[data-member-open="m"]').click();await expect(drawer(page)).toContainText('EU-MEMBER');
+ await page.clock.runFor(301000);expect(reads).toHaveLength(0);
+ await drawer(page).locator('[data-member-close]').click();await expect(drawer(page)).not.toBeVisible();
+ await expect.poll(()=>reads.filter(u=>u.pathname.endsWith('/summary')).length).toBe(1);
+ await expect.poll(()=>reads.filter(u=>u.searchParams.get('projection')==='detail').length).toBe(1);
+ await expect(amount).toHaveValue('1700');await page.screenshot({path:info.outputPath('budget-source-'+width+'.png')});
+ expect(c.r.writes).toBe(writes);expect(c.observations.requests.filter(x=>/PATCH|PUT/.test(x))).toEqual([]);
+ expect(c.observations.pageErrors).toEqual([]);expect(c.observations.consoleErrors).toEqual([]);expect(c.observations.unhandledApi).toEqual([]);c.r.db.close();
+});
 test('Member 360 desktop search/tab/QR and close are read-only; search Enter is coalesced',async({page},info)=>{
  await page.setViewportSize({width:1440,height:900});const c=await fixture(page);await page.goto('/admin.html?section=members');await expect(page.locator('[data-member-list]')).toContainText('First');
  const writes=c.r.writes;await page.locator('[data-member-search]').fill('BMW');await page.locator('[data-member-search]').press('Enter');await expect(page.locator('[data-member-suggestions]')).toContainText('First');await expect(page.locator('[data-member-suggestions] [data-member-open]')).toHaveCount(2);expect(c.calls.filter(p=>p.includes('?q=BMW'))).toHaveLength(1);

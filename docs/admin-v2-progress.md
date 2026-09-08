@@ -110,3 +110,19 @@ Existing single-size private image storage has no thumbnail derivatives: visible
 Stage2 feature work is local and ready for code review, not approved for production on Free-tier estimates. No Stage3 navigation/dashboard/chart/preferences or Stage4 rollout acceptance was implemented. Future widgets must share these canonical resources/cadences, not start extra timers.
 
 No push/deployment, production migration/write/load test, real-contact/user import, SMTP2GO/provider call/configuration, email, secret/DNS change or business-data repair occurred. All fixtures, provisioning, mutations and SQLite executions were local synthetic tests.
+
+## Stage 2 targeted read-budget follow-up — 2026-09-08
+
+Starting HEAD b6923 ebaa 87d0 cceb 8c4de10f74 cbe 25cb780018, clean main. Fetched origin remained fc52f24 fbf 7b2aa42bf7326f2e7268514568b703; expected Stage 1/Stage 2 local lineage verified. No history rewrite. Preflight passed Node 336, syntax 107, Chromium 57 and focused WebKit 26 unchanged.
+
+Retained narrow changes: reservation page-order index; requested-page materialization before hydration; approved usage only for pending page option IDs (original all-event option scope); opt-in source detail without unused list facets; removal of forced fresh-source invalidation on read-only Member return. No Member 360/QR/media/auth/pricing/payment mutation changes, interval changes, cache framework or provider work. Trial search/Mailing materializations were discarded rather than credited without benefit.
+
+New exact forward migration 2026-09-08-admin-read-budget after Stage 2 identity, mirrored in canonical schema, tested on the populated unchanged growth fixture. One index,900 cells,53,248 local bytes; no business-data writes/backfill or QR generation. No production migration.
+
+See admin-v2-free-tier-budget.md, admin-v2-budget-sql.md and before/after JSON for executed SQL, binds, EXPLAIN, local scanstatus/VM counters, full scenario attribution and uncertainties. Historical 5,505,450 arithmetic reproduces, but the old 810 explicit HTTP requests/person was 710. Corrected before 5,373,090; after 3,549,822; with 10% retries 5,910,399 →3,904,805. **Budget condition remains UNSATISFIED (target 1M)**. These are local conservative estimates, not Cloudflare meta.rows_read. The budget diagnostic exits 1 intentionally; no false acceptance.
+
+Final validation: Node 342/342 (+6 regression/accounting tests); production JS syntax 107 plus 49 diagnostic/test JS/MJS files; import graph 107, missing 0/cycles 0; integrity OK/FKs 0; canonical/exact migration checks pass with 7 registry entries and honest duplicate-apply failure. Chromium 59/59 and focused WebKit 28/28,87 total, zero retries. Two new desktop/mobile cases run in both engines; existing assertions were not altered/removed. New checks preserve dirty source fields on Member return, no redundant fresh reads, mandatory focus/due refresh and no injected writes. Source screenshots 1440px Chromium and 390px WebKit visually inspected; no physical iPhone claim. Original public video files are unchanged.
+
+Warnings: stock SQLite scanstatus display crashes on four complex/empty Mailing statements (exit 3221225477; reproduced 3.50.4/3.53.4). Identical SQL succeeds with statement stats; reports retain null row visits and explicit coarse VM ceilings. No application/test failure is disguised. Existing NO_COLOR/FORCE_COLOR browser-runner warning is harmless. Real D1 billing/edge CPU, skewed members, extra bursts/global Mailing sessions and high-fanout mutations are not certified.
+
+One new local commit: `perf: reduce and document Stage 2 admin read costs`; SHA reported after commit. Stop before wider read-model/cache or behavior changes; proposed options and upper-bound benefits are documented, not authorized or implemented. No Stage 3/4, push, deploy, remote migration/write, provider change/call or email.
