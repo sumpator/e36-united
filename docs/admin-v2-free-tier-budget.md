@@ -1,10 +1,14 @@
 # Admin v2 Stage 2 — targeted read-budget follow-up
 
-2026-09-08. **Budget NOT accepted. No rollout approval. Stages 3–4 not started.**
+2026-09-08. **Stage 2 + targeted optimization OPERATOR-ACCEPTED; 1M synthetic target formally UNMET. No rollout approval. Stages 3–4 not started.**
 
 ## Decision and scope
 
-The requested ceiling is **1,000,000 reads including explicit actions and 10% retries**. Narrow local SQL/duplicate-loading fixes reduce the corrected conservative model from **5,373,090 to 3,549,822**, or **5,910,399 to 3,904,805 with retries** (33.93% reduction). The remaining gap is **2,904,805**. Do not mark this acceptance condition complete or infer Free-tier production headroom.
+The requested ceiling is **1,000,000 reads including explicit actions and 10% retries**. Narrow local SQL/duplicate-loading fixes reduce the corrected conservative model from **5,373,090 to 3,549,822**, or **5,910,399 to 3,904,805 with retries** (33.93% reduction). The remaining gap is **2,904,805**. The operator accepts implementation checkpoint `688441b15540623fe416e704b985f04fd2999f9f` and preceding reviewed Stage 2 work for handoff, explicitly accepting that this engineering target is NOT MET. Do not relabel the target as passed or infer Free-tier production headroom.
+
+Operator usage clarification: ordinary use is approximately **3 total visible admin-browser-hours per WEEK**, typically one admin account. Event operation is approximately **two admins for 5–6 hours each**, or **10–12 admin-browser-hours per event day**. Hidden tabs remain idle. The synthetic 3-admin x 12-hour and 24-hour calculations remain stress/sensitivity models, not expected normal usage. A proportional local estimate is not Cloudflare `meta.rows_read`.
+
+The operator accepts the 33.93% saving and existing green safety/concurrency/dirty-state/QR validation without further architectural complexity for this usage. **No further Stage 2 SQL, caching, refresh or architecture optimization is authorized solely to satisfy 1M.** The Stage 2 Free-tier cadence amendment remains authoritative: 60s operational, existing 120s costly lists, 300s analytical. When separately authorized, Stage 3 must measure its own **incremental dashboard/query cost**, reuse the existing coordinator/canonical resources and introduce **no independent widget/chart polling timers**. Do not reopen broad Stage 2 optimization. Tests, semantics and the failing 1M diagnostic remain unchanged.
 
 The historical 5,505,450 estimate and 6,055,995 retry sensitivity are reproduced below, not retroactively called measured facts. The corrected before/after use identical call counts, unchanged fixture volume and a common estimation method. They differ from that historical total because its endpoint envelopes had no per-SQL accounting and its startup/operation allowances were bundled.
 
@@ -148,18 +152,19 @@ Old clients still receive the default facets. New clients against an old Worker 
 | No read-side QR generation or polling writes; lifecycle suspension preserved | PASS |
 | Existing assertions unchanged; added 6Node and 2 dual-browser regressions | PASS (validation record below) |
 | <=1,000,000 reads including 10% | **FAIL: 3,904,805 conservative estimate** |
+| Stage 2 implementation + targeted optimization handoff | **OPERATOR-ACCEPTED with the above target formally unmet** |
 | Actual Cloudflare billing/CPU/storage assurance | NOT MEASURED / NOT APPROVED |
 | Stage 3/4 and rollout | NOT STARTED / NOT AUTHORIZED |
 
 At least **2,640,732** further pre-retry savings would be required under this model. Do not keep expanding this task into a general cache/read-model architecture to force the checkbox.
 
-Concrete next options for a separately approved scope, with benefits bounded rather than promised:
+Historical options retained for traceability, not a Stage 3/4 prerequisite or authorized further Stage 2 work. The operator has accepted the remaining gap; the benefits below are bounded rather than promised:
 
 - A **targeted conditional/versioned read design for summary + list facets**, including every writer and wall-clock overdue invalidation, could address at most **1,999,161** current reads before retries. Even eliminating both costs entirely leaves 1,550,661 before retries, still too high. Impact: source-version completeness, race/snapshot/auth tests and possibly new trigger/write overhead; existing revision rows are not a complete summary change feed.
 - Combine that with a **semantics-preserving substring-search read design** (including two-character/escaped/non-ASCII queries and multiple cars). Search currently reserves 900,000; the optimistic combined ceiling of those three categories is2,899,161 savings, not a verified achievable result. Impact: additional search/index or narrow read-model design, write/storage tradeoff and whole-fixture validation. No FTS policy substitution or feature reduction is approved here.
 - Changing polling intervals alone cannot solve this estimate: even removing **all** periodic cost (1,726,344) leaves 1,823,478 before retries. Cadences remain unchanged. A paid plan would not satisfy the 1M engineering target and was not introduced.
 
-This is a stop before broader architectural/behavioral options, **not a claim that no possible small SQL improvement exists**. The safe local checkpoint remains reviewable with the budget condition explicitly unmet. No push/deploy/production migration/write/provider change/email.
+Stage 2 is closed by operator acceptance with the budget condition explicitly unmet, **not a claim that no possible small SQL improvement exists**. Further optimization merely to reach 1M is not authorized. Stage 3/4 require their own instruction; no push/deploy/production migration/write/provider change/email is authorized.
 
 ## 8. Final validation record
 

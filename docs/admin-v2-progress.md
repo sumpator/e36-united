@@ -1,6 +1,17 @@
 # Admin v2 progress
 
-Current local status (2026-09-08): Stage 2 Member 360/QR implemented; Free-tier row-budget acceptance remains unresolved. Historical Stage 1 notes below retain their original timing; only the dated Stage 2 amendment is current. Stages 3–4 remain unimplemented.
+Current local status (2026-09-08): Stage 2 Member 360/QR and the targeted optimization checkpoint `688441b15540623fe416e704b985f04fd2999f9f` are REVIEWED AND ACCEPTED by the operator for handoff to Stage 3, with the 1M synthetic engineering target formally UNMET. The acceptance below supersedes historical unresolved-acceptance language, not historical measurements. Stages 3–4 remain unimplemented; rollout is not authorized.
+
+## Stage 2 operator acceptance / documentation-only closeout — 2026-09-08
+
+- Accepted conservative estimates: corrected baseline 5,373,090; optimized 3,549,822; **3,904,805 including 10% reserve**, a 33.93% reduction. The <=1,000,000 synthetic target remains formally unmet; neither its result nor the failing budget diagnostic is reclassified as passing.
+- Expected real use: about **3 total visible admin-browser-hours/week**, typically one admin account; event days about **two admins x 5–6 hours = 10–12 admin-browser-hours/day**. Hidden tabs remain idle. The synthetic 3-admin x 12-hour and 24-hour calculations remain stress/sensitivity models, not normal-use forecasts. Local profiling/proportional estimates are not actual Cloudflare `meta.rows_read` or a production billing guarantee.
+- The operator accepts the remaining gap given expected usage, the targeted savings and the existing green validation/safety record. No further Stage 2 SQL/cache/refresh/architecture optimization is authorized merely to meet 1M. Preserve the accepted checkpoint and preceding reviewed work; no new cache framework, service or broad rewrite is required for this handoff.
+- The Stage 2 Free-tier cadence amendment in contract section 6 remains authoritative: 60s operational, existing 120s costly lists, 300s analytical; safety, concurrency, dirty-state, QR and data semantics remain unchanged.
+- When separately authorized, Stage 3 must measure its own **incremental dashboard/query cost** and reuse the existing coordinator/canonical resources. No widget/chart may introduce an independent polling timer or reopen broad Stage 2 optimization. This acceptance does not start Stage 3/4 or authorize rollout.
+- This closeout changes documentation only. Prior Node 342/342, Chromium 59/59, WebKit 28/28, syntax/import/migration/FK results remain historical validation of the accepted implementation, not newly rerun results. No full browser rerun is needed for this documentation-only decision. No push, deployment, production writes/migrations, provider changes or email.
+
+Details and unchanged evidence: [admin-v2-free-tier-budget.md](admin-v2-free-tier-budget.md). Closeout commit: `docs: accept admin v2 stage 2 budget boundary` (final SHA reported after commit).
 
 ## Stage 1 — complete, local only
 
