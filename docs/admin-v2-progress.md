@@ -1,5 +1,9 @@
 # Admin v2 progress
 
+## Production rollout attempt — 2026-09-09 (local), BLOCKED before writes
+
+Approved application and starting HEAD/origin: `1a89afdab10b76c9c6c80a1115bf2bb8ae66dc65`. Clean main; one fetch, no remote divergence. Current unchanged local gate passed Node352, Chromium68, focused WebKit37, syntax/imports, existing forward-migration/FK checks and full Worker dry-run. Production still has the older Worker and none of the four Admin migrations. The execution approval layer rejected the first migration command before execution because it required direct chat authorization for the production write instead of the attached rollout instructions. No migration, deployment, rollback or business write occurred; the rejection was not bypassed. Further production rollout requires that narrow authorization gate, then fresh production/recovery/concurrency checks. See [actual preflight and blocked outcome](admin-v2-production-rollout.md). Historical Stage records and the accepted-unmet Stage2 budget remain unchanged; no redesign/Stage4.
+
 Current Stage 3 status (2026-09-08): implementation, visual review and the complete final local validation gate are complete and PASS. Stage 2 remains operator-accepted with its 1M synthetic target formally UNMET. The latest operator instruction authorizes ONE green Stage 3 commit and then push of current main, but no deployment, production migration/write or Stage 4. Historical local-only records below describe their own earlier checkpoints.
 
 ## Stage 2 operator acceptance / documentation-only closeout — 2026-09-08
