@@ -1,3 +1,4 @@
+import { memberQrInsert } from '../admin/member-qr.js';
 import { json } from "../http/responses.js";
 import { clean } from "../utils/text.js";
 import { profilePointStatement } from "./club/points.js";
@@ -32,6 +33,7 @@ async function bootstrapMember(request, env, auth, origin) {
         updated_at = CURRENT_TIMESTAMP,
         last_login_at = CURRENT_TIMESTAMP
     `).bind(auth.uid, memberCode, auth.email.toLowerCase(), name, nickname || null, phone || null, auth.emailVerified ? 1 : 0),
+    ...(!existing ? [memberQrInsert(env, auth.uid)] : []),
     profilePointStatement(env, auth.uid),
   ]);
 

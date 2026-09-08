@@ -1,5 +1,7 @@
 # Admin v2 progress
 
+Current local status (2026-09-08): Stage 2 Member 360/QR implemented; Free-tier row-budget acceptance remains unresolved. Historical Stage 1 notes below retain their original timing; only the dated Stage 2 amendment is current. Stages 3–4 remain unimplemented.
+
 ## Stage 1 — complete, local only
 
 - Initial origin and stage start: `66efda1025fd03378fe4f2a26f375b7872f30bb8`.
@@ -56,3 +58,55 @@ External R2 upload/delete semantics are preserved, not falsely included in D1 at
 - Stage 3: five-area navigation, personal dashboard/charts/preferences and exact new drill-downs.
 - Stage 4: remaining cross-domain responsive/recovery acceptance.
 - No push, deployment, production migration/write, provider configuration/call, email or real-contact import occurred.
+
+## Stage 2 — local Member 360 / QR checkpoint, 2026-09-08
+
+### Continuation / preserved history
+
+- Recorded original origin: `66efda1025fd03378fe4f2a26f375b7872f30bb8`.
+- Historical reviewed Stage 1: `e6dc108d8f2f6392ae03ec5ee8641a9e67d7b041`.
+- Actual Stage 2 starting HEAD: `24a1b1447608aeb8c3dd7fdef73d276ba05a907e`.
+- Fetched origin/main once: `fc52f24fbf7b2aa42bf7326f2e7268514568b703`, the reviewed official2026 YouTube hotfix. Its diff was only index.html, galerie.html and main.js (8 insertions/8 deletions), with no Admin/backend/schema changes.
+- The previous explicitly authorized hotfix workflow had already rebased Stage 1 over that hotfix. Therefore historical e6dc108 is not literally an ancestor of the current branch; range-diff verified its exact patch-equivalent24a1b14 counterpart. The backup branch still retains e6dc108. This is known reviewed lineage, not new divergence. No history rewrite/rebase/reset/merge/amend was performed in Stage 2.
+- Preflight: clean main, one local Stage 1 commit ahead of fetched origin; no concurrent task. Current actual baseline passed Node326, syntax103, Chromium50, focused WebKit19, imports0missing/0cycles, local integrity/FKs/migration checks. No implementation preceded that gate.
+- index.html / galerie.html / main.js remain byte-for-byte Git-equivalent to the starting checkpoint. Video cGfcolaqczM /2026 stays unchanged. Package/dependency/Cloudflare configuration files are untouched.
+
+### Implemented / current policy
+
+Canonical Members list/search and one desktop drawer/mobile fullscreen detail; reservation/payment, gallery/history and genuinely linked Mailing buttons share immutable Member IDs. Separate identity/event, reservations/stay/finance, Garage/photos, history/S&S, Points/Club/achievements, actual Mailing history and QR tabs. Bounded page totals and duplicate-name/multi-car tests; no fuzzy ownership. Existing editor links remain read-only navigation. Back/direct entry/reload preserves safe source context and dirty payment text.
+
+Global search: minimum2 meaningful characters,400ms debounce, max20 suggestions, same-query coalescing, actor/event30s cache, cancellation/generation protection, POST resolver for complete QR payload. Media verifies exact member-parent relation; visible-only loading, unchanged blob reuse/revocation and private no-store responses. No private cache survives access loss/logout.
+
+Stable192-bit opaque QR identities, unique token/member constraints, explicit current-fixture provisioning and new-member bootstrap only. Forward migration follows Stage1; no production provisioning endpoint, no read-side generation. Existing profiles/login edits never rotate tokens. Actual rendered SVG decodes independently to the same versioned opaque payload. See admin-v2.md for rollout provisioning boundary and camera extension point; identification is not authentication/payment/check-in.
+
+One existing coordinator now uses60s operational cadence,120s reservation/gallery lists,300s summary/history/analytical Member/stored Mailing. Foreground Member suppresses obscured lists, which become stale on return. Focus/reconnect revalidate visible operational editor/list/header and only due analytical resources; lifecycle storms coalesce. Own mutations retain authoritative immediate result +one existing invalidation/reconciliation. Known offline/hidden/denied/logout produce no periodic requests. Backoff120/240/300s. Actual resource timestamps do not borrow the one-minute coordinator timestamp.
+
+Shared contract changed only within section6, dated2026-09-08; all other text is verified identical to the original shared contract. Stages3–4 inherit the amendment, including the three-human/six-context sensitivity and row-budget gate, not the historical10s/five-admin plan.
+
+### Resource review / unresolved acceptance
+
+See [admin-v2-free-tier-budget.md](admin-v2-free-tier-budget.md) for actual captured SQL plans/response sizes, reproduction, overhead and official limits. Synthetic growth:500members,3events,900reservations,750cars,1,500photos,1,000claims,5,000Points,102contacts,501recipients,1,000receipts. Every periodic/Member/search/QR/media projection was executed with EXPLAIN; active-Admin query included. Read-phase total_changes remained unchanged, no polling writes.
+
+Summary reservation aggregates now share one canonical metrics pass; pending-capacity display shares the same approved usage SUM without changing its original option/event scope or any write predicate. Six justified indexes; an ineffective trial email expression index was removed, not falsely credited. Existing Mailing projection remains expensive; no general segmentation rewrite.
+
+Overall periodic ceiling3data requests/context/minute. Worked three-context12h envelope5,505,450rows (target1M; **gap4,505,450**), with10% retry sensitivity6,055,995. These are reproducible local-plan estimates, not Cloudflare meta.rows_read. The budget is **NOT accepted**, including shared hard-limit headroom; a separate authorized measurement/narrow follow-up is required before rollout. Full Member/QR scope was not omitted to hide the gap.
+
+Existing single-size private image storage has no thumbnail derivatives: visible thumbnails fetch the existing original and fullscreen reuses it. No whole archive preload or new media service/R2 writes. Desktop browser emulation/QR matrix decoding is not physical iOS/camera or production CPU/billing validation.
+
+### Validation record
+
+- Final Node: **336/336 PASS**, versus326 preflight (+6 Member/QR tests,+1 growth budget,+1 active-Admin boundary,+2 refresh policy cases).
+- Syntax/import graph: **107/107 PASS**, zero missing imports/cycles.
+- Local exact forward migration on populated predecessor and canonical schema: PASS; integrity OK, FK violations0, six migration registry entries. Reapplication fails honestly. Existing member rows preserved and tokens provisioned only explicitly in tests.
+- Final browser gate: **Chromium 57/57 PASS; focused WebKit 26/26 PASS** (83 total, zero retries, 2.7min). Seven new Member browser cases run in both projects. Complete pre-existing Member/Mailing/Points/pricing/capacity regression remains included.
+- Desktop1440x900 and mobile390x844 meaningful Member screenshots inspected: right drawer, full-width mobile, reachable close, identity/context/timestamps, Garage/photo and History. Artifacts: test-results/admin-members-Member-360-d-ea528-y-search-Enter-is-coalesced-chromium/member360-desktop.png; test-results/admin-members-Member-mobil-52125-leanup-preserve-safe-parent-chromium/member360-mobile.png; matching QR and WebKit screenshots are also local ignored test artifacts.
+- Existing behavior assertions retained. Only superseded10s/15s timing was updated to60s and a longer hidden interval; fixture additions support the exact QR schema/canonical IDs.
+- The initial final browser attempt exposed focus revalidation being too broadly skipped by a fresh cache (conflict warning, stale failure and access-loss tests). Application policy was corrected to revalidate visible operational resources while retaining analytical caching; all11 unchanged Stage1 safety browser cases then passed. The interrupted failing attempt is not counted as a successful final gate.
+- No new dependencies/framework/build system, secrets, production data or configuration changes. Existing color-environment warning is nonfunctional.
+- One new local commit: `feat: add canonical admin member detail and QR identity`; final SHA is reported after commit rather than embedded in its own content. Expected main is two commits ahead of origin: preserved Stage1 +Stage2.
+
+### Handoff / safety
+
+Stage2 feature work is local and ready for code review, not approved for production on Free-tier estimates. No Stage3 navigation/dashboard/chart/preferences or Stage4 rollout acceptance was implemented. Future widgets must share these canonical resources/cadences, not start extra timers.
+
+No push/deployment, production migration/write/load test, real-contact/user import, SMTP2GO/provider call/configuration, email, secret/DNS change or business-data repair occurred. All fixtures, provisioning, mutations and SQLite executions were local synthetic tests.

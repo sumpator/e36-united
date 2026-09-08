@@ -1,6 +1,7 @@
-import {renderListPagination} from '../../lists.js?v=20260908-admin-safe1';
-import { apiRequest } from '../../api.js?v=20260908-admin-safe1';
-import { $, escapeHtml, numeric } from '../../ui.js?v=20260908-admin-safe1';
+import { canonicalMemberLink } from '../../member-detail.js?v=20260908-admin-member2';
+import {renderListPagination} from '../../lists.js?v=20260908-admin-member2';
+import { apiRequest } from '../../api.js?v=20260908-admin-member2';
+import { $, escapeHtml, numeric } from '../../ui.js?v=20260908-admin-member2';
 
 let contactPage=1,contactSequence=0;
 const eligibilityLabels={eligible:'Způsobilý',ineligible:'Bez souhlasu',review_required:'Nutná kontrola',suppressed:'Potlačený'};
@@ -20,7 +21,7 @@ function sourceLabel(contact){
 function contactRow(contact){
   const identity=contact.nickname||contact.name||contact.email;
   const kind=contact.memberId?'Member':contact.legacyOnly?'Historický':'Kontakt';
-  return `<tr><td><strong>${escapeHtml(identity)}</strong><small>${escapeHtml(contact.name&&contact.nickname?contact.name:'')}</small></td><td>${escapeHtml(contact.email)}</td><td><i class="admin-badge admin-mailing-kind">${escapeHtml(kind)}</i><small>${escapeHtml(sourceLabel(contact))}</small></td><td><i class="admin-badge admin-mailing-eligibility--${escapeHtml(contact.eligibility?.status||'review_required')}">${escapeHtml(eligibilityLabels[contact.eligibility?.status]||contact.eligibility?.status||'—')}</i><small>${escapeHtml(suppressionLabels[contact.suppressionStatus]||contact.suppressionStatus||'—')}</small></td><td>${numeric(contact.participationCount)}× United</td></tr>`;
+  return `<tr><td><strong>${canonicalMemberLink(contact.canonicalMemberId,identity)}</strong><small>${escapeHtml(contact.name&&contact.nickname?contact.name:'')}</small></td><td>${escapeHtml(contact.email)}</td><td><i class="admin-badge admin-mailing-kind">${escapeHtml(kind)}</i><small>${escapeHtml(sourceLabel(contact))}</small></td><td><i class="admin-badge admin-mailing-eligibility--${escapeHtml(contact.eligibility?.status||'review_required')}">${escapeHtml(eligibilityLabels[contact.eligibility?.status]||contact.eligibility?.status||'—')}</i><small>${escapeHtml(suppressionLabels[contact.suppressionStatus]||contact.suppressionStatus||'—')}</small></td><td>${numeric(contact.participationCount)}× United</td></tr>`;
 }
 
 export function renderMailingContacts(payload={}){

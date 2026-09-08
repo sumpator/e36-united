@@ -24,6 +24,11 @@ async function getAdminReservations(env, url, origin) {
 
   const page = reservationListQuery(url);
   const query = `
+    WITH approved_usage AS MATERIALIZED (
+      SELECT a.option_id,SUM(a.unit_count) AS units
+      FROM reservation_accommodation a JOIN reservations approved ON approved.id=a.reservation_id
+      WHERE approved.status='approved' GROUP BY a.option_id
+    )
     SELECT
       r.id, r.member_id, r.event_id, r.car_id, r.car_model, r.car_body, r.car_year, r.car_color, r.car_nickname,
       r.attendance_type, r.arrival, r.crew, r.accommodation, r.accommodation_units,
@@ -40,13 +45,7 @@ async function getAdminReservations(env, url, origin) {
       ao.capacity_per_unit AS accommodation_capacity_per_unit,
       CASE
         WHEN r.status = 'pending' AND ao.inventory_mode = 'limited' AND
-          ra.unit_count + (
-            SELECT COALESCE(SUM(approved_allocation.unit_count), 0)
-            FROM reservation_accommodation approved_allocation
-            JOIN reservations approved_reservation ON approved_reservation.id = approved_allocation.reservation_id
-            WHERE approved_allocation.option_id = ra.option_id
-              AND approved_reservation.status = 'approved'
-          ) > ao.units_total
+          ra.unit_count + COALESCE((SELECT units FROM approved_usage WHERE option_id=ra.option_id),0) > ao.units_total
         THEN 1 ELSE 0
       END AS accommodation_capacity_conflict,
       ra.people_count AS accommodation_people_count,

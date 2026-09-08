@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import {readFileSync} from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 
 import worker from '../cloudflare-worker-media.js';
@@ -127,6 +128,7 @@ function createRuntime(member = null) {
     );
   }
 
+  database.exec(readFileSync(new URL('../db/migrations/2026-09-08-admin-member-identity.sql',import.meta.url),'utf8').split('CREATE INDEX')[0]);
   const queries = [];
   const DB = {
     prepare(sql) {
@@ -300,6 +302,7 @@ test('missing member can still use bootstrap to create the current active profil
   assert.equal(payload.profileExists, true);
   assert.equal(payload.member.id, memberId);
   assert.equal(payload.member.status, 'active');
+  const qr=runtime.database.prepare('SELECT token FROM member_qr_identities WHERE member_id=?').get(memberId);assert.match(qr.token,/^[a-f0-9]{48}$/);assert.equal('qr' in payload.member,false);
   runtime.database.close();
 });
 
@@ -348,4 +351,13 @@ test('funnel identity and Admin endpoints preserve authorization before tracking
     const response=await worker.fetch(authenticatedRequest(path),blocked.env);assert.equal(response.status,403);assert.equal((await response.json()).error,'admin_forbidden');
   }
   assert.equal(blocked.queries.some(sql=>/public_planner_handoffs|member_onboarding/.test(sql)),false);blocked.database.close();
+});
+test('every Member 360, search, QR and private media route verifies active Admin before projection',async()=>{
+ for(const path of ['/api/admin/members?q=Same','/api/admin/members/m','/api/admin/members/m/club','/api/admin/members/m/qr','/api/admin/members/m/media/cars/c/p','/api/admin/members/m/media/history/h/p','/api/admin/members/m/media/photos/p','/api/admin/member-qr/resolve']){
+  const method=path.endsWith('/resolve')?'POST':'GET';
+  for(const identity of [{role:'member',status:'active'},{role:'admin',status:'blocked'},{role:'admin',status:'inactive'}]){
+   const r=createRuntime(identity);assert.equal((await worker.fetch(authenticatedRequest(path,method),r.env)).status,403,path);assert.equal(r.queries.length,1);r.database.close();
+  }
+  const r=createRuntime({role:'admin',status:'active'});assert.equal((await worker.fetch(new Request('https://api.e36united.cz'+path,{method,headers:{Origin:allowedOrigin}}),r.env)).status,401);assert.equal(r.queries.length,0);r.database.close();
+ }
 });

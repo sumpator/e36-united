@@ -1,3 +1,4 @@
+import { listAdminMembers,getAdminMember,resolveAdminMemberQr,adminMemberMedia } from './admin/members.js';
 import { runAdminCommand, getAdminOperation } from './admin/commands.js';
 import { getAdminSummary } from './admin/summary.js';
 import { requireAdmin } from "./auth/admin.js";
@@ -84,6 +85,13 @@ export async function routeRequest({ request, env, url, origin }) {
       if (!admin) {
         return json({ ok: false, error: "admin_forbidden", message: "Nemáš oprávnění pro United Admin" }, 403, origin);
       }
+
+      if(url.pathname==='/api/admin/members'&&request.method==='GET')return listAdminMembers(env,url,origin);
+      if(url.pathname==='/api/admin/member-qr/resolve'&&request.method==='POST')return resolveAdminMemberQr(request,env,origin);
+      const memberMedia=url.pathname.match(/^\/api\/admin\/members\/([^/]+)\/media\/(cars|history|photos)\/([^/]+)(?:\/([^/]+))?$/);
+      if(memberMedia&&request.method==='GET')return adminMemberMedia(env,memberMedia[1],memberMedia[2],memberMedia[3],memberMedia[4]||memberMedia[3],origin);
+      const memberDetail=url.pathname.match(/^\/api\/admin\/members\/([^/]+)(?:\/(reservations|garage|photos|history|points|club|mailing|qr))?$/);
+      if(memberDetail&&request.method==='GET')return getAdminMember(env,url,memberDetail[1],memberDetail[2],origin);
 
       const mailingResponse = await routeAdminMailing({ request, env, url, auth, origin });
       if (mailingResponse) return mailingResponse;

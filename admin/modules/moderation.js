@@ -1,10 +1,11 @@
-import {listChanged,renderListPagination} from '../lists.js?v=20260908-admin-safe1';
-import { adminCommand, editorProtected } from '../editors.js?v=20260908-admin-safe1';
-import { apiMedia, apiRequest } from '../api.js?v=20260908-admin-safe1';
-import { renderAttentionCounts } from './dashboard-events.js?v=20260908-admin-safe1';
-import { adminState } from '../state.js?v=20260908-admin-safe1';
-import { setDenied } from '../shell.js?v=20260908-admin-safe1';
-import { $, $$, escapeHtml, formatDate, galleryStatusLabel, numeric, photosLabel, recordsLabel, rememberSessionChoice, toast } from '../ui.js?v=20260908-admin-safe1';
+import { canonicalMemberLink } from '../member-detail.js?v=20260908-admin-member2';
+import {listChanged,renderListPagination} from '../lists.js?v=20260908-admin-member2';
+import { adminCommand, editorProtected } from '../editors.js?v=20260908-admin-member2';
+import { apiMedia, apiRequest } from '../api.js?v=20260908-admin-member2';
+import { renderAttentionCounts } from './dashboard-events.js?v=20260908-admin-member2';
+import { adminState } from '../state.js?v=20260908-admin-member2';
+import { setDenied } from '../shell.js?v=20260908-admin-member2';
+import { $, $$, escapeHtml, formatDate, galleryStatusLabel, numeric, photosLabel, recordsLabel, rememberSessionChoice, toast } from '../ui.js?v=20260908-admin-member2';
 
 const galleryFilterLabels={pending:'Žádosti',approved:'Schválené',rejected:'Zamítnuté',all:'Všechny'};
 const galleryMediaUrls=new Map();
@@ -39,7 +40,7 @@ function galleryCard(item){
       <span>Otevřít náhled</span>
     </button>
     <div class="admin-gallery-card-body">
-      <div class="admin-gallery-card-head"><div><h3>${escapeHtml(galleryIdentity(item))}</h3><p>${escapeHtml(member.name||'Jméno neuvedeno')}</p></div></div>
+      <div class="admin-gallery-card-head"><div><h3>${canonicalMemberLink(item.memberId||member.id,galleryIdentity(item))}</h3><p>${escapeHtml(member.name||'Jméno neuvedeno')}</p></div></div>
       <div class="admin-gallery-card-controls"><small class="admin-badge admin-badge--${escapeHtml(item.status)}">${escapeHtml(galleryStatusLabel(item.status))}</small><div class="admin-gallery-quick-actions">${galleryQuickActions(item)}</div></div>
     </div>
   </article>`;
@@ -101,7 +102,7 @@ function historyReviewControl(item,component){
   return `${note}<label><span>DŮVOD ROZHODNUTÍ</span><textarea data-history-review-note maxlength="1000" placeholder="Povinné při zamítnutí"></textarea></label>${historyReviewActions(item,component)}`;
 }
 function historyClaimCard(item){
-  const member=item.member||{},pending=historyNeedsAction(item);return `<details class="admin-history-card${pending?' is-actionable':''}" data-history-id="${escapeHtml(item.id)}"><summary><div><span class="admin-kicker">UNITED ${numeric(item.eventYear)}</span><h3>${escapeHtml(member.nickname||member.name||member.email||'United member')}</h3><p>${escapeHtml([member.name,member.memberCode].filter(Boolean).join(' · '))}</p></div><div class="admin-history-card-state"><span>${escapeHtml(historyTypeSummary(item))}</span><b class="admin-badge admin-badge--${pending?'pending':'resolved'}">${pending?'Vyžaduje akci':'Bez čekající akce'}</b><time>${escapeHtml(formatDate(item.submittedAt))}</time></div></summary><div class="admin-history-card-detail"><p class="admin-history-member-email">${escapeHtml(member.email||'E-mail neuveden')}</p>${historyEvidenceGrid(item)}<div class="admin-history-decisions"><section data-history-review="attendance"><div class="admin-history-decision-head"><div><small>DOCHÁZKA</small><b>${escapeHtml(historyComponentLabel(item.attendance?.status))}</b></div><i class="admin-badge admin-badge--${escapeHtml(item.attendance?.status)}">${escapeHtml(historyComponentLabel(item.attendance?.status))}</i></div>${historyReviewControl(item,'attendance')}</section><section data-history-review="sns"><div class="admin-history-decision-head"><div><small>SHOW &amp; SHINE</small><b>${escapeHtml(showShineSummary(item))}</b></div><i class="admin-badge admin-badge--${escapeHtml(item.showShine?.status)}">${escapeHtml(historyComponentLabel(item.showShine?.status))}</i></div>${historyReviewControl(item,'sns')}</section></div></div></details>`;
+  const member=item.member||{},pending=historyNeedsAction(item);return `<details class="admin-history-card${pending?' is-actionable':''}" data-history-id="${escapeHtml(item.id)}"><summary><div><span class="admin-kicker">UNITED ${numeric(item.eventYear)}</span><h3>${canonicalMemberLink(item.memberId||member.id,member.nickname||member.name||member.email||'United member')}</h3><p>${escapeHtml([member.name,member.memberCode].filter(Boolean).join(' · '))}</p></div><div class="admin-history-card-state"><span>${escapeHtml(historyTypeSummary(item))}</span><b class="admin-badge admin-badge--${pending?'pending':'resolved'}">${pending?'Vyžaduje akci':'Bez čekající akce'}</b><time>${escapeHtml(formatDate(item.submittedAt))}</time></div></summary><div class="admin-history-card-detail"><p class="admin-history-member-email">${escapeHtml(member.email||'E-mail neuveden')}</p>${historyEvidenceGrid(item)}<div class="admin-history-decisions"><section data-history-review="attendance"><div class="admin-history-decision-head"><div><small>DOCHÁZKA</small><b>${escapeHtml(historyComponentLabel(item.attendance?.status))}</b></div><i class="admin-badge admin-badge--${escapeHtml(item.attendance?.status)}">${escapeHtml(historyComponentLabel(item.attendance?.status))}</i></div>${historyReviewControl(item,'attendance')}</section><section data-history-review="sns"><div class="admin-history-decision-head"><div><small>SHOW &amp; SHINE</small><b>${escapeHtml(showShineSummary(item))}</b></div><i class="admin-badge admin-badge--${escapeHtml(item.showShine?.status)}">${escapeHtml(historyComponentLabel(item.showShine?.status))}</i></div>${historyReviewControl(item,'sns')}</section></div></div></details>`;
 }
 function renderHistoryTabs(){
   $$('[data-history-filter]').forEach(button=>{const filter=button.dataset.historyFilter,count=filter==='all'?adminState.historyCounts.total:numeric(adminState.historyCounts[filter]),active=filter===adminState.historyFilter;$(`[data-history-filter-count="${filter}"]`,button).textContent=count;button.classList.toggle('is-active',active);button.setAttribute('aria-selected',String(active));button.tabIndex=active?0:-1});
@@ -185,7 +186,7 @@ function renderGalleryLightbox(){
     <div class="admin-gallery-lightbox-media"><img alt="Fotografie od ${escapeHtml(galleryIdentity(item))}" data-gallery-media="${escapeHtml(item.id)}"/></div>
     <div class="admin-gallery-lightbox-info">
       <span class="admin-kicker">FOTOGRAFIE ČLENA</span><h2 id="admin-gallery-lightbox-title">${escapeHtml(galleryIdentity(item))}</h2>
-      <div class="admin-gallery-member-meta"><p><small>JMÉNO</small><b>${escapeHtml(item.member?.name||'—')}</b></p><p><small>E-MAIL</small><b>${escapeHtml(item.member?.email||'—')}</b></p><p><small>MEMBER CODE</small><b>${escapeHtml(item.member?.memberCode||'—')}</b></p></div>
+      <div class="admin-gallery-member-meta"><p><small>JMÉNO</small><b>${canonicalMemberLink(item.memberId||item.member?.id,item.member?.name||'—')}</b></p><p><small>E-MAIL</small><b>${escapeHtml(item.member?.email||'—')}</b></p><p><small>MEMBER CODE</small><b>${escapeHtml(item.member?.memberCode||'—')}</b></p></div>
       <small class="admin-badge admin-badge--${escapeHtml(item.status)}">${escapeHtml(galleryStatusLabel(item.status))}</small>
       <p class="admin-gallery-caption">${escapeHtml(item.caption||'Bez popisku.')}</p><small class="admin-gallery-date">Nahráno ${escapeHtml(formatDate(item.createdAt))}</small>
       <div class="admin-gallery-review"><label><span>ADMIN POZNÁMKA</span><textarea data-gallery-review-note maxlength="1000" placeholder="Krátká admin poznámka">${escapeHtml(item.reviewNote||'')}</textarea></label><div class="admin-review-actions">${galleryActions(item)}</div></div>

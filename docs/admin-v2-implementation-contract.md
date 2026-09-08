@@ -119,12 +119,12 @@ New Admin member/detail/summary GETs must be read-only. Do not reuse self-Member
 
 Implement one small Admin refresh coordinator, not a timer per widget/module.
 
-Default target: while visible, authenticated and reachable, refresh the active operational context approximately every **10 seconds**. Another user's committed change should appear on the next successful refresh (target <=15 seconds under normal test conditions). This is NEAR-REAL-TIME polling, not instantaneous push or a connectivity guarantee.
+Stage 2 Free-tier amendment — 2026-09-08: at most THREE human admins. Default visible/authenticated/reachable operational cadence is **60 seconds**; a measured costly resource may use 120 seconds. Expensive aggregates/history use **300 seconds**, explicit opening and relevant invalidation. Another user's change converges on the next successful configured refresh (normally <=75 seconds for a 60-second resource). This is periodic polling, not instantaneous push or a connectivity guarantee. Both future dashboard presets inherit this policy; no 10/30-second mode without a new operator decision.
 
 - On own successful mutation, use the confirmed response and immediately invalidate/refetch affected views; do not wait for the next poll.
 - Refresh on focus, visibility return, reconnect, relevant navigation and `pageshow`, including bfcache restoration. Coalesce simultaneous triggers.
 - Refresh compact summary plus the active workspace/open detail as needed. Do not fetch every Member 360 tab, every chart or SMTP2GO readiness on every tick.
-- Stop periodic work when hidden, logged out or access-denied. Resume with revalidation, not a burst of missed polls.
+- Stop periodic work when hidden, logged out, access-denied or known offline. Resume with revalidation, not a burst of missed polls.
 - One in-flight request per resource/context; bounded retries/backoff with no busy loops. Respect Retry-After where applicable.
 - Show “Aktualizováno …”, “Aktualizuji…”, “Data mohou být zastaralá” or “Bez spojení”. Never keep a misleading live/green indicator after failures.
 - Failed refresh preserves last successful data with a stale label, not zeroes. No cached data means an explicit unavailable state.
@@ -134,7 +134,7 @@ Default target: while visible, authenticated and reachable, refresh the active o
 
 Changing dashboard presets, widgets or chart ranges MUST reuse this coordinator: no timer per widget, chart or preset. Coalesce repeated metric requests. Slow analytical charts may have a documented longer refresh interval than operational summaries; show their own freshness rather than implying everything was refreshed together.
 
-Document request/D1-query budgets for 1 and 5 active admins, including an open Member detail and hidden tabs. No WebSocket/DO/Queue/paid service requirement for this release. Keep the refresh interface replaceable by future push invalidation without replacing domain modules.
+Document request AND scanned-row D1 budgets for 1 and 3 admins over 2/12/24 hours, plus six visible PC/phone contexts. Target at most three periodic data requests per context/60s across summary + foreground, and <=1,000,000 estimated/measured D1 rows read for representative 3-admin/12h use. Include OPTIONS, retries, search/detail/media, auth, mutation receipt/index writes and shared public/Member/provider traffic; label local estimates honestly. Pause obscured lists, fetch tabs on demand, never add polling writes. Report any unresolved row-budget gap before rollout. No WebSocket/DO/Queue/paid service requirement for this release. Keep the refresh interface replaceable by future push invalidation without replacing domain modules.
 
 ## 7. Request lifecycle, identity and stale responses
 

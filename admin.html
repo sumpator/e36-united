@@ -11,6 +11,7 @@
   <link href="admin.css?v=20260903-mailing-b" rel="stylesheet"/>
   <link href="admin/funnel.css?v=20260907-feedback" rel="stylesheet"/>
   <link rel="stylesheet" href="admin-safety.css?v=20260908-stage1"/>
+  <link href="admin-members.css?v=20260908-member360" rel="stylesheet"/>
 </head>
 <body class="admin-page">
   <header class="site-header scrolled admin-header">
@@ -64,6 +65,7 @@
                 <button data-admin-jump="gallery" data-portal-target="gallery" type="button">Fotky a historie <b class="admin-action-count" data-gallery-nav-count hidden>0</b></button>
                 <button data-admin-jump="accommodation" data-portal-target="accommodation" type="button">Ubytování</button>
                 <button data-admin-jump="event" data-portal-target="event" type="button">Event</button>
+                <button data-admin-jump="members" data-portal-target="members" type="button">Členové</button>
                 <button data-admin-jump="mailing" data-portal-target="mailing" type="button">Mailing</button>
               </nav>
             </div>
@@ -79,6 +81,7 @@
                   <button data-portal-target="gallery" type="button"><span>04</span><b>Fotky a historie <i class="admin-action-count" data-gallery-nav-count hidden>0</i></b></button>
                   <button data-portal-target="accommodation" type="button"><span>05</span><b>Ubytování</b></button>
                   <button data-portal-target="event" type="button"><span>06</span><b>Event</b></button>
+                  <button data-portal-target="members" type="button"><span>08</span><b>Členové</b></button>
                   <button data-portal-target="mailing" type="button"><span>07</span><b>Mailing</b></button>
                 </nav>
               </div>
@@ -264,6 +267,7 @@
             </form></div>
           </section>
 
+          <section class="admin-view-panel" data-admin-panel="members" hidden><h2>Členové</h2><div data-member-list></div></section>
           <section class="admin-mailing admin-view-panel" data-admin-panel="mailing" hidden>
             <div class="admin-section-head"><div><span class="admin-kicker">MAILING CENTER</span><h2>Mailing.</h2><p>Kontakty, serverové segmenty, E36 editor a řízené doručení kampaní.</p></div><span class="admin-view-label">MAILING C</span></div>
             <div class="admin-mailing-tabs" aria-label="Sekce Mailing" role="tablist">
@@ -370,6 +374,6 @@
     </aside>
   </div>
   <div aria-live="polite" class="admin-toast" data-toast role="status"></div>
-  <script src="admin.js?v=20260908-admin-safe1" type="module"></script>
+  <script src="admin.js?v=20260908-admin-member2" type="module"></script>
 </body>
 </html>

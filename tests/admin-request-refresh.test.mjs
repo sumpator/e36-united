@@ -50,10 +50,10 @@ test('old event response is ignored even if transport ignores abort',async()=>{
   await assert.rejects(response,error=>error.stale);
 });
 
-test('one visible refresh coordinator polls at 10 seconds, coalesces triggers, and leaves hidden tabs idle',async()=>{
+test('one visible refresh coordinator polls at 60 seconds, coalesces triggers, and leaves hidden tabs idle',async()=>{
   let context={key:'a:e',authenticated:true,denied:false,visible:true};const timers=new Map();let serial=0,calls=0;
   const refresh=createAdminRefresh({readContext:()=>context,refresh:async()=>{calls++},setTimer:(fn,ms)=>{timers.set(++serial,{fn,ms});return serial},clearTimer:id=>timers.delete(id)});
-  await refresh.trigger('startup');assert.equal(calls,1);assert.equal(timers.size,1);assert.equal([...timers.values()][0].ms,10_000);
+  await refresh.trigger('startup');assert.equal(calls,1);assert.equal(timers.size,1);assert.equal([...timers.values()][0].ms,60_000);
   const next=[...timers.values()][0];timers.clear();await next.fn();await Promise.resolve();assert.equal(calls,2);
   context={...context,visible:false};refresh.suspend();assert.equal(timers.size,0);await refresh.trigger('focus');assert.equal(calls,2);
   context={...context,visible:true};await refresh.trigger('pageshow');assert.equal(calls,3);refresh.dispose();assert.equal(timers.size,0);
@@ -82,4 +82,17 @@ test('simultaneous GETs for one identity/resource share one request, but mutatio
 test('invalid successful JSON is unavailable, never an empty successful projection',async()=>{
  const api=createAdminApiClient({baseUrl:'https://local.invalid',getContext:()=>({user,generation:1,eventId:'e'}),fetchRequest:async()=>new Response('<html>error</html>')});
  await assert.rejects(api.request('/summary'),/Neplatná odpověď/);
+});
+test('known offline is idle; lifecycle storms coalesce and failures back off to a bounded five minutes',async()=>{
+ let online=true,calls=0,release;const timers=new Map();let id=0;const hold=new Promise(resolve=>release=resolve);
+ const c=createAdminRefresh({readContext:()=>({key:'a:e',authenticated:true,visible:true,online}),refresh:async()=>{calls++;if(calls===1)await hold;return{failed:['summary']}},setTimer:(fn,ms)=>{timers.set(++id,{fn,ms});return id},clearTimer:key=>timers.delete(key)});
+ const first=c.trigger('focus'),onlineTrigger=c.trigger('online'),pageshow=c.trigger('pageshow');release();
+ await Promise.all([first,onlineTrigger,pageshow]);assert.equal(calls,1);assert.equal([...timers.values()][0].ms,120000);
+ online=false;c.suspend();await c.trigger('poll');assert.equal(calls,1);assert.equal(timers.size,0);
+ online=true;await c.trigger('online');assert.equal([...timers.values()][0].ms,240000);await c.trigger('manual');assert.equal([...timers.values()][0].ms,300000);c.dispose();
+});
+test('resource timestamps prevent lifecycle events from broadly reloading fresh analytical data',async()=>{
+ const {resourceDue,ADMIN_REFRESH}=await import('../admin/refresh-policy.js');const fresh={state:'fresh',context:'a',lastSuccess:1000};
+ for(const reason of ['focus','online','pageshow','visible','context'])assert.equal(resourceDue(fresh,'a',ADMIN_REFRESH.analyticsMs,reason,2000),false);
+ assert.equal(resourceDue(fresh,'a',ADMIN_REFRESH.analyticsMs,'poll',301000),true);assert.equal(resourceDue(fresh,'b',ADMIN_REFRESH.analyticsMs,'context',2000),true);assert.equal(resourceDue(fresh,'a',ADMIN_REFRESH.analyticsMs,'mutation',2000),true);
 });

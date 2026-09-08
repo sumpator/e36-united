@@ -95,12 +95,12 @@ test('access loss clears protected state and drafts and stops refresh',async({pa
  expect(control.writes).toHaveLength(0);noUnexpectedRuntime(control);
 });
 
-test('visible polling converges within the ten-second interval; hidden tabs make no periodic requests',async({page})=>{
+test('visible polling converges within the sixty-second interval; hidden tabs make no periodic requests',async({page})=>{
  await page.clock.install();const control=await fixture(page);await open(page);control.change(2200);
- await page.clock.runFor(10_100);await expect(amount(page)).toHaveValue('2200');
+ await page.clock.runFor(60_100);await expect(amount(page)).toHaveValue('2200');
  let reads=0;page.on('request',request=>{if(request.url().includes('/api/admin/'))reads++});
  await page.evaluate(()=>{Object.defineProperty(document,'hidden',{configurable:true,get:()=>true});document.dispatchEvent(new Event('visibilitychange'))});
- await page.clock.runFor(30_000);expect(reads).toBe(0);
+ await page.clock.runFor(180_000);expect(reads).toBe(0);
  await page.evaluate(()=>{Object.defineProperty(document,'hidden',{configurable:true,get:()=>false});document.dispatchEvent(new Event('visibilitychange'))});
  await expect.poll(()=>reads).toBeGreaterThan(0);expect(control.writes).toHaveLength(0);noUnexpectedRuntime(control);
 });

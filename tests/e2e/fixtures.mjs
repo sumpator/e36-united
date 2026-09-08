@@ -314,9 +314,10 @@ const adminEvent = {
 
 const adminReservation = {
   id: 'reservation-admin-e2e',
+  memberId: 'm',
   eventId: adminEvent.id,
   eventYear: adminEvent.year,
-  member: { name: 'Eva Nováková', nickname: 'Eva', email: 'eva@example.test', memberCode: 'EU036' },
+  member: { id: 'm', name: 'Eva Nováková', nickname: 'Eva', email: 'eva@example.test', memberCode: 'EU036' },
   carSnapshot: { id: 'car-001', nickname: 'Estoril', body: 'Coupé', model: '328i', year: 1996, color: 'Estoril Blau' },
   arrival: 'Sobota',
   crew: 3,

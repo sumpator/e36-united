@@ -1,6 +1,6 @@
-# Admin v2 — Stage 1 operational foundations
+# Admin v2 — Stage 1 foundations and Stage 2 Member detail
 
-This is Stage 1 only. The preserved product contract and data map are authoritative handoff documents; no Stage 2–4 implementation is implied.
+The historical Stage 1 foundation is recorded first; the dated Stage 2 section below adds Member 360/QR and supersedes its cadence/budget. Shared contract and data map remain authoritative. Stages 3–4 are not implemented; the Stage 2 Free-tier budget remains an unresolved rollout gate.
 
 ## Architecture / current contracts
 
@@ -37,7 +37,7 @@ After reload authenticate, load current record, then offer restore/discard; stal
 
 Dirty exit/event switch prompts stay/discard. Back/reload during a save never replays it. Explicit logout/access loss clears identity-scoped drafts, pending client state and private media; old responses cannot render under another actor. beforeunload is best-effort, supplementary only. Desktop WebKit is not physical Safari/iPhone validation.
 
-## Refresh / cost budget
+## Historical Stage 1 refresh / cost budget (superseded below)
 
 Successful visible polling: next cycle 10 seconds after completion; normal fixture convergence <=15s. Each cycle re-evaluates deadlines, not just updated_at. Failures back off 20/40/60 seconds; reachable recovery/focus/pageshow/navigation revalidates immediately. One in-flight context and one timer; hidden/anonymous/denied tabs have zero periodic calls. A started request may finish or be aborted; no backlog catch-up burst.
 
@@ -57,7 +57,7 @@ Reservation/detail reads: auth1 + event1 + list/count/tabs3 each. Summary: auth1
 
 Optional Funnel is fetched on entry/revalidation, not each poll: one HTTP / eight D1 statements including event/auth, bounded detail50. Its own stale warning preserves prior successful data. It is not a required attention item.
 
-Mailing active overview adds one stored projection request (auth + contact projection + draft count); contacts refresh only the active filter; campaigns poll list and selected stored delivery/tracking, never provider-status/readiness. Contacts and campaigns expose bounded pages/totals (default50/max100); campaigns no longer download an unbounded list. Existing Mailing bulk contact projection and bounded delivery detail semantics remain existing implementation limits; no general Mailing query-engine rewrite or new sending engine. Readiness is still an explicit existing detail action, not a periodic poll. Member 360 does not exist yet: Stage 2 must budget its selected tab using this coordinator, not fetch every future tab.
+Mailing active overview adds one stored projection request (auth + contact projection + draft count); contacts refresh only the active filter; campaigns poll list and selected stored delivery/tracking, never provider-status/readiness. Contacts and campaigns expose bounded pages/totals (default50/max100); campaigns no longer download an unbounded list. Existing Mailing bulk contact projection and bounded delivery detail semantics remain existing implementation limits; no general Mailing query-engine rewrite or new sending engine. Readiness is still an explicit existing detail action, not a periodic poll. At the Stage 1 checkpoint Member 360 was deferred; the Stage 2 implementation below now shares this coordinator.
 
 These are not a Cloudflare free-tier guarantee: cost depends on rows scanned, data growth and active duration. No paid feature or billing/config change was made.
 
@@ -89,3 +89,38 @@ External R2 cover uploads/deletes are not atomic D1 commands; existing object se
 - Stage 3: grouped five-area navigation, configurable dashboard/compositions/charts/preferences, exact operational drill-down support. Optional Planner, not default focus.
 - Stage 4: remaining cross-domain mobile/recovery acceptance and physical-device limitations.
 - Not introduced: check-in, judging, Merch, refund/credit/payment-policy changes, historical backfills or Mailing D response metrics.
+
+## Stage 2 — Member 360 / QR, local checkpoint (2026-09-08)
+
+This section supersedes the historical Stage 1 cadence/budget above. Shared contract section 6 carries the narrow dated amendment; all revision/operation receipt, finance, authorization and dirty-editor rules remain intact. The feature implementation is local; **Free-tier row-budget acceptance is NOT satisfied**. See [the reproducible budget](admin-v2-free-tier-budget.md) before any rollout.
+
+### Interfaces and composition
+
+- `worker/admin/members.js`: Admin-only bounded list/search and independent read-only Member projections. `GET /api/admin/members?page=1[&q=...]` returns complete totals, 30 members/page or at most 20 search suggestions. Search requires two meaningful Unicode letters/digits, escapes LIKE wildcards, and matches name/nickname/email/full code/car model/nickname. It does not infer identity; duplicate car matches use EXISTS. Order is created_at DESC, immutable ID. SQLite substring search does not promise accent-insensitive linguistic matching.
+- `GET /api/admin/members/:memberId?eventId=:eventId`: identity, selected event and its stored reservation/stay/crew/vehicle/finance. No call into bootstrap, VS allocation or owner impersonation.
+- Same base plus `reservations|garage|photos|club|history|points|mailing|qr`: separately loaded domains. Lists use 20-row pages and independent complete totals. Club uses existing pure achievement/rating derivation and ledger SUMs, not new rules. Stored payment status is labelled separately from recorded due/paid/debt/overpayment amounts. No payment state is inferred from QR.
+- `admin/member-detail.js`: single read-only native dialog, right drawer desktop / full-screen mobile, global debounced search, QR rendering, visible-media loading. `admin.js` owns composition and the one refresh coordinator; `admin/navigation.js` extends the Stage 1 allowlisted URL/Back stack with member/tab IDs. Search text, QR tokens and private records are not stored in URL/history.
+- Reservation quick/detailed lists, payment list/drawer, gallery cards/lightbox, History/S&S cards and actually linked Mailing rows use the same canonical button. Existing DTO member.id/memberId are preserved. Mailing adds `canonicalMemberId` from persisted current_member_id or the actual projected member row; legacy email inference remains in the old segmentation projection only and never creates a navigable Member relationship.
+- Opening Member over a dirty payment preserves the source editor and list/filter/page/scroll history. Back closes only the Member overlay, without authorizing/discarding the underlying draft. Direct entry/reload has a safe parent. Business actions leave Member for the existing reservation/payment editor or existing History moderation workspace; there is no second write implementation.
+
+### Private data, media and freshness
+
+Every actual request passes existing Firebase verification and active-Admin lookup; ordinary/inactive/blocked roles cannot read/search/resolve/media. JSON uses no-store and private media uses private,no-store. Media paths verify both owner and parent (member/car/photo or member/claim/evidence); gallery also checks a linked car belongs to that member. R2 keys do not appear in the new DTOs.
+
+Only header and current tab are active. Session/event/member/tab/page generation and payload dataVersion reject late data. Closed/obscured resources do not poll; the source list is marked stale on closing Member. Cached resource timestamps are retained, not restamped when merely rendered. A failed tab leaves valid identity/other data usable and reports stale/unavailable locally. Logout/access loss clears private DOM, search/data caches, pending media and object URLs.
+
+IntersectionObserver loads only visible images. Unchanged media paths/versions reuse authenticated object URLs across ticks; fullscreen is an explicit click. **Existing storage has one image object, not separate thumbnails**: visible thumbnail rendering therefore fetches that existing object; fullscreen reuses it. No new image transformation service/derivatives or R2 writes are introduced. This is not a claim of lower-resolution thumbnail bandwidth savings.
+
+Central configuration `admin/refresh-policy.js`: operational 60s; reservation/gallery heavy lists 120s; summary, History review and Member Club/History/Points/Mailing/QR 300s. Explicit opening loads missing/stale data. Focus/visible/pageshow/reconnect coalesce and revalidate the visible operational resources/editor plus due analytical resources, not every fresh tab. Own mutations show the existing authoritative result immediately and invalidate once. Manual refresh is coalesced. Backoff is 120/240/300s after failures, capped at 300s. Hidden/logged-out/denied/known-offline contexts have zero periodic requests. Displayed summary time is its own last fetch, never the coordinator's successful minute tick.
+
+### Stable QR migration / explicit provisioning
+
+`db/migrations/2026-09-08-admin-member-identity.sql` follows Stage 1 safe-operations, once. Canonical schema contains it exactly. New member_qr_identities has immutable member FK, unique 48-character lowercase hex token and created_at. Six justified read indexes cover member ordering, member gallery, car photos, recipient member/contact and member S&S lookup. Migration copies/changes no member/business records and issues no tokens by itself.
+
+No previously issued member QR identity was found; the existing QR generator was payment-only. `worker/admin/member-qr.js` uses crypto.getRandomValues(24 bytes): 192 bits; payload `E36U1:<48 hex characters>`. Existing fixtures are provisioned explicitly in bounded batches through `provisionMemberQrBatch(env,100)`, repeat until provisioned=0. Unique member conflict retains the original token; an independent token collision fails instead of replacing another identity. Existing login/profile reads/edits never invoke this function. Only genuinely new server-side profile bootstrap adds the token statement to its existing batch; previous Points statement order is preserved.
+
+**A later separately authorized rollout must apply the migration before this Worker, then run the bounded provisioning boundary for every existing real member.** Do not paste tokens into logs. This checkpoint includes only local fixture provisioning; no production command/job/HTTP provisioning endpoint is enabled.
+
+`POST /api/admin/member-qr/resolve` accepts a bounded JSON body `{payload}`, validates version/format, resolves unique token and returns only member ID. No lookup log, timestamp, check-in, entitlement, payment or Points write. Global search recognises pasted QR and opens the same detail. QR is rendered with already vendored qrcode-generator; independent test decoder reads the actual SVG matrix/format/data (fixed version 4/M byte-mode payload). This proves the exact generated payload decodes, not camera/iOS optical reliability. Future camera code may submit a decoded payload to this resolver; future event/car/order actions require separate explicit action APIs, not token semantics. No scanner, rotation/reissue UI, merch/judging/check-in or prominent Member Portal QR was added.
+
+Stages 3–4 remain unimplemented. They must consume these interfaces/cadences, not add widget timers or restore a ten-second event-day preset.

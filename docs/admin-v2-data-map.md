@@ -113,3 +113,23 @@ Two active reservations: approved due 1,000 / paid 200 / crew 2 / 1 cabin unit; 
 D1 profiles are not a complete Firebase account census. Planned presence is not check-in. S&S interest is not a judged entry. Paid totals are manually recorded, not bank reconciliation. No refund/credit workflow or historical cash-flow/occupancy reconstruction. Opens are approximate, clicks are not replies; Mailing D answer metrics remain absent. No QR, member ranking policy, lifetime balance, Merch inventory or dashboard preferences added.
 
 Existing Mailing contact linkage semantics are preserved for this task; Stage 2 must inspect canonical member links and ambiguous legacy email matches before exposing Member 360 navigation. No live contact correction/backfill has occurred.
+
+## Stage 2 canonical Member read map — 2026-09-08
+
+The shared Stage 2 cadence amendment supersedes earlier timing, not the metric definitions above.
+
+| Member resource | Canonical source / scope | Completeness / links / refresh |
+| --- | --- | --- |
+| List/search | members.id; optional EXISTS cars.member_id | Stable 30-row list, 20 search suggestions, full COUNT; no email/name identity inference; 60s list |
+| Header/event | members PK, selected events PK, reservations(member_id,event_id), stored reservation_accommodation snapshot | Selected-event only; stored VS/status/due/paid, separate debt/overpayment; no legacy VS allocation; 60s |
+| Reservations/finance | reservations.member_id + event/snapshot FK | All member events, 20/page + full total; existing safe reservation/payment editor; 60s |
+| Garage | cars.member_id, car_photos.car_id | 20 cars/page + complete total; related photo metadata only for that page; primary flag unchanged; 60s |
+| Photos | gallery_submissions.member_id | 20/page with review/status, full total; scoped private media; 60s |
+| History/S&S | united_history_claims.member_id, events, evidence matching both member and claim | 20/page + full total, stored review/category/placement; existing moderation workspace; 300s |
+| Points | united_points_ledger.member_id | Ledger pagination/full total; no new policy, grant, reconciliation or write; 300s |
+| Club/achievements | Existing pure derivation over member history + approved gallery count + ledger SUM | Available and positive lifetime sums retain existing Club semantics; 300s |
+| Mailing | Persisted mailing_contacts.current_member_id; recipients.member_id OR actual linked contact_id | No fabricated membership on email-only match; stored delivery_status/sent_at, 20/page + full total; 300s |
+| QR | member_qr_identities.member_id/token UNIQUE | Payload only in QR tab, not list/header; Admin POST resolves identification only; 300s / explicit resolve |
+| Private images | Exact member/parent/photo relation, then one MEDIA.get | On visibility/request, object URL reused unchanged; no polling R2 LIST or public cache |
+
+Admin sources use immutable memberId/member.id; Mailing adds canonicalMemberId separately from legacy segmentation's email-derived memberId. New errors never convert missing/unavailable data into zeroes. Each header/tab has its own actual load timestamp/context. D1 authorization is repeated on real requests, not cached as permanent permission. Stored-image limitation: no separate thumbnail objects exist; visible thumbnail and clicked fullscreen reuse the same private object. See admin-v2.md and admin-v2-free-tier-budget.md for exact interfaces and unresolved rollout budget.

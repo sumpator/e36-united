@@ -1,6 +1,6 @@
-import { portalConfig } from '../firebase-config.js?v=20260908-admin-safe1';
-import { adminState } from './state.js?v=20260908-admin-safe1';
-import { createAdminApiClient } from './request-client.js?v=20260908-admin-safe1';
+import { portalConfig } from '../firebase-config.js?v=20260908-admin-member2';
+import { adminState } from './state.js?v=20260908-admin-member2';
+import { createAdminApiClient } from './request-client.js?v=20260908-admin-member2';
 
 export const apiBaseUrl=(portalConfig.apiBaseUrl||'https://api.e36united.cz').replace(/\/$/,'');
 const client=createAdminApiClient({baseUrl:apiBaseUrl,

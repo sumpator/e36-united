@@ -1,14 +1,15 @@
+import { ADMIN_REFRESH } from './refresh-policy.js?v=20260908-admin-member2';
 // One timer, one active context, one in-flight refresh. Dependencies are injected for race tests.
-export function createAdminRefresh({readContext,refresh,onState=()=>{},intervalMs=10_000,
+export function createAdminRefresh({readContext,refresh,onState=()=>{},intervalMs=ADMIN_REFRESH.operationalMs,
   setTimer=setTimeout,clearTimer=clearTimeout,now=Date.now}){
   let timer=null,flight=null,generation=0,queued=false,failures=0,lastSuccess=null,disposed=false;
-  const eligible=()=>{const c=readContext();return !disposed&&c.authenticated&&!c.denied&&c.visible};
+  const eligible=()=>{const c=readContext();return !disposed&&c.authenticated&&!c.denied&&c.visible&&c.online!==false};
   const cancelTimer=()=>{if(timer!==null)clearTimer(timer);timer=null};
-  const schedule=()=>{cancelTimer();if(eligible())timer=setTimer(()=>{timer=null;void trigger('poll')},Math.min(60_000,intervalMs*2**Math.min(failures,3)))};
+  const schedule=()=>{cancelTimer();if(eligible())timer=setTimer(()=>{timer=null;void trigger('poll')},Math.min(ADMIN_REFRESH.maxBackoffMs,intervalMs*2**Math.min(failures,3)))};
   const publish=(state,extra={})=>onState({state,lastSuccess,...extra});
   async function trigger(reason='manual'){
     if(!eligible()){cancelTimer();return}
-    if(flight){queued=reason!=='poll';return flight.promise}
+    if(flight){queued=queued||['mutation','context','startup','navigation','detail'].includes(reason);return flight.promise}
     cancelTimer();const controller=new AbortController(),captured=readContext(),myGeneration=generation;
     const isCurrent=()=>eligible()&&generation===myGeneration&&readContext().key===captured.key&&!controller.signal.aborted;
     publish('loading');

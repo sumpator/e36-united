@@ -1,5 +1,5 @@
-import { apiRequest } from '../../api.js?v=20260908-admin-safe1';
-import { $, $$ } from '../../ui.js?v=20260908-admin-safe1';
+import { apiRequest } from '../../api.js?v=20260908-admin-member2';
+import { $, $$ } from '../../ui.js?v=20260908-admin-member2';
 
 let previewTimer=null,previewSequence=0;
 

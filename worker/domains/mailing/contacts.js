@@ -149,6 +149,7 @@ function mapContact(row) {
     name: row.name || "",
     nickname: row.nickname || "",
     memberId,
+    canonicalMemberId: row.canonical_member_id || null,
     memberStatus: row.member_status || null,
     privacyConsent: {
       status: consentStatus(row.privacy_consent_status),
@@ -188,6 +189,7 @@ export async function loadMailingContacts(env) {
         COALESCE(NULLIF(trim(m.name), ''), c.name, '') AS name,
         COALESCE(NULLIF(trim(m.nickname), ''), c.nickname, '') AS nickname,
         COALESCE(c.current_member_id, m.id) AS member_id,
+        c.current_member_id AS canonical_member_id,
         c.privacy_consent_status,
         c.privacy_consent_source,
         c.privacy_consent_at,
@@ -212,6 +214,7 @@ export async function loadMailingContacts(env) {
         m.name,
         COALESCE(m.nickname, '') AS nickname,
         m.id AS member_id,
+        m.id AS canonical_member_id,
         'unknown' AS privacy_consent_status,
         NULL AS privacy_consent_source,
         NULL AS privacy_consent_at,
