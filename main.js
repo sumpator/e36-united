@@ -126,7 +126,7 @@ return;
 }
 const iframe = document.createElement('iframe');
 iframe.src = `https://www.youtube.com/embed/${encodeURIComponent(videoId)}?autoplay=1&rel=0&playsinline=1`;
-iframe.title = 'E36 United 2025 – oficiální video';
+iframe.title = 'E36 United 2026 – oficiální video';
 iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share';
 iframe.allowFullscreen = true;
 iframe.referrerPolicy = 'strict-origin-when-cross-origin';
