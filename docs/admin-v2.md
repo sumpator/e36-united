@@ -130,3 +130,9 @@ Stages 3–4 remain unimplemented. They must consume these interfaces/cadences, 
 One forward ordering index plus a materialized reservation page bounds hydration and scopes approved usage to the page's actual pending option IDs (all-event option semantics preserved). The existing source drawer opts into `projection=detail` together with an immutable reservation ID, omitting only unused list facets. Default/old clients retain their contract. No new permission/cache framework or interval change.
 
 See [budget evidence and open gate](admin-v2-free-tier-budget.md): corrected estimate3,549,822 /3contexts/12h;3,904,805 with10% retries. **The1M condition remains unsatisfied.** All figures are local estimates, not Cloudflare billing; no rollout/Stage3/4 authorization is implied.
+
+## Stage 3 — dashboard and grouped navigation
+
+[Stage 3 architecture/catalog](admin-v2-dashboard.md) supersedes earlier unimplemented-dashboard statements without rewriting historical validation. Five areas, two independent explicit responsive layouts, four Preparation KPI defaults, optional-only Planner, fixed truthful Attention, native graphs/exact tables and allowlisted drill destinations. Existing search/Member360/QR/private media/source editors stay canonical. Preferences extend the existing revision/receipt model via one new forward migration after admin-read-budget. Native Admin cache versions move together; no new dependency/framework/business policy.
+
+One coordinator; unchanged 60/120/300s, no per-widget timers. New analytics only in visible dashboard; optional funnel only selected. [Incremental budget](admin-v2-free-tier-budget.md#stage-3-incremental-dashboard-budget) retains Stage 2's accepted-unmet target. Later operator instruction authorizes only fully green checkpoint push; no deployment, production migration/write, provider/configuration/email. Stage 4 not started.

@@ -12,6 +12,7 @@
   <link href="admin/funnel.css?v=20260907-feedback" rel="stylesheet"/>
   <link rel="stylesheet" href="admin-safety.css?v=20260908-stage1"/>
   <link href="admin-members.css?v=20260908-member360" rel="stylesheet"/>
+  <link href="admin/dashboard.css?v=20260908-stage3" rel="stylesheet"/>
 </head>
 <body class="admin-page">
   <header class="site-header scrolled admin-header">
@@ -59,14 +60,11 @@
           <div class="admin-portal-nav portal-nav-shell" data-portal-nav="admin">
             <div class="portal-nav-viewport">
               <nav aria-label="Sekce United Admin" class="admin-section-nav" data-portal-tablist>
-                <button class="is-active" data-admin-jump="dashboard" data-portal-target="dashboard" type="button">Přehled</button>
-                <button data-admin-jump="reservations" data-portal-target="reservations" type="button">Rezervace <b data-reservation-nav-count>0</b></button>
-                <button data-admin-jump="payments" data-portal-target="payments" type="button">Platby <b data-payment-nav-count>0</b></button>
-                <button data-admin-jump="gallery" data-portal-target="gallery" type="button">Fotky a historie <b class="admin-action-count" data-gallery-nav-count hidden>0</b></button>
-                <button data-admin-jump="accommodation" data-portal-target="accommodation" type="button">Ubytování</button>
-                <button data-admin-jump="event" data-portal-target="event" type="button">Event</button>
-                <button data-admin-jump="members" data-portal-target="members" type="button">Členové</button>
-                <button data-admin-jump="mailing" data-portal-target="mailing" type="button">Mailing</button>
+                <button data-portal-target="dashboard" type="button">Přehled</button>
+                <button data-portal-target="finance" type="button">Rezervace &amp; finance <b class="admin-action-count" data-reservation-nav-count>—</b></button>
+                <button data-portal-target="community" type="button">Komunita <b class="admin-action-count" data-gallery-nav-count hidden>0</b></button>
+                <button data-portal-target="mailing" type="button">Mailing</button>
+                <button data-portal-target="settings" type="button">Nastavení</button>
               </nav>
             </div>
             <button aria-controls="admin-mobile-menu" aria-expanded="false" class="portal-menu-button" data-portal-menu-open type="button"><span>MENU</span><i aria-hidden="true"></i></button>
@@ -75,66 +73,26 @@
               <div aria-labelledby="admin-mobile-menu-title" aria-modal="true" class="portal-nav-sheet-dialog" data-portal-sheet-dialog role="dialog" tabindex="-1">
                 <div class="portal-nav-sheet-head"><div><small>NAVIGACE</small><h2 id="admin-mobile-menu-title">United Admin</h2></div><button aria-label="Zavřít menu" data-portal-sheet-close type="button">×</button></div>
                 <nav aria-label="Všechny sekce United Admin" class="portal-nav-sheet-list">
-                  <button class="is-active" data-portal-target="dashboard" type="button"><span>01</span><b>Přehled</b></button>
-                  <button data-portal-target="reservations" type="button"><span>02</span><b>Rezervace</b></button>
-                  <button data-portal-target="payments" type="button"><span>03</span><b>Platby</b></button>
-                  <button data-portal-target="gallery" type="button"><span>04</span><b>Fotky a historie <i class="admin-action-count" data-gallery-nav-count hidden>0</i></b></button>
-                  <button data-portal-target="accommodation" type="button"><span>05</span><b>Ubytování</b></button>
-                  <button data-portal-target="event" type="button"><span>06</span><b>Event</b></button>
-                  <button data-portal-target="members" type="button"><span>08</span><b>Členové</b></button>
-                  <button data-portal-target="mailing" type="button"><span>07</span><b>Mailing</b></button>
-                </nav>
+                <button data-portal-target="dashboard" type="button"><span>01</span><b>Přehled</b></button>
+                <button data-portal-target="finance" type="button"><span>02</span><b>Rezervace &amp; finance</b></button>
+                <button data-portal-target="community" type="button"><span>03</span><b>Komunita <i class="admin-action-count" data-gallery-nav-count hidden>0</i></b></button>
+                <button data-portal-target="mailing" type="button"><span>04</span><b>Mailing</b></button>
+                <button data-portal-target="settings" type="button"><span>05</span><b>Nastavení</b></button>
+              </nav>
               </div>
             </div>
           </div>
           <div class="admin-workspace">
+          <nav class="admin-secondary-nav" data-admin-secondary aria-label="Agenda aktivní oblasti"></nav>
           <section class="admin-view-panel is-active" data-admin-panel="dashboard">
-          <div class="admin-view-heading"><div><span class="admin-kicker">CONTROL ROOM</span><h2>Přehled.</h2><p>Nejdůležitější stav vybraného United na jednom místě.</p></div><span class="admin-view-label">DASHBOARD</span></div>
-          <section class="admin-kpis" aria-label="Hlavní ukazatele">
-            <article><span>Rezervace</span><strong data-kpi-reservations>0</strong><small data-capacity-reservations>kapacita —</small></article>
-            <article><span>Lidé</span><strong data-kpi-people>0</strong><small>celkem osob</small></article>
-            <article><span>Auta</span><strong data-kpi-cars>0</strong><small>v rezervacích</small></article>
-            <article aria-label="Otevřít žádosti čekající na schválení" class="admin-kpi-pending" data-open-pending role="button" tabindex="0"><span>Čeká na schválení</span><strong data-kpi-pending>0</strong><small>Otevřít žádosti</small></article>
-            <article><span>Zaplaceno / nezaplaceno</span><strong class="admin-kpi-split" data-kpi-payments>0 / 0</strong><small>počet rezervací</small></article>
-            <article aria-label="Otevřít fotografie čekající na schválení" class="admin-kpi-gallery" data-open-gallery-pending role="button" tabindex="0"><span>Fotky ke schválení</span><strong data-kpi-gallery-pending>0</strong><small>Otevřít žádosti</small></article>
-          </section>
-
-          <section class="admin-overview-details admin-collapsible is-collapsed" data-admin-collapsible="overview" data-default-collapsed="true">
-            <div class="admin-collapsible-head admin-overview-details-head"><div><span class="admin-kicker">OVERVIEW DETAIL</span><h2>Detail přehledu.</h2></div><button aria-controls="admin-overview-content" aria-expanded="false" class="admin-collapse-toggle" data-admin-collapse-toggle="overview" type="button"><span>Rozbalit</span><i aria-hidden="true"></i></button></div>
-            <div aria-hidden="true" class="admin-collapsible-body" id="admin-overview-content">
-              <section class="admin-insights">
-                <article class="admin-panel">
-                  <div class="admin-panel-head"><div><span class="admin-kicker">ATTENDANCE</span><h2>Typ účasti</h2></div></div>
-                  <div class="admin-bars">
-                    <div><span>Full weekend</span><b data-attendance-full>0</b><i><em data-bar-full></em></i></div>
-                    <div><span>Sobota</span><b data-attendance-saturday>0</b><i><em data-bar-saturday></em></i></div>
-                    <div><span>Day visit</span><b data-attendance-day>0</b><i><em data-bar-day></em></i></div>
-                  </div>
-                </article>
-                <article class="admin-panel">
-                  <div class="admin-panel-head"><div><span class="admin-kicker">SHOW &amp; SHINE</span><h2>Zájem posádek</h2></div></div>
-                  <div class="admin-donut-row"><div class="admin-ring" data-show-ring><span data-show-total>0</span></div><dl><div><dt>Ano</dt><dd data-show-yes>0</dd></div><div><dt>Možná</dt><dd data-show-maybe>0</dd></div><div><dt>Ne</dt><dd data-show-no>0</dd></div></dl></div>
-                </article>
-                <article class="admin-panel">
-                  <div class="admin-panel-head"><div><span class="admin-kicker">ACCOMMODATION</span><h2>Ubytování</h2></div><strong data-accommodation-occupancy>0 / —</strong></div>
-                  <div class="admin-capacity"><i><em data-accommodation-bar></em></i><small>potvrzené jednotky / omezená kapacita</small></div><p data-accommodation-occupancy-note></p>
-                  <dl class="admin-mini-stats"><div><dt>Chatka</dt><dd data-accommodation-cabin>0</dd></div><div><dt>Stan</dt><dd data-accommodation-tent>0</dd></div><div><dt>Bez ubytování (rezervace)</dt><dd data-accommodation-none>0</dd></div></dl>
-                </article>
-              </section>
-            </div>
-          </section>
-
-          <section class="admin-funnel" data-admin-funnel aria-label="Registrace a Planner funnel">Načítám funnel…</section>
-          <section class="admin-attention" aria-labelledby="admin-attention-title">
-            <div class="admin-attention-head"><div><span class="admin-kicker">VYŽADUJE POZORNOST</span><h3 id="admin-attention-title">Co je potřeba vyřešit.</h3></div><small>Aktuální data · bez nových pravidel</small></div>
-            <div class="admin-attention-list">
-              <button data-attention-target="reservations" data-attention-filter="action" type="button"><span>Rezervace vyžadující akci</span><strong data-attention-reservations>0</strong><i>Otevřít →</i></button>
-              <button data-attention-target="payments" data-attention-filter="attention" type="button"><span>Platby vyžadující kontrolu</span><strong data-attention-payments>0</strong><i>Otevřít →</i></button>
-              <button data-attention-target="gallery" data-attention-filter="pending" type="button"><span>Fotky ke schválení</span><strong data-attention-gallery>0</strong><i>Otevřít →</i></button>
-              <button data-attention-target="gallery" data-gallery-mode-target="history" data-attention-filter="pending" type="button"><span>Historie a S&amp;S ke kontrole</span><strong data-attention-history>0</strong><i>Otevřít →</i></button>
-            </div>
-          </section>
-
+            <div class="dashboard-heading"><div><span class="admin-kicker">UNITED / PŘEHLED</span><h2 data-dashboard-title>Příprava srazu</h2></div><div class="dashboard-controls"><label>Kompozice <select data-dashboard-composition><option value="preparation">Příprava srazu</option><option value="onsite">Na srazu</option></select></label><button type="button" data-dashboard-edit>Upravit přehled</button></div></div>
+            <p data-dashboard-preference-notice role="status"></p>
+            <p data-dashboard-age role="status"></p>
+            <nav class="dashboard-quick-links" data-dashboard-quick-links aria-label="Rychlé odkazy"></nav>
+            <section class="dashboard-attention" aria-labelledby="admin-attention-title"><h3 id="admin-attention-title">K vyřízení</h3><p data-dashboard-attention-state role="status"></p><div data-dashboard-attention></div><small>Kategorie se překrývají; nejde o součet unikátních lidí.</small></section>
+            <form class="dashboard-preferences" data-dashboard-preferences hidden aria-label="Upravit přehled"><input type="hidden" name="configuration"/><div data-dashboard-edit-fields></div><div class="dashboard-edit-actions"><button type="submit" data-dashboard-save>Uložit přehled</button><button type="button" data-dashboard-cancel>Zrušit</button><button type="button" data-dashboard-reset>Obnovit aktuální kompozici</button></div></form>
+            <div class="dashboard-grid" data-dashboard-grid></div>
+            <section class="admin-funnel" data-admin-funnel hidden aria-label="Registrace a Planner funnel"></section>
           </section>
 
           <section class="admin-reservations admin-view-panel" data-admin-panel="reservations" hidden>
@@ -252,7 +210,7 @@
 
           <section class="admin-event-settings admin-view-panel" data-admin-panel="event" hidden>
             <div class="admin-section-head"><div><span class="admin-kicker">EVENT SETTINGS</span><h2>United <span data-event-settings-year>—</span>.</h2><p>Změny platí jen pro vybraný ročník a zapisují se do admin auditu.</p></div><span class="admin-view-label">EVENT</span></div>
-            <div class="admin-view-body" id="admin-settings-content"><form class="admin-config-card admin-config-form" data-event-settings-form>
+            <p class="dashboard-settings-context" data-settings-context></p><div class="admin-view-body" id="admin-settings-content"><form class="admin-config-card admin-config-form" data-event-settings-form>
               <label class="admin-field"><span>Rezervace</span><select name="registrationStatus"><option value="open">Otevřené</option><option value="closed">Uzavřené</option></select></label>
               <label class="admin-field"><span>Kapacita rezervací</span><input min="0" name="reservationCapacity" required type="number"/></label>
               <label class="admin-field"><span>Nocí · full weekend</span><input max="14" min="0" name="fullWeekendNights" required type="number"/></label>
@@ -374,6 +332,6 @@
     </aside>
   </div>
   <div aria-live="polite" class="admin-toast" data-toast role="status"></div>
-  <script src="admin.js?v=20260908-admin-budget" type="module"></script>
+  <script src="admin.js?v=20260908-admin-stage3" type="module"></script>
 </body>
 </html>

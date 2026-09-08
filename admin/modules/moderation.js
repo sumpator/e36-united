@@ -1,11 +1,11 @@
-import { canonicalMemberLink } from '../member-detail.js?v=20260908-admin-member2';
-import {listChanged,renderListPagination} from '../lists.js?v=20260908-admin-member2';
-import { adminCommand, editorProtected } from '../editors.js?v=20260908-admin-member2';
-import { apiMedia, apiRequest } from '../api.js?v=20260908-admin-member2';
-import { renderAttentionCounts } from './dashboard-events.js?v=20260908-admin-member2';
-import { adminState } from '../state.js?v=20260908-admin-member2';
-import { setDenied } from '../shell.js?v=20260908-admin-member2';
-import { $, $$, escapeHtml, formatDate, galleryStatusLabel, numeric, photosLabel, recordsLabel, rememberSessionChoice, toast } from '../ui.js?v=20260908-admin-member2';
+import { canonicalMemberLink } from '../member-detail.js?v=20260908-admin-stage3';
+import {listChanged,renderListPagination} from '../lists.js?v=20260908-admin-stage3';
+import { adminCommand, editorProtected } from '../editors.js?v=20260908-admin-stage3';
+import { apiMedia, apiRequest } from '../api.js?v=20260908-admin-stage3';
+import { renderAttentionCounts } from './dashboard-events.js?v=20260908-admin-stage3';
+import { adminState } from '../state.js?v=20260908-admin-stage3';
+import { setDenied } from '../shell.js?v=20260908-admin-stage3';
+import { $, $$, escapeHtml, formatDate, galleryStatusLabel, numeric, photosLabel, recordsLabel, rememberSessionChoice, toast } from '../ui.js?v=20260908-admin-stage3';
 
 const galleryFilterLabels={pending:'Žádosti',approved:'Schválené',rejected:'Zamítnuté',all:'Všechny'};
 const galleryMediaUrls=new Map();
@@ -56,7 +56,7 @@ function renderGalleryTabs(){
 }
 function renderGalleryCounts(){
   const pending=adminState.summary?.attention?.gallery??'—';
-  $('[data-kpi-gallery-pending]').textContent=pending;
+  const pendingKpi=$('[data-kpi-gallery-pending]');if(pendingKpi)pendingKpi.textContent=pending;
   renderAttentionCounts();
 }
 function renderGalleryList(){

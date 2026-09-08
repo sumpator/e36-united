@@ -1,3 +1,4 @@
+import {factoryPreferences} from '../../admin/dashboard-model.js';
 import { expect } from '@playwright/test';
 import { createMailingStarterDraft, renderMailingTemplate } from '../../worker/domains/mailing/template.js';
 
@@ -378,10 +379,13 @@ export async function prepareAdminE2ePage(page) {
       await route.fulfill({ status: 200, contentType: 'image/svg+xml', body: imageSvg });
       return;
     }
+    if (url.pathname === '/api/admin/members') {await jsonResponse(route,{members:[],pagination:{page:1,pageSize:50,total:0,totalPages:1}});return;}
     if (url.pathname === '/api/admin/events') {
       await jsonResponse(route, { events: [adminEvent] });
       return;
     }
+    if (url.pathname === '/api/admin/preferences' && request.method()==='GET') {await jsonResponse(route,{preferences:factoryPreferences(),revision:0,stored:false});return;}
+    if (url.pathname === '/api/admin/dashboard') {await jsonResponse(route,{days:[{day:'2026-08-20',count:1}],missingDateCount:0,attention:{awaiting:1,oldestPendingAt:null},freshness:{generatedAt:'2026-09-08T12:00:00Z'}});return;}
     if (url.pathname === '/api/admin/funnel') {
       await jsonResponse(route,{counts:{members:1,incomplete:0,created:0,claimed:0,unclaimed:0,converted:0,claimedWithoutReservation:0},details:{}});return;
     }

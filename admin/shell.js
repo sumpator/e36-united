@@ -1,14 +1,16 @@
-import { allowAdminNavigation } from './editors.js?v=20260908-admin-member2';
-import { initPortalNavigation } from '../portal-navigation.js?v=20260908-admin-member2';
-import { ADMIN_VIEW_IDS } from '../admin-view-model.js?v=20260908-admin-member2';
-import { adminState } from './state.js?v=20260908-admin-member2';
-import { $, $$, rememberSessionChoice } from './ui.js?v=20260908-admin-member2';
+import { allowAdminNavigation } from './editors.js?v=20260908-admin-stage3';
+import { initPortalNavigation } from '../portal-navigation.js?v=20260908-admin-stage3';
+import { ADMIN_VIEW_IDS } from '../admin-view-model.js?v=20260908-admin-stage3';
+import {ADMIN_AREAS,VIEW_LABELS,areaFor} from './destinations.js';
+import { adminState } from './state.js?v=20260908-admin-stage3';
+import { $, $$, rememberSessionChoice } from './ui.js?v=20260908-admin-stage3';
 
 const adminCollapseStorageKey='e36UnitedAdmin.collapsedSections.v1';
 const adminCollapsePreferences=readAdminCollapsePreferences();
 let adminPortalNavigation=null;
 let closeOverlays=()=>{};
 let closeDeniedOverlays=()=>{};
+let setCommunity=()=>{};
 
 export function setView(name){
   $('[data-auth-view]').hidden=name!=='auth';
@@ -59,20 +61,28 @@ function initializeAdminCollapsibles(){
 }
 
 export function setAdminView(view,{focus=true}={}){
-  const nextView=ADMIN_VIEW_IDS.includes(view)?view:'dashboard';
-  const changed=nextView!==adminState.activeAdminView;
+  const nextView=['club','photos'].includes(view)?'gallery':ADMIN_VIEW_IDS.includes(view)?view:'dashboard';
+  const nextMode=view==='club'?'history':view==='photos'?'community':adminState.galleryMode;
+  const changed=nextView!==adminState.activeAdminView||nextView==='gallery'&&nextMode!==adminState.galleryMode;
   if(changed&&!allowAdminNavigation())return false;
+  if(changed)window.dispatchEvent(new CustomEvent('admin:beforenavigation'));
+  if(nextView==='gallery')setCommunity(nextMode);
   adminState.activeAdminView=nextView;rememberSessionChoice('e36UnitedAdmin.activeView',nextView);
   $$('[data-admin-panel]').forEach(panel=>{const active=panel.dataset.adminPanel===nextView;panel.hidden=!active;panel.classList.toggle('is-active',active);panel.setAttribute('aria-hidden',String(!active))});
   $$('[data-admin-jump]').forEach(button=>{const active=button.dataset.adminJump===nextView;button.classList.toggle('is-active',active);if(active)button.setAttribute('aria-current','page');else button.removeAttribute('aria-current')});
-  adminPortalNavigation?.sync(nextView);
-  if(changed){window.dispatchEvent(new CustomEvent('admin:beforenavigation'));const wasRestoring=adminState.restoringRoute;adminState.restoringRoute=true;closeOverlays();adminState.restoringRoute=wasRestoring;window.dispatchEvent(new CustomEvent('admin:viewchange',{detail:{view:nextView}}));window.scrollTo({top:0,behavior:'auto'})}
+  const area=areaFor(nextView),secondary=$('[data-admin-secondary]');
+  if(secondary&&secondary.dataset.area!==area){secondary.dataset.area=area;secondary.innerHTML=area==='mailing'||area==='dashboard'?'':ADMIN_AREAS[area].views.map(v=>`<button type="button" data-admin-jump="${v==='gallery'?'photos':v}">${VIEW_LABELS[v]}</button>`).join('');}
+  secondary?.querySelectorAll('button').forEach(button=>button.setAttribute('aria-current',String(button.dataset.adminJump===(nextView==='gallery'?(adminState.galleryMode==='history'?'club':'photos'):nextView))==='true'?'page':'false'));
+  adminPortalNavigation?.sync(area);
+  if(changed){const wasRestoring=adminState.restoringRoute;adminState.restoringRoute=true;closeOverlays();adminState.restoringRoute=wasRestoring;window.dispatchEvent(new CustomEvent('admin:viewchange',{detail:{view:nextView}}));window.scrollTo({top:0,behavior:'auto'})}
   if(focus){const heading=$(`[data-admin-panel="${nextView}"] h2`);if(heading){heading.tabIndex=-1;heading.focus({preventScroll:true})}}
 }
 
-export function initializeAdminShell({onCloseOverlays=()=>{},onDenied=()=>{}}={}){
+export function initializeAdminShell({onCloseOverlays=()=>{},onDenied=()=>{},onCommunityMode=()=>{}}={}){
   closeOverlays=onCloseOverlays;
   closeDeniedOverlays=onDenied;
-  adminPortalNavigation=initPortalNavigation({root:$('[data-portal-nav="admin"]'),onSelect:view=>setAdminView(view)});
+  setCommunity=onCommunityMode;
+  adminPortalNavigation=initPortalNavigation({root:$('[data-portal-nav="admin"]'),onSelect:area=>setAdminView(ADMIN_AREAS[area]?.views[0]||'dashboard')});
+  $('[data-portal-tablist]').addEventListener('click',event=>{const control=event.target.closest('[data-portal-target]');if(control)setAdminView(ADMIN_AREAS[control.dataset.portalTarget]?.views[0]||'dashboard')});
   initializeAdminCollapsibles();
 }

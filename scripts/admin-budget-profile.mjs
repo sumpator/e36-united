@@ -1,3 +1,4 @@
+import {captureDashboardBudget,captureDashboardOperation} from '../tests/helpers/admin-dashboard-budget.mjs';
 import {backup} from 'node:sqlite';
 import {mkdtempSync,mkdirSync,readFileSync,writeFileSync,rmSync} from 'node:fs';
 import {tmpdir} from 'node:os';
@@ -23,7 +24,7 @@ function boundSql(sql,args){
   assert.equal(index,args.length);return result;
 }
 try{
-  const {runtime,report:current}=await captureAdminBudget();
+  const {runtime,report:current}=await (process.argv.includes('--stage3')?captureDashboardBudget():captureAdminBudget());
   const replay=process.argv.indexOf('--replay');
   const report=replay<0?current:JSON.parse(readFileSync(process.argv[replay+1],'utf8')).report;
   if(process.argv.includes('--before-index'))runtime.db.exec("DROP INDEX admin_reservations_page; DELETE FROM schema_migrations WHERE id='2026-09-08-admin-read-budget'");
@@ -72,7 +73,7 @@ try{
   const storage=spawnSync(cli,['-readonly',join(dir,'fixture.sqlite'),'-json',"SELECT name,SUM(pgsize) bytes,SUM(ncell) cells FROM dbstat WHERE name='admin_reservations_page' GROUP BY name"],{encoding:'utf8',windowsHide:true});
   assert.equal(storage.status,0,storage.stderr);const indexStorage=storage.stdout.trim()?JSON.parse(storage.stdout):[];
   const output=resolve(process.argv[2]||'test-results/admin-budget-profile.json');mkdirSync(resolve(output,'..'),{recursive:true});
-  const explicit=await captureAdminBudgetOperation();
+  const explicit=await (process.argv.includes('--stage3')?captureDashboardOperation():captureAdminBudgetOperation());
   await backup(runtime.db,join(dir,'explicit.sqlite'));
   const operationStatements=[...explicit.operation,...explicit.receipt];
   const opCommands=['.bail on','.mode off','BEGIN;'];

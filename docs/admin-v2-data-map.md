@@ -139,3 +139,14 @@ Admin sources use immutable memberId/member.id; Mailing adds canonicalMemberId s
 The reservation source drawer uses the same reservation/member/event/stored allocation/price/payment projection with `id` + `projection=detail`; it does not request list-wide facets it never renders. Default list/detail API responses still contain complete facets. The requested page is selected before hydration; capacity SUM is limited to referenced pending option IDs but keeps the previous all-event scope for each option. Existing write/concurrency/VS/Points semantics do not change.
 
 Read-only Member return preserves resource ages instead of invalidating unrelated fresh data. Normal due/error/focus/own-mutation revalidation remains; no persistent read writes or new identity rules. See [budget](admin-v2-free-tier-budget.md) and raw SQL plans: the budget gate is still **unmet**, not an accepted production guarantee.
+
+## Stage 3 dashboard additions — 2026-09-08
+
+Existing definitions above stay authoritative. [Catalog and exact destinations](admin-v2-dashboard.md):
+
+- Trend: event-scoped real date(reservations.created_at), UTC, all stored statuses. 7/30/all cumulative includes prior base; invalid/missing dates counted separately. Point drill uses same UTC upper date including prior base. No updated_at cash-flow reconstruction.
+- Awaiting: active positive debt NOT overdue under unchanged deadline rule; overdue/all-state overpayments remain separate. Oldest pending uses submitted_at; global photo/history ages use canonical source timestamps. Incomplete/stale means unknown, never all-clear.
+- Occupancy: canonical per-option approved units, separate pending demand, same-unit capacity; unlimited has no percent. Exact option/status filter. Crew is not capacity units.
+- Finance: separate active due/applied/remaining, all recorded cash, inactive cash, all-state excess. Narrow filters expose matching populations; no payment formula/write/VS change.
+- Own-UID admin_preferences: presentation-only versioned bounded JSON, both layouts, explicit CAS/receipt PUT. GET factories stay in memory, no INSERT.
+- Native keyed graphs/exact tables share one coordinator and 300s analytics; 60s operational/120s lists unchanged. Stage 3 incremental local estimates are separate; Stage 2's 1M target stays unmet/accepted.

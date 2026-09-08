@@ -1,11 +1,10 @@
-import { adminCommand, editorProtected, changedFields } from '../editors.js?v=20260908-admin-member2';
-import { adminActionCountState, adminModerationCounts, paymentNeedsAttention, reservationMatchesFilter } from '../../admin-view-model.js?v=20260908-admin-member2';
-import { apiRequest } from '../api.js?v=20260908-admin-member2';
-import { adminState } from '../state.js?v=20260908-admin-member2';
-import { setDenied } from '../shell.js?v=20260908-admin-member2';
-import { $, $$, escapeHtml, formatDate, formatMoney, numeric, toast } from '../ui.js?v=20260908-admin-member2';
+import { adminCommand, editorProtected, changedFields } from '../editors.js?v=20260908-admin-stage3';
+import { adminActionCountState, adminModerationCounts, paymentNeedsAttention, reservationMatchesFilter } from '../../admin-view-model.js?v=20260908-admin-stage3';
+import { apiRequest } from '../api.js?v=20260908-admin-stage3';
+import { adminState } from '../state.js?v=20260908-admin-stage3';
+import { setDenied } from '../shell.js?v=20260908-admin-stage3';
+import { $, $$, escapeHtml, formatDate, formatMoney, numeric, toast } from '../ui.js?v=20260908-admin-stage3';
 
-function setBar(selector,value,total){$(selector).style.width=`${total?Math.min(100,(numeric(value)/total)*100):0}%`}
 
 export function renderEventSelector(){
   const select=$('[data-event-select]');
@@ -46,36 +45,14 @@ export function renderOverview(payload){
   const payments=overview.payments||{};
   const gallery=overview.gallery||{};
   const history=overview.history||{};
-  if(payload.attention)adminState.summary=payload;
+  adminState.summary=payload;
   adminState.historyCounts={...adminState.historyCounts,...history};
   $('[data-event-year]').textContent=event?.year||'—';
   $('[data-event-state]').textContent=event?`${event.isCurrent?'Aktuální event · ':''}Rezervace: ${event.registrationStatus==='open'?'otevřené':'uzavřené'}`:'Žádný event v databázi';
+  const current=adminState.events.find(item=>item.isCurrent);
+  $('[data-settings-context]').textContent=`Upravuješ vybraný ročník United ${event?.year||'—'}. Veřejný CURRENT: United ${current?.year||'—'}. Přepnutí vybraného ročníku nemění veřejný event.`;
   renderEventSettings(event);
-  $('[data-kpi-reservations]').textContent=numeric(overview.reservations);
-  $('[data-kpi-people]').textContent=numeric(overview.people);
-  $('[data-kpi-cars]').textContent=numeric(overview.cars);
-  $('[data-kpi-pending]').textContent=numeric(statuses.pending);
-  $('[data-kpi-payments]').textContent=`${numeric(payments.paid)} / ${numeric(payments.unpaid)+numeric(payments.underpaid)}`;
-  $('[data-kpi-gallery-pending]').textContent=numeric(gallery.pending);
-  $('[data-capacity-reservations]').textContent=event?.reservationCapacity?`kapacita ${event.reservationCapacity}`:'kapacita —';
-
-  const attendanceTotal=numeric(attendance.fullWeekend)+numeric(attendance.saturdayOnly)+numeric(attendance.dayVisit);
-  $('[data-attendance-full]').textContent=numeric(attendance.fullWeekend);$('[data-attendance-saturday]').textContent=numeric(attendance.saturdayOnly);$('[data-attendance-day]').textContent=numeric(attendance.dayVisit);
-  setBar('[data-bar-full]',attendance.fullWeekend,attendanceTotal);setBar('[data-bar-saturday]',attendance.saturdayOnly,attendanceTotal);setBar('[data-bar-day]',attendance.dayVisit,attendanceTotal);
-
-  const showTotal=numeric(show.yes)+numeric(show.no)+numeric(show.maybe);
-  $('[data-show-total]').textContent=showTotal;$('[data-show-yes]').textContent=numeric(show.yes);$('[data-show-no]').textContent=numeric(show.no);$('[data-show-maybe]').textContent=numeric(show.maybe);
-  const yesDegrees=showTotal?(numeric(show.yes)/showTotal)*360:0;
-  const maybeDegrees=showTotal?((numeric(show.yes)+numeric(show.maybe))/showTotal)*360:0;
-  $('[data-show-ring]').style.background=`conic-gradient(#4da3ff 0 ${yesDegrees}deg,#76b9ff ${yesDegrees}deg ${maybeDegrees}deg,rgba(255,255,255,.08) ${maybeDegrees}deg 360deg)`;
-
   const accommodationCapacity=accommodation.hasUnlimited?0:numeric(accommodation.limitedUnitsTotal);
-  $('[data-accommodation-occupancy]').title='Potvrzené fyzické jednotky; pending požadavky nejsou obsazenost.';
-  $('[data-accommodation-occupancy]').textContent=`${numeric(accommodation.units)} / ${accommodationCapacity||'—'}`;
-  $('[data-accommodation-cabin]').textContent=numeric(accommodation.cabin);$('[data-accommodation-tent]').textContent=numeric(accommodation.tent);$('[data-accommodation-none]').textContent=numeric(accommodation.none);
-  setBar('[data-accommodation-bar]',accommodation.units,accommodationCapacity);
-  const occupancyNote=$('[data-accommodation-occupancy-note]');if(occupancyNote)occupancyNote.textContent=`Čekající poptávka: ${numeric(accommodation.pendingUnits)} jednotek · potvrzeno ${numeric(accommodation.confirmedPeople)} osob.${accommodation.hasUnlimited?' Některé typy nemají limit; společné procento obsazenosti nelze určit.':''}${accommodation.legacyUnclassified?' Starší rezervace bez jednotkového snapshotu: '+accommodation.legacyUnclassified+'.':''}`;
-
   const commitment=numeric(event?.bookingCommitmentCzk);
   const collected=numeric(payments.amountPaidCzk);
   const paid=numeric(event?.bookingPaidCzk);

@@ -1,13 +1,22 @@
-import { ADMIN_VIEW_IDS } from '../admin-view-model.js?v=20260908-admin-member2';
+import { ADMIN_VIEW_IDS } from '../admin-view-model.js?v=20260908-admin-stage3';
+import {ADMIN_AREAS,areaFor,cleanDrill} from './destinations.js';
 
 const id=value=>/^[a-z0-9_-]{1,128}$/i.test(value||'')?value:null;
 export function adminRoute(search,fallback='dashboard'){
   const params=new URLSearchParams(search),requested=params.get('section');
-  return {section:requested?(ADMIN_VIEW_IDS.includes(requested)?requested:'dashboard'):fallback,
+  let section=requested?(ADMIN_VIEW_IDS.includes(requested)?requested:'dashboard'):fallback;
+  if(Object.hasOwn(ADMIN_AREAS,requested))section=ADMIN_AREAS[requested].views.includes(params.get('view'))?params.get('view'):ADMIN_AREAS[requested].views[0];
+  const galleryMode=section==='club'?'history':params.get('mode')==='history'?'history':'community';if(section==='club')section='gallery';
+  return {section,galleryMode,drill:cleanDrill(Object.fromEntries(params)),composition:params.get('composition')==='onsite'?'onsite':'preparation',range:['7','30','all'].includes(params.get('range'))?params.get('range'):'all',
     eventId:id(params.get('event')),reservationId:id(params.get('reservation')),memberId:id(params.get('member')),memberTab:['event','reservations','garage','photos','club','history','points','mailing','qr'].includes(params.get('tab'))?params.get('tab'):'event'};
 }
 export function adminRouteUrl(route){
-  const params=new URLSearchParams({section:ADMIN_VIEW_IDS.includes(route.section)?route.section:'dashboard'});
+  const section=ADMIN_VIEW_IDS.includes(route.section)?route.section:'dashboard',area=areaFor(section);
+  const params=new URLSearchParams({section:area});
+  if(!['dashboard','mailing'].includes(area))params.set('view',section==='gallery'&&route.galleryMode==='history'?'club':section);
+  if(route.composition==='onsite')params.set('composition','onsite');
+  if(['7','30'].includes(route.range))params.set('range',route.range);
+  if(['reservations','payments'].includes(section))for(const[key,value]of Object.entries(cleanDrill(route.drill)))params.set(key,value);
   if(id(route.eventId))params.set('event',route.eventId);
   if(id(route.reservationId))params.set('reservation',route.reservationId);
   if(id(route.memberId)){params.set('member',route.memberId);if(route.memberTab&&route.memberTab!=='event')params.set('tab',route.memberTab)}
@@ -17,11 +26,16 @@ export function adminRouteUrl(route){
 // Routes contain only allowlisted destinations/IDs. Search text and records stay out of history.
 export function initializeAdminNavigation({state,setView,openReservation,openMember,closeMember,closeOverlays,refresh,allowLeave}){
   let restoring=false,lastUrl=location.href,prepared=false;
+  // This router restores after asynchronous panels load; native restoration would race it.
+  history.scrollRestoration='manual';
   const initial=adminRoute(location.search,state.activeAdminView);
   state.activeAdminView=initial.section;if(initial.eventId)state.selectedEventId=initial.eventId;
+  if(Object.keys(initial.drill).length){state.reservationFilter='all';state.reservationDetailFilters=new Set();state.paymentFilter='all';state.reservationPage=1;}
+  state.galleryMode=initial.galleryMode;state.dashboardDrill=initial.drill;state.dashboardComposition=initial.composition;state.dashboardRange=initial.range;
   state.requestedReservationId=initial.reservationId;state.pendingMemberRoute=initial.memberId?initial:null;
-  const route=()=>({section:state.activeAdminView,eventId:state.selectedEventId,reservationId:state.selectedReservationId||state.requestedReservationId,memberId:state.memberId,memberTab:state.memberTab});
-  function rememberScroll(){prepared=true;history.replaceState({...history.state,admin:true,filters:{reservationFilter:state.reservationFilter,details:[...state.reservationDetailFilters],paymentFilter:state.paymentFilter,reservationPage:state.reservationPage,galleryFilter:state.galleryFilter,galleryPage:state.galleryPage,galleryMode:state.galleryMode},scrollY:window.scrollY},'',location.href)}
+  const route=()=>({section:state.activeAdminView,eventId:state.selectedEventId,reservationId:state.selectedReservationId||state.requestedReservationId,memberId:state.memberId,memberTab:state.memberTab,galleryMode:state.galleryMode,drill:state.dashboardDrill,composition:state.dashboardComposition,range:state.dashboardRange});
+  // Back already points at the target history entry: never overwrite it with the outgoing view.
+  function rememberScroll(){if(restoring||state.restoringRoute)return;prepared=true;history.replaceState({...history.state,admin:true,filters:{reservationFilter:state.reservationFilter,details:[...state.reservationDetailFilters],paymentFilter:state.paymentFilter,reservationPage:state.reservationPage,galleryFilter:state.galleryFilter,galleryPage:state.galleryPage,galleryMode:state.galleryMode,historyYear:state.historyYear,historyFilter:state.historyFilter,historyClaimType:state.historyClaimType,historyPage:state.historyPagination.page},scrollY:window.scrollY},'',location.href)}
   function write({replace=false,detail=false}={}){
     if(restoring||state.restoringRoute)return;if(!prepared)rememberScroll();prepared=false;const url=adminRouteUrl(route());
     if(location.pathname+location.search===url)return;
@@ -37,7 +51,10 @@ export function initializeAdminNavigation({state,setView,openReservation,openMem
     try{
       const target=adminRoute(location.search);closeOverlays();
       if(target.eventId)state.selectedEventId=target.eventId;
+      state.dashboardDrill=target.drill;state.dashboardComposition=target.composition;state.dashboardRange=target.range;state.galleryMode=target.galleryMode;
       const filters=history.state?.filters;
+      if(Object.keys(target.drill).length){state.reservationFilter='all';state.reservationDetailFilters=new Set();state.paymentFilter='all';state.reservationPage=1;}
+      if(filters){state.historyYear=filters.historyYear||'all';state.historyFilter=filters.historyFilter||'pending';state.historyClaimType=filters.historyClaimType||'all';state.historyPagination.page=filters.historyPage||1;}
       if(filters){state.reservationFilter=['all','action','active','complete'].includes(filters.reservationFilter)?filters.reservationFilter:'all';state.reservationDetailFilters=new Set((filters.details||[]).filter(f=>['pending','approved','payment','underpaid','paid','overpaid','rejected','cancelled'].includes(f)));state.paymentFilter=['attention','all','unpaid','underpaid','paid','overpaid'].includes(filters.paymentFilter)?filters.paymentFilter:'attention';state.reservationPage=Math.max(1,Number(filters.reservationPage)||1);state.galleryFilter=['all','pending','approved','rejected'].includes(filters.galleryFilter)?filters.galleryFilter:'pending';state.galleryPage=Math.max(1,Number(filters.galleryPage)||1);state.galleryMode=filters.galleryMode==='history'?'history':'community'}
       setView(target.section,{focus:false});state.requestedReservationId=target.reservationId;
       await refresh();
@@ -59,5 +76,6 @@ export function initializeAdminNavigation({state,setView,openReservation,openMem
   window.addEventListener('admin:membertab',()=>write({replace:true,detail:true}));
   window.addEventListener('admin:memberclosed',()=>{if(restoring||state.restoringRoute||!state.currentUser||state.denied)return;if(history.state?.detail)history.back();else write({replace:true})});
   window.addEventListener('admin:eventchanged',()=>write());
+  window.addEventListener('admin:dashboardchoice',()=>write({replace:true}));
   return{write,restore};
 }

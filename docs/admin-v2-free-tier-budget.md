@@ -171,3 +171,30 @@ Stage 2 is closed by operator acceptance with the budget condition explicitly un
 Preflight unchanged: Node 336/336, production syntax 107, Chromium 57/57 and focused WebKit 26/26. Final: **Node 342/342; Chromium 59/59; WebKit 28/28** (87 total, no retries). Production syntax 107 +49 diagnostic/test JS/MJS checks pass; import graph 107 has no missing/circular imports. Exact migration/canonical schema checks pass,7 migration entries, integrity OK, FK violations 0. Existing assertions were not weakened or removed; six new Node tests and two desktop/mobile browser cases (both engines) protect the corrected causes.
 
 Desktop 1440px Chromium and mobile 390px WebKit source-drawer screenshots were inspected after Member return with dirty state retained. No physical iPhone or production browser claim. The separate budget acceptance command exits 1 as required; passing regression tests do **not** override it. Harmless existing NO_COLOR/FORCE_COLOR warning; profiler limitation remains explicitly disclosed above.
+
+## Stage 3 incremental dashboard budget
+
+Stage 2 remains accepted at **3,904,805 including 10% reserve**, its original 1M synthetic target formally **unmet**. No broad Stage 2 SQL/cache/refresh optimization was reopened. Same 500-member / 900-reservation / 3-event / 750-car / 1,500-photo / 1,000-claim / 5,000-Points fixture and existing local scanstatus method. New [raw evidence](admin-stage3-budget.json); no remote measurement or production writes.
+
+New dashboard endpoint: four statements INCLUDING auth. Observed local visits / conservative operations by SQL: active-Admin PK **1 / 2**; event PK **1 / 1**; UTC creation grouping **300 / 900** (event index + temporary group B-tree, not falsely bounded by LIMIT); awaiting/oldest join **601 / 602**. Total **903 local visits / 1,505 estimated operations**. Captured SQL/binds/plans and non-covering probe allowances are recorded. Other charts reuse summary; no new index added/credited.
+
+Preferences GET: two statements including auth; absent row 1 local visit, conservative floor **3** operations. Startup/explicit, NOT periodic. Explicit max-32-widgets-per-composition preference save: ten statements including auth/receipt lookup, local VM ceiling **311**; receipt check two statements / **43** ceiling. Six local changes on first save include revision/receipt bookkeeping. Max-ID-count fixture JSON: 2,337 bytes; payload/schema bound 32,768. One bounded row/admin plus existing receipt growth; no business data, QR, polling or background writes.
+
+Actual narrow drill profiles: **914–3,483** estimated operations/call (five SQL statements in worst captured date-list case). Not universal bounds for every distribution. Envelopes charge FOUR EXTRA FULL drill requests/hour at 3,483, rather than hiding old-endpoint cost or assuming LIMIT bounds scans; preferences reads = contexts + visible hours; one explicit save + receipt/context; 10% retry reserve. Existing summary/list/editor activity remains in accepted Stage 2 cost, none subtracted. OPTIONS adds HTTP only, no SQL/rows.
+
+| Incremental envelope | Extra data requests / SQL, before retries | Before reserve | With 10% |
+| --- | --- | ---: | ---: |
+| Normal 3 total visible admin-hours/week; all-dashboard upper envelope | 54 / 224 | 96,342 | 105,977 |
+| Event day, two admins, 10 total visible hours | 176 / 728 | 320,664 | 352,731 |
+| Event day, two admins, 12 total visible hours | 210 / 868 | 384,654 | 423,120 |
+| Original mixed 3 x 12h stress; dashboard 1h of each 12h | 225 / 978 | 556,911 | 612,603 |
+| Same mixed 3 x 24h sensitivity | 441 / 1,914 | 1,112,751 | 1,224,027 |
+| Separate 3 x 12h all-dashboard sensitivity | 621 / 2,562 | 1,152,891 | 1,268,181 |
+
+Stage 2 + separately rounded incremental reserves for mixed 3x12h: **4,517,408**. 24h stress remains beyond a daily Free-tier rows-read allowance, consistent with the intentionally excessive workload. All-dashboard is a REPLACEMENT visibility model, not concurrent polling of obscured Member/source screens. Normal/event envelopes conservatively allow all visible time on dashboard plus extra drills; time in other workspaces reduces analytics. These are not observed operator usage or actual billing.
+
+Factory polling adds ONE due analytics request/300s, not one per graph. Summary + analytics = two; optional Planner = three. Preferences/init is explicit. No inactive-domain polling. Planner is absent both factories: enabling it incurs its existing funnel cost from Stage 2 profile, not free or silently in all factory projections.
+
+Reproduce local/offline: set SQLITE_SCAN_CLI to the diagnostic SQLite shell with scanstatus; run **node scripts/admin-budget-profile.mjs temporary-output.json --stage3**, then **node scripts/check-admin-dashboard-budget.mjs**. First executes real handlers, EXPLAIN, local scans and explicit local command; second reproduces envelopes from committed evidence. Node tests compare current SQL/binds and preserve exact Stage 2 counts independently. Original check-admin-budget.mjs still exits 1 for accepted-unmet 1M; no false pass.
+
+Limits: local scans plus probe/VM allowances are **NOT Cloudflare meta.rows_read**. Future/skewed populations, D1 billing/CPU, temporary work and bursts beyond this explicit-action envelope are not certified. No production load test/free-tier guarantee. Remaining stress limitations do not authorize Stage 2 architectural work/cadence changes. 60/120/300s stays authoritative; Stage 4 must measure its own increment.

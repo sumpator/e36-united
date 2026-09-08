@@ -1,6 +1,7 @@
 import { listAdminMembers,getAdminMember,resolveAdminMemberQr,adminMemberMedia } from './admin/members.js';
 import { runAdminCommand, getAdminOperation } from './admin/commands.js';
 import { getAdminSummary } from './admin/summary.js';
+import {getAdminDashboard,getAdminPreferences,saveAdminPreferences} from './admin/dashboard.js';
 import { requireAdmin } from "./auth/admin.js";
 import { verifyFirebaseRequest } from "./auth/firebase.js";
 import { ACTIVE_MEMBER_STATUS, activeMemberForbidden, findMemberAuthorizationRecord, requireActiveMember } from "./auth/member.js";
@@ -86,6 +87,9 @@ export async function routeRequest({ request, env, url, origin }) {
         return json({ ok: false, error: "admin_forbidden", message: "Nemáš oprávnění pro United Admin" }, 403, origin);
       }
 
+      if(url.pathname==='/api/admin/dashboard'&&request.method==='GET')return getAdminDashboard(env,url,origin);
+      if(url.pathname==='/api/admin/preferences'&&request.method==='GET')return getAdminPreferences(env,auth,origin);
+      if(url.pathname==='/api/admin/preferences'&&request.method==='PUT')return saveAdminPreferences(request,env,auth,origin);
       if(url.pathname==='/api/admin/members'&&request.method==='GET')return listAdminMembers(env,url,origin);
       if(url.pathname==='/api/admin/member-qr/resolve'&&request.method==='POST')return resolveAdminMemberQr(request,env,origin);
       const memberMedia=url.pathname.match(/^\/api\/admin\/members\/([^/]+)\/media\/(cars|history|photos)\/([^/]+)(?:\/([^/]+))?$/);

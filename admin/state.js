@@ -1,11 +1,13 @@
-import { ADMIN_VIEW_IDS, RESERVATION_VIEW_MODES } from '../admin-view-model.js?v=20260908-admin-member2';
-import { readSessionChoice, readSessionValue, readSessionYear } from './ui.js?v=20260908-admin-member2';
+import { ADMIN_VIEW_IDS, RESERVATION_VIEW_MODES } from '../admin-view-model.js?v=20260908-admin-stage3';
+import { readSessionChoice, readSessionValue, readSessionYear } from './ui.js?v=20260908-admin-stage3';
 
 export const adminState={
   currentUser:null,
   sessionGeneration:0,
   denied:false,
   summary:null,
+  dashboardAnalytics:null,dashboardPreferences:null,dashboardPreferenceRevision:0,
+  dashboardComposition:'preparation',dashboardRange:'all',dashboardDrill:{},
   resourceStates:{},
   loading:false,
   events:[],
@@ -38,6 +40,7 @@ export const adminState={
 
 export function resetAdminDomainState(){
   adminState.summary=null;
+  adminState.dashboardAnalytics=null;adminState.dashboardPreferences=null;adminState.dashboardPreferenceRevision=0;adminState.dashboardDrill={};adminState.dashboardComposition='preparation';adminState.dashboardRange='all';
   adminState.reservationPagination=null;adminState.reservationCounts=null;adminState.reservationPage=1;adminState.reservationDetail=null;adminState.galleryPage=1;adminState.galleryPagination=null;adminState.galleryCounts=null;
   adminState.resourceStates={};
   adminState.selectedReservationId=null;
@@ -51,6 +54,7 @@ export function resetAdminDomainState(){
 }
 
 export function resetAdminFiltersForLogin(){
+  // Safe route-provided drill-downs are restored by navigation after authentication.
   adminState.reservationFilter='all';
   adminState.reservationDetailFilters.clear();
   adminState.reservationFiltersOpen=false;
@@ -60,6 +64,7 @@ export function resetAdminFiltersForLogin(){
 }
 
 export function resetAdminFiltersForEvent(){
+  adminState.dashboardDrill={};
   adminState.reservationPage=1;adminState.reservationPagination=null;adminState.reservationDetail=null;
   adminState.reservationFilter='all';
   adminState.reservationDetailFilters.clear();

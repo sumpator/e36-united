@@ -247,14 +247,16 @@ test('Member Card keeps four core blocks with the requested typography lift',()=
 test('Admin Photos contains two internal queues without another top-level navigation target',()=>{
   assert.match(adminHtml,/data-gallery-mode="community"[\s\S]*Komunitní fotky/);
   assert.match(adminHtml,/data-gallery-mode="history"[\s\S]*Ověření účasti/);
-  assert.equal((adminHtml.match(/data-admin-jump="gallery"/g)||[]).length,1);
+  assert.equal((adminHtml.match(/data-portal-target="community"/g)||[]).length,2);
+  assert.equal((adminHtml.match(/data-portal-target="gallery"/g)||[]).length,0);
+  assert.match(read('admin/destinations.js'),/views:\['members','gallery','club'\]/);
   assert.match(adminHtml,/data-history-search/);
   for(const status of ['pending','approved','rejected','all'])assert.match(adminHtml,new RegExp(`data-history-filter="${status}"`));
   assert.match(adminJs,/filteredHistoryClaims/);
   assert.match(adminJs,/data-history-review="attendance"/);
   assert.match(adminJs,/data-history-review="sns"/);
   assert.match(adminJs,/Při zamítnutí je důvod povinný/);
-  assert.match(adminHtml,/data-attention-history/);
+  assert.match(read('admin/dashboard.js'),/data-attention-history/);
 });
 
 test('Admin history review is server-filtered, session-sticky, paginated and compact by default',()=>{

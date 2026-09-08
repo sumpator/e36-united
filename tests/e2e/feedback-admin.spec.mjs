@@ -1,3 +1,4 @@
+import {factoryPreferences} from '../../admin/dashboard-model.js';
 import {test,expect} from '@playwright/test';
 import {prepareAdminE2ePage,expectNoUnexpectedClientErrors} from './fixtures.mjs';
 const headers={'Access-Control-Allow-Origin':'*','Content-Type':'application/json'};
@@ -21,7 +22,7 @@ test('History and S&S pending badge is visible on desktop/mobile and updates aft
   const desktop=page.locator('.admin-section-nav [data-gallery-nav-count]');await expect(desktop).toBeVisible();await expect(desktop).toHaveText('1');
   await page.setViewportSize({width:390,height:844});await page.locator('[data-portal-menu-open]').click();
   const mobile=page.locator('.portal-nav-sheet [data-gallery-nav-count]');await expect(mobile).toBeVisible();await expect(mobile).toHaveText('1');
-  await page.locator('.portal-nav-sheet [data-portal-target="gallery"]').click();await page.locator('[data-gallery-mode="history"]').click();
+  await page.locator('.portal-nav-sheet [data-portal-target="community"]').click();await page.locator('[data-admin-jump="club"]').click();
   const card=page.locator('[data-history-id="pending-claim"]');await card.locator('summary').click();
   await card.locator('[data-history-component="attendance"][data-history-action="approved"]').click();
   await expect(page.locator('[data-attention-history]')).toHaveText('1');
@@ -39,6 +40,8 @@ test('Admin funnel renders forward-only counts and safe operational drill-downs'
     expect(new URL(route.request().url()).searchParams.get('eventId')).toBe('united-2026');
     return reply(route,{counts:{members:10,incomplete:2,created:5,claimed:3,unclaimed:2,converted:1,claimedWithoutReservation:2},details:{incomplete:[{email:'incomplete@example.test',firebase_account_seen_at:'2026-09-07T12:00:00Z'}],unclaimed:[{created_at:'2026-09-07T12:00:00Z',payload_json:JSON.stringify({arrival:'Pátek',departure:'Neděle',crew:2,accommodation:'Stan'})}]}});
   });
+  const prefs=factoryPreferences();prefs.compositions.preparation.widgets.push({id:'planner',size:'wide'});
+  await page.route('https://api.e36united.cz/api/admin/preferences',route=>reply(route,{preferences:prefs,revision:1,stored:true}));
   await page.goto('/admin.html');const funnel=page.locator('[data-admin-funnel]');
   await expect(funnel.locator('[data-funnel-count="members"]')).toHaveText('10');await expect(funnel.locator('[data-funnel-count="created"]')).toHaveText('5');
   await expect(funnel).toContainText('až od nasazení');await funnel.getByText('Nedokončené registrace · posledních nejvýše 50',{exact:true}).click();await expect(funnel.getByText('incomplete@example.test',{exact:true})).toBeVisible();

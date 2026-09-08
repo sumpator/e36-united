@@ -2,6 +2,7 @@ import { json } from '../http/responses.js';
 
 // Only the existing local JSON/D1 editors participate. Provider sends and R2 do not.
 export const COMMAND_RESOURCES = Object.freeze({
+  preferences: { table: 'admin_preferences', event: null, version: 'preferences' },
   reservation: { table: 'reservations', event: 'event_id', version: 'reservation' },
   payment: { table: 'reservations', event: 'event_id', version: 'reservation' },
   event: { table: 'events', event: 'id', version: 'event-settings', global: true },
@@ -44,7 +45,7 @@ export async function getAdminOperation(env, auth, id, origin) {
  */
 export async function runAdminCommand(request, env, auth, operation, entityId, origin, execute) {
   const resource = COMMAND_RESOURCES[operation];
-  if (!resource || !validId(entityId)) return fail('invalid_command', 'Neplatný cíl operace.', 400, origin);
+  if (!resource || (operation==='preferences' ? entityId!==auth.uid : !validId(entityId))) return fail('invalid_command', 'Neplatný cíl operace.', 400, origin);
   const operationId = request.headers.get('Idempotency-Key');
   const base = request.headers.get('If-Match');
   if (!validId(operationId) || !/^"?\d+"?$/.test(base || '')) {
@@ -66,7 +67,8 @@ export async function runAdminCommand(request, env, auth, operation, entityId, o
     : fail('operation_key_reused', 'ID operace už patří jinému požadavku. Původní operace nebyla opakována.', 409, origin);
   const prior = await lookup();
   if (prior) return replay(prior);
-  const target = await env.DB.prepare(`SELECT id${resource.event ? `, ${resource.event} AS event_id` : ''} FROM ${resource.table} WHERE id = ?`).bind(entityId).first();
+  // A first explicit preference save has a virtual own-UID target; GET never creates it.
+  const target = operation==='preferences' ? {id:auth.uid} : await env.DB.prepare(`SELECT id${resource.event ? `, ${resource.event} AS event_id` : ''} FROM ${resource.table} WHERE id = ?`).bind(entityId).first();
   if (!target) return fail('resource_not_found', 'Záznam nebyl nalezen.', 404, origin);
   const versionId = resource.global ? '*' : entityId;
   const conflict = async () => fail('revision_conflict', 'Data se mezitím změnila. Obnov záznam a porovnej změny.', 409, origin,
@@ -78,6 +80,7 @@ export async function runAdminCommand(request, env, auth, operation, entityId, o
   const commit = async (statements, primaryIndex = 0, createdId = null) => {
     if (batchCalled) throw new Error('Admin command attempted more than one batch');
     batchCalled = true;
+    const initializeVersion=operation==='preferences' ? [env.DB.prepare("INSERT OR IGNORE INTO admin_resource_versions(resource_type,resource_id,revision) VALUES('preferences',?,0)").bind(auth.uid)] : [];
     const prefix = [
       env.DB.prepare('UPDATE admin_resource_versions SET revision = revision + 1 WHERE resource_type = ? AND resource_id = ? AND revision = ?').bind(resource.version, versionId, baseRevision),
       env.DB.prepare(`INSERT INTO admin_operation_receipts
@@ -88,13 +91,13 @@ export async function runAdminCommand(request, env, auth, operation, entityId, o
     const bodyStatements = [...statements];
     if (statements.length) bodyStatements.splice(primaryIndex + 1, 0,
       env.DB.prepare('UPDATE admin_operation_receipts SET primary_applied = changes() WHERE operation_id = ?').bind(operationId));
-    const results = await env.DB.batch([...prefix, ...bodyStatements,
+    const results = await env.DB.batch([...initializeVersion, ...prefix, ...bodyStatements,
       env.DB.prepare(`UPDATE admin_operation_receipts SET entity_id = COALESCE(?,entity_id), result_revision =
         (SELECT revision FROM admin_resource_versions WHERE resource_type = ? AND resource_id = ?)
         WHERE operation_id = ?`).bind(createdId, resource.version, versionId, operationId),
     ]);
     committed = true;
-    return statements.map((_, index) => results[2 + index + (index > primaryIndex ? 1 : 0)]);
+    return statements.map((_, index) => results[initializeVersion.length + 2 + index + (index > primaryIndex ? 1 : 0)]);
   };
   // Read methods are unchanged; writes outside the single guarded batch fail closed.
   const guardedPrepare = (sql, bindings = []) => {

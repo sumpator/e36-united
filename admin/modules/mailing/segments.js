@@ -1,5 +1,5 @@
-import { apiRequest } from '../../api.js?v=20260908-admin-member2';
-import { $, escapeHtml, numeric } from '../../ui.js?v=20260908-admin-member2';
+import { apiRequest } from '../../api.js?v=20260908-admin-stage3';
+import { $, escapeHtml, numeric } from '../../ui.js?v=20260908-admin-stage3';
 
 export const defaultMailingSegment=Object.freeze({match:'all',rules:[{type:'mailing_eligible'}],exclusions:[]});
 const recipientsLabel=count=>`${count} ${count===1?'příjemce':count>1&&count<5?'příjemci':'příjemců'}`;

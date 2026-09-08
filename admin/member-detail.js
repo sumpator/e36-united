@@ -1,7 +1,7 @@
-import {adminState} from './state.js?v=20260908-admin-member2';
-import {$,escapeHtml as esc,formatMoney} from './ui.js?v=20260908-admin-member2';
-import {apiRequest} from './api.js?v=20260908-admin-member2';
-import {ADMIN_REFRESH} from './refresh-policy.js?v=20260908-admin-member2';
+import {adminState} from './state.js?v=20260908-admin-stage3';
+import {$,escapeHtml as esc,formatMoney} from './ui.js?v=20260908-admin-stage3';
+import {apiRequest} from './api.js?v=20260908-admin-stage3';
+import {ADMIN_REFRESH} from './refresh-policy.js?v=20260908-admin-stage3';
 import qrcode from '../vendor/qrcode-generator.mjs';
 
 export const MEMBER_TABS=Object.freeze({event:'Event',reservations:'Rezervace / finance',garage:'Garage',photos:'Fotky',club:'United Club',history:'Historie / S&S',points:'Points',mailing:'Mailing',qr:'QR identita'});

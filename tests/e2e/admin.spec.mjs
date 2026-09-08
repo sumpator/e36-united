@@ -16,7 +16,7 @@ test.describe('desktop Admin portal', () => {
 
     expect(observations.requests).not.toContain('GET /api/admin/gallery');
     expect(observations.requests).not.toContain('GET /api/admin/reservations');
-    await page.locator('[data-admin-jump="reservations"]').click();
+    await page.locator('.admin-section-nav [data-portal-target="finance"]').click();
     await expect(page.locator('[data-admin-panel="reservations"]')).toHaveClass(/is-active/);
     await expect(page.locator('[data-reservation-list]')).toContainText('Eva');
 
@@ -26,7 +26,7 @@ test.describe('desktop Admin portal', () => {
 
     await page.locator('[data-admin-jump="accommodation"]').click();
     await expect.poll(()=>observations.requests.includes('GET /api/admin/accommodation')).toBe(true);
-    await page.locator('[data-admin-jump="gallery"]').click();
+    await page.locator('.admin-section-nav [data-portal-target="community"]').click();await page.locator('[data-admin-jump="photos"]').click();
     await expect.poll(()=>observations.requests.includes('GET /api/admin/gallery')).toBe(true);
     await page.locator('[data-gallery-mode="history"]').click();
     await expect.poll(()=>observations.requests.includes('GET /api/admin/history/claims')).toBe(true);
@@ -47,7 +47,7 @@ test.describe('desktop Admin portal', () => {
 
     await page.goto('/admin.html');
     await expect(page.locator('[data-admin-view]')).toBeVisible();
-    await page.locator('[data-admin-jump="reservations"]').click();
+    await page.locator('.admin-section-nav [data-portal-target="finance"]').click();
 
     const row = page.locator('[data-reservation-list] tr[data-reservation-open]').first();
     await row.focus();
@@ -73,7 +73,7 @@ test.describe('desktop Admin portal', () => {
 
     await page.goto('/admin.html');
     await expect(page.locator('[data-admin-view]')).toBeVisible();
-    await page.locator('[data-admin-jump="mailing"]').click();
+    await page.locator('.admin-section-nav [data-portal-target="mailing"]').click();
     await expect(page.locator('[data-admin-panel="mailing"]')).toHaveClass(/is-active/);
     await expect(page.locator('[data-mailing-kpi="total"]')).toHaveText('4');
     await expect(page.locator('[data-mailing-kpi="eligible"]')).toHaveText('1');
@@ -97,7 +97,7 @@ test.describe('desktop Admin portal', () => {
 
     await page.goto('/admin.html');
     await expect(page.locator('[data-admin-view]')).toBeVisible();
-    await page.locator('[data-admin-jump="mailing"]').click();
+    await page.locator('.admin-section-nav [data-portal-target="mailing"]').click();
     await page.locator('[data-mailing-tab="campaigns"]').click();
 
     const form=page.locator('[data-mailing-campaign-form]');
@@ -136,7 +136,7 @@ test.describe('desktop Admin portal', () => {
 
     await page.goto('/admin.html');
     await expect(page.locator('[data-admin-view]')).toBeVisible();
-    await page.locator('[data-admin-jump="mailing"]').click();
+    await page.locator('.admin-section-nav [data-portal-target="mailing"]').click();
     await page.locator('[data-mailing-tab="campaigns"]').click();
     const form=page.locator('[data-mailing-campaign-form]');
     await form.locator('[name="internalName"]').fill('E2E Zbraslavice draft');
@@ -148,7 +148,7 @@ test.describe('desktop Admin portal', () => {
 
     await page.reload();
     await expect(page.locator('[data-admin-view]')).toBeVisible();
-    await page.locator('[data-admin-jump="mailing"]').click();
+    await page.locator('.admin-section-nav [data-portal-target="mailing"]').click();
     await page.locator('[data-mailing-tab="campaigns"]').click();
     await page.locator('[data-mailing-campaign-open="campaign-e2e"]').click();
     await expect(form.locator('[name="internalName"]')).toHaveValue('E2E Zbraslavice draft');

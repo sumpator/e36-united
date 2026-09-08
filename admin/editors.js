@@ -1,5 +1,5 @@
-import { apiRequest } from './api.js?v=20260908-admin-member2';
-import { adminState } from './state.js?v=20260908-admin-member2';
+import { apiRequest } from './api.js?v=20260908-admin-stage3';
+import { adminState } from './state.js?v=20260908-admin-stage3';
 
 const roots=new Map(),pending=new Map();
 const prefix='e36.admin.safe.v1.';
@@ -11,7 +11,7 @@ const storageKey=(kind,key)=>`${prefix}${uid()}.${kind}.${key}`;
 function read(kind,key){try{const entry=JSON.parse(sessionStorage.getItem(storageKey(kind,key))||'null');return entry&&entry.expires>Date.now()?entry:null}catch{storageAvailable=false;return null}}
 function write(kind,key,value){try{if(value)sessionStorage.setItem(storageKey(kind,key),JSON.stringify({...value,expires:Date.now()+ttl}));else sessionStorage.removeItem(storageKey(kind,key))}catch{storageAvailable=false}}
 function fieldKey(field){return (field.closest('[data-history-review]')?.dataset.historyReview||'')+':'+(field.name||Object.keys(field.dataset).filter(key=>!['baseRevision','dirty'].includes(key)).sort().join(':'))}
-function values(root){return Object.fromEntries([...root.querySelectorAll('input:not([type=file]),textarea,select')].filter(field=>fieldKey(field)).map(field=>[fieldKey(field),field.type==='checkbox'?field.checked:field.value]))}
+function values(root){if(root.matches('[data-dashboard-preferences]'))return{':configuration':root.elements.configuration.value};return Object.fromEntries([...root.querySelectorAll('input:not([type=file]),textarea,select')].filter(field=>fieldKey(field)).map(field=>[fieldKey(field),field.type==='checkbox'?field.checked:field.value]))}
 function restore(root,delta){for(const field of root.querySelectorAll('input,textarea,select')){const key=fieldKey(field);if(Object.hasOwn(delta,key)){if(field.type==='checkbox')field.checked=delta[key]===true;else field.value=delta[key]}}}
 function status(root,text,state){if(!root?.isConnected)return;root.dataset.operationState=state;let label=root.querySelector(':scope > [data-operation-status]');if(!label){label=document.createElement('p');label.dataset.operationStatus='';label.setAttribute('role','status');root.prepend(label)}label.textContent=text}
 function action(root,label,callback){const button=document.createElement('button');button.type='button';button.className='admin-button';button.dataset.recoveryAction='';button.textContent=label;button.addEventListener('click',callback);root.querySelector('[data-operation-status]')?.append(' ',button)}
@@ -49,6 +49,7 @@ function bind(root,key,revision,eventId){
 export function bindCurrentEditors(){
   for(const[root]of roots)if(!root.isConnected)roots.delete(root);
   const event=adminState.events.find(item=>item.id===adminState.selectedEventId);
+  bind(document.querySelector('[data-dashboard-preferences]:not([hidden])'),`preferences:${uid()}`,adminState.dashboardPreferenceRevision,null);
   bind(document.querySelector('[data-event-settings-form]'),`event:${event?.id}`,event?.revision,event?.id);
   bind(document.querySelector('[data-accommodation-create-form]'),`accommodation-create:${event?.id}`,event?.accommodationRevision,event?.id);
   for(const root of document.querySelectorAll('[data-accommodation-id]')){const item=adminState.accommodationItems.find(item=>item.id===root.dataset.accommodationId);bind(root,`accommodation:${item?.id}`,item?.revision,item?.eventId)}

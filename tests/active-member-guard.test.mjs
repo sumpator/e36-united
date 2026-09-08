@@ -361,3 +361,12 @@ test('every Member 360, search, QR and private media route verifies active Admin
   const r=createRuntime({role:'admin',status:'active'});assert.equal((await worker.fetch(new Request('https://api.e36united.cz'+path,{method,headers:{Origin:allowedOrigin}}),r.env)).status,401);assert.equal(r.queries.length,0);r.database.close();
  }
 });
+
+test('Stage 3 dashboard/preferences routes enforce active Admin before any dashboard SQL or write',async()=>{
+ for(const [method,path]of [['GET','/api/admin/dashboard?eventId=e'],['GET','/api/admin/preferences'],['PUT','/api/admin/preferences']]){
+  for(const identity of [{role:'member',status:'active'},{role:'admin',status:'blocked'},{role:'admin',status:'inactive'}]){
+   const r=createRuntime(identity);assert.equal((await worker.fetch(authenticatedRequest(path,method),r.env)).status,403);assert.equal(r.queries.length,1);r.database.close();
+  }
+  const r=createRuntime({role:'admin',status:'active'});assert.equal((await worker.fetch(new Request('https://api.e36united.cz'+path,{method,headers:{Origin:allowedOrigin}}),r.env)).status,401);assert.equal(r.queries.length,0);r.database.close();
+ }
+});

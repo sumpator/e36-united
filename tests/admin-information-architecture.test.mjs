@@ -1,3 +1,4 @@
+import {ADMIN_AREAS,areaFor} from '../admin/destinations.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -55,10 +56,11 @@ const reservations = [
 test('admin has one persistent navigation target for each real agenda and one default active panel', () => {
   const panels = [...html.matchAll(/data-admin-panel="([^"]+)"/g)].map(match => match[1]);
   assert.deepEqual(panels.sort(), [...ADMIN_VIEW_IDS].sort());
-  for (const view of ADMIN_VIEW_IDS) {
-    assert.match(html, new RegExp(`data-admin-jump="${view}"`));
-    assert.match(html, new RegExp(`data-portal-target="${view}"`));
-  }
+  assert.deepEqual(Object.keys(ADMIN_AREAS),['dashboard','finance','community','mailing','settings']);
+  for(const area of Object.keys(ADMIN_AREAS))assert.equal((html.match(new RegExp('data-portal-target="'+area+'"','g'))||[]).length,2);
+  assert.equal((html.match(/data-portal-target=/g)||[]).length,10);
+  for(const view of ADMIN_VIEW_IDS)assert.ok(ADMIN_AREAS[areaFor(view)].views.includes(view));
+  assert.match(js,/ADMIN_AREAS\[area\]\.views\.map/);
   assert.equal((html.match(/admin-view-panel is-active/g) || []).length, 1);
   assert.match(html, /class="admin-view-panel is-active" data-admin-panel="dashboard"/);
   assert.doesNotMatch(html, /data-admin-panel="(?:reservations|payments|gallery|accommodation|event)"[^>]*data-admin-collapsible/);
@@ -68,7 +70,7 @@ test('view switching hides inactive agendas and persists the active agenda', () 
   assert.match(js, /function setAdminView\(view,\{focus=true\}=\{\}\)/);
   assert.match(js, /panel\.hidden=!active/);
   assert.match(js, /rememberSessionChoice\('e36UnitedAdmin\.activeView',nextView\)/);
-  assert.match(js, /adminPortalNavigation=initPortalNavigation\([^\n]+onSelect:view=>setAdminView\(view\)/);
+  assert.match(js, /adminPortalNavigation=initPortalNavigation\([^\n]+onSelect:area=>setAdminView\(ADMIN_AREAS\[area\]/);
   assert.match(css, /\.admin-view-panel\[hidden\]\{display:none!important\}/);
 });
 
