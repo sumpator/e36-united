@@ -25,7 +25,10 @@ test('one final public Planner click hands off in the same tab through login to 
   const observations=await prepareE2ePage(page);let tracked=null;
   await page.route('https://api.e36united.cz/api/planner-handoffs',async route=>{tracked=route.request().postDataJSON().draft;await reply(route,{ok:true})});
   await page.goto('/#planer');await expect(page.locator('[data-accommodation-option-id="cabin-standard"]')).toBeVisible();
-  await page.locator('[data-planner-mail]').click();await page.locator('[data-planner-login]').click();
+  const plannerMail=page.locator('[data-planner-mail]'),plannerChoice=page.locator('[data-inquiry-modal]'),plannerLogin=page.locator('[data-planner-login]');
+  await expect(plannerMail).toBeVisible();await expect(plannerMail).toBeEnabled();await expect(plannerMail).toHaveAttribute('href','member.html?section=reservation');
+  await plannerMail.scrollIntoViewIfNeeded();await expect(plannerMail).toBeInViewport();await plannerMail.click();
+  await expect(plannerChoice).toBeVisible();await expect(plannerLogin).toBeVisible();await plannerLogin.click();
   await expect(page).toHaveURL(/member.html\?mode=login&section=reservation&draft=/);
   await login(page);await expect(page.locator('[data-member-panel="reservation"]')).toBeVisible();
   await expect(page.locator('[data-planner-handoff]')).toBeVisible();await expect(page.locator('[data-planner-handoff-recap]')).toContainText('Pátek');
