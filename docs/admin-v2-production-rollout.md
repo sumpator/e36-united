@@ -60,3 +60,53 @@ Resume only after direct chat confirmation resolves the execution approval requi
 No rollback was needed or attempted. Worker rollback would not undo D1 and may leave Stage3 Pages incompatible with the older Worker; DB restore and Pages rollback require separate authorization.
 
 No application/SQL/migration/test/interval changes, redesign/Stage4, business repair/backfill, existing-member QR provisioning, production business writes, provider/email/configuration changes, secret/DNS/binding/billing changes, database restore, Git push or Pages deployment. Stage2's accepted3,904,805 conservative estimate and formally unmet1M target remain unchanged; neither is actual Cloudflare billing.
+
+## Resumed rollout — 2026-09-09, direct operator authorization
+
+**PRODUCTION ROLLOUT VERIFIED within the bounded read-only smoke below.** This later record supersedes the earlier blocked operational status, not its historical evidence. Fresh checks and deployment ran approximately 07:35–07:39 UTC; authenticated smoke and read-back checks approximately 07:40–07:46 UTC (Europe/Prague +02:00).
+
+Starting HEAD `ad17caa062a002533a647654bbc815a9537a7862`, clean main, 1 ahead / 0 behind. Its only difference from approved `1a89afdab10b76c9c6c80a1115bf2bb8ae66dc65` was the two known rollout documentation files. Remote main was read again and remained that approved release. No source/configuration/SQL/test drift or concurrent Worker deployment appeared. The already completed unchanged local gate above was reused as requested: Node352/352, Chromium68/68, focused WebKit37/37, syntax112+53, imports112/missing0/cycles0, ordered migration/FK/integrity tests and full315,988-byte dry-run. No dependency upgrade or repeated browser suite.
+
+Fresh preflight confirmed the same account, Worker, DB, private EU R2, configuration, four predecessor migration IDs, missing Admin objects and business aggregates. Remote foreign_key_check was empty and quick_check was ok. A fresh usable Time Travel bookmark was obtained before the first write, around07:35 UTC; it is not committed here. No restore was attempted. The exact previously active Worker version remained the rollback candidate. Existing explicit-file import execution/failure behavior and concurrency precautions from the completed preflight were retained.
+
+### Applied schema and deployment
+
+All commands used the unchanged original complete SQL files through Wrangler4.129.0 explicit remote D1 file execution, without catch-all migration application, statement splitting or added transaction wrappers. Each command succeeded on its first attempt; schema/registry/FK/quick_check and business aggregates were checked after each file before proceeding.
+
+| Migration, exact dependency order | Before | Outcome / exact schema objects | Cloudflare command rows read / written |
+| --- | --- | --- | --- |
+| 2026-09-08-admin-safe-operations | Absent, objects absent | Newly applied; 24/24 match | 31 / 84 |
+| 2026-09-08-admin-member-identity | Absent, objects absent | Newly applied; 7/7 match | 67 / 39 |
+| 2026-09-08-admin-read-budget | Absent, object absent | Newly applied; 1/1 match | 2 / 3 |
+| 2026-09-08-admin-preferences | Absent, object absent | Newly applied; 1/1 match | 1 / 5 |
+
+None skipped or failed. These are actual migration-command D1 metadata, not business-row counts and not a replacement for Stage2's estimated workload budget. Registry now has all eight expected IDs; all33 approved objects match canonical DDL, including indexes/constraints/trigger bodies. Removing those new objects from the final schema produces the same pre-existing schema fingerprint as fresh preflight. Every remote FK check returned0 rows and every quick_check returned ok; a separate full remote integrity_check was not run. Database size increased from512,000 to593,920 bytes.
+
+Safe-operations seeded exactly27 technical revision entries: accommodation3, accommodation-catalog6, event-settings1, gallery5, history12; all revision0 after smoke. Receipts0, saved preferences0, issued QR identities0 / existing members missing identity5. No existing-member provisioning was invoked.
+
+Immediately before deployment, the original live deployment was rechecked unchanged. Complete308.58KiB Worker upload (gzip69.19KiB, startup4ms) used existing wrangler.jsonc and keep-vars, without source/config edits. Application source is exactly approved `1a89afdab10b76c9c6c80a1115bf2bb8ae66dc65`, despite the local docs-only descendant.
+
+| Production Worker state | Previous | Final |
+| --- | --- | --- |
+| Version | c8f3bde2-29f6-4668-8d21-37c8b0fa9c1d | 52a48e0b-3c3b-4ba6-8a2a-37e199e246ef |
+| Deployment | a6c55e90-2221-4cd2-a81d-663e8ded9d99 | 45a9b967-8d59-49f3-8f43-e758990bdf6e |
+| Created UTC | 2026-09-07T21:04:24.16303Z | 2026-09-09T07:39:08.488334Z |
+| Active traffic | 100% | 100% |
+
+Post-deploy configuration read-back matched preflight exactly except the expected release annotation. DB/MEDIA identities, R2 EU/private state, route/domain mappings, workers.dev/previews, five runtime vars including200/day limit, secret names, compatibility date/flags, usage model, logpush, schedules and tail consumers were preserved. Secret values were never read back or published. No new resource, DNS/provider setting or Pages release was created.
+
+### Actual production smoke and limits
+
+- Homepage/gallery returned200 and retained video cGfcolaqczM. Admin HTML/admin.js/dashboard JS/CSS, galerie.html and main.js matched approved source after line-ending normalization. The earlier observed Cloudflare email-protection transformation still prevents an exact homepage byte-match claim. Health/current-event returned200 JSON/ok, current event united-2026; registration settings remained closed and unchanged. Protected unauthenticated summary/dashboard/preferences/members returned401 JSON, not a private-data response. OPTIONS returned204 with the correct origin and Authorization, Content-Type, If-Match, Idempotency-Key support; no conditional write was submitted.
+- The legitimate existing Chrome Admin session loaded and restored after an intentional reload. Events2021–2026 and selected2026 context loaded. Dashboard summary, trend/attention data and factory preference composition loaded meaningfully with honest zero/empty reservation and financial states; prior unavailable-source banners were no longer observed. GET preferences was exercised by startup; no save/reset, no stored preference row.
+- Reservation list and payments displayed0 records; accommodation displayed3 existing options/capacities. No existing reservation detail was available to open, and none was created for testing.
+- Member list displayed5 records; search found an existing member. Member360 header and all nine tabs were read: event, reservations/finance, Garage, photos, Club, history/S&S, Points, Mailing and QR. Two Garage images loaded successfully, as did visible private history thumbnails and one full1024px private evidence image. Member history showed6 entries, Points13 entries and Club its existing rating/achievements. QR correctly stated not provisioned rather than transport failure; issued identities cannot be tested for stability because none exist.
+- Gallery read showed5 approved photos; history review showed12 existing claims. No moderation button was used. Stored Mailing overview showed5 current-member projections and2 campaign drafts, while persisted mailing_contacts remained0; Member360 correctly showed no explicitly linked persisted contact. No import/sync/readiness/provider/email operation. Event settings read showed the existing closed2026 event without saving.
+- A visible coordinator cycle was observed after reload: completion09:44:51 →09:45:51 local, while the summary's load time remained09:44:51. This is bounded UI evidence consistent with the60s coordinator/300s analytical policy, not a production load or precise request-count test. An attempted auxiliary blank tab did not actually hide Admin (document.hidden stayed false), so production hidden-tab behavior is NOT VERIFIED. That temporary tab was closed. Hidden/offline/denied/logout guards remain covered by the unchanged local tests/source; no policy alteration.
+- The available browser console-log API returned no captured warn/error entries, and no new visible runtime/unavailable-source error appeared. This tooling exposes no full authenticated network trace; exact per-request HTTP status/CORS/error absence across all authenticated reads is NOT certified. UI success, public status checks, schema checks and local tests are distinct evidence, not interchangeable. Pre-rollout dashboard failure was visually reproduced in the earlier attempt; exact failing authenticated response bodies were not captured then. Dashboard and member unavailability are now resolved in the exercised UI flow.
+
+Final bounded business baseline remained exactly5 members,0 reservations,5 cars,5 car photos,5 gallery submissions,12 history claims,23 Points entries,30 Admin audit entries,0 persisted Mailing contacts,2 campaigns and0 recipients/delivery events. Reservation/payment/allocation aggregates and six-event registration/current/date settings matched fresh preflight. Counts/aggregates and schema fingerprints are not full business-record checksums; they do not rule out every unrelated concurrent value change. No business write path was invoked by this task, and technical revisions/receipts remained unchanged after the reads.
+
+Intentionally not tested: any production mutation, preference save/reset/concurrency, payment/reservation submission, member edits, moderation, provider readiness/email, QR provisioning/resolution of an issued identity, absent existing-reservation detail, physical mobile devices, full browser network capture and a genuinely hidden-tab production interval. These are not silently marked passing. No verified new regression required rollback. Worker-only rollback would leave additive D1 schema in place and can mismatch Stage3 Pages; DB restore/Pages rollback remain separately authorized operations.
+
+Closeout changes only this rollout note and progress documentation, followed by one new local docs-only commit; no Git push. No application/SQL/test/interval edits, redesign/Stage4, business repair/backfill, existing-member QR provisioning, provider/email/configuration change, secret/DNS/binding/billing change, database restore or Pages deployment. Production writes were limited to the four explicitly approved migration files and the approved complete Worker deployment.
