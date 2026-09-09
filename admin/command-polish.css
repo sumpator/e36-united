@@ -8,15 +8,15 @@
 }
 .admin-page .dashboard-card>h3 { display:flex; align-items:center; gap:12px; margin:0 0 16px; font-size:19px; }
 .admin-page .dashboard-heading { min-height:76px; margin-bottom:12px; }
-.admin-page .dashboard-card { padding:18px; }
-.admin-page .command-approvals { gap:12px; }
-.admin-page .command-approvals>section { padding:14px; display:grid; grid-template-columns:40px 1fr; gap:8px 10px; align-items:center; }
+.admin-page .dashboard-card { padding:var(--admin-padding); }
+.admin-page .command-approvals { gap:12px; flex:1; }
+.admin-page .command-approvals>section { padding:14px; display:grid; grid-template-columns:40px minmax(0,1fr); grid-template-rows:auto auto auto 1fr auto; gap:8px 10px; align-items:start; }
 .admin-page .command-approvals h4 { margin:0; font-size:14px; }
 .admin-page .command-approvals strong { grid-column:1/-1; margin:6px 0 0; font-size:36px; line-height:1.15; }
 .admin-page .command-approvals .command-action-caption,.admin-page .command-approvals small,.admin-page .command-approvals button { grid-column:1/-1; margin:0; }
 .admin-page .command-action-caption { font-size:14px; color:#e0eaf4; }
 .admin-page .command-approvals small { min-height:36px; font-size:13px; line-height:1.4; color:#9eb6ca; }
-.admin-page .command-approvals button { margin-top:6px; min-height:44px; }
+.admin-page .command-approvals button { margin-top:6px; min-height:44px; align-self:end; }
 .admin-page [data-command-clear]:empty { display:none; }
 .admin-page .command-info { margin-top:10px; color:#a9bfd2; font-size:13px; }
 .admin-page .command-info summary { display:inline-flex; align-items:center; min-height:36px; cursor:pointer; text-decoration:underline; text-underline-offset:4px; }
@@ -27,6 +27,10 @@
 .admin-page .command-money strong { font-size:24px; }
 .admin-page .command-stats { margin:4px 0 10px; }
 .admin-page .command-capacity { margin:8px 0; }
+.admin-page .command-capacity>span { min-width:0; overflow-wrap:anywhere; }
+.admin-page .command-capacity { grid-template-columns:minmax(0,1fr) minmax(48px,.7fr) auto; gap:4px 8px; align-items:center; }
+.admin-page .command-capacity>b { grid-column:3; grid-row:1; }
+.admin-page .command-capacity meter { grid-column:2; grid-row:1; }
 .admin-page .command-capacity small { color:#b8c7d5; }
 .admin-page .command-capacity small,.admin-page .command-no-accommodation { font-size:13px; }
 .admin-page [data-widget="trend"] .command-info { margin:0 0 8px; }

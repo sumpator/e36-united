@@ -1,5 +1,5 @@
-import { apiRequest } from '../../api.js?v=20260909-admin-command-r3';
-import { $, escapeHtml, numeric } from '../../ui.js?v=20260909-admin-command-r3';
+import { apiRequest } from '../../api.js?v=20260909-admin-member-modal-r4';
+import { $, escapeHtml, numeric } from '../../ui.js?v=20260909-admin-member-modal-r4';
 
 export const defaultMailingSegment=Object.freeze({match:'all',rules:[{type:'mailing_eligible'}],exclusions:[]});
 const recipientsLabel=count=>`${count} ${count===1?'příjemce':count>1&&count<5?'příjemci':'příjemců'}`;

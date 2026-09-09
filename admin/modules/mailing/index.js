@@ -1,11 +1,11 @@
-import { refreshStoredMailingDelivery } from './delivery.js?v=20260909-admin-command-r3';
-import { renderMailingCampaigns, campaignPage } from './campaigns.js?v=20260909-admin-command-r3';
-import { apiRequest } from '../../api.js?v=20260909-admin-command-r3';
-import { adminState } from '../../state.js?v=20260909-admin-command-r3';
-import { $, $$, numeric, toast } from '../../ui.js?v=20260909-admin-command-r3';
-import { loadMailingContacts } from './contacts.js?v=20260909-admin-command-r3';
-import { initializeMailingCampaigns, loadMailingCampaigns, resetMailingCampaigns } from './campaigns.js?v=20260909-admin-command-r3';
-import { defaultMailingSegment, previewMailingSegment } from './segments.js?v=20260909-admin-command-r3';
+import { refreshStoredMailingDelivery } from './delivery.js?v=20260909-admin-member-modal-r4';
+import { renderMailingCampaigns, campaignPage } from './campaigns.js?v=20260909-admin-member-modal-r4';
+import { apiRequest } from '../../api.js?v=20260909-admin-member-modal-r4';
+import { adminState } from '../../state.js?v=20260909-admin-member-modal-r4';
+import { $, $$, numeric, toast } from '../../ui.js?v=20260909-admin-member-modal-r4';
+import { loadMailingContacts } from './contacts.js?v=20260909-admin-member-modal-r4';
+import { initializeMailingCampaigns, loadMailingCampaigns, resetMailingCampaigns } from './campaigns.js?v=20260909-admin-member-modal-r4';
+import { defaultMailingSegment, previewMailingSegment } from './segments.js?v=20260909-admin-member-modal-r4';
 
 let initialized=false,overviewLoaded=false,overviewPromise=null,lastSegment=defaultMailingSegment;
 

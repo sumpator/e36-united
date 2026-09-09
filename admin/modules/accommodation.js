@@ -1,10 +1,10 @@
-import { adminCommand, editorProtected, adminEditorDirty } from '../editors.js?v=20260909-admin-command-r3';
-import { accommodationVisualMarkup, bindAccommodationVisualFallbacks } from '../../accommodation-visual.js?v=20260909-admin-command-r3';
-import { selectImageFiles } from '../../image-upload.js?v=20260909-admin-command-r3';
-import { apiBaseUrl, apiRequest, apiUpload } from '../api.js?v=20260909-admin-command-r3';
-import { adminState } from '../state.js?v=20260909-admin-command-r3';
-import { setDenied } from '../shell.js?v=20260909-admin-command-r3';
-import { $, escapeHtml, formatMoney, numeric, toast } from '../ui.js?v=20260909-admin-command-r3';
+import { adminCommand, editorProtected, adminEditorDirty } from '../editors.js?v=20260909-admin-member-modal-r4';
+import { accommodationVisualMarkup, bindAccommodationVisualFallbacks } from '../../accommodation-visual.js?v=20260909-admin-member-modal-r4';
+import { selectImageFiles } from '../../image-upload.js?v=20260909-admin-member-modal-r4';
+import { apiBaseUrl, apiRequest, apiUpload } from '../api.js?v=20260909-admin-member-modal-r4';
+import { adminState } from '../state.js?v=20260909-admin-member-modal-r4';
+import { setDenied } from '../shell.js?v=20260909-admin-member-modal-r4';
+import { $, escapeHtml, formatMoney, numeric, toast } from '../ui.js?v=20260909-admin-member-modal-r4';
 
 const accommodationPhotoSelections=new Map();
 export function resetAccommodationMedia(){for(const selection of accommodationPhotoSelections.values())URL.revokeObjectURL(selection.url);accommodationPhotoSelections.clear();document.querySelectorAll('[data-local-file]').forEach(node=>delete node.dataset.localFile)}

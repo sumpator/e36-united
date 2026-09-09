@@ -1,5 +1,5 @@
-import { ADMIN_VIEW_IDS } from '../admin-view-model.js?v=20260909-admin-command-r3';
-import {ADMIN_AREAS,areaFor,cleanDrill} from './destinations.js?v=20260909-admin-command-r3';
+import { ADMIN_VIEW_IDS } from '../admin-view-model.js?v=20260909-admin-member-modal-r4';
+import {ADMIN_AREAS,areaFor,cleanDrill} from './destinations.js?v=20260909-admin-member-modal-r4';
 
 const id=value=>/^[a-z0-9_-]{1,128}$/i.test(value||'')?value:null;
 export function adminRoute(search,fallback='dashboard'){
@@ -11,7 +11,7 @@ export function adminRoute(search,fallback='dashboard'){
   if(Object.hasOwn(ADMIN_AREAS,requested))section=ADMIN_AREAS[requested].views.includes(params.get('view'))?params.get('view'):ADMIN_AREAS[requested].views[0];
   const galleryMode=section==='club'?'history':params.get('mode')==='history'?'history':'community';if(section==='club')section='gallery';
   return {section,galleryMode,drill:cleanDrill(Object.fromEntries(params)),composition:params.get('composition')==='onsite'?'onsite':'preparation',range:['7','30','all'].includes(params.get('range'))?params.get('range'):'all',
-    eventId:id(params.get('event')),reservationId:id(params.get('reservation')),memberId:id(params.get('member')),memberTab:['event','reservations','garage','photos','club','history','points','mailing','qr'].includes(params.get('tab'))?params.get('tab'):'event'};
+    eventId:id(params.get('event')),reservationId:id(params.get('reservation')),memberId:id(params.get('member')),memberTab:['overview','event','reservations','garage','photos','club','history','points','mailing','qr'].includes(params.get('tab'))?params.get('tab'):'overview'};
 }
 export function adminRouteUrl(route){
   const section=ADMIN_VIEW_IDS.includes(route.section)?route.section:'dashboard',area=areaFor(section);
@@ -22,7 +22,7 @@ export function adminRouteUrl(route){
   if(['reservations','payments'].includes(section))for(const[key,value]of Object.entries(cleanDrill(route.drill)))params.set(key,value);
   if(id(route.eventId))params.set('event',route.eventId);
   if(id(route.reservationId))params.set('reservation',route.reservationId);
-  if(id(route.memberId)){params.set('member',route.memberId);if(route.memberTab&&route.memberTab!=='event')params.set('tab',route.memberTab)}
+  if(id(route.memberId)){params.set('member',route.memberId);if(['event','reservations','garage','photos','club','history','points','mailing','qr'].includes(route.memberTab))params.set('tab',route.memberTab)}
   return `${location.pathname}?${params}`;
 }
 
@@ -65,6 +65,10 @@ export function initializeAdminNavigation({state,setView,openReservation,openMem
       if(target.memberId)openMember(target.memberId,null,{tab:target.memberTab,route:false});
       window.scrollTo({top:Number(history.state?.scrollY)||0,behavior:'auto'});lastUrl=location.href;
     }finally{restoring=false;state.restoringRoute=false}
+    // Forward may open Member only after the source restore. Its context event was
+    // intentionally suppressed while restoring; now hydrate it through the same
+    // coordinator (fresh path cache is reused, no independent fetch or timer).
+    if(state.memberId)await refresh();
   }
   history.replaceState({...history.state,admin:true},'',adminRouteUrl(initial));lastUrl=location.href;
   window.addEventListener('admin:beforenavigation',rememberScroll);

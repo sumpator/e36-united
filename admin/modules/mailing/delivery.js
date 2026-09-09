@@ -1,7 +1,7 @@
-import { apiRequest } from '../../api.js?v=20260909-admin-command-r3';
-import { $, escapeHtml, toast } from '../../ui.js?v=20260909-admin-command-r3';
-import { showFrozenMailingPreview } from './preview.js?v=20260909-admin-command-r3';
-import { renderMailingTracking } from './tracking.js?v=20260909-admin-command-r3';
+import { apiRequest } from '../../api.js?v=20260909-admin-member-modal-r4';
+import { $, escapeHtml, toast } from '../../ui.js?v=20260909-admin-member-modal-r4';
+import { showFrozenMailingPreview } from './preview.js?v=20260909-admin-member-modal-r4';
+import { renderMailingTracking } from './tracking.js?v=20260909-admin-member-modal-r4';
 
 const providerLabels={not_configured:'SMTP2GO · Nenakonfigurováno',api_error:'SMTP2GO · Chyba poskytovatele',domain_missing:'SMTP2GO · Doména chybí',domain_unverified:'SMTP2GO · Doména není ověřena',ready:'SMTP2GO · Připraveno'};
 let selected='',sequence=0,current=null,provider=null,onChanged=async()=>{},initialized=false;

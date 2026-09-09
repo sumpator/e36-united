@@ -1,26 +1,26 @@
-import {initializeDashboard,renderDashboard,receiveDashboardPreferences,dashboardWantsPlanner,dashboardWantsMailing,clearDashboard} from './admin/dashboard.js?v=20260909-admin-command-r3';
-import {initializeCommandShell} from './admin/command-shell.js?v=20260909-admin-command-r3';
-import {initializeMembers,openMember,closeMember,clearMemberPrivateState,memberContextKey,memberRefreshTasks} from './admin/member-detail.js?v=20260909-admin-command-r3';
-import {ADMIN_REFRESH,resourceDue} from './admin/refresh-policy.js?v=20260909-admin-command-r3';
-import {reservationRequestPath,galleryRequestPath} from './admin/lists.js?v=20260909-admin-command-r3';
-import { initializeAdminNavigation } from './admin/navigation.js?v=20260909-admin-command-r3';
-import { createAdminRefresh } from './admin/refresh.js?v=20260909-admin-command-r3';
-import { initializeAdminEditors, bindCurrentEditors, forgetAdminEditor, allowAdminNavigation, clearAdminPrivateEdits, adminRenderPending } from './admin/editors.js?v=20260909-admin-command-r3';
-import { firebaseConfig } from './firebase-config.js?v=20260909-admin-command-r3';
+import {initializeDashboard,renderDashboard,receiveDashboardPreferences,dashboardWantsPlanner,dashboardWantsMailing,clearDashboard} from './admin/dashboard.js?v=20260909-admin-member-modal-r4';
+import {initializeCommandShell} from './admin/command-shell.js?v=20260909-admin-member-modal-r4';
+import {initializeMembers,openMember,closeMember,clearMemberPrivateState,memberContextKey,memberRefreshTasks,renderMemberReadState} from './admin/member-detail.js?v=20260909-admin-member-modal-r4';
+import {ADMIN_REFRESH,resourceDue} from './admin/refresh-policy.js?v=20260909-admin-member-modal-r4';
+import {reservationRequestPath,galleryRequestPath} from './admin/lists.js?v=20260909-admin-member-modal-r4';
+import { initializeAdminNavigation } from './admin/navigation.js?v=20260909-admin-member-modal-r4';
+import { createAdminRefresh } from './admin/refresh.js?v=20260909-admin-member-modal-r4';
+import { initializeAdminEditors, bindCurrentEditors, forgetAdminEditor, allowAdminNavigation, clearAdminPrivateEdits, adminRenderPending } from './admin/editors.js?v=20260909-admin-member-modal-r4';
+import { firebaseConfig } from './firebase-config.js?v=20260909-admin-member-modal-r4';
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js';
 import { getAuth, setPersistence, browserLocalPersistence, onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js';
 
-import { apiRequest } from './admin/api.js?v=20260909-admin-command-r3';
-import { adminState, resetAdminDomainState, resetAdminFiltersForEvent, resetAdminFiltersForLogin } from './admin/state.js?v=20260909-admin-command-r3';
-import { initializeAdminShell, setAdminSectionCollapsed, setAdminView, setDenied, setLoading, setView } from './admin/shell.js?v=20260909-admin-command-r3';
-import { $, toast } from './admin/ui.js?v=20260909-admin-command-r3';
-import { renderEventSelector, renderEventSettings, renderOverview, saveEventSettings } from './admin/modules/dashboard-events.js?v=20260909-admin-command-r3';
-import { previewAccommodationPhoto, resetAccommodationMedia, removeAccommodationPhoto, renderAccommodation, saveAccommodation, uploadAccommodationPhoto } from './admin/modules/accommodation.js?v=20260909-admin-command-r3';
-import { clearReservationDetailFilters, closeReservationDrawer, openReservationDrawer, renderReservations, renderReservationDetail, setPaymentFilter, setPaymentSearch, setReservationFilter, setReservationSearch, setReservationViewMode, toggleReservationDetailFilter, toggleReservationFilters, updateReservation, updateReservationPayment } from './admin/modules/reservations-payments.js?v=20260909-admin-command-r3';
-import { changeHistoryPage, clearHistoryFilters, closeGalleryLightbox, closeHistoryEvidence, historyRequestPath, hydrateOpenHistoryCard, openGalleryLightbox, openHistoryEvidence, releaseGalleryMedia, releaseHistoryEvidence, renderGallery, renderHistoryClaims, reviewHistoryClaim, setGalleryFilter, setGalleryMode, setHistoryClaimType, setHistoryFilter, setHistorySearch, setHistoryYear, updateGallery } from './admin/modules/moderation.js?v=20260909-admin-command-r3';
-import { initializeMailingCenter, resetMailingCenter, refreshMailingCenter } from './admin/modules/mailing/index.js?v=20260909-admin-command-r3';
-import { renderAdminFunnel } from './admin/modules/funnel.js?v=20260909-admin-command-r3';
-import { refreshHistoryAttention } from './admin/modules/dashboard-events.js?v=20260909-admin-command-r3';
+import { apiRequest } from './admin/api.js?v=20260909-admin-member-modal-r4';
+import { adminState, resetAdminDomainState, resetAdminFiltersForEvent, resetAdminFiltersForLogin } from './admin/state.js?v=20260909-admin-member-modal-r4';
+import { initializeAdminShell, setAdminSectionCollapsed, setAdminView, setDenied, setLoading, setView } from './admin/shell.js?v=20260909-admin-member-modal-r4';
+import { $, toast } from './admin/ui.js?v=20260909-admin-member-modal-r4';
+import { renderEventSelector, renderEventSettings, renderOverview, saveEventSettings } from './admin/modules/dashboard-events.js?v=20260909-admin-member-modal-r4';
+import { previewAccommodationPhoto, resetAccommodationMedia, removeAccommodationPhoto, renderAccommodation, saveAccommodation, uploadAccommodationPhoto } from './admin/modules/accommodation.js?v=20260909-admin-member-modal-r4';
+import { clearReservationDetailFilters, closeReservationDrawer, openReservationDrawer, renderReservations, renderReservationDetail, setPaymentFilter, setPaymentSearch, setReservationFilter, setReservationSearch, setReservationViewMode, toggleReservationDetailFilter, toggleReservationFilters, updateReservation, updateReservationPayment } from './admin/modules/reservations-payments.js?v=20260909-admin-member-modal-r4';
+import { changeHistoryPage, clearHistoryFilters, closeGalleryLightbox, closeHistoryEvidence, historyRequestPath, hydrateOpenHistoryCard, openGalleryLightbox, openHistoryEvidence, releaseGalleryMedia, releaseHistoryEvidence, renderGallery, renderHistoryClaims, reviewHistoryClaim, setGalleryFilter, setGalleryMode, setHistoryClaimType, setHistoryFilter, setHistorySearch, setHistoryYear, updateGallery } from './admin/modules/moderation.js?v=20260909-admin-member-modal-r4';
+import { initializeMailingCenter, resetMailingCenter, refreshMailingCenter } from './admin/modules/mailing/index.js?v=20260909-admin-member-modal-r4';
+import { renderAdminFunnel } from './admin/modules/funnel.js?v=20260909-admin-member-modal-r4';
+import { refreshHistoryAttention } from './admin/modules/dashboard-events.js?v=20260909-admin-member-modal-r4';
 
 const app=initializeApp(firebaseConfig);
 const auth=getAuth(app);
@@ -134,6 +134,7 @@ async function refreshResources({context,signal,isCurrent,reason}){
   if(!memberError){memberError=document.createElement('p');memberError.dataset.memberLoadError='';memberError.role='status';memberDialog.querySelector('header').after(memberError);}
   memberError.hidden=!adminState.memberId||!['member-header',...(adminState.memberTab==='event'?[]:['member-tab'])].some(name=>['unavailable','stale'].includes(adminState.resourceStates[name]?.state));
   memberError.textContent='Data této členské sekce teď nejsou dostupná. Dříve načtené hodnoty zůstávají zachované. Zkus obnovit spojení.';
+  renderMemberReadState();
   if(!adminState.memberId&&context.view==='mailing'&&resourceDue(resourceFreshness.get('mailing'),'mailing',ADMIN_REFRESH.analyticsMs,reason)){try{await refreshMailingCenter({signal,isCurrent});if(isCurrent())resourceFreshness.set('mailing',{state:'fresh',context:'mailing',lastSuccess:Date.now()})}catch{failed.push('mailing')}}
   return {failed:failed.length?failed:null};
 }

@@ -340,3 +340,95 @@ Celkem **41 souborů** (3 nové, 38 upravených):
 - Dokumentace: append-only `docs/admin-new-command-center.md`.
 
 Žádný Worker, SQL/migrace, stylesheet, public/Member aplikace, závislost nebo provider konfigurace se nemění. Výstup je jeden lokální opravný commit `fix: reconcile confirmed admin writes and protected renders` na `fix/admin-confirmed-render`; `main` a `origin/main` zůstávají na výchozím `85fe0c861295b71be74c5438a85341f9ae1dfaa2`. Žádný push, produkční přístup/zápis, vzdálená migrace, QR provisioning, e-mail/provider akce, deployment ani rollback. Tím tento lokální task končí.
+
+## 2026-09-09 — lokální responsive Admin / Member modal (r4)
+
+Navazuje výhradně na ověřený release `632836a283c2f23c4b02302761eac60c9a749549`. Jeden fetch potvrdil nezměněný remote a čistý výchozí strom. Práce probíhá na nové lokální větvi `feat/admin-responsive-member-modal`; main ani origin/main se neposouvají. Nejde o release ani produkční smoke.
+
+### Prezentační rozsah
+
+- Existující 12sloupcový dashboard používá přirozené auto řady a stretch. Vyrovnávají se skuteční sousedé, nikoli pevně zvolené dva moduly nebo všechny řady navzájem. Vnitřní akce Schvalování jsou dole; všechny kapacity zůstávají viditelné, dlouhé názvy se zalamují. Mezery a padding mají malé fluidní rozsahy. Na mobilu je přirozený stacking, bez zoomu/scale či JS měření výšek.
+- Header je nyní v běžném toku dokumentu, s vlastní skutečnou výškou. Sidebar je sticky ve stávajícím kontejneru vedle workspace. Není nutný odhad pevného horního offsetu. Ověřeny dlouhé syntetické identity a stresově dlouhý popisek native event selectu; skutečný renderer event selectu nadále používá dosavadní ročník/status, nikoli nový formát titulku.
+- Dvě kompozice, preference, pořadí/šířky/viditelnost a mini-náhled se nemění. Test porovnává plán náhledu s reálnými CSS spany po explicitním **lokálním fixture** save. CAS, konflikty, confirmed-render, receipt recovery a ochrany draftů zůstávají.
+- Jediný existující native Member dialog je centrovaný, do 1240 px, omezený viewportem. Desktop má svislou navigaci 180 px, na mobilu nativní označený select „Sekce člena“. Hlavní obsah má vlastní scroll; header/close zůstávají dostupné. Delší desktop navigace při velmi krátkém okně může samostatně scrollovat, jednotlivé obsahové karty scroll nemají.
+- Native modal zachovává inertní pozadí; stránka je po dobu otevření scroll-locked a po zavření se obnoví. Tab boundary obsluhuje jen horní aktivní dialog. Escape fotografie nezavře člena. Návrat fokusu používá původní ovladač, případně hledání jako náhradní cíl.
+- Vizuální kontrola skutečného WebKit snímku odhalila světlé systémové vykreslení mobilního selectu přes tmavé CSS. Omezené `appearance:none` a CSS šipka sjednocují pouze vzhled tohoto native selectu; jeho klávesnice, popisek a nativní výběr zůstávají. Opravený WebKit screenshot byl znovu otevřen a zkontrolován.
+- Nový čistý `admin/member-presentation.js` skládá pouze existující data. Monogram není ověřená fotografie; registrace není historické „United od“. Známé enumy mají české popisky, neznámé zůstávají viditelné bez domýšlení. Mailing souhlas, vyloučení a doručitelnost jsou samostatné údaje.
+
+Výchozí `overview` má čtyři karty: vybraný ročník, přesné finance jednotlivé rezervace, serverový Club a profil/kontakt. Nula, chybějící částka, loading, nedostupný zdroj a zastaralé poslední čtení se neztotožňují. Club chyba neodstraní profil/rezervaci. Přepnutí člena zneplatní předchozí lokální projekce; pozdní odpověď A nesmí vykreslit člena B.
+
+Všechny původní sekce zůstávají read-only, s původním stránkováním a autorizovanými médii. Rezervace vedou do původního editoru. Historie ukazuje rozhodnutí účasti a S&S odděleně. QR se čte jen po explicitním otevření, bez provisioningu. Obecný odkaz/QR resolver otevírá Přehled; explicitní `event/club/history/qr` zůstává cílený. Serializer nově ponechá explicitní `tab=event`. Existující router nadále používá **replace** při změně členské sekce: Back vrací zdroj, Forward poslední členskou sekci, nikoli každou mezizáložku.
+
+Při rozšířené navigační validaci se reprodukovalo prázdné okno po Forward: stávající router otevřel Member až po obnově zdroje a během restoring potlačil jeho context event. Nyní po ukončení restore proběhne hydratace přes stejný coordinator a jeho fresh path cache. Nemění se historie jednotlivých tabů, guarding zdrojového editoru ani perioda. WebKit dále prokázal závod při opuštění dosud dekódované privátní fotografie; cleanup před revoke nejprve odpojí její živé img.src. Abort, generation/ownership kontroly i zrušení všech URL zůstávají. Nový all-section test před těmito úpravami selhal a po nich prošel v obou enginech.
+
+### Zdroje, frekvence a náklad
+
+| Existující zdroj | Při otevření Přehledu | Dosavadní perioda |
+| --- | --- | --- |
+| `GET /api/admin/summary?eventId=…` | sdílený, pouze pokud potřebuje obnovu | 300 s nad Member |
+| `GET /api/admin/members/:id?eventId=…` | member-header | 60 s |
+| `GET /api/admin/members/:id/club?eventId=…&page=1` | jeden Club read | 300 s |
+
+Při otevření z čerstvého dashboardu test měří přesně **2 GET** (header + Club). Přepnutí Přehled → Club → Přehled s čerstvou cache nepřidá GET. Pět řízených kroků po 61 s měří včetně úvodního otevření **6 header + 2 Club + 1 summary GET**, nejvýše 3 úlohy v jedné obnově. Neaktivní zdrojová doména se neobnovuje. Dosavadní testy dále ověřují hidden/offline/logout/denied a nulové poll writes. Úvodní bootstrap session/events/preferences není nový Member request a není z těchto dvou GET odvozován. OPTIONS se do D1 čtení nepočítá.
+
+Oproti dřívějšímu výchozímu Eventu přibývá pouze existující Club projekce: nejvýše jedno studené čtení a při trvale viditelném Přehledu až 12 periodických čtení za hodinu. Existující handler obsahuje 4 SQL dotazy (identita, historie pro serverovou derivaci, agregace bodů, počet schválených fotografií), header se zvoleným eventem 3; globální DB kontrola Admin oprávnění je zachována navíc. **Počet SQL dotazů ani HTTP requestů není počet účtovaných D1 řádků.** Nové produkční `meta.rows_read` nebylo měřeno a žádný nový celkový D1 budget pass se netvrdí. Přijatá Stage 2 hranice 3 904 805 s rezervou a formálně nesplněný 1M cíl zůstávají autoritativní; tento task je znovu neoptimalizuje.
+
+Dosavadní command/dashboard/mailing-widget budget kontroly PASS nad nezměněnými SQL/plány. Žádný nový endpoint, timer, cache framework, provider nebo globální prefetch. Historie rezervací, Garage, Photos, Mailing a QR se načítají jen po otevření jejich sekce.
+
+### Validace a reprodukce
+
+Nové pokrytí: 8 Node případů a 15 browserových scénářů v každém enginu. Původní assertiony pro confirmed-render/safe-write/recovery/cache zůstaly beze změny. Dva původní prezentační testy pouze následují schválený výchozí Přehled/české názvy; jejich datové a bezpečnostní kontroly zůstávají. V lokální command fixture byla opravena kolize `endsWith('/reservations')`: obecný seznam nyní odpovídá jen přesné `/api/admin/reservations`, zatímco členský endpoint obsluhuje existující Member handler. Backend se tím nemění.
+
+```text
+node --test tests/*.mjs
+node --experimental-vm-modules scripts/check-admin-module-graph.mjs
+node scripts/check-admin-command-budget.mjs
+node scripts/check-admin-dashboard-budget.mjs
+node scripts/check-admin-mailing-widget-cost.mjs
+pnpm test:e2e --project=chromium --output=test-results/responsive-final-chromium-green
+pnpm test:e2e --project=webkit --output=test-results/responsive-final-webkit
+wrangler deploy --dry-run --outdir test-results/responsive-worker-dry-run
+git diff --check
+```
+
+Finální úplný browser gate po poslední úpravě: **Chromium 117/117 PASS**, **WebKit 86/86 PASS** (každý 2,7 min, CI=1, jeden worker, retries=0). Node **384/384 PASS**, syntax **119 produkčních + 66 diagnostických/testových souborů PASS**, produkční importy **120 modulů, bez cyklů/chyb**, Admin cache graph **42 modulů / 133 lokálních vazeb, bez cyklů/token chyb**. Jednotný token `20260909-admin-member-modal-r4` zahrnuje HTML entry i všechny kontrolované importy a tři skutečně změněné stylesheet URL. Worker dry-run **313.42 KiB / 69.91 KiB gzip PASS**, pouze lokální bundle, bez uploadu.
+
+Sandboxový průběžný Chromium narazil na `ERR_NETWORK_ACCESS_DENIED` u nezměněného YouTube thumbnailu a testovací proces nedokončil teardown; nejde o aplikační regresi. Finální browser gate proběhl mimo sandbox s nezměněnými baseline assertions, timeouts, fixtures síťovou izolací a retries=0. Opravy nově psaných testů respektují skutečný native select a existující replace-history kontrakt, nikoli změnu aplikace kvůli testu. Lokální Windows/Playwright není GitHub Linux CI ani fyzický Safari/iPhone. 200% ověření je odpovídající CSS reflow 800 × 450, nikoli tvrzení o automatizovaném ovládání chrome zoomu.
+
+### Skutečné lokální screenshoty
+
+Snímky jsou skutečné viewporty syntetických fixtures, nikoli návrhové mockupy ani produkční osobní údaje. Nové testy je při uvedeném kompletním běhu znovu vytvářejí v gitignored `test-results/`; po smazání artefaktů je potřeba reprodukce. Vizuální kontrola zahrnuje všechny cílové rozměry, dlouhé ubytování, mobilní okraje, klávesnici a návrat do draftu.
+
+- [Dashboard 1600 × 900 — prázdný stav a tři skutečné varianty ubytování](../test-results/responsive-final-chromium-green/admin-responsive-member-RE-fbfdb-atural-rows-and-header-1600-chromium/dashboard-empty-three-types.png)
+- [Dashboard 1600 × 900 — rezervace a platby](../test-results/responsive-final-chromium-green/admin-responsive-member-RE-fbfdb-atural-rows-and-header-1600-chromium/dashboard-populated-1600.png)
+- [Dashboard 1366 × 768](../test-results/responsive-final-chromium-green/admin-responsive-member-RE-ffc5f-atural-rows-and-header-1366-chromium/dashboard-populated-1366.png)
+- [Dashboard 1920 × 1080](../test-results/responsive-final-chromium-green/admin-responsive-member-RE-f0bb3-atural-rows-and-header-1920-chromium/dashboard-populated-1920.png)
+- [Dashboard 1280 × 720](../test-results/responsive-final-chromium-green/admin-responsive-member-RE-7447d-atural-rows-and-header-1280-chromium/dashboard-populated-1280.png)
+- [Dashboard mobil 390 × 844](../test-results/responsive-final-chromium-green/admin-responsive-member-RE-4f996-natural-rows-and-header-390-chromium/dashboard-populated-390.png)
+- [Dashboard 800 × 450 — reflow](../test-results/responsive-final-chromium-green/admin-responsive-member-RE-44d19-natural-rows-and-header-800-chromium/dashboard-populated-800.png)
+- [Dlouhé názvy a čtyři varianty ubytování](../test-results/responsive-final-chromium-green/admin-responsive-member-RE-fbfdb-atural-rows-and-header-1600-chromium/dashboard-long-capacity.png)
+- [Member Přehled — s rezervací](../test-results/responsive-final-chromium-green/admin-responsive-member-RE-8fe06-d-private-nested-image-1600-chromium/member-overview-1600.png)
+- [Member Přehled — bez rezervace](../test-results/responsive-final-chromium-green/admin-responsive-member-RE-8fe06-d-private-nested-image-1600-chromium/member-without-reservation-1600.png)
+- [Member Garáž](../test-results/responsive-final-chromium-green/admin-responsive-member-RE-8fe06-d-private-nested-image-1600-chromium/member-garage-1600.png)
+- [Member United Club](../test-results/responsive-final-chromium-green/admin-responsive-member-RE-8fe06-d-private-nested-image-1600-chromium/member-club-1600.png)
+- [Member Přehled — mobil](../test-results/responsive-final-chromium-green/admin-responsive-member-RE-3dc8d-nd-private-nested-image-390-chromium/member-overview-390.png)
+- [Mobilní přepínač Sekce člena](../test-results/responsive-final-chromium-green/admin-responsive-member-RE-3dc8d-nd-private-nested-image-390-chromium/member-mobile-section-picker.png)
+- [Nastavit zobrazení — změněné pořadí, velikost a viditelnost](../test-results/responsive-final-chromium-green/admin-responsive-member-RE-1d424-still-share-the-actual-grid-chromium/settings-reordered.png)
+- [Návrat do zdrojového editoru — fokus](../test-results/responsive-final-chromium-green/admin-responsive-member-RE-cdbde-ion-focus-and-source-scroll-chromium/return-to-dirty-payment.png)
+- [Zachovaný neuložený draft 1700 Kč](../test-results/responsive-final-chromium-green/admin-responsive-member-RE-cdbde-ion-focus-and-source-scroll-chromium/return-to-dirty-payment-amount.png)
+- [Historie — oddělené rozhodnutí účasti a S&S](../test-results/responsive-final-chromium-green/admin-responsive-member-RE-6745d-ory-and-explicit-deep-links-chromium/member-history-separate-states.png)
+- [Nedostupný Club se zachovanou identitou a rezervací](../test-results/responsive-final-chromium-green/admin-responsive-member-RE-f4edc-e-not-empty-or-foreign-data-chromium/member-club-unavailable.png)
+- [Dlouhý syntetický e-mail a event popisek](../test-results/responsive-final-chromium-green/admin-responsive-member-RE-db6a9-n-controls-and-modal-scroll-chromium/long-admin-header.png)
+- [Member při 200% ekvivalentním reflow](../test-results/responsive-final-chromium-green/admin-responsive-member-RE-db6a9-n-controls-and-modal-scroll-chromium/member-reflow-200-equivalent.png)
+
+### Inventář lokálního diffu a hranice
+
+Celkem **42 souborů (3 nové, 39 upravených)**. Po normalizaci samotného r3/r4 tokenu a CRLF je **27 souborů cache-only**, **15 ostatních**:
+
+- CSS: `admin-members.css`, `admin/command-center.css`, `admin/command-polish.css`.
+- Klientská prezentace/navigace: `admin.js`, `admin/member-detail.js`, `admin/navigation.js`, nový `admin/member-presentation.js`.
+- `admin.html`: pouze modulový token a URL tří změněných stylesheetů.
+- Testy: nové `tests/admin-member-presentation.test.mjs`, `tests/e2e/admin-responsive-member.spec.mjs`; prezentační adaptace `tests/e2e/admin-command.spec.mjs`, `tests/e2e/admin-members.spec.mjs`; přesná shoda endpointu v `tests/e2e/command-fixture.mjs`.
+- `playwright.config.mjs`: přidává nový soubor do dosavadní WebKit allowlist; nemění timeouts/retries/workers. Tento append-only dokument.
+
+Cache-only zbytek včetně `scripts/check-admin-module-graph.mjs` mění pouze jednotný release token, nikoli sdílené runtime chování. Žádný nový dependency/framework, Worker/API/auth/SQL/schema/business změna, veřejný web ani Member Portal. Skutečná Cloudflare data, fyzické mobilní zařízení a vzdálené CI nejsou v tomto lokálním tasku ověřovány. Neproběhl push žádné větve, deployment, produkční přístup/zápis, vzdálená migrace, provider/e-mail operace ani produkční QR provisioning. Výsledkem je jediný lokální implementační commit; následuje vizuální kontrola operátora, nikoli automatické pokračování.

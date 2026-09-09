@@ -179,7 +179,7 @@ test('NEW six destinations, Community disclosure, legacy aliases and canonical C
  await expect(rail.locator(':scope > button')).toHaveCount(6);const before=page.url();await rail.locator('[data-community-toggle]').click();expect(page.url()).toBe(before);
  await expect(rail.locator('[data-community-links] button')).toHaveCount(4);await page.screenshot({path:info.outputPath('NEW-community.png')});
  await rail.locator('[data-admin-jump="united-club"]').click();await expect(page).toHaveURL(/view=united-club/);await expect(page.locator('[data-admin-panel="members"] h2')).toHaveText('United Club · členové');
- await page.locator('[data-member-list] [data-member-open="m"]').click();await expect(page.locator('[data-member-tab="club"]')).toHaveAttribute('aria-selected','true');await expect(page.locator('[data-member-tab-content]')).toContainText('Points');
+ await page.locator('[data-member-list] [data-member-open="m"]').click();await expect(page.locator('[data-member-tab="club"]')).toHaveAttribute('aria-selected','true');await expect(page.locator('[data-member-tab-content]')).toContainText('Dostupné body');
  await page.goBack();await expect(page.locator('[data-member-dialog]')).not.toBeVisible();
  await page.goto('/admin.html?section=finance&view=accommodation&event=e');await expect(page.locator('[data-admin-panel="accommodation"]')).toBeVisible();
  await page.goto('/admin.html?section=club&event=e');await expect(page.locator('[data-gallery-history]')).toBeVisible();
@@ -218,7 +218,7 @@ test('NEW latest reservation opens the canonical selected-car detail and reads Q
  const photo=drawer.locator('[data-reservation-car-photo]');await photo.scrollIntoViewIfNeeded();await expect.poll(()=>photo.evaluate(n=>n.complete&&n.naturalWidth>0)).toBe(true);
  expect(c.calls.some(p=>p.endsWith('/media/cars/c2/selected'))).toBe(true);expect(c.calls.some(p=>p.endsWith('/media/cars/c/p'))).toBe(false);
  await drawer.evaluate(n=>n.querySelector('.admin-reservation-drawer-panel').scrollTo(0,0));await page.screenshot({path:info.outputPath('NEW-reservation.png')});
- await drawer.locator('[data-member-qr-open]').click();await expect(page.locator('[data-member-tab="qr"]')).toHaveAttribute('aria-selected','true');await expect(page.locator('[data-member-tab-content]')).toContainText('Tento pohled ji nevytváří');
+ await drawer.locator('[data-member-qr-open]').click();await expect(page.locator('[data-member-tab="qr"]')).toHaveAttribute('aria-selected','true');await expect(page.locator('[data-member-tab-content]')).toContainText('Tento pohled je nevytváří');
  await page.goBack();await expect(drawer).toBeVisible();await page.keyboard.press('Escape');await expect(drawer).toBeHidden();await expect(page).not.toHaveURL(/reservation=/);
  expect(c.r.db.prepare('SELECT COUNT(*) n FROM member_qr_identities').get().n).toBe(0);expect(c.writes).toEqual([]);expect(c.r.writes).toBe(0);clean(c);c.r.db.close();
 });

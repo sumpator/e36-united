@@ -1,5 +1,5 @@
-import { $, $$, escapeHtml, toast } from '../../ui.js?v=20260909-admin-command-r3';
-import { resetMailingPreview, scheduleMailingPreview, setMailingPreviewDevice } from './preview.js?v=20260909-admin-command-r3';
+import { $, $$, escapeHtml, toast } from '../../ui.js?v=20260909-admin-member-modal-r4';
+import { resetMailingPreview, scheduleMailingPreview, setMailingPreviewDevice } from './preview.js?v=20260909-admin-member-modal-r4';
 
 const typeLabels={hero:'Hero',heading:'Nadpis',rich_text:'Text',image:'Obrázek',cta:'CTA',divider:'Oddělovač',highlight:'Highlight',survey:'Anketa'};
 let initialized=false,currentCampaignId='',blocks=[],templateVersion='e36-default-v1',saveHandler=null,openHandler=()=>{},readOnly=false;

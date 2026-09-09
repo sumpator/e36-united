@@ -1,7 +1,7 @@
-import { canonicalMemberLink } from '../../member-detail.js?v=20260909-admin-command-r3';
-import {renderListPagination} from '../../lists.js?v=20260909-admin-command-r3';
-import { apiRequest } from '../../api.js?v=20260909-admin-command-r3';
-import { $, escapeHtml, numeric } from '../../ui.js?v=20260909-admin-command-r3';
+import { canonicalMemberLink } from '../../member-detail.js?v=20260909-admin-member-modal-r4';
+import {renderListPagination} from '../../lists.js?v=20260909-admin-member-modal-r4';
+import { apiRequest } from '../../api.js?v=20260909-admin-member-modal-r4';
+import { $, escapeHtml, numeric } from '../../ui.js?v=20260909-admin-member-modal-r4';
 
 let contactPage=1,contactSequence=0;
 const eligibilityLabels={eligible:'Způsobilý',ineligible:'Bez souhlasu',review_required:'Nutná kontrola',suppressed:'Potlačený'};

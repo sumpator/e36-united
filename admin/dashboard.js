@@ -1,13 +1,13 @@
-import {adminState} from './state.js?v=20260909-admin-command-r3';
-import {adminCommand,bindCurrentEditors,forgetAdminEditor,editorProtected,allowAdminNavigation,adminEditorDirty} from './editors.js?v=20260909-admin-command-r3';
-import {COMPOSITIONS,validatePreferences} from './dashboard-model.js?v=20260909-admin-command-r3';
-import {COMMAND_WIDGETS as WIDGETS,commandDefaults as factoryPreferences,commandLayout,commandBadges} from './command-model.js?v=20260909-admin-command-r3';
-import {commandCard,metricInfo} from './command-cards.js?v=20260909-admin-command-r3';
-import {commandIcon} from './command-icons.js?v=20260909-admin-command-r3';
-import {renderCommandShell} from './command-shell.js?v=20260909-admin-command-r3';
-import {DESTINATIONS,QUICK_LINK_IDS,destination,drillLabel} from './destinations.js?v=20260909-admin-command-r3';
-import {dashboardKpi,chartModel,attentionModel,showValue} from './dashboard-data.js?v=20260909-admin-command-r3';
-import {$,escapeHtml as esc,toast} from './ui.js?v=20260909-admin-command-r3';
+import {adminState} from './state.js?v=20260909-admin-member-modal-r4';
+import {adminCommand,bindCurrentEditors,forgetAdminEditor,editorProtected,allowAdminNavigation,adminEditorDirty} from './editors.js?v=20260909-admin-member-modal-r4';
+import {COMPOSITIONS,validatePreferences} from './dashboard-model.js?v=20260909-admin-member-modal-r4';
+import {COMMAND_WIDGETS as WIDGETS,commandDefaults as factoryPreferences,commandLayout,commandBadges} from './command-model.js?v=20260909-admin-member-modal-r4';
+import {commandCard,metricInfo} from './command-cards.js?v=20260909-admin-member-modal-r4';
+import {commandIcon} from './command-icons.js?v=20260909-admin-member-modal-r4';
+import {renderCommandShell} from './command-shell.js?v=20260909-admin-member-modal-r4';
+import {DESTINATIONS,QUICK_LINK_IDS,destination,drillLabel} from './destinations.js?v=20260909-admin-member-modal-r4';
+import {dashboardKpi,chartModel,attentionModel,showValue} from './dashboard-data.js?v=20260909-admin-member-modal-r4';
+import {$,escapeHtml as esc,toast} from './ui.js?v=20260909-admin-member-modal-r4';
 
 let navigate=()=>{},refresh=()=>{},draft=null,pendingPreferences=null,acceptNext=false;
 const clone=value=>JSON.parse(JSON.stringify(value));

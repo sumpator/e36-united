@@ -1,10 +1,11 @@
-import {adminState} from './state.js?v=20260909-admin-command-r3';
-import {$,escapeHtml as esc,formatMoney} from './ui.js?v=20260909-admin-command-r3';
-import {apiRequest} from './api.js?v=20260909-admin-command-r3';
-import {ADMIN_REFRESH} from './refresh-policy.js?v=20260909-admin-command-r3';
-import qrcode from '../vendor/qrcode-generator.mjs?v=20260909-admin-command-r3';
+import {adminState} from './state.js?v=20260909-admin-member-modal-r4';
+import {$,escapeHtml as esc} from './ui.js?v=20260909-admin-member-modal-r4';
+import {apiRequest} from './api.js?v=20260909-admin-member-modal-r4';
+import {ADMIN_REFRESH} from './refresh-policy.js?v=20260909-admin-member-modal-r4';
+import qrcode from '../vendor/qrcode-generator.mjs?v=20260909-admin-member-modal-r4';
+import {MEMBER_TABS,memberIdentity,memberOverview,memberReservation,memberSection,memberEmpty} from './member-presentation.js?v=20260909-admin-member-modal-r4';
 
-export const MEMBER_TABS=Object.freeze({event:'Event',reservations:'Rezervace / finance',garage:'Garage',photos:'Fotky',club:'United Club',history:'Historie / S&S',points:'Points',mailing:'Mailing',qr:'QR identita'});
+export {MEMBER_TABS};
 export function canonicalMemberLink(id,label='Člen'){
   return /^[a-z0-9_-]{1,128}$/i.test(id||'')?`<button type="button" class="admin-member-link" data-member-open="${esc(id)}">${esc(label)}</button>`:esc(label);
 }
@@ -13,56 +14,78 @@ export function memberQrSvg(payload){
   const qr=qrcode(0,'M');qr.addData(payload,'Byte');qr.make();return qr.createSvgTag({cellSize:6,margin:24,scalable:true});
 }
 let initialized=false,opener=null,searchTimer=null,searchSequence=0,searchController=null,searchFlight=null,observer=null,mediaGeneration=0;
-let renderedTab=null;
+let renderedTab=null,headerData=null,clubData=null,projectionKey=null,overviewSignature=null;
+let scrollLock=null;
 const searchCache=new Map(),media=new Map(),mediaControllers=new Set();
 const routeChange=()=>window.dispatchEvent(new CustomEvent('admin:membercontext'));
-const currentKey=()=>[adminState.sessionGeneration,adminState.selectedEventId,adminState.memberId||'',adminState.memberTab||'event',adminState.memberPage||1].join('|');
+const currentKey=()=>[adminState.sessionGeneration,adminState.selectedEventId,adminState.memberId||'',adminState.memberTab||'overview',adminState.memberPage||1].join('|');
+function ensureProjectionContext(){const key=[adminState.sessionGeneration,adminState.selectedEventId,adminState.memberId].join('|');if(key!==projectionKey){projectionKey=key;headerData=null;clubData=null;overviewSignature=null;}}
+export function renderMemberReadState(){
+ if(!adminState.memberId)return;ensureProjectionContext();if(adminState.memberTab!=='overview')return;
+ const html=memberOverview(headerData,clubData,{headerState:adminState.resourceStates['member-header'],clubState:adminState.resourceStates['member-tab']});
+ if(html!==overviewSignature){overviewSignature=html;$('[data-member-tab-content]').innerHTML=html;}
+}
 export function memberContextKey(){return currentKey()+':'+(adminState.membersPage||1)}
-export function openMember(id,source,{tab='event',route=true}={}){
+export function openMember(id,source,{tab='overview',route=true}={}){
   if(!/^[a-z0-9_-]{1,128}$/i.test(id||'')||!adminState.currentUser||adminState.denied)return;
   if(route)window.dispatchEvent(new CustomEvent('admin:beforenavigation'));
   if($('[data-member-load-error]'))$('[data-member-load-error]').hidden=true;
-  if(adminState.memberId!==id){document.querySelectorAll('[data-member-dialog] [data-domain-status]').forEach(node=>node.remove());delete adminState.resourceStates['member-header'];delete adminState.resourceStates['member-tab'];releaseMemberMedia();$('[data-member-identity]').textContent='Načítám člena…';$('[data-member-event]').replaceChildren();$('[data-member-tab-content]').replaceChildren();}
-  opener=source||opener||document.activeElement;adminState.memberId=id;adminState.memberTab=MEMBER_TABS[tab]?tab:'event';adminState.memberPage=1;
-  const dialog=$('[data-member-dialog]');if(!dialog.open)dialog.showModal();syncTabs();
+  if(adminState.memberId!==id){document.querySelectorAll('[data-member-dialog] [data-domain-status]').forEach(node=>node.remove());delete adminState.resourceStates['member-header'];delete adminState.resourceStates['member-tab'];releaseMemberMedia();$('[data-member-identity]').innerHTML='<h2 id="admin-member-heading">Načítám člena…</h2>';$('[data-member-event]').replaceChildren();$('[data-member-tab-content]').replaceChildren();}
+  opener=source||opener||document.activeElement;adminState.memberId=id;adminState.memberTab=Object.hasOwn(MEMBER_TABS,tab)?tab:'overview';adminState.memberPage=1;
+  ensureProjectionContext();
+  const dialog=$('[data-member-dialog]');if(!dialog.open){scrollLock={x:window.scrollX,y:window.scrollY};document.documentElement.classList.add('admin-member-modal-open');dialog.showModal();}syncTabs();renderMemberReadState();
   if(route)window.dispatchEvent(new CustomEvent('admin:memberopened'));routeChange();
 }
 export function closeMember({route=true}={}){
   const dialog=$('[data-member-dialog]');if(!adminState.memberId&&!dialog?.open)return;
-  adminState.memberId=null;adminState.memberTab='event';adminState.memberPage=1;dialog?.close();releaseMemberMedia();
+  adminState.memberId=null;adminState.memberTab='overview';adminState.memberPage=1;dialog?.close();releaseMemberMedia();
+  headerData=null;clubData=null;projectionKey=null;overviewSignature=null;
+  document.documentElement.classList.remove('admin-member-modal-open');if(scrollLock)window.scrollTo(scrollLock.x,scrollLock.y);scrollLock=null;
   for(const selector of ['[data-member-identity]','[data-member-event]','[data-member-tab-content]'])$(selector)?.replaceChildren();
-  if(opener?.isConnected)opener.focus({preventScroll:true});opener=null;
+  const returnTarget=opener?.isConnected&&opener!==document.body?opener:$('[data-member-search]');returnTarget?.focus({preventScroll:true});opener=null;
   window.dispatchEvent(new CustomEvent('admin:memberhidden'));if(route)window.dispatchEvent(new CustomEvent('admin:memberclosed'));routeChange();
 }
-function syncTabs(){document.querySelectorAll('[data-member-tab]').forEach(button=>button.setAttribute('aria-selected',String(button.dataset.memberTab===adminState.memberTab)));$('[data-member-event]').hidden=adminState.memberTab!=='event';$('[data-member-tab-content]').hidden=adminState.memberTab==='event'}
+function syncTabs(){
+ document.querySelectorAll('[data-member-tab]').forEach(button=>{const active=button.dataset.memberTab===adminState.memberTab;button.setAttribute('aria-selected',String(active));button.tabIndex=active?0:-1});
+ $('[data-member-section-select]').value=adminState.memberTab;
+ $('[data-member-panel]').setAttribute('aria-labelledby','member-tab-'+adminState.memberTab);
+ $('[data-member-event]').hidden=adminState.memberTab!=='event';$('[data-member-tab-content]').hidden=adminState.memberTab==='event';
+}
+function selectMemberSection(tab){
+ if(!Object.hasOwn(MEMBER_TABS,tab)||adminState.memberTab===tab)return;
+ releaseMemberMedia();overviewSignature=null;$('[data-member-dialog] [data-domain-status="member-tab"]')?.remove();delete adminState.resourceStates['member-tab'];
+ adminState.memberTab=tab;adminState.memberPage=1;syncTabs();$('[data-member-panel]').scrollTop=0;
+ $('[data-member-tab-content]').textContent='Načítám sekci…';renderMemberReadState();window.dispatchEvent(new CustomEvent('admin:membertab'));routeChange();
+}
 function pagination(payload,kind){const p=payload.pagination;if(!p)return '';return `<nav class="admin-member-pagination" aria-label="Stránkování"><button type="button" data-member-page-kind="${kind}" data-member-page="${p.page-1}" ${p.page<=1?'disabled':''}>Předchozí</button><span>Celkem ${p.total} · ${p.page}/${p.totalPages}</span><button type="button" data-member-page-kind="${kind}" data-member-page="${p.page+1}" ${p.page>=p.totalPages?'disabled':''}>Další</button></nav>`}
 function rows(items,render){return items?.length?items.map(render).join(''):'<p>Žádné záznamy v tomto rozsahu.</p>'}
-function reservation(item){return `<article class="admin-member-card"><h3>${esc(item.title||item.year||'Rezervace')}</h3><p>${esc(item.status)} · ${esc(item.crew)} osob · ${esc(item.attendanceType||'')} · ${esc(item.accommodation||'')} · ${esc(item.carModel||'')} · S&S ${esc(item.showShine||'—')}</p><p>Příjezd: ${esc(item.arrival||'—')} · Pobyt: ${esc(item.stayName||item.accommodation||'—')} · ${esc(item.stayPeople??'—')} osob / ${esc(item.stayUnits??item.accommodationUnits??'—')} jednotek / ${esc(item.stayNights??'—')} nocí</p><p>Zdroj: uložená rezervace a její částky v Kč. Uložený platební stav: ${esc(item.storedPaymentStatus||'—')} · Uhrazeno dne: ${esc(item.paidAt||'—')}</p><dl><dt>Předpis</dt><dd>${esc(formatMoney(item.amountDueCzk))}</dd><dt>Evidovaně uhrazeno</dt><dd>${esc(formatMoney(item.amountPaidCzk))}</dd><dt>Nedoplatek</dt><dd>${esc(formatMoney(Math.max(0,item.amountDueCzk-item.amountPaidCzk)))}</dd><dt>Přeplatek</dt><dd>${esc(formatMoney(Math.max(0,item.amountPaidCzk-item.amountDueCzk)))}</dd><dt>VS (uložené)</dt><dd>${esc(item.variableSymbol||'—')}</dd></dl><button type="button" data-member-reservation="${esc(item.id)}" data-member-event-id="${esc(item.eventId)}">Otevřít existující editor rezervace / platby</button></article>`}
-function photo(item){return `<button type="button" class="admin-member-photo" data-member-image="${esc(item.mediaPath)}"><img alt="Soukromá fotografie člena" width="180" height="120" loading="lazy" data-member-media="${esc(item.mediaPath)}" data-media-version="${esc(item.version||'')}"/><span>Otevřít fotografii</span></button>`}
 export function renderMemberHeader(payload){
- const m=payload.member;$('[data-member-identity]').innerHTML=`<h2 id="admin-member-heading">${esc(m.nickname||m.name)}</h2><p>${esc(m.name)} · ${esc(m.memberCode)} · ${esc(m.status)} · ${esc(m.role)}</p><p>${esc(m.email)} · ${esc(m.phone||'Bez telefonu')}</p><small>${esc(payload.event?.title||'Bez vybraného eventu')}</small>`;
- $('[data-member-event]').innerHTML=rows(payload.reservations,reservation);syncTabs();
+ ensureProjectionContext();headerData=payload;
+ const identity=memberIdentity(payload.member);if($('[data-member-identity]').innerHTML!==identity)$('[data-member-identity]').innerHTML=identity;
+ $('[data-member-event]').innerHTML=payload.reservations?.length?payload.reservations.map(memberReservation).join(''):memberEmpty('Na tento ročník zatím nemá rezervaci.','reservations');syncTabs();renderMemberReadState();
 }
 export function renderMembers(payload){$('[data-member-list]').innerHTML=rows(payload.members,m=>`<article class="admin-member-card">${canonicalMemberLink(m.memberId,m.nickname||m.name)}<p>${esc(m.memberCode)} · ${esc(m.name)} · ${esc(m.status)}</p><small>${esc(m.email)}</small></article>`)+pagination(payload,'list')}
 export function renderMemberTab(payload){
- const tab=payload.context.tab;const signature=currentKey()+':'+(payload.dataVersion||JSON.stringify(payload));if(renderedTab===signature)return;renderedTab=signature;let html='';
- if(tab==='reservations')html=rows(payload.items,reservation);
- if(tab==='garage')html=rows(payload.items,c=>`<article class="admin-member-card"><h3>${esc(c.nickname||c.model)}</h3><p>${esc(c.model)} · ${esc(c.body||'')} · ${esc(c.year||'')} · ${esc(c.color||'')} ${c.primaryCar?'· Hlavní auto':''}</p>${(c.photos||[]).map(photo).join('')}</article>`);
- if(tab==='photos')html=rows(payload.items,p=>`<article class="admin-member-card">${photo(p)}<p>${esc(p.caption||'')} · ${esc(p.status)}</p><small>${esc(p.reviewNote||'')}</small></article>`);
- if(tab==='history')html=rows(payload.items,h=>`<article class="admin-member-card"><h3>United ${esc(h.year)}</h3><p>Účast: ${esc(h.attendanceStatus)} · S&S: ${esc(h.snsStatus)} · ${esc(h.category||'')} ${esc(h.placement||'')}</p><p>${esc(h.attendanceNote||'')} ${esc(h.snsNote||'')}</p>${(h.photos||[]).map(photo).join('')}<button type="button" data-member-history="${esc(h.eventId)}">Otevřít existující moderaci historie</button></article>`);
- if(tab==='points')html=rows(payload.items,p=>`<article class="admin-member-card"><strong>${esc(p.delta)} Points</strong><p>${esc(p.reason)}</p><small>${esc(p.createdAt)}</small></article>`);
- if(tab==='club')html=`<p>Dostupné Points: ${esc(payload.points.available)} · Celkem získáno: ${esc(payload.points.lifetime)}</p><h3>${esc(payload.rating.name)}</h3>`+rows(payload.achievements,a=>`<article class="admin-member-card"><strong>${esc(a.name)} · ${esc(a.tier)}</strong><p>${esc(a.condition)}</p></article>`);
- if(tab==='mailing')html=(payload.contact?`<p>Uložené propojení: ${esc(payload.contact.email)}</p><p>Souhlas: ${esc(payload.contact.mailingConsent)} · ${esc(payload.contact.suppressionStatus)} · ${esc(payload.contact.deliverabilityStatus)}</p>`:'<p>Žádný uložený propojený kontakt. Shoda e-mailu sama o sobě není vazba.</p>')+rows(payload.items,p=>`<article class="admin-member-card"><strong>${esc(p.campaign)}</strong><p>${esc(p.deliveryStatus)} · ${esc(p.sentAt||'Neodesláno')}</p></article>`);
- if(tab==='qr')html=payload.payload?`<div class="admin-member-qr" aria-label="Členská QR identita">${memberQrSvg(payload.payload)}</div><p>Identifikace člena, nikoli vstupenka nebo potvrzení platby. Bez oprávnění ke změnám.</p>`:'<p>QR identita dosud nebyla explicitně provisionována. Tento pohled ji nevytváří.</p>';
- $('[data-member-tab-content]').innerHTML=html+pagination(payload,'tab');hydrateMemberMedia();
+ ensureProjectionContext();
+ if(payload.context.tab==='club'){clubData=payload;if(adminState.memberTab==='overview'){renderMemberReadState();return;}}
+ const signature=currentKey()+':'+(payload.dataVersion||JSON.stringify(payload));if(renderedTab===signature)return;renderedTab=signature;
+ $('[data-member-tab-content]').innerHTML=memberSection(payload,memberQrSvg)+pagination(payload,'tab');hydrateMemberMedia();
 }
 export function memberRefreshTasks(){
  if(adminState.memberId){const base='/api/admin/members/'+encodeURIComponent(adminState.memberId),suffix='?eventId='+encodeURIComponent(adminState.selectedEventId)+'&page='+(adminState.memberPage||1);const tasks=[['member-header',base+'?eventId='+encodeURIComponent(adminState.selectedEventId),renderMemberHeader,ADMIN_REFRESH.operationalMs]];
-  if(adminState.memberTab!=='event')tasks.push(['member-tab',base+'/'+adminState.memberTab+suffix,renderMemberTab,['club','history','points','mailing','qr'].includes(adminState.memberTab)?ADMIN_REFRESH.analyticsMs:ADMIN_REFRESH.operationalMs]);return tasks}
+  if(adminState.memberTab!=='event'){const tab=adminState.memberTab==='overview'?'club':adminState.memberTab;tasks.push(['member-tab',base+'/'+tab+suffix,renderMemberTab,['club','history','points','mailing','qr'].includes(tab)?ADMIN_REFRESH.analyticsMs:ADMIN_REFRESH.operationalMs]);}return tasks}
  if(['members','united-club'].includes(adminState.activeAdminView))return [['members','/api/admin/members?page='+(adminState.membersPage||1),renderMembers,ADMIN_REFRESH.operationalMs]];
  return [];
 }
-function releaseMemberMedia(){renderedTab=null;mediaGeneration++;observer?.disconnect();for(const c of mediaControllers)c.abort();mediaControllers.clear();for(const item of media.values())if(item.url)URL.revokeObjectURL(item.url);media.clear();$('[data-member-image-dialog]')?.close();$('[data-member-full-image]')?.removeAttribute('src')}
+function releaseMemberMedia(){
+ renderedTab=null;mediaGeneration++;observer?.disconnect();
+ // Detach live image consumers before revoking their URLs, including navigation
+ // while WebKit is still decoding a private image. Ownership/generation stay intact.
+ document.querySelectorAll('[data-member-dialog] [data-member-media],[data-member-full-image]').forEach(img=>img.removeAttribute('src'));
+ $('[data-member-image-dialog]')?.close();
+ for(const c of mediaControllers)c.abort();mediaControllers.clear();
+ for(const item of media.values())if(item.url)URL.revokeObjectURL(item.url);media.clear();
+}
 async function loadMedia(path,version){
  const key=path+'|'+version,existing=media.get(key);if(existing)return existing.promise;
  const generation=mediaGeneration,context=currentKey(),controller=new AbortController();mediaControllers.add(controller);
@@ -87,18 +110,31 @@ async function searchMembers(){
   target.innerHTML=rows(payload.members,m=>`<div>${canonicalMemberLink(m.memberId,m.nickname||m.name)} <small>${esc(m.memberCode)} · ${esc(m.email)}</small></div>`);
  }catch(error){if(current()&&!error.stale)target.textContent='Vyhledávání teď není dostupné. Zkus to znovu.'}finally{if(searchFlight?.key===key)searchFlight=null}})();searchFlight={key,promise};return promise;
 }
+// Wrap only the active native modal's tab boundary; the image modal takes precedence.
+function containMemberFocus(event,dialog){
+ if(event.key!=='Tab')return;
+ const nodes=[...dialog.querySelectorAll('button,select,[tabindex]')].filter(n=>!n.disabled&&n.tabIndex>=0&&n.getClientRects().length);
+ const target=event.shiftKey&&document.activeElement===nodes[0]?nodes.at(-1):!event.shiftKey&&document.activeElement===nodes.at(-1)?nodes[0]:null;
+ if(target){event.preventDefault();target.focus();}
+}
 export function initializeMembers({openReservation,openHistory}){
- if(initialized)return;initialized=true;adminState.memberTab='event';adminState.memberPage=1;adminState.membersPage=1;
+ if(initialized)return;initialized=true;adminState.memberTab='overview';adminState.memberPage=1;adminState.membersPage=1;
  const search=document.createElement('form');search.className='admin-member-search';search.dataset.memberSearchForm='';search.setAttribute('role','search');search.innerHTML='<label>Najít člena / vložit členský QR <input data-member-search autocomplete="off" maxlength="100" placeholder="Jméno, e-mail, kód nebo auto (min. 2 znaky)" /></label><button type="submit">Najít</button><div data-member-suggestions aria-live="polite"></div>';$('[data-admin-view]').prepend(search);
- const dialog=document.createElement('dialog');dialog.dataset.memberDialog='';dialog.className='admin-member-dialog';dialog.setAttribute('aria-labelledby','admin-member-heading');dialog.innerHTML='<header><button type="button" data-member-close>Zpět / Zavřít</button><div data-member-identity></div><p data-member-freshness role="status"></p><nav role="tablist" aria-label="Detail člena">'+Object.entries(MEMBER_TABS).map(([key,label])=>`<button type="button" role="tab" data-member-tab="${key}">${label}</button>`).join('')+'</nav></header><section data-member-event></section><section data-member-tab-content></section>';document.body.append(dialog);
+ const dialog=document.createElement('dialog');dialog.dataset.memberDialog='';dialog.className='admin-member-dialog';dialog.setAttribute('aria-labelledby','admin-member-heading');dialog.innerHTML='<header><div data-member-identity><h2 id="admin-member-heading">Načítám člena…</h2></div><button type="button" data-member-close aria-label="Zavřít detail člena">Zavřít ×</button><p data-member-freshness role="status"></p></header><p data-member-load-error role="status" hidden></p><div class="admin-member-layout"><nav role="tablist" aria-orientation="vertical" aria-label="Sekce člena">'+Object.entries(MEMBER_TABS).map(([key,label])=>`<button type="button" role="tab" id="member-tab-${key}" aria-controls="admin-member-panel" data-member-tab="${key}">${label}</button>`).join('')+'</nav><label class="admin-member-section-picker" for="member-section-select"><span>Sekce člena</span><select id="member-section-select" data-member-section-select>'+Object.entries(MEMBER_TABS).map(([key,label])=>`<option value="${key}">${label}</option>`).join('')+'</select></label><div id="admin-member-panel" data-member-panel role="tabpanel" tabindex="0"><section data-member-event></section><section data-member-tab-content></section></div></div>';document.body.append(dialog);
+ $('[data-member-section-select]').addEventListener('change',event=>selectMemberSection(event.target.value));
+ dialog.querySelector('[role="tablist"]').addEventListener('keydown',event=>{
+  const tabs=[...dialog.querySelectorAll('[data-member-tab]')],index=tabs.indexOf(document.activeElement);if(index<0)return;
+  const target=event.key==='ArrowDown'?(index+1)%tabs.length:event.key==='ArrowUp'?(index+tabs.length-1)%tabs.length:event.key==='Home'?0:event.key==='End'?tabs.length-1:null;
+  if(target!==null){event.preventDefault();tabs.forEach((node,i)=>node.tabIndex=i===target?0:-1);tabs[target].focus();}
+ });
  const image=document.createElement('dialog');image.dataset.memberImageDialog='';image.className='admin-member-image-dialog';image.innerHTML='<button type="button" data-member-image-close>Zavřít fotografii</button><img data-member-full-image alt="Soukromá fotografie člena v plné velikosti" />';document.body.append(image);
- dialog.addEventListener('cancel',event=>{event.preventDefault();closeMember()});dialog.addEventListener('keydown',event=>{if(event.key==='Escape'){event.preventDefault();event.stopPropagation();closeMember()}});
- image.addEventListener('keydown',event=>{if(event.key==='Escape'){event.preventDefault();event.stopPropagation();image.close()}});
+ dialog.addEventListener('cancel',event=>{event.preventDefault();closeMember()});dialog.addEventListener('keydown',event=>{if(image.open)return;containMemberFocus(event,dialog);if(event.key==='Escape'){event.preventDefault();event.stopPropagation();closeMember()}});
+ image.addEventListener('keydown',event=>{containMemberFocus(event,image);if(event.key==='Escape'){event.preventDefault();event.stopPropagation();image.close()}});
  search.addEventListener('submit',event=>{event.preventDefault();void searchMembers()});$('[data-member-search]').addEventListener('input',()=>{clearTimeout(searchTimer);searchSequence++;searchController?.abort();searchFlight=null;searchTimer=setTimeout(()=>void searchMembers(),ADMIN_REFRESH.searchDebounceMs)});
  document.addEventListener('click',event=>{
-  const member=event.target.closest('[data-member-open],[data-member-qr-open]');if(member){event.preventDefault();event.stopImmediatePropagation();$('[data-member-suggestions]').replaceChildren();openMember(member.dataset.memberOpen||member.dataset.memberQrOpen,member,{tab:member.hasAttribute('data-member-qr-open')?'qr':member.dataset.memberOpenTab||(adminState.activeAdminView==='united-club'?'club':'event')});return}
+  const member=event.target.closest('[data-member-open],[data-member-qr-open]');if(member){event.preventDefault();event.stopImmediatePropagation();$('[data-member-suggestions]').replaceChildren();openMember(member.dataset.memberOpen||member.dataset.memberQrOpen,member,{tab:member.hasAttribute('data-member-qr-open')?'qr':member.dataset.memberOpenTab||(adminState.activeAdminView==='united-club'?'club':'overview')});return}
   if(event.target.closest('[data-member-close]')){closeMember();return}
-  const tab=event.target.closest('[data-member-tab]');if(tab){if(adminState.memberTab===tab.dataset.memberTab)return;renderedTab=null;$('[data-member-dialog] [data-domain-status="member-tab"]')?.remove();delete adminState.resourceStates['member-tab'];adminState.memberTab=tab.dataset.memberTab;adminState.memberPage=1;syncTabs();$('[data-member-tab-content]').textContent='Načítám sekci…';window.dispatchEvent(new CustomEvent('admin:membertab'));routeChange();return}
+  const tab=event.target.closest('[data-member-tab],[data-member-section]');if(tab){selectMemberSection(tab.dataset.memberTab||tab.dataset.memberSection);return}
   const page=event.target.closest('[data-member-page]');if(page){adminState[page.dataset.memberPageKind==='list'?'membersPage':'memberPage']=Number(page.dataset.memberPage);routeChange();return}
   const res=event.target.closest('[data-member-reservation]');if(res){openReservation(res.dataset.memberReservation,res.dataset.memberEventId);return}
   if(event.target.closest('[data-member-history]')){openHistory();return}

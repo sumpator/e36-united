@@ -1,9 +1,9 @@
-import {renderListPagination} from '../../lists.js?v=20260909-admin-command-r3';
-import { apiRequest } from '../../api.js?v=20260909-admin-command-r3';
-import { $, escapeHtml, formatDate, numeric, toast } from '../../ui.js?v=20260909-admin-command-r3';
-import { activeMailingCampaignId, initializeMailingEditor, markMailingEditorSaved, openMailingEditorDraft, resetMailingEditor } from './editor.js?v=20260909-admin-command-r3';
-import { initializeMailingDelivery, openMailingDelivery, resetMailingDelivery } from './delivery.js?v=20260909-admin-command-r3';
-import { defaultMailingSegment } from './segments.js?v=20260909-admin-command-r3';
+import {renderListPagination} from '../../lists.js?v=20260909-admin-member-modal-r4';
+import { apiRequest } from '../../api.js?v=20260909-admin-member-modal-r4';
+import { $, escapeHtml, formatDate, numeric, toast } from '../../ui.js?v=20260909-admin-member-modal-r4';
+import { activeMailingCampaignId, initializeMailingEditor, markMailingEditorSaved, openMailingEditorDraft, resetMailingEditor } from './editor.js?v=20260909-admin-member-modal-r4';
+import { initializeMailingDelivery, openMailingDelivery, resetMailingDelivery } from './delivery.js?v=20260909-admin-member-modal-r4';
+import { defaultMailingSegment } from './segments.js?v=20260909-admin-member-modal-r4';
 
 const statusLabels={draft:'Koncept',prepared:'Připravená',sent:'Odeslaná',archived:'Archiv'};
 export let campaignPage=1;

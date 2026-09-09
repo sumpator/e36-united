@@ -53,7 +53,7 @@ export async function commandFixture(page,{legacy=false}={}){
    response=await runAdminCommand(request,env,{uid:'a'},'reservation',id,origin,commandEnv=>patchAdminReservation(request,commandEnv,{uid:'a'},id,origin));
   }
   else if(path.endsWith('/mailing/overview'))response=await routeAdminMailing({request:new Request(q.url()),env,url,auth:{uid:'a'},origin});
-  else if(path.endsWith('/reservations'))response=await getAdminReservations(env,url,origin);
+  else if(path==='/api/admin/reservations')response=await getAdminReservations(env,url,origin);
   else if(path.includes('/operations/'))response=await getAdminOperation(env,{uid:'a'},path.split('/').at(-1),origin);
   else if(path.endsWith('/gallery'))response=await getAdminGallery(env,origin,url);
   else if(path.includes('/gallery/media/')){
