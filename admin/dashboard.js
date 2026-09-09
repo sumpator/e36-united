@@ -1,9 +1,12 @@
-import {adminState} from './state.js?v=20260908-admin-stage3';
-import {adminCommand,bindCurrentEditors,forgetAdminEditor,editorProtected,allowAdminNavigation} from './editors.js?v=20260908-admin-stage3';
-import {COMPOSITIONS,WIDGETS,factoryPreferences,validatePreferences} from './dashboard-model.js';
+import {adminState} from './state.js?v=20260909-admin-command';
+import {adminCommand,bindCurrentEditors,forgetAdminEditor,editorProtected,allowAdminNavigation} from './editors.js?v=20260909-admin-command';
+import {COMPOSITIONS,validatePreferences} from './dashboard-model.js';
+import {COMMAND_WIDGETS as WIDGETS,commandDefaults as factoryPreferences,commandLayout,commandBadges} from './command-model.js';
+import {commandCard} from './command-cards.js';
+import {renderCommandShell} from './command-shell.js';
 import {DESTINATIONS,QUICK_LINK_IDS,destination,drillLabel} from './destinations.js';
 import {dashboardKpi,chartModel,attentionModel,showValue} from './dashboard-data.js';
-import {$,escapeHtml as esc,toast} from './ui.js?v=20260908-admin-stage3';
+import {$,escapeHtml as esc,toast} from './ui.js?v=20260909-admin-command';
 
 let navigate=()=>{},refresh=()=>{},draft=null,pendingPreferences=null,acceptNext=false;
 const clone=value=>JSON.parse(JSON.stringify(value));
@@ -16,18 +19,20 @@ const attrs=(key,drill={})=>`data-dashboard-destination="${esc(key)}" data-dashb
 const button=(key,label,drill={})=>`<button type="button" ${attrs(key,drill)}>${esc(label)}</button>`;
 const stamp=name=>{const r=adminState.resourceStates[name];return r?.lastSuccess?new Date(r.lastSuccess).toLocaleTimeString('cs-CZ'):'—'};
 export const dashboardWantsPlanner=()=>chosen().widgets.some(w=>w.id==='planner');
+export const dashboardWantsMailing=()=>chosen().widgets.some(w=>w.id==='mailing');
 
 export function receiveDashboardPreferences(payload){
   if(!validatePreferences(payload.preferences))throw new Error('Neznámý nebo poškozený formát preferencí. Uložení není dostupné.');
+  if(payload.stored===false)payload={...payload,preferences:factoryPreferences()};
   const root=form();
   if(!adminState.dashboardPreferences||acceptNext||!root.hidden&&!editorProtected(root,payload.revision)){
     adminState.dashboardPreferences=clone(payload.preferences);adminState.dashboardPreferenceRevision=payload.revision;
     acceptNext=false;pendingPreferences=null;
     if(!root.hidden){forgetAdminEditor(root);draft=clone(payload.preferences);writeDraft(false);editFields();bindCurrentEditors();}
-    if(dashboardWantsPlanner())window.dispatchEvent(new CustomEvent('admin:dashboardready'));
+    if(dashboardWantsPlanner()||dashboardWantsMailing())window.dispatchEvent(new CustomEvent('admin:dashboardready'));
   }else if(payload.revision!==adminState.dashboardPreferenceRevision){pendingPreferences=payload;editorProtected(root,payload.revision);}
 }
-export function clearDashboard(){draft=null;pendingPreferences=null;acceptNext=false;form().hidden=true;form().inert=true;forgetAdminEditor(form());$('[data-dashboard-grid]').replaceChildren();$('[data-dashboard-attention]').replaceChildren();$('[data-dashboard-quick-links]').replaceChildren();$('[data-dashboard-preference-notice]').replaceChildren();}
+export function clearDashboard(){draft=null;pendingPreferences=null;acceptNext=false;form().closest('dialog')?.close();form().hidden=true;form().inert=true;forgetAdminEditor(form());$('[data-dashboard-grid]').replaceChildren();$('[data-dashboard-attention]').replaceChildren();$('[data-dashboard-quick-links]').replaceChildren();$('[data-dashboard-preference-notice]').replaceChildren();}
 
 function chartMarkup(model){
   if(!model)return '<p>Data zatím nejsou dostupná.</p>';
@@ -39,14 +44,17 @@ function chartMarkup(model){
 }
 function paintCard(card,widget){
   const meta=WIDGETS[widget.id],model=meta.kind==='kpi'?dashboardKpi(widget.id,adminState.summary):chartModel(widget.id,adminState.summary,adminState.dashboardAnalytics,adminState.dashboardRange);
-  const key=JSON.stringify([widget,model]);if(card.dataset.model===key||card.contains(document.activeElement))return;
+  const key=JSON.stringify([widget,model,meta.kind==='command'?[adminState.summary,adminState.dashboardAnalytics,adminState.dashboardMailing]:null]);if(card.dataset.model===key||card.contains(document.activeElement)||card.dataset.model&&card.matches(':hover'))return;
   const open=card.querySelector('details')?.open;card.dataset.model=key;
   card.className=`dashboard-card dashboard-${meta.kind} dashboard-size-${widget.size}`;
+  card.style.setProperty('--widget-span',widget.span||4);
+  if(meta.kind==='command'){card.innerHTML=`<h3>${esc(meta.label)}</h3>${commandCard(widget.id,adminState,button,chartMarkup)}`;return;}
   card.innerHTML=`<h3>${esc(meta.label)}</h3>${meta.kind==='kpi'?`<p class="dashboard-kpi-value" data-kpi-${widget.id}>${Number.isFinite(model)?button(meta.destination,showValue(model,moneyIds.has(widget.id)?'Kč':null)):'—'}</p><p class="dashboard-definition">${esc(meta.definition)}</p>`:meta.kind==='detail'?'<p>Volitelný diagnostický panel níže. Neúplné historické sledování není úplný census.</p>':`${widget.id==='trend'?`<label>Rozsah pouze vývoje <select data-dashboard-range aria-label="Rozsah vývoje rezervací"><option value="7">7 dní</option><option value="30">30 dní</option><option value="all">Celé období</option></select></label>`:''}${chartMarkup(model)}`}`;
   if(card.querySelector('details'))card.querySelector('details').open=!!open;
   if(card.querySelector('[data-dashboard-range]'))card.querySelector('[data-dashboard-range]').value=adminState.dashboardRange;
 }
 export function renderDashboard(){
+  renderCommandShell();
   $('[data-dashboard-title]').textContent=COMPOSITIONS[composition()];$('[data-dashboard-composition]').value=composition();
   const notice=$('[data-dashboard-preference-notice]');
   const text=pendingPreferences?'Na serveru je novější rozložení. Aktuální přehled ani rozepsané změny nebyly přepsány.':'';
@@ -59,9 +67,13 @@ export function renderDashboard(){
   const attentionRoot=$('[data-dashboard-attention]'),attentionKey=JSON.stringify(attention);
   if(attentionRoot.dataset.model!==attentionKey&&!attentionRoot.contains(document.activeElement)){attentionRoot.dataset.model=attentionKey;attentionRoot.innerHTML=attention.rows.map(r=>`<article><small>${esc(r.scope)}</small>${`<button type="button" ${attrs(r.destination)}>${esc(r.label)}: <span ${({'pending':'data-attention-reservations','history':'data-attention-history','photos':'data-attention-gallery'})[r.destination]||''}>${esc(showValue(r.value))}</span></button>`}<small>${esc(r.reason)}${r.oldest&&Number.isFinite(Date.parse(r.oldest))?' · nejstarší '+esc(new Date(r.oldest).toLocaleString('cs-CZ')):''}</small></article>`).join('');}
   const quick=$('[data-dashboard-quick-links]'),links=chosen().quickLinks.join(',');if(quick.dataset.links!==links){quick.dataset.links=links;quick.innerHTML=chosen().quickLinks.map(id=>button(id,DESTINATIONS[id].label)).join('');}quick.hidden=!links;
-  const grid=$('[data-dashboard-grid]'),widgets=chosen().widgets.filter(w=>Object.hasOwn(WIDGETS,w.id));
+  const grid=$('[data-dashboard-grid]'),widgets=commandLayout(chosen().widgets);
   for(const child of [...grid.children])if(!widgets.some(w=>w.id===child.dataset.widget))child.remove();
   widgets.forEach((widget,i)=>{let card=grid.querySelector(`[data-widget="${widget.id}"]`);if(!card){card=document.createElement('article');card.dataset.widget=widget.id;grid.append(card)}if(grid.children[i]!==card)grid.insertBefore(card,grid.children[i]||null);paintCard(card,widget)});
+  $('[data-dashboard-attention]').closest('section').hidden=true;
+  const clear=$('[data-command-clear]'),badges=commandBadges(adminState.summary);
+  if(clear)clear.textContent=!summaryFresh||!Number.isFinite(badges.dashboard)?'Nelze potvrdit, že je vše vyřízeno: data jsou zastaralá nebo nedostupná.':badges.dashboard===0?'Vše vyřízeno v ověřených zdrojích.':'Platební případy ke kontrole najdeš v Platbách.';
+  let empty=$('[data-command-empty]');if(!empty){empty=document.createElement('p');empty.dataset.commandEmpty='';grid.after(empty)}empty.hidden=widgets.length>0;empty.textContent='Přehled je prázdný. Moduly můžeš zapnout přes Nastavit zobrazení.';
   $('[data-admin-funnel]').hidden=!dashboardWantsPlanner();
   $('[data-dashboard-edit]').disabled=!adminState.dashboardPreferences||!form().hidden;
   renderDashboardDrill();
@@ -74,15 +86,23 @@ function readDraft(){try{const v=JSON.parse(form().elements.configuration.value)
 function editFields(){
   const c=draft.compositions[composition()],ids=c.widgets.map(w=>w.id),fields=$('[data-dashboard-edit-fields]');
   fields.innerHTML=`<h3>Rozložení: ${esc(COMPOSITIONS[composition()])}</h3><p>Změny se ukládají jen tlačítkem Uložit pro tento účet. Neznámé budoucí widgety se zachovají.</p><ol>${c.widgets.map((w,i)=>`<li data-edit-widget="${esc(w.id)}"><span>${esc((Object.hasOwn(WIDGETS,w.id)?WIDGETS[w.id].label:null)||'Neznámý widget: '+w.id)}</span><button type="button" data-widget-move="-1" ${i===0?'disabled':''} aria-label="${esc(w.id)} nahoru">↑</button><button type="button" data-widget-move="1" ${i===c.widgets.length-1?'disabled':''} aria-label="${esc(w.id)} dolů">↓</button>${Object.hasOwn(WIDGETS,w.id)?`<label>Velikost <select data-widget-size aria-label="Velikost ${esc(WIDGETS[w.id].label)}">${WIDGETS[w.id].sizes.map(s=>`<option value="${s}" ${w.size===s?'selected':''}>${s==='wide'?'Široký':'Kompaktní'}</option>`).join('')}</select></label><button type="button" data-widget-hide>Skrýt</button>`:'<small>Ponecháno beze změny</small>'}</li>`).join('')}</ol><label>Přidat widget <select data-widget-add><option value="">Vyber widget</option>${Object.keys(WIDGETS).filter(id=>!ids.includes(id)).map(id=>`<option value="${id}">${esc(WIDGETS[id].label)}</option>`).join('')}</select></label><fieldset><legend>Rychlé odkazy · nejvýše 4</legend>${QUICK_LINK_IDS.map(id=>`<label><input type="checkbox" data-quick-link="${id}" ${c.quickLinks.includes(id)?'checked':''}>${esc(DESTINATIONS[id].label)}</label>`).join('')}</fieldset>`;
+  const preview=document.createElement('div');preview.className='command-preview';preview.setAttribute('aria-label','Náhled výsledného rozložení');preview.innerHTML=commandLayout(c.widgets).map(w=>`<div data-preview-widget="${esc(w.id)}" style="--widget-span:${w.span}"><span>${esc(WIDGETS[w.id].label)}</span>${w.id==='trend'?'<svg viewBox="0 0 120 32" aria-hidden="true"><path d="M2 30 L25 24 L44 26 L65 14 L88 11 L118 2"/></svg>':w.id==='recent'?'<div class="preview-table"><i></i><i></i><i></i></div>':w.id==='reservation-summary'?'<div class="preview-bars"><i></i><i></i><i></i></div>':'<i></i><i></i><i></i>'}</div>`).join('')||'<p>Prázdný přehled</p>';fields.prepend(preview);
+  const toggles=document.createElement('fieldset');toggles.className='command-toggles';toggles.innerHTML='<legend>Zobrazené moduly</legend>'+['approvals','reservation-summary','payment-summary','trend','recent','mailing'].map(id=>`<label><input type="checkbox" data-widget-toggle="${id}" ${ids.includes(id)?'checked':''}/><span>${esc(WIDGETS[id].label)}</span></label>`).join('');preview.after(toggles);
 }
-function closeEditor(){form().hidden=true;form().inert=true;forgetAdminEditor(form());draft=null;renderDashboard();}
+function closeEditor(){form().closest('dialog')?.close();form().hidden=true;form().inert=true;forgetAdminEditor(form());draft=null;renderDashboard();$('[data-dashboard-edit]')?.focus({preventScroll:true});}
 export function initializeDashboard({onNavigate,onRefresh}){
   navigate=onNavigate;refresh=onRefresh;form().inert=true;
+  const dialog=document.createElement('dialog');dialog.className='command-settings';dialog.setAttribute('aria-labelledby','command-settings-title');form().before(dialog);dialog.append(form());
+  const heading=document.createElement('header');heading.innerHTML='<h2 id="command-settings-title">⚙ Nastavit zobrazení</h2><button type="button" data-dashboard-close aria-label="Zavřít nastavení">×</button>';form().prepend(heading);
+  const revalidate=document.createElement('button');revalidate.type='button';revalidate.dataset.dashboardRevalidate='';revalidate.textContent='Ověřit aktuální verzi ze serveru';form().querySelector('.dashboard-edit-actions').before(revalidate);
+  dialog.addEventListener('cancel',event=>{event.preventDefault();if(allowAdminNavigation())closeEditor()});
+  dialog.addEventListener('click',event=>{if(event.target===dialog){const r=dialog.getBoundingClientRect();if((event.clientX<r.left||event.clientX>r.right||event.clientY<r.top||event.clientY>r.bottom)&&allowAdminNavigation())closeEditor()}});
   document.addEventListener('change',event=>{
     if(event.target.matches('[data-dashboard-composition]')){if(!allowAdminNavigation()){event.target.value=composition();return}const next=event.target.value;closeEditor();adminState.dashboardComposition=next;window.dispatchEvent(new CustomEvent('admin:dashboardchoice'));renderDashboard();void refresh();}
     if(event.target.matches('[data-dashboard-range]')){adminState.dashboardRange=event.target.value;event.target.blur();window.dispatchEvent(new CustomEvent('admin:dashboardchoice'));renderDashboard();}
     if(!draft||!event.target.closest('[data-dashboard-edit-fields]'))return;
     const c=draft.compositions[composition()],id=event.target.closest('[data-edit-widget]')?.dataset.editWidget;
+    if(event.target.matches('[data-widget-toggle]')){const key=event.target.dataset.widgetToggle;if(event.target.checked)c.widgets.push({id:key,size:WIDGETS[key].sizes[0]});else c.widgets=c.widgets.filter(w=>w.id!==key);}
     if(event.target.matches('[data-widget-size]'))c.widgets.find(w=>w.id===id).size=event.target.value;
     if(event.target.matches('[data-widget-add]')&&WIDGETS[event.target.value])c.widgets.push({id:event.target.value,size:WIDGETS[event.target.value].sizes[0]});
     if(event.target.matches('[data-quick-link]')){const key=event.target.dataset.quickLink;if(event.target.checked){if(c.quickLinks.length===4){event.target.checked=false;toast('Nejvýše čtyři rychlé odkazy.');return}c.quickLinks.push(key)}else c.quickLinks=c.quickLinks.filter(v=>v!==key)}
@@ -91,9 +111,10 @@ export function initializeDashboard({onNavigate,onRefresh}){
   document.addEventListener('click',event=>{
     const target=event.target.closest('button');if(!target)return;
     if(target.hasAttribute('data-dashboard-destination')){const next=destination(target.dataset.dashboardDestination,JSON.parse(target.dataset.dashboardDrill||'{}'));if(next)navigate(next);}
+    if(target.hasAttribute('data-dashboard-revalidate'))void refresh('manual');
     if(target.hasAttribute('data-dashboard-clear'))navigate(destination(adminState.activeAdminView==='payments'?'recorded':'reservations'),{clear:true});
-    if(target.hasAttribute('data-dashboard-edit')){draft=clone(config());form().hidden=false;form().inert=false;writeDraft(false);editFields();bindCurrentEditors();renderDashboard();form().querySelector('button')?.focus();}
-    if(target.hasAttribute('data-dashboard-cancel')&&allowAdminNavigation())closeEditor();
+    if(target.hasAttribute('data-dashboard-edit')){draft=clone(config());form().hidden=false;form().inert=false;writeDraft(false);editFields();bindCurrentEditors();dialog.showModal();renderDashboard();form().querySelector('button')?.focus();}
+    if((target.hasAttribute('data-dashboard-cancel')||target.hasAttribute('data-dashboard-close'))&&allowAdminNavigation())closeEditor();
     if(target.hasAttribute('data-dashboard-apply')&&pendingPreferences&&allowAdminNavigation()){const next=pendingPreferences;closeEditor();acceptNext=true;receiveDashboardPreferences(next);renderDashboard();void refresh();}
     if(target.hasAttribute('data-dashboard-reset')&&draft&&window.confirm(`Obnovit tovární rozložení pouze „${COMPOSITIONS[composition()]}“? Změna se odešle až tlačítkem Uložit.`)){draft.compositions[composition()]=factoryPreferences().compositions[composition()];writeDraft();editFields();}
     const id=target.closest('[data-edit-widget]')?.dataset.editWidget;
@@ -107,4 +128,5 @@ export function initializeDashboard({onNavigate,onRefresh}){
   window.addEventListener('admin:discardfiles',()=>{if(draft)closeEditor()});
   // Focused controls are never replaced by a background refresh. Paint after the user leaves.
   document.addEventListener('focusout',event=>{if(event.target.closest('[data-widget]'))queueMicrotask(renderDashboard)});
+  document.addEventListener('pointerout',event=>{const card=event.target.closest('[data-widget]');if(card&&!card.contains(event.relatedTarget))queueMicrotask(renderDashboard)});
 }

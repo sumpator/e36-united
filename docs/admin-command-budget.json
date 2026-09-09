@@ -1,0 +1,334 @@
+{
+  "measurement": "LOCAL SQLite scanstatus, NOT Cloudflare meta.rows_read",
+  "version": "3.53.4 2026-07-24 19:02:57 bf7c7f30031888f4e796e429ab3978879485813aaca6f641c7b33e4e09459bcc (64-bit)",
+  "tableCounts": {
+    "schema_migrations": 8,
+    "members": 500,
+    "events": 3,
+    "cars": 750,
+    "car_photos": 750,
+    "gallery_submissions": 750,
+    "reservations": 900,
+    "event_accommodation_options": 3,
+    "reservation_accommodation": 540,
+    "admin_actions": 0,
+    "attendance": 0,
+    "attendance_claims": 0,
+    "points_ledger": 0,
+    "reward_redemptions": 0,
+    "mail_campaigns": 0,
+    "mail_campaign_recipients": 0,
+    "mailing_contacts": 102,
+    "mailing_contact_sources": 0,
+    "mailing_contact_tags": 0,
+    "mailing_campaigns": 1,
+    "mailing_campaign_recipients": 501,
+    "email_outbox": 0,
+    "member_planner_drafts": 0,
+    "united_history_claims": 1000,
+    "united_history_evidence": 1,
+    "united_points_ledger": 5000,
+    "public_planner_handoffs": 0,
+    "member_onboarding": 0,
+    "mailing_delivery_events": 0,
+    "admin_resource_versions": 2657,
+    "admin_operation_receipts": 1000,
+    "member_qr_identities": 0,
+    "admin_preferences": 0
+  },
+  "report": [
+    {
+      "name": "analytics-before",
+      "bytes": 361,
+      "localVisits": 903,
+      "estimatedRows": 1505,
+      "queries": [
+        {
+          "sql": "\n    SELECT id, role, status\n    FROM members\n    WHERE id = ?\n  ",
+          "args": [
+            "a"
+          ],
+          "plan": [
+            "SEARCH members USING INDEX sqlite_autoindex_members_1 (id=?)"
+          ],
+          "localVisits": 1,
+          "indexProbeAllowance": 1,
+          "fastCountAllowance": 0,
+          "estimatedRows": 2
+        },
+        {
+          "sql": "SELECT id FROM events WHERE id=?",
+          "args": [
+            "e"
+          ],
+          "plan": [
+            "SEARCH events USING COVERING INDEX sqlite_autoindex_events_1 (id=?)"
+          ],
+          "localVisits": 1,
+          "indexProbeAllowance": 0,
+          "fastCountAllowance": 0,
+          "estimatedRows": 1
+        },
+        {
+          "sql": "SELECT date(created_at) AS day,COUNT(*) AS count\n FROM reservations WHERE event_id=? GROUP BY date(created_at) ORDER BY day",
+          "args": [
+            "e"
+          ],
+          "plan": [
+            "SEARCH reservations USING INDEX idx_reservations_payment (event_id=?)",
+            "USE TEMP B-TREE FOR GROUP BY"
+          ],
+          "localVisits": 600,
+          "indexProbeAllowance": 300,
+          "fastCountAllowance": 0,
+          "estimatedRows": 900
+        },
+        {
+          "sql": "SELECT\n COALESCE(SUM(r.status IN ('pending','approved') AND r.amount_due_czk>r.amount_paid_czk AND NOT COALESCE((r.status='approved' AND r.amount_due_czk>r.amount_paid_czk AND julianday(CASE WHEN length(e.payment_deadline)=10 THEN e.payment_deadline||'T23:59:59Z' ELSE e.payment_deadline END)<julianday('now')),0)),0) AS awaiting,\n MIN(CASE WHEN r.status='pending' THEN r.submitted_at END) AS oldestPendingAt\n FROM reservations r JOIN events e ON e.id=r.event_id WHERE r.event_id=?",
+          "args": [
+            "e"
+          ],
+          "plan": [
+            "SEARCH e USING INDEX sqlite_autoindex_events_1 (id=?)",
+            "SEARCH r USING INDEX idx_reservations_payment (event_id=?)"
+          ],
+          "localVisits": 301,
+          "indexProbeAllowance": 301,
+          "fastCountAllowance": 0,
+          "estimatedRows": 602
+        }
+      ]
+    },
+    {
+      "name": "analytics-command",
+      "bytes": 1422,
+      "localVisits": 1518,
+      "estimatedRows": 2430,
+      "queries": [
+        {
+          "sql": "\n    SELECT id, role, status\n    FROM members\n    WHERE id = ?\n  ",
+          "args": [
+            "a"
+          ],
+          "plan": [
+            "SEARCH members USING INDEX sqlite_autoindex_members_1 (id=?)"
+          ],
+          "localVisits": 1,
+          "indexProbeAllowance": 1,
+          "fastCountAllowance": 0,
+          "estimatedRows": 2
+        },
+        {
+          "sql": "SELECT id FROM events WHERE id=?",
+          "args": [
+            "e"
+          ],
+          "plan": [
+            "SEARCH events USING COVERING INDEX sqlite_autoindex_events_1 (id=?)"
+          ],
+          "localVisits": 1,
+          "indexProbeAllowance": 0,
+          "fastCountAllowance": 0,
+          "estimatedRows": 1
+        },
+        {
+          "sql": "SELECT date(created_at) AS day,COUNT(*) AS count\n FROM reservations WHERE event_id=? GROUP BY date(created_at) ORDER BY day",
+          "args": [
+            "e"
+          ],
+          "plan": [
+            "SEARCH reservations USING INDEX idx_reservations_payment (event_id=?)",
+            "USE TEMP B-TREE FOR GROUP BY"
+          ],
+          "localVisits": 600,
+          "indexProbeAllowance": 300,
+          "fastCountAllowance": 0,
+          "estimatedRows": 900
+        },
+        {
+          "sql": "SELECT\n COALESCE(SUM(r.status IN ('pending','approved') AND r.amount_due_czk>r.amount_paid_czk AND NOT COALESCE((r.status='approved' AND r.amount_due_czk>r.amount_paid_czk AND julianday(CASE WHEN length(e.payment_deadline)=10 THEN e.payment_deadline||'T23:59:59Z' ELSE e.payment_deadline END)<julianday('now')),0)),0) AS awaiting,\n MIN(CASE WHEN r.status='pending' THEN r.submitted_at END) AS oldestPendingAt\n FROM reservations r JOIN events e ON e.id=r.event_id WHERE r.event_id=?",
+          "args": [
+            "e"
+          ],
+          "plan": [
+            "SEARCH e USING INDEX sqlite_autoindex_events_1 (id=?)",
+            "SEARCH r USING INDEX idx_reservations_payment (event_id=?)"
+          ],
+          "localVisits": 301,
+          "indexProbeAllowance": 301,
+          "fastCountAllowance": 0,
+          "estimatedRows": 602
+        },
+        {
+          "sql": "WITH recent AS MATERIALIZED (\n SELECT id,member_id,created_at,car_model,accommodation,crew,payment_status,status\n FROM reservations WHERE event_id=? ORDER BY created_at DESC,id DESC LIMIT 5\n ) SELECT r.id,r.member_id AS memberId,r.created_at AS createdAt,r.car_model AS carModel,\n COALESCE(a.option_name,r.accommodation) AS accommodation,r.crew,r.payment_status AS paymentStatus,r.status,\n COALESCE(m.nickname,m.name) AS memberName\n FROM recent r JOIN members m ON m.id=r.member_id\n LEFT JOIN reservation_accommodation a ON a.reservation_id=r.id ORDER BY r.created_at DESC,r.id DESC",
+          "args": [
+            "e"
+          ],
+          "plan": [
+            "MATERIALIZE recent",
+            "SEARCH reservations USING INDEX idx_reservations_payment (event_id=?)",
+            "USE TEMP B-TREE FOR ORDER BY",
+            "SCAN r",
+            "SEARCH m USING INDEX sqlite_autoindex_members_1 (id=?)",
+            "SEARCH a USING INDEX sqlite_autoindex_reservation_accommodation_1 (reservation_id=?) LEFT-JOIN"
+          ],
+          "localVisits": 615,
+          "indexProbeAllowance": 310,
+          "fastCountAllowance": 0,
+          "estimatedRows": 925
+        }
+      ]
+    },
+    {
+      "name": "detail-before",
+      "bytes": 2072,
+      "localVisits": 377,
+      "estimatedRows": 748,
+      "queries": [
+        {
+          "sql": "\n    SELECT id, role, status\n    FROM members\n    WHERE id = ?\n  ",
+          "args": [
+            "a"
+          ],
+          "plan": [
+            "SEARCH members USING INDEX sqlite_autoindex_members_1 (id=?)"
+          ],
+          "localVisits": 1,
+          "indexProbeAllowance": 1,
+          "fastCountAllowance": 0,
+          "estimatedRows": 2
+        },
+        {
+          "sql": "\n  SELECT\n    id, year, registration_status, is_current,\n    COALESCE((SELECT revision FROM admin_resource_versions WHERE resource_type='event-settings' AND resource_id='*'),0) AS admin_revision,\n    COALESCE((SELECT revision FROM admin_resource_versions WHERE resource_type='accommodation-catalog' AND resource_id=events.id),0) AS accommodation_revision,\n    accommodation_capacity, reservation_capacity,\n    full_weekend_nights, saturday_only_nights,\n    booking_commitment_czk, booking_due_at, booking_paid_czk,\n    event_end_at, starts_on, ends_on, venue_name,\n    currency, payment_deadline,\n    payment_recipient_name, payment_account_display, payment_iban,\n    payment_message_prefix, payment_test_mode\n  FROM events\n\n    WHERE id = ?\n    LIMIT 1\n  ",
+          "args": [
+            "e"
+          ],
+          "plan": [
+            "SEARCH events USING INDEX sqlite_autoindex_events_1 (id=?)",
+            "SCALAR SUBQUERY 1",
+            "SEARCH admin_resource_versions USING INDEX sqlite_autoindex_admin_resource_versions_1 (resource_type=? AND resource_id=?)",
+            "CORRELATED SCALAR SUBQUERY 2",
+            "SEARCH admin_resource_versions USING INDEX sqlite_autoindex_admin_resource_versions_1 (resource_type=? AND resource_id=?)"
+          ],
+          "localVisits": 3,
+          "indexProbeAllowance": 3,
+          "fastCountAllowance": 0,
+          "estimatedRows": 6
+        },
+        {
+          "sql": "\n    WITH requested AS MATERIALIZED (\n      SELECT r.* FROM reservations r\n      JOIN members m ON m.id=r.member_id JOIN events e ON e.id=r.event_id\n      WHERE r.event_id=? AND r.id=?\n      ORDER BY CASE r.status WHEN 'pending' THEN 0 WHEN 'rejected' THEN 1 WHEN 'approved' THEN 2 ELSE 3 END, r.submitted_at DESC, r.updated_at DESC, r.id LIMIT ? OFFSET ?\n    ), approved_usage AS MATERIALIZED (\n      SELECT a.option_id,SUM(a.unit_count) AS units\n      FROM reservation_accommodation a JOIN reservations approved ON approved.id=a.reservation_id\n      WHERE approved.status='approved'\n      AND a.option_id IN (SELECT a.option_id FROM requested p JOIN reservation_accommodation a ON a.reservation_id=p.id WHERE p.status='pending')\n      GROUP BY a.option_id\n    )\n    SELECT\n      r.id, r.member_id, r.event_id, r.car_id, r.car_model, r.car_body, r.car_year, r.car_color, r.car_nickname,\n      r.attendance_type, r.arrival, r.crew, r.accommodation, r.accommodation_units,\n      r.show_shine, r.note, r.status, r.payment_status, r.payment_vs, r.paid_at,\n      r.amount_due_czk, r.amount_paid_czk,\n      COALESCE((SELECT revision FROM admin_resource_versions WHERE resource_type='reservation' AND resource_id=r.id),0) AS admin_revision,\n      r.submitted_at, r.updated_at, r.reviewed_at, r.review_note,\n      e.year AS event_year, e.currency AS payment_currency, e.payment_deadline,\n      e.payment_recipient_name, e.payment_account_display, e.payment_iban,\n      e.payment_message_prefix, e.payment_test_mode,\n      ra.option_id AS accommodation_option_id,\n      ra.option_name AS accommodation_option_name,\n      ra.kind AS accommodation_option_kind,\n      ao.capacity_per_unit AS accommodation_capacity_per_unit,\n      CASE\n        WHEN r.status = 'pending' AND ao.inventory_mode = 'limited' AND\n          ra.unit_count + COALESCE((SELECT units FROM approved_usage WHERE option_id=ra.option_id),0) > ao.units_total\n        THEN 1 ELSE 0\n      END AS accommodation_capacity_conflict,\n      ra.people_count AS accommodation_people_count,\n      ra.unit_count AS accommodation_unit_count,\n      ra.unit_price_czk AS accommodation_unit_price_czk,\n      ra.person_price_czk AS accommodation_person_price_czk,\n      ra.bedding_fee_per_person_czk AS accommodation_bedding_fee_czk,\n      ra.city_tax_per_person_per_night_czk AS accommodation_city_tax_czk,\n      ra.nights AS accommodation_nights,\n      ra.base_total_czk AS accommodation_base_total_czk,\n      ra.person_total_czk AS accommodation_person_total_czk,\n      ra.bedding_total_czk AS accommodation_bedding_total_czk,\n      ra.city_tax_total_czk AS accommodation_city_tax_total_czk,\n      ra.total_czk AS accommodation_total_czk,\n      m.name AS member_name, m.nickname AS member_nickname,\n      m.email AS member_email, m.member_code\n    FROM requested r\n    JOIN members m ON m.id = r.member_id\n    JOIN events e ON e.id = r.event_id\n    LEFT JOIN reservation_accommodation ra ON ra.reservation_id = r.id\n    LEFT JOIN event_accommodation_options ao ON ao.id = ra.option_id\n    \n    ORDER BY\n      CASE r.status WHEN 'pending' THEN 0 WHEN 'rejected' THEN 1 WHEN 'approved' THEN 2 ELSE 3 END,\n      r.submitted_at DESC,\n      r.updated_at DESC, r.id\n\n  ",
+          "args": [
+            "e",
+            "reservation1",
+            50,
+            0
+          ],
+          "plan": [
+            "MATERIALIZE requested",
+            "SEARCH r USING INDEX sqlite_autoindex_reservations_1 (id=?)",
+            "SEARCH m USING COVERING INDEX sqlite_autoindex_members_1 (id=?)",
+            "SEARCH e USING COVERING INDEX sqlite_autoindex_events_1 (id=?)",
+            "SCAN r",
+            "SEARCH m USING INDEX sqlite_autoindex_members_1 (id=?)",
+            "SEARCH e USING INDEX sqlite_autoindex_events_1 (id=?)",
+            "SEARCH ra USING INDEX sqlite_autoindex_reservation_accommodation_1 (reservation_id=?) LEFT-JOIN",
+            "SEARCH ao USING INDEX sqlite_autoindex_event_accommodation_options_1 (id=?) LEFT-JOIN",
+            "CORRELATED SCALAR SUBQUERY 4",
+            "SEARCH admin_resource_versions USING INDEX sqlite_autoindex_admin_resource_versions_1 (resource_type=? AND resource_id=?)",
+            "CORRELATED SCALAR SUBQUERY 5",
+            "MATERIALIZE approved_usage",
+            "SEARCH a USING INDEX idx_reservation_accommodation_option (option_id=?)",
+            "LIST SUBQUERY 2",
+            "SCAN p",
+            "SEARCH a USING INDEX sqlite_autoindex_reservation_accommodation_1 (reservation_id=?)",
+            "SEARCH approved USING INDEX sqlite_autoindex_reservations_1 (id=?)",
+            "SCAN approved_usage",
+            "USE TEMP B-TREE FOR ORDER BY"
+          ],
+          "localVisits": 373,
+          "indexProbeAllowance": 367,
+          "fastCountAllowance": 0,
+          "estimatedRows": 740
+        }
+      ]
+    },
+    {
+      "name": "detail-command",
+      "bytes": 2190,
+      "localVisits": 379,
+      "estimatedRows": 751,
+      "queries": [
+        {
+          "sql": "\n    SELECT id, role, status\n    FROM members\n    WHERE id = ?\n  ",
+          "args": [
+            "a"
+          ],
+          "plan": [
+            "SEARCH members USING INDEX sqlite_autoindex_members_1 (id=?)"
+          ],
+          "localVisits": 1,
+          "indexProbeAllowance": 1,
+          "fastCountAllowance": 0,
+          "estimatedRows": 2
+        },
+        {
+          "sql": "\n  SELECT\n    id, year, registration_status, is_current,\n    COALESCE((SELECT revision FROM admin_resource_versions WHERE resource_type='event-settings' AND resource_id='*'),0) AS admin_revision,\n    COALESCE((SELECT revision FROM admin_resource_versions WHERE resource_type='accommodation-catalog' AND resource_id=events.id),0) AS accommodation_revision,\n    accommodation_capacity, reservation_capacity,\n    full_weekend_nights, saturday_only_nights,\n    booking_commitment_czk, booking_due_at, booking_paid_czk,\n    event_end_at, starts_on, ends_on, venue_name,\n    currency, payment_deadline,\n    payment_recipient_name, payment_account_display, payment_iban,\n    payment_message_prefix, payment_test_mode\n  FROM events\n\n    WHERE id = ?\n    LIMIT 1\n  ",
+          "args": [
+            "e"
+          ],
+          "plan": [
+            "SEARCH events USING INDEX sqlite_autoindex_events_1 (id=?)",
+            "SCALAR SUBQUERY 1",
+            "SEARCH admin_resource_versions USING INDEX sqlite_autoindex_admin_resource_versions_1 (resource_type=? AND resource_id=?)",
+            "CORRELATED SCALAR SUBQUERY 2",
+            "SEARCH admin_resource_versions USING INDEX sqlite_autoindex_admin_resource_versions_1 (resource_type=? AND resource_id=?)"
+          ],
+          "localVisits": 3,
+          "indexProbeAllowance": 3,
+          "fastCountAllowance": 0,
+          "estimatedRows": 6
+        },
+        {
+          "sql": "\n    WITH requested AS MATERIALIZED (\n      SELECT r.* FROM reservations r\n      JOIN members m ON m.id=r.member_id JOIN events e ON e.id=r.event_id\n      WHERE r.event_id=? AND r.id=?\n      ORDER BY CASE r.status WHEN 'pending' THEN 0 WHEN 'rejected' THEN 1 WHEN 'approved' THEN 2 ELSE 3 END, r.submitted_at DESC, r.updated_at DESC, r.id LIMIT ? OFFSET ?\n    ), approved_usage AS MATERIALIZED (\n      SELECT a.option_id,SUM(a.unit_count) AS units\n      FROM reservation_accommodation a JOIN reservations approved ON approved.id=a.reservation_id\n      WHERE approved.status='approved'\n      AND a.option_id IN (SELECT a.option_id FROM requested p JOIN reservation_accommodation a ON a.reservation_id=p.id WHERE p.status='pending')\n      GROUP BY a.option_id\n    )\n    SELECT\n      r.id, r.member_id, r.event_id, r.car_id, r.car_model, r.car_body, r.car_year, r.car_color, r.car_nickname,\n      r.attendance_type, r.arrival, r.crew, r.accommodation, r.accommodation_units,\n      r.show_shine, r.note, r.status, r.payment_status, r.payment_vs, r.paid_at,\n      r.amount_due_czk, r.amount_paid_czk,\n      COALESCE((SELECT revision FROM admin_resource_versions WHERE resource_type='reservation' AND resource_id=r.id),0) AS admin_revision,\n      r.submitted_at, r.updated_at, r.reviewed_at, r.review_note,\n      EXISTS(SELECT 1 FROM member_qr_identities q WHERE q.member_id=r.member_id) AS qr_issued,\n      (SELECT p.id FROM car_photos p JOIN cars c ON c.id=p.car_id WHERE c.id=r.car_id AND c.member_id=r.member_id ORDER BY p.sort_order,p.id LIMIT 1) AS selected_photo_id,\n      e.year AS event_year, e.currency AS payment_currency, e.payment_deadline,\n      e.payment_recipient_name, e.payment_account_display, e.payment_iban,\n      e.payment_message_prefix, e.payment_test_mode,\n      ra.option_id AS accommodation_option_id,\n      ra.option_name AS accommodation_option_name,\n      ra.kind AS accommodation_option_kind,\n      ao.capacity_per_unit AS accommodation_capacity_per_unit,\n      CASE\n        WHEN r.status = 'pending' AND ao.inventory_mode = 'limited' AND\n          ra.unit_count + COALESCE((SELECT units FROM approved_usage WHERE option_id=ra.option_id),0) > ao.units_total\n        THEN 1 ELSE 0\n      END AS accommodation_capacity_conflict,\n      ra.people_count AS accommodation_people_count,\n      ra.unit_count AS accommodation_unit_count,\n      ra.unit_price_czk AS accommodation_unit_price_czk,\n      ra.person_price_czk AS accommodation_person_price_czk,\n      ra.bedding_fee_per_person_czk AS accommodation_bedding_fee_czk,\n      ra.city_tax_per_person_per_night_czk AS accommodation_city_tax_czk,\n      ra.nights AS accommodation_nights,\n      ra.base_total_czk AS accommodation_base_total_czk,\n      ra.person_total_czk AS accommodation_person_total_czk,\n      ra.bedding_total_czk AS accommodation_bedding_total_czk,\n      ra.city_tax_total_czk AS accommodation_city_tax_total_czk,\n      ra.total_czk AS accommodation_total_czk,\n      m.name AS member_name, m.nickname AS member_nickname,\n      m.email AS member_email, m.member_code\n    FROM requested r\n    JOIN members m ON m.id = r.member_id\n    JOIN events e ON e.id = r.event_id\n    LEFT JOIN reservation_accommodation ra ON ra.reservation_id = r.id\n    LEFT JOIN event_accommodation_options ao ON ao.id = ra.option_id\n    \n    ORDER BY\n      CASE r.status WHEN 'pending' THEN 0 WHEN 'rejected' THEN 1 WHEN 'approved' THEN 2 ELSE 3 END,\n      r.submitted_at DESC,\n      r.updated_at DESC, r.id\n\n  ",
+          "args": [
+            "e",
+            "reservation1",
+            50,
+            0
+          ],
+          "plan": [
+            "MATERIALIZE requested",
+            "SEARCH r USING INDEX sqlite_autoindex_reservations_1 (id=?)",
+            "SEARCH m USING COVERING INDEX sqlite_autoindex_members_1 (id=?)",
+            "SEARCH e USING COVERING INDEX sqlite_autoindex_events_1 (id=?)",
+            "SCAN r",
+            "SEARCH m USING INDEX sqlite_autoindex_members_1 (id=?)",
+            "SEARCH e USING INDEX sqlite_autoindex_events_1 (id=?)",
+            "SEARCH ra USING INDEX sqlite_autoindex_reservation_accommodation_1 (reservation_id=?) LEFT-JOIN",
+            "SEARCH ao USING INDEX sqlite_autoindex_event_accommodation_options_1 (id=?) LEFT-JOIN",
+            "CORRELATED SCALAR SUBQUERY 4",
+            "SEARCH admin_resource_versions USING INDEX sqlite_autoindex_admin_resource_versions_1 (resource_type=? AND resource_id=?)",
+            "CORRELATED SCALAR SUBQUERY 5",
+            "SEARCH q USING COVERING INDEX sqlite_autoindex_member_qr_identities_1 (member_id=?)",
+            "CORRELATED SCALAR SUBQUERY 6",
+            "SEARCH c USING INDEX sqlite_autoindex_cars_1 (id=?)",
+            "SEARCH p USING COVERING INDEX admin_car_photos_car (car_id=?)",
+            "CORRELATED SCALAR SUBQUERY 7",
+            "MATERIALIZE approved_usage",
+            "SEARCH a USING INDEX idx_reservation_accommodation_option (option_id=?)",
+            "LIST SUBQUERY 2",
+            "SCAN p",
+            "SEARCH a USING INDEX sqlite_autoindex_reservation_accommodation_1 (reservation_id=?)",
+            "SEARCH approved USING INDEX sqlite_autoindex_reservations_1 (id=?)",
+            "SCAN approved_usage",
+            "USE TEMP B-TREE FOR ORDER BY"
+          ],
+          "localVisits": 375,
+          "indexProbeAllowance": 368,
+          "fastCountAllowance": 0,
+          "estimatedRows": 743
+        }
+      ]
+    }
+  ]
+}

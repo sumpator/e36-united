@@ -1,9 +1,9 @@
-import { adminCommand, editorProtected, changedFields } from '../editors.js?v=20260908-admin-stage3';
-import { adminActionCountState, adminModerationCounts, paymentNeedsAttention, reservationMatchesFilter } from '../../admin-view-model.js?v=20260908-admin-stage3';
-import { apiRequest } from '../api.js?v=20260908-admin-stage3';
-import { adminState } from '../state.js?v=20260908-admin-stage3';
-import { setDenied } from '../shell.js?v=20260908-admin-stage3';
-import { $, $$, escapeHtml, formatDate, formatMoney, numeric, toast } from '../ui.js?v=20260908-admin-stage3';
+import { adminCommand, editorProtected, changedFields } from '../editors.js?v=20260909-admin-command';
+import { adminActionCountState, adminModerationCounts, paymentNeedsAttention, reservationMatchesFilter } from '../../admin-view-model.js?v=20260909-admin-command';
+import { apiRequest } from '../api.js?v=20260909-admin-command';
+import { adminState } from '../state.js?v=20260909-admin-command';
+import { setDenied } from '../shell.js?v=20260909-admin-command';
+import { $, $$, escapeHtml, formatDate, formatMoney, numeric, toast } from '../ui.js?v=20260909-admin-command';
 
 
 export function renderEventSelector(){

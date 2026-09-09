@@ -24,6 +24,7 @@ async function getAdminReservations(env, url, origin) {
 
   const page = reservationListQuery(url);
   const detailOnly=env.ADMIN_READ && !!url.searchParams.get("id") && url.searchParams.get("projection")==="detail";
+  const commandDetail=detailOnly&&url.searchParams.get('presentation')==='command';
   const order="CASE r.status WHEN 'pending' THEN 0 WHEN 'rejected' THEN 1 WHEN 'approved' THEN 2 ELSE 3 END, r.submitted_at DESC, r.updated_at DESC, r.id";
   const query = `
     WITH ${env.ADMIN_READ ? `requested AS MATERIALIZED (
@@ -45,7 +46,9 @@ async function getAdminReservations(env, url, origin) {
       r.amount_due_czk, r.amount_paid_czk,
       ${env.ADMIN_READ ? "COALESCE((SELECT revision FROM admin_resource_versions WHERE resource_type='reservation' AND resource_id=r.id),0)" : '0'} AS admin_revision,
       r.submitted_at, r.updated_at, r.reviewed_at, r.review_note,
-      e.year AS event_year, e.currency AS payment_currency, e.payment_deadline,
+      ${commandDetail?`EXISTS(SELECT 1 FROM member_qr_identities q WHERE q.member_id=r.member_id) AS qr_issued,
+      (SELECT p.id FROM car_photos p JOIN cars c ON c.id=p.car_id WHERE c.id=r.car_id AND c.member_id=r.member_id ORDER BY p.sort_order,p.id LIMIT 1) AS selected_photo_id,
+      `:''}e.year AS event_year, e.currency AS payment_currency, e.payment_deadline,
       e.payment_recipient_name, e.payment_account_display, e.payment_iban,
       e.payment_message_prefix, e.payment_test_mode,
       ra.option_id AS accommodation_option_id,
@@ -111,7 +114,8 @@ async function getAdminReservations(env, url, origin) {
   return json({
     ok: true,
     event: publicAdminEvent(event),
-    reservations: (rows.results || []).map(publicAdminReservation),
+    reservations: (rows.results || []).map(row=>({...publicAdminReservation(row),...(commandDetail?{reviewContext:{version:1,qrIssued:!!row.qr_issued,
+      selectedCarPhoto:row.selected_photo_id?`/api/admin/members/${encodeURIComponent(row.member_id)}/media/cars/${encodeURIComponent(row.car_id)}/${encodeURIComponent(row.selected_photo_id)}`:null}}:{})})),
     ...(env.ADMIN_READ?{pagination,counts,context:{eventId:event.id,sourceType:'reservation'},freshness:{generatedAt:new Date().toISOString(),businessUpdatedAt:null,consistency:detailOnly?'primary-detail':'primary-batch-list-and-total'}}:{}),
   }, 200, origin);
 }

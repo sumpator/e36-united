@@ -1,11 +1,11 @@
-import { refreshStoredMailingDelivery } from './delivery.js?v=20260908-admin-stage3';
-import { renderMailingCampaigns, campaignPage } from './campaigns.js?v=20260908-admin-stage3';
-import { apiRequest } from '../../api.js?v=20260908-admin-stage3';
-import { adminState } from '../../state.js?v=20260908-admin-stage3';
-import { $, $$, numeric, toast } from '../../ui.js?v=20260908-admin-stage3';
-import { loadMailingContacts } from './contacts.js?v=20260908-admin-stage3';
-import { initializeMailingCampaigns, loadMailingCampaigns, resetMailingCampaigns } from './campaigns.js?v=20260908-admin-stage3';
-import { defaultMailingSegment, previewMailingSegment } from './segments.js?v=20260908-admin-stage3';
+import { refreshStoredMailingDelivery } from './delivery.js?v=20260909-admin-command';
+import { renderMailingCampaigns, campaignPage } from './campaigns.js?v=20260909-admin-command';
+import { apiRequest } from '../../api.js?v=20260909-admin-command';
+import { adminState } from '../../state.js?v=20260909-admin-command';
+import { $, $$, numeric, toast } from '../../ui.js?v=20260909-admin-command';
+import { loadMailingContacts } from './contacts.js?v=20260909-admin-command';
+import { initializeMailingCampaigns, loadMailingCampaigns, resetMailingCampaigns } from './campaigns.js?v=20260909-admin-command';
+import { defaultMailingSegment, previewMailingSegment } from './segments.js?v=20260909-admin-command';
 
 let initialized=false,overviewLoaded=false,overviewPromise=null,lastSegment=defaultMailingSegment;
 

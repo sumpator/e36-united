@@ -247,9 +247,10 @@ test('Member Card keeps four core blocks with the requested typography lift',()=
 test('Admin Photos contains two internal queues without another top-level navigation target',()=>{
   assert.match(adminHtml,/data-gallery-mode="community"[\s\S]*Komunitní fotky/);
   assert.match(adminHtml,/data-gallery-mode="history"[\s\S]*Ověření účasti/);
-  assert.equal((adminHtml.match(/data-portal-target="community"/g)||[]).length,2);
+  assert.match(read('admin/command-shell.js'),/data-community-toggle aria-expanded="false"/);
+  assert.match(read('admin/command-shell.js'),/\.admin-section-nav,\.portal-nav-sheet-list/);
   assert.equal((adminHtml.match(/data-portal-target="gallery"/g)||[]).length,0);
-  assert.match(read('admin/destinations.js'),/views:\['members','gallery','club'\]/);
+  assert.match(read('admin/destinations.js'),/views:\['members','gallery','club','united-club'\]/);
   assert.match(adminHtml,/data-history-search/);
   for(const status of ['pending','approved','rejected','all'])assert.match(adminHtml,new RegExp(`data-history-filter="${status}"`));
   assert.match(adminJs,/filteredHistoryClaims/);
@@ -266,7 +267,10 @@ test('Admin history review is server-filtered, session-sticky, paginated and com
   assert.match(adminJs,/function historyRequestPath[\s\S]*pageSize/);
   assert.match(adminJs,/<details class="admin-history-card/);
   assert.match(adminJs,/addEventListener\('toggle'[\s\S]*hydrateHistoryEvidence/);
-  assert.match(adminJs,/refreshHistoryClaims\(adminState\.historyPagination\.page\)/);
+  // One confirmed-command notification replaces the duplicate local reload.
+  assert.doesNotMatch(adminJs, /refreshHistoryClaims\(adminState\.historyPagination\.page\)/);
+  assert.match(readFileSync(new URL('../admin/editors.js',import.meta.url),'utf8'), /function confirmed[\s\S]*?notify\(\)/);
+  assert.match(adminJs, /admin:invalidate[\s\S]*?refreshCoordinator\.trigger\('mutation'\)/);
   assert.match(worker,/SUM\(CASE WHEN c\.attendance_status = 'pending' OR c\.sns_status = 'pending' THEN 1 ELSE 0 END\)/);
   assert.match(worker,/LIMIT \? OFFSET \?/);
 });

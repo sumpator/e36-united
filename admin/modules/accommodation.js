@@ -1,10 +1,10 @@
-import { adminCommand, editorProtected } from '../editors.js?v=20260908-admin-stage3';
-import { accommodationVisualMarkup, bindAccommodationVisualFallbacks } from '../../accommodation-visual.js?v=20260908-admin-stage3';
-import { selectImageFiles } from '../../image-upload.js?v=20260908-admin-stage3';
-import { apiBaseUrl, apiRequest, apiUpload } from '../api.js?v=20260908-admin-stage3';
-import { adminState } from '../state.js?v=20260908-admin-stage3';
-import { setDenied } from '../shell.js?v=20260908-admin-stage3';
-import { $, escapeHtml, formatMoney, numeric, toast } from '../ui.js?v=20260908-admin-stage3';
+import { adminCommand, editorProtected } from '../editors.js?v=20260909-admin-command';
+import { accommodationVisualMarkup, bindAccommodationVisualFallbacks } from '../../accommodation-visual.js?v=20260909-admin-command';
+import { selectImageFiles } from '../../image-upload.js?v=20260909-admin-command';
+import { apiBaseUrl, apiRequest, apiUpload } from '../api.js?v=20260909-admin-command';
+import { adminState } from '../state.js?v=20260909-admin-command';
+import { setDenied } from '../shell.js?v=20260909-admin-command';
+import { $, escapeHtml, formatMoney, numeric, toast } from '../ui.js?v=20260909-admin-command';
 
 const accommodationPhotoSelections=new Map();
 export function resetAccommodationMedia(){for(const selection of accommodationPhotoSelections.values())URL.revokeObjectURL(selection.url);accommodationPhotoSelections.clear();document.querySelectorAll('[data-local-file]').forEach(node=>delete node.dataset.localFile)}

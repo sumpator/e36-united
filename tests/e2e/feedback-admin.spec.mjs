@@ -9,7 +9,7 @@ test('History and S&S pending badge is visible on desktop/mobile and updates aft
   const observations=await prepareAdminE2ePage(page);
   let attendance='pending',sns='pending';
   const counts=()=>({pending:attendance==='pending'||sns==='pending'?1:0,attendancePending:attendance==='pending'?1:0,snsPending:sns==='pending'?1:0,total:1,approved:attendance==='approved'||sns==='approved'?1:0,rejected:0,latestPendingYear:2026,latestYear:2026,latestYearPending:1,olderPending:0});
-  await page.route('https://api.e36united.cz/api/admin/summary**',route=>reply(route,{overview:{history:counts()},attention:{reservations:0,payments:0,gallery:0,history:counts().pending}}));
+  await page.route('https://api.e36united.cz/api/admin/summary**',route=>reply(route,{overview:{history:counts(),gallery:{pending:0}},attention:{reservations:0,payments:0,gallery:0,history:counts().pending}}));
   await page.route('https://api.e36united.cz/api/admin/history/claims**',route=>{
     if(route.request().method()==='PATCH'){
       if(route.request().url().endsWith('/attendance'))attendance=route.request().postDataJSON().status;else sns=route.request().postDataJSON().status;
@@ -19,10 +19,10 @@ test('History and S&S pending badge is visible on desktop/mobile and updates aft
   });
   await page.goto('/admin.html');
   await expect(page.locator('[data-attention-history]')).toHaveText('1');
-  const desktop=page.locator('.admin-section-nav [data-gallery-nav-count]');await expect(desktop).toBeVisible();await expect(desktop).toHaveText('1');
+  const desktop=page.locator('.admin-section-nav [data-command-badge="community"]');await expect(desktop).toBeVisible();await expect(desktop).toHaveText('1');
   await page.setViewportSize({width:390,height:844});await page.locator('[data-portal-menu-open]').click();
-  const mobile=page.locator('.portal-nav-sheet [data-gallery-nav-count]');await expect(mobile).toBeVisible();await expect(mobile).toHaveText('1');
-  await page.locator('.portal-nav-sheet [data-portal-target="community"]').click();await page.locator('[data-admin-jump="club"]').click();
+  const mobile=page.locator('.portal-nav-sheet [data-command-badge="community"]');await expect(mobile).toBeVisible();await expect(mobile).toHaveText('1');
+  await page.locator('.portal-nav-sheet [data-community-toggle]').click();await page.locator('.portal-nav-sheet [data-admin-jump="club"]').click();
   const card=page.locator('[data-history-id="pending-claim"]');await card.locator('summary').click();
   await card.locator('[data-history-component="attendance"][data-history-action="approved"]').click();
   await expect(page.locator('[data-attention-history]')).toHaveText('1');

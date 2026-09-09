@@ -55,10 +55,12 @@ const reservations = [
 
 test('admin has one persistent navigation target for each real agenda and one default active panel', () => {
   const panels = [...html.matchAll(/data-admin-panel="([^"]+)"/g)].map(match => match[1]);
-  assert.deepEqual(panels.sort(), [...ADMIN_VIEW_IDS].sort());
-  assert.deepEqual(Object.keys(ADMIN_AREAS),['dashboard','finance','community','mailing','settings']);
-  for(const area of Object.keys(ADMIN_AREAS))assert.equal((html.match(new RegExp('data-portal-target="'+area+'"','g'))||[]).length,2);
-  assert.equal((html.match(/data-portal-target=/g)||[]).length,10);
+  assert.deepEqual(panels.sort(), ADMIN_VIEW_IDS.filter(id=>id!=='united-club').sort()); // Club reuses the canonical Members panel.
+  assert.deepEqual(Object.keys(ADMIN_AREAS),['dashboard','reservations','payments','community','mailing','settings']);
+  const shell=read('admin/command-shell.js');
+  for(const area of ['dashboard','reservations','payments','mailing','settings'])assert.ok(shell.includes("navButton('"+area+"'"));
+  assert.match(shell,/data-community-toggle aria-expanded="false"/);
+  assert.equal((html.match(/data-portal-target=/g)||[]).length,0); // One generated registry for desktop + mobile.
   for(const view of ADMIN_VIEW_IDS)assert.ok(ADMIN_AREAS[areaFor(view)].views.includes(view));
   assert.match(js,/ADMIN_AREAS\[area\]\.views\.map/);
   assert.equal((html.match(/admin-view-panel is-active/g) || []).length, 1);
@@ -140,7 +142,8 @@ test('Admin moderation badges format, combine and hide authoritative action coun
 });
 
 test('Admin moderation badges share counts with Overview and refresh after review', () => {
-  assert.equal((html.match(/data-gallery-nav-count/g) || []).length, 2, 'desktop and mobile navigation both expose the badge');
+  assert.match(read('admin/command-shell.js'),/\.admin-section-nav,\.portal-nav-sheet-list/);
+  assert.match(read('admin/command-shell.js'),/data-command-badge="community"/);
   assert.match(html, /data-gallery-mode="community"[^>]*>[\s\S]*?data-gallery-mode-count="community"/);
   assert.match(html, /data-gallery-mode="history"[^>]*>[\s\S]*?Ověření účasti[\s\S]*?data-gallery-mode-count="history"/);
   assert.match(js, /const moderation=adminModerationCounts\(\{communityPending:adminState\.summary\.attention\.gallery,historyPending:adminState\.summary\.attention\.history\}\)/);
@@ -149,7 +152,10 @@ test('Admin moderation badges share counts with Overview and refresh after revie
   assert.match(js, /historyAttention\.textContent=moderation\.history/);
   assert.match(js, /renderActionCount\('\[data-gallery-nav-count\]',moderation\.total\)/);
   assert.match(js, /renderHistoryClaims\(payload=null\)[\s\S]*?renderAttentionCounts\(\)/);
-  assert.match(js, /refreshHistoryClaims\(adminState\.historyPagination\.page\)/);
+  // One confirmed-command notification replaces the duplicate local reload.
+  assert.doesNotMatch(js, /refreshHistoryClaims\(adminState\.historyPagination\.page\)/);
+  assert.match(readFileSync(new URL('../admin/editors.js',import.meta.url),'utf8'), /function confirmed[\s\S]*?notify\(\)/);
+  assert.match(js, /admin:invalidate[\s\S]*?refreshCoordinator\.trigger\('mutation'\)/);
   assert.match(css, /\.admin-action-count\[hidden\]\{display:none!important\}/);
 });
 

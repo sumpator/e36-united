@@ -1,7 +1,7 @@
-import {adminState} from './state.js?v=20260908-admin-stage3';
-import {$,escapeHtml as esc,formatMoney} from './ui.js?v=20260908-admin-stage3';
-import {apiRequest} from './api.js?v=20260908-admin-stage3';
-import {ADMIN_REFRESH} from './refresh-policy.js?v=20260908-admin-stage3';
+import {adminState} from './state.js?v=20260909-admin-command';
+import {$,escapeHtml as esc,formatMoney} from './ui.js?v=20260909-admin-command';
+import {apiRequest} from './api.js?v=20260909-admin-command';
+import {ADMIN_REFRESH} from './refresh-policy.js?v=20260909-admin-command';
 import qrcode from '../vendor/qrcode-generator.mjs';
 
 export const MEMBER_TABS=Object.freeze({event:'Event',reservations:'Rezervace / finance',garage:'Garage',photos:'Fotky',club:'United Club',history:'Historie / S&S',points:'Points',mailing:'Mailing',qr:'QR identita'});
@@ -21,6 +21,7 @@ export function memberContextKey(){return currentKey()+':'+(adminState.membersPa
 export function openMember(id,source,{tab='event',route=true}={}){
   if(!/^[a-z0-9_-]{1,128}$/i.test(id||'')||!adminState.currentUser||adminState.denied)return;
   if(route)window.dispatchEvent(new CustomEvent('admin:beforenavigation'));
+  if($('[data-member-load-error]'))$('[data-member-load-error]').hidden=true;
   if(adminState.memberId!==id){document.querySelectorAll('[data-member-dialog] [data-domain-status]').forEach(node=>node.remove());delete adminState.resourceStates['member-header'];delete adminState.resourceStates['member-tab'];releaseMemberMedia();$('[data-member-identity]').textContent='Načítám člena…';$('[data-member-event]').replaceChildren();$('[data-member-tab-content]').replaceChildren();}
   opener=source||opener||document.activeElement;adminState.memberId=id;adminState.memberTab=MEMBER_TABS[tab]?tab:'event';adminState.memberPage=1;
   const dialog=$('[data-member-dialog]');if(!dialog.open)dialog.showModal();syncTabs();
@@ -58,7 +59,7 @@ export function renderMemberTab(payload){
 export function memberRefreshTasks(){
  if(adminState.memberId){const base='/api/admin/members/'+encodeURIComponent(adminState.memberId),suffix='?eventId='+encodeURIComponent(adminState.selectedEventId)+'&page='+(adminState.memberPage||1);const tasks=[['member-header',base+'?eventId='+encodeURIComponent(adminState.selectedEventId),renderMemberHeader,ADMIN_REFRESH.operationalMs]];
   if(adminState.memberTab!=='event')tasks.push(['member-tab',base+'/'+adminState.memberTab+suffix,renderMemberTab,['club','history','points','mailing','qr'].includes(adminState.memberTab)?ADMIN_REFRESH.analyticsMs:ADMIN_REFRESH.operationalMs]);return tasks}
- if(adminState.activeAdminView==='members')return [['members','/api/admin/members?page='+(adminState.membersPage||1),renderMembers,ADMIN_REFRESH.operationalMs]];
+ if(['members','united-club'].includes(adminState.activeAdminView))return [['members','/api/admin/members?page='+(adminState.membersPage||1),renderMembers,ADMIN_REFRESH.operationalMs]];
  return [];
 }
 function releaseMemberMedia(){renderedTab=null;mediaGeneration++;observer?.disconnect();for(const c of mediaControllers)c.abort();mediaControllers.clear();for(const item of media.values())if(item.url)URL.revokeObjectURL(item.url);media.clear();$('[data-member-image-dialog]')?.close();$('[data-member-full-image]')?.removeAttribute('src')}
@@ -95,7 +96,7 @@ export function initializeMembers({openReservation,openHistory}){
  image.addEventListener('keydown',event=>{if(event.key==='Escape'){event.preventDefault();event.stopPropagation();image.close()}});
  search.addEventListener('submit',event=>{event.preventDefault();void searchMembers()});$('[data-member-search]').addEventListener('input',()=>{clearTimeout(searchTimer);searchSequence++;searchController?.abort();searchFlight=null;searchTimer=setTimeout(()=>void searchMembers(),ADMIN_REFRESH.searchDebounceMs)});
  document.addEventListener('click',event=>{
-  const member=event.target.closest('[data-member-open]');if(member){event.preventDefault();event.stopImmediatePropagation();$('[data-member-suggestions]').replaceChildren();openMember(member.dataset.memberOpen,member);return}
+  const member=event.target.closest('[data-member-open],[data-member-qr-open]');if(member){event.preventDefault();event.stopImmediatePropagation();$('[data-member-suggestions]').replaceChildren();openMember(member.dataset.memberOpen||member.dataset.memberQrOpen,member,{tab:member.hasAttribute('data-member-qr-open')?'qr':member.dataset.memberOpenTab||(adminState.activeAdminView==='united-club'?'club':'event')});return}
   if(event.target.closest('[data-member-close]')){closeMember();return}
   const tab=event.target.closest('[data-member-tab]');if(tab){if(adminState.memberTab===tab.dataset.memberTab)return;renderedTab=null;$('[data-member-dialog] [data-domain-status="member-tab"]')?.remove();delete adminState.resourceStates['member-tab'];adminState.memberTab=tab.dataset.memberTab;adminState.memberPage=1;syncTabs();$('[data-member-tab-content]').textContent='Načítám sekci…';window.dispatchEvent(new CustomEvent('admin:membertab'));routeChange();return}
   const page=event.target.closest('[data-member-page]');if(page){adminState[page.dataset.memberPageKind==='list'?'membersPage':'memberPage']=Number(page.dataset.memberPage);routeChange();return}

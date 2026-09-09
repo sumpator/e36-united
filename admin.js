@@ -1,25 +1,26 @@
-import {initializeDashboard,renderDashboard,receiveDashboardPreferences,dashboardWantsPlanner,clearDashboard} from './admin/dashboard.js?v=20260908-admin-stage3';
-import {initializeMembers,openMember,closeMember,clearMemberPrivateState,memberContextKey,memberRefreshTasks} from './admin/member-detail.js?v=20260908-admin-stage3';
-import {ADMIN_REFRESH,resourceDue} from './admin/refresh-policy.js?v=20260908-admin-stage3';
-import {reservationRequestPath,galleryRequestPath} from './admin/lists.js?v=20260908-admin-stage3';
-import { initializeAdminNavigation } from './admin/navigation.js?v=20260908-admin-stage3';
-import { createAdminRefresh } from './admin/refresh.js?v=20260908-admin-stage3';
-import { initializeAdminEditors, bindCurrentEditors, forgetAdminEditor, allowAdminNavigation, clearAdminPrivateEdits } from './admin/editors.js?v=20260908-admin-stage3';
-import { firebaseConfig } from './firebase-config.js?v=20260908-admin-stage3';
+import {initializeDashboard,renderDashboard,receiveDashboardPreferences,dashboardWantsPlanner,dashboardWantsMailing,clearDashboard} from './admin/dashboard.js?v=20260909-admin-command';
+import {initializeCommandShell} from './admin/command-shell.js';
+import {initializeMembers,openMember,closeMember,clearMemberPrivateState,memberContextKey,memberRefreshTasks} from './admin/member-detail.js?v=20260909-admin-command';
+import {ADMIN_REFRESH,resourceDue} from './admin/refresh-policy.js?v=20260909-admin-command';
+import {reservationRequestPath,galleryRequestPath} from './admin/lists.js?v=20260909-admin-command';
+import { initializeAdminNavigation } from './admin/navigation.js?v=20260909-admin-command';
+import { createAdminRefresh } from './admin/refresh.js?v=20260909-admin-command';
+import { initializeAdminEditors, bindCurrentEditors, forgetAdminEditor, allowAdminNavigation, clearAdminPrivateEdits } from './admin/editors.js?v=20260909-admin-command';
+import { firebaseConfig } from './firebase-config.js?v=20260909-admin-command';
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js';
 import { getAuth, setPersistence, browserLocalPersistence, onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js';
 
-import { apiRequest } from './admin/api.js?v=20260908-admin-stage3';
-import { adminState, resetAdminDomainState, resetAdminFiltersForEvent, resetAdminFiltersForLogin } from './admin/state.js?v=20260908-admin-stage3';
-import { initializeAdminShell, setAdminSectionCollapsed, setAdminView, setDenied, setLoading, setView } from './admin/shell.js?v=20260908-admin-stage3';
-import { $, toast } from './admin/ui.js?v=20260908-admin-stage3';
-import { renderEventSelector, renderOverview, saveEventSettings } from './admin/modules/dashboard-events.js?v=20260908-admin-stage3';
-import { previewAccommodationPhoto, resetAccommodationMedia, removeAccommodationPhoto, renderAccommodation, saveAccommodation, uploadAccommodationPhoto } from './admin/modules/accommodation.js?v=20260908-admin-stage3';
-import { clearReservationDetailFilters, closeReservationDrawer, openReservationDrawer, renderReservations, renderReservationDetail, setPaymentFilter, setPaymentSearch, setReservationFilter, setReservationSearch, setReservationViewMode, toggleReservationDetailFilter, toggleReservationFilters, updateReservation, updateReservationPayment } from './admin/modules/reservations-payments.js?v=20260908-admin-stage3';
-import { changeHistoryPage, clearHistoryFilters, closeGalleryLightbox, closeHistoryEvidence, historyRequestPath, hydrateOpenHistoryCard, openGalleryLightbox, openHistoryEvidence, releaseGalleryMedia, releaseHistoryEvidence, renderGallery, renderHistoryClaims, reviewHistoryClaim, setGalleryFilter, setGalleryMode, setHistoryClaimType, setHistoryFilter, setHistorySearch, setHistoryYear, updateGallery } from './admin/modules/moderation.js?v=20260908-admin-stage3';
-import { initializeMailingCenter, resetMailingCenter, refreshMailingCenter } from './admin/modules/mailing/index.js?v=20260908-admin-stage3';
-import { renderAdminFunnel } from './admin/modules/funnel.js?v=20260908-admin-stage3';
-import { refreshHistoryAttention } from './admin/modules/dashboard-events.js?v=20260908-admin-stage3';
+import { apiRequest } from './admin/api.js?v=20260909-admin-command';
+import { adminState, resetAdminDomainState, resetAdminFiltersForEvent, resetAdminFiltersForLogin } from './admin/state.js?v=20260909-admin-command';
+import { initializeAdminShell, setAdminSectionCollapsed, setAdminView, setDenied, setLoading, setView } from './admin/shell.js?v=20260909-admin-command';
+import { $, toast } from './admin/ui.js?v=20260909-admin-command';
+import { renderEventSelector, renderOverview, saveEventSettings } from './admin/modules/dashboard-events.js?v=20260909-admin-command';
+import { previewAccommodationPhoto, resetAccommodationMedia, removeAccommodationPhoto, renderAccommodation, saveAccommodation, uploadAccommodationPhoto } from './admin/modules/accommodation.js?v=20260909-admin-command';
+import { clearReservationDetailFilters, closeReservationDrawer, openReservationDrawer, renderReservations, renderReservationDetail, setPaymentFilter, setPaymentSearch, setReservationFilter, setReservationSearch, setReservationViewMode, toggleReservationDetailFilter, toggleReservationFilters, updateReservation, updateReservationPayment } from './admin/modules/reservations-payments.js?v=20260909-admin-command';
+import { changeHistoryPage, clearHistoryFilters, closeGalleryLightbox, closeHistoryEvidence, historyRequestPath, hydrateOpenHistoryCard, openGalleryLightbox, openHistoryEvidence, releaseGalleryMedia, releaseHistoryEvidence, renderGallery, renderHistoryClaims, reviewHistoryClaim, setGalleryFilter, setGalleryMode, setHistoryClaimType, setHistoryFilter, setHistorySearch, setHistoryYear, updateGallery } from './admin/modules/moderation.js?v=20260909-admin-command';
+import { initializeMailingCenter, resetMailingCenter, refreshMailingCenter } from './admin/modules/mailing/index.js?v=20260909-admin-command';
+import { renderAdminFunnel } from './admin/modules/funnel.js?v=20260909-admin-command';
+import { refreshHistoryAttention } from './admin/modules/dashboard-events.js?v=20260909-admin-command';
 
 const app=initializeApp(firebaseConfig);
 const auth=getAuth(app);
@@ -61,22 +62,31 @@ async function refreshResources({context,signal,isCurrent,reason}){
     if(payload.event){adminState.events=adminState.events.map(event=>event.id===payload.event.id?{...event,...payload.event}:event)}
     renderOverview(payload);
   }]];
-  if(!adminState.memberId&&(['reservations','payments'].includes(context.view)||(adminState.selectedReservationId||adminState.requestedReservationId)))tasks.push(['reservations',reservationRequestPath(),renderReservations,ADMIN_REFRESH.heavyListMs]);
+  if(!adminState.memberId&&['reservations','payments'].includes(context.view))tasks.push(['reservations',reservationRequestPath(),renderReservations,ADMIN_REFRESH.heavyListMs]);
   if(!adminState.memberId&&context.view==='accommodation')tasks.push(['accommodation',scopedPath('/api/admin/accommodation'),renderAccommodation]);
   if(!adminState.memberId&&context.view==='event')tasks.push(['events','/api/admin/events',payload=>{adminState.events=payload.events||[];renderEventSelector()}]);
   if(!adminState.memberId&&context.view==='gallery')tasks.push(adminState.galleryMode==='history'
     ?['history',historyRequestPath(adminState.historyPagination.page),renderHistoryClaims,ADMIN_REFRESH.analyticsMs]
     :['gallery',galleryRequestPath(),renderGallery,ADMIN_REFRESH.heavyListMs]);
-  if(!adminState.memberId&&context.view==='dashboard'){
-    tasks.push(['dashboard-analytics',scopedPath('/api/admin/dashboard'),payload=>{adminState.dashboardAnalytics=payload},ADMIN_REFRESH.analyticsMs]);
+  if(!adminState.memberId&&context.view==='dashboard'&&!adminState.selectedReservationId&&!adminState.requestedReservationId){
+    tasks.push(['dashboard-analytics',scopedPath('/api/admin/dashboard')+'&presentation=command',payload=>{adminState.dashboardAnalytics=payload},ADMIN_REFRESH.analyticsMs]);
     if(dashboardWantsPlanner())tasks.push(['dashboard-planner',scopedPath('/api/admin/funnel'),renderAdminFunnel,ADMIN_REFRESH.analyticsMs]);
+    if(dashboardWantsMailing())tasks.push(['dashboard-mailing','/api/admin/mailing/overview',payload=>{adminState.dashboardMailing=payload},ADMIN_REFRESH.analyticsMs]);
     // Preferences are an explicit/startup read, not a fourth periodic widget request.
     if(reason!=='poll'&&(!adminState.dashboardPreferences||['startup','manual','mutation'].includes(reason)))tasks.push(['dashboard-preferences','/api/admin/preferences',receiveDashboardPreferences,ADMIN_REFRESH.analyticsMs]);
   }
   const detailId=adminState.selectedReservationId||adminState.requestedReservationId;
   if(detailId&&!adminState.memberId)tasks.push(['reservation-detail',reservationRequestPath(detailId),renderReservationDetail]);
-  if(context.view==='mailing'||adminState.memberId)tasks.length=0;
+  // Navigation badges share this one analytical summary even over Member / Mailing.
+  if(context.view==='mailing'||adminState.memberId)tasks.splice(1);
   tasks.push(...memberRefreshTasks());
+  if(reason==='poll'){
+    // Due analytical widgets share three slots. A fourth is staggered to the next
+    // coordinator tick, without its own timer or fetching any hidden workspace.
+    for(let i=tasks.length-1;i>=0;i--){const [name,path,,ttl=name==='summary'?ADMIN_REFRESH.analyticsMs:ADMIN_REFRESH.operationalMs]=tasks[i];if(!resourceDue(resourceFreshness.get(adminState.sessionGeneration+':'+path),adminState.sessionGeneration+':'+path,ttl,reason))tasks.splice(i,1);}
+    tasks.sort((a,b)=>(resourceFreshness.get(adminState.sessionGeneration+':'+a[1])?.lastSuccess||0)-(resourceFreshness.get(adminState.sessionGeneration+':'+b[1])?.lastSuccess||0));
+    tasks.splice(ADMIN_REFRESH.maxPeriodicRequests);
+  }
   if(reason==='poll'&&tasks.length>ADMIN_REFRESH.maxPeriodicRequests)throw new Error('Periodic fanout exceeded');
   const settled=await Promise.allSettled(tasks.map(async([name,path,render,ttl=name==='summary'?ADMIN_REFRESH.analyticsMs:ADMIN_REFRESH.operationalMs])=>{
     const cacheKey=adminState.sessionGeneration+':'+path;
@@ -91,13 +101,21 @@ async function refreshResources({context,signal,isCurrent,reason}){
       const serialized=JSON.stringify({...payload,freshness:undefined});
       // Summary includes a generation timestamp; its small text nodes can update without remounting.
       if(name==='summary'||name.startsWith('member')||resourceCache.get(cacheKey)!==serialized){if(render(payload)!==false)resourceCache.set(cacheKey,serialized)}
+      // The accepted history response resolves the initial "latest relevant" year.
+      // This synchronous renderer normalization is not user navigation: keep the
+      // captured context and normalized cache key aligned, without another read.
+      if(name==='history')context.key=refreshContext().key;
       const fresh={state:'fresh',lastSuccess:Date.now(),context:cacheKey};resourceFreshness.set(cacheKey,fresh);resourceData.set(cacheKey,payload);adminState.resourceStates[name]=fresh;
+      if(name==='history'){
+        const normalized=adminState.sessionGeneration+':'+historyRequestPath(adminState.historyPagination.page);
+        if(normalized!==cacheKey){const resolved={...fresh,context:normalized};resourceFreshness.set(normalized,resolved);resourceData.set(normalized,payload);resourceCache.set(normalized,serialized);adminState.resourceStates[name]=resolved;}
+      }
       document.querySelector('[data-domain-status="'+name+'"]')?.remove();
     }catch(error){
       if(!isCurrent()||error.stale)return;
       resourceFreshness.delete(cacheKey);
       const previous=adminState.resourceStates[name];adminState.resourceStates[name]={...previous,state:previous?.lastSuccess?'stale':'unavailable'};
-      const panel=document.querySelector(name.startsWith('member')?'[data-member-dialog]':name==='reservation-detail'?'[data-reservation-drawer-content]':'[data-admin-panel="'+context.view+'"]');let label=panel?.querySelector('[data-domain-status="'+name+'"]');if(panel&&!label){label=document.createElement('p');label.dataset.domainStatus=name;label.setAttribute('role','status');panel.prepend(label)}if(label){const title={summary:'přehledu',reservations:'rezervací','reservation-detail':'detailu rezervace',accommodation:'ubytování',events:'nastavení',gallery:'fotek',history:'historie'}[name]||name;label.textContent=previous?.lastSuccess||name==='reservation-detail'&&adminState.reservationDetail?'Data '+title+' mohou být zastaralá. Poslední hodnoty zůstaly zachovány.':'Data '+title+' teď nejsou dostupná. Použij Obnovit data / Zkusit spojení.';}
+      const panel=name.startsWith('member')?null:document.querySelector(name==='reservation-detail'?'[data-reservation-drawer-content]':'[data-admin-panel="'+context.view+'"]');let label=panel?.querySelector('[data-domain-status="'+name+'"]');if(panel&&!label){label=document.createElement('p');label.dataset.domainStatus=name;label.setAttribute('role','status');panel.prepend(label)}if(label){const title={summary:'přehledu',reservations:'rezervací','reservation-detail':'detailu rezervace',accommodation:'ubytování',events:'nastavení',gallery:'fotek',history:'historie','dashboard-analytics':'vývoje rezervací','dashboard-preferences':'rozložení','dashboard-mailing':'Mailingu'}[name]||'sekce';label.textContent=previous?.lastSuccess||name==='reservation-detail'&&adminState.reservationDetail?'Data '+title+' mohou být zastaralá. Poslední hodnoty zůstaly zachovány.':'Data '+title+' teď nejsou dostupná. Použij Obnovit data / Zkusit spojení.';}
       throw error;
     }
   }));
@@ -106,6 +124,10 @@ async function refreshResources({context,signal,isCurrent,reason}){
   bindCurrentEditors();renderEventSelector();renderDashboard();
   if(adminState.memberId){const keys=['member-header',...(adminState.memberTab==='event'?[]:['member-tab'])];$('[data-member-freshness]').textContent=keys.map(key=>{const value=adminState.resourceStates[key];return (key==='member-header'?'Profil / event':'Sekce')+': '+(value?.state==='fresh'?'načteno '+new Date(value.lastSuccess).toLocaleTimeString('cs-CZ'):'zastaralé / nedostupné')}).join(' · ');}
   const failed=settled.flatMap((result,index)=>result.status==='rejected'?[tasks[index][0]]:[]);
+  const memberDialog=$('[data-member-dialog]');let memberError=$('[data-member-load-error]');
+  if(!memberError){memberError=document.createElement('p');memberError.dataset.memberLoadError='';memberError.role='status';memberDialog.querySelector('header').after(memberError);}
+  memberError.hidden=!adminState.memberId||!['member-header',...(adminState.memberTab==='event'?[]:['member-tab'])].some(name=>['unavailable','stale'].includes(adminState.resourceStates[name]?.state));
+  memberError.textContent='Data této členské sekce teď nejsou dostupná. Dříve načtené hodnoty zůstávají zachované. Zkus obnovit spojení.';
   if(!adminState.memberId&&context.view==='mailing'&&resourceDue(resourceFreshness.get('mailing'),'mailing',ADMIN_REFRESH.analyticsMs,reason)){try{await refreshMailingCenter({signal,isCurrent});if(isCurrent())resourceFreshness.set('mailing',{state:'fresh',context:'mailing',lastSuccess:Date.now()})}catch{failed.push('mailing')}}
   return {failed:failed.length?failed:null};
 }
@@ -151,6 +173,7 @@ initializeMembers({
   openReservation:async(id,eventId)=>{if(!allowAdminNavigation())return;adminState.restoringRoute=true;try{closeMember({route:false});closeReservationDrawer();if(adminState.selectedEventId!==eventId){adminState.selectedEventId=eventId;resetAdminFiltersForEvent()}adminState.requestedReservationId=id;}finally{adminState.restoringRoute=false}navigation.write({replace:true,detail:true});await loadEventData()},
   openHistory:()=>{if(!allowAdminNavigation())return;adminState.restoringRoute=true;try{closeMember({route:false});closeReservationDrawer();setGalleryMode('history');setAdminView('gallery')}finally{adminState.restoringRoute=false}navigation.write({replace:true});void loadEventData()}
 });
+initializeCommandShell();
 initializeAdminShell({onCloseOverlays:closeAdminOverlays,onDenied:closeDeniedOverlays,onCommunityMode:setGalleryMode});
 initializeMailingCenter();
 initializeAdminEditors();
@@ -167,6 +190,12 @@ initializeDashboard({onRefresh:reason=>refreshCoordinator.trigger(reason||'navig
   }finally{adminState.restoringRoute=false}
   navigation.write();renderDashboard();void loadEventData();
 }});
+document.addEventListener('click',async event=>{
+  const button=event.target.closest('[data-command-reservation]');if(!button||!allowAdminNavigation())return;
+  window.dispatchEvent(new CustomEvent('admin:beforenavigation'));
+  adminState.requestedReservationId=button.dataset.commandReservation;
+  navigation.write({detail:true});await loadEventData();
+});
 
 $('[data-login-form]').addEventListener('submit',async event=>{
   event.preventDefault();const button=$('button[type="submit"]',event.currentTarget);const form=new FormData(event.currentTarget);button.disabled=true;$('[data-auth-status]').textContent='';

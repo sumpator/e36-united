@@ -1,5 +1,5 @@
-import { apiRequest } from './api.js?v=20260908-admin-stage3';
-import { adminState } from './state.js?v=20260908-admin-stage3';
+import { apiRequest } from './api.js?v=20260909-admin-command';
+import { adminState } from './state.js?v=20260909-admin-command';
 
 const roots=new Map(),pending=new Map();
 const prefix='e36.admin.safe.v1.';

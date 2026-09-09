@@ -42,7 +42,15 @@ for(const width of [1440,390])test('read-only Member return preserves fresh sour
  await expect.poll(()=>reads.filter(u=>u.searchParams.get('projection')==='detail').length).toBeGreaterThan(0);
  expect(reads.filter(u=>u.pathname.endsWith('/summary'))).toHaveLength(0);await expect(amount).toHaveValue('1700');
  reads.length=0;await source.locator('[data-member-open="m"]').click();await expect(drawer(page)).toContainText('EU-MEMBER');
- await page.clock.runFor(301000);expect(reads).toHaveLength(0);
+ await expect(page.locator('[data-member-freshness]')).toContainText('Profil / event: načteno');
+ for(let i=0;i<5;i++){
+  const before=c.calls.length;await page.clock.runFor(61000);
+  await expect.poll(()=>c.calls.length).toBeGreaterThan(before);
+  await expect(page.locator('[data-admin-freshness]')).toHaveAttribute('data-state','fresh');
+ }
+ // NEW keeps the shared navigation badges fresh above Member; the dirty source stays idle.
+ await expect.poll(()=>reads.filter(u=>u.pathname.endsWith('/summary')).length).toBe(1);
+ expect(reads.filter(u=>u.pathname.endsWith('/reservations'))).toHaveLength(0);
  await drawer(page).locator('[data-member-close]').click();await expect(drawer(page)).not.toBeVisible();
  await expect.poll(()=>reads.filter(u=>u.pathname.endsWith('/summary')).length).toBe(1);
  await expect.poll(()=>reads.filter(u=>u.searchParams.get('projection')==='detail').length).toBe(1);

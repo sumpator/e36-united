@@ -58,3 +58,7 @@ One existing coordinator: 60s operational; existing 120s expensive lists; 300s s
 [Incremental budget](admin-v2-free-tier-budget.md#stage-3-incremental-dashboard-budget) / [actual SQL/plans](admin-stage3-budget.json) distinguish local profiles/estimates from Cloudflare meta.rows_read. Stage 2's 1M target stays formally unmet and operator-accepted, not reopened.
 
 Optional Poslední změny omitted: current audit/receipts are not complete Member/provider activity and this lower-priority feature does not justify another query/history model. No event sourcing, history reconstruction, warehouse, background job or production backfill. Stage 4's remaining operational-page overhaul is deferred, not working Stage 3 mobile controls. Desktop WebKit is not physical iPhone Safari. Production migrations/QR provisioning remain separately authorized; none performed.
+
+## 2026-09-09 — approved NEW UI, local-only continuation
+
+See [NEW implementation and review record](admin-new-command-center.md) and `admin-command-budget.json` for the six-entry menu, exact badges, frontend-only schema-v1 layout adapter, connected review, additive opt-in read projections and separate NEW cost. Future publication requires a separately approved Worker rollout; no deployment/migration/production write was performed here. Stage 2 remains operator-accepted with its 1M target formally unmet (3,904,805 including reserve); 60/120/300s remains authoritative. NEW does not reopen that decision. Historical Stage 1–3 and rollout records above are unchanged.

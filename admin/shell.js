@@ -1,9 +1,9 @@
-import { allowAdminNavigation } from './editors.js?v=20260908-admin-stage3';
-import { initPortalNavigation } from '../portal-navigation.js?v=20260908-admin-stage3';
-import { ADMIN_VIEW_IDS } from '../admin-view-model.js?v=20260908-admin-stage3';
+import { allowAdminNavigation } from './editors.js?v=20260909-admin-command';
+import { initPortalNavigation } from '../portal-navigation.js?v=20260909-admin-command';
+import { ADMIN_VIEW_IDS } from '../admin-view-model.js?v=20260909-admin-command';
 import {ADMIN_AREAS,VIEW_LABELS,areaFor} from './destinations.js';
-import { adminState } from './state.js?v=20260908-admin-stage3';
-import { $, $$, rememberSessionChoice } from './ui.js?v=20260908-admin-stage3';
+import { adminState } from './state.js?v=20260909-admin-command';
+import { $, $$, rememberSessionChoice } from './ui.js?v=20260909-admin-command';
 
 const adminCollapseStorageKey='e36UnitedAdmin.collapsedSections.v1';
 const adminCollapsePreferences=readAdminCollapsePreferences();
@@ -68,12 +68,15 @@ export function setAdminView(view,{focus=true}={}){
   if(changed)window.dispatchEvent(new CustomEvent('admin:beforenavigation'));
   if(nextView==='gallery')setCommunity(nextMode);
   adminState.activeAdminView=nextView;rememberSessionChoice('e36UnitedAdmin.activeView',nextView);
-  $$('[data-admin-panel]').forEach(panel=>{const active=panel.dataset.adminPanel===nextView;panel.hidden=!active;panel.classList.toggle('is-active',active);panel.setAttribute('aria-hidden',String(!active))});
+  $$('[data-admin-panel]').forEach(panel=>{const active=panel.dataset.adminPanel===(nextView==='united-club'?'members':nextView);panel.hidden=!active;panel.classList.toggle('is-active',active);panel.setAttribute('aria-hidden',String(!active))});
+  const membersHeading=$('[data-admin-panel="members"] h2');if(membersHeading)membersHeading.textContent=nextView==='united-club'?'United Club · členové':'Členové';
   $$('[data-admin-jump]').forEach(button=>{const active=button.dataset.adminJump===nextView;button.classList.toggle('is-active',active);if(active)button.setAttribute('aria-current','page');else button.removeAttribute('aria-current')});
   const area=areaFor(nextView),secondary=$('[data-admin-secondary]');
-  if(secondary&&secondary.dataset.area!==area){secondary.dataset.area=area;secondary.innerHTML=area==='mailing'||area==='dashboard'?'':ADMIN_AREAS[area].views.map(v=>`<button type="button" data-admin-jump="${v==='gallery'?'photos':v}">${VIEW_LABELS[v]}</button>`).join('');}
+  if(secondary&&secondary.dataset.area!==area){secondary.dataset.area=area;secondary.innerHTML=area==='reservations'?ADMIN_AREAS[area].views.map(v=>`<button type="button" data-admin-jump="${v}">${VIEW_LABELS[v]}</button>`).join(''):'';}
   secondary?.querySelectorAll('button').forEach(button=>button.setAttribute('aria-current',String(button.dataset.adminJump===(nextView==='gallery'?(adminState.galleryMode==='history'?'club':'photos'):nextView))==='true'?'page':'false'));
   adminPortalNavigation?.sync(area);
+  if(area==='community')setCommunityExpanded(true);
+  $$('[data-community-links] [data-admin-jump]').forEach(button=>{const active=button.dataset.adminJump===(nextView==='gallery'?(nextMode==='history'?'club':'photos'):nextView);button.classList.toggle('is-active',active);if(active)button.setAttribute('aria-current','page');else button.removeAttribute('aria-current')});
   if(changed){const wasRestoring=adminState.restoringRoute;adminState.restoringRoute=true;closeOverlays();adminState.restoringRoute=wasRestoring;window.dispatchEvent(new CustomEvent('admin:viewchange',{detail:{view:nextView}}));window.scrollTo({top:0,behavior:'auto'})}
   if(focus){const heading=$(`[data-admin-panel="${nextView}"] h2`);if(heading){heading.tabIndex=-1;heading.focus({preventScroll:true})}}
 }
@@ -83,6 +86,13 @@ export function initializeAdminShell({onCloseOverlays=()=>{},onDenied=()=>{},onC
   closeDeniedOverlays=onDenied;
   setCommunity=onCommunityMode;
   adminPortalNavigation=initPortalNavigation({root:$('[data-portal-nav="admin"]'),onSelect:area=>setAdminView(ADMIN_AREAS[area]?.views[0]||'dashboard')});
+  $$('[data-community-toggle]').forEach(button=>button.addEventListener('click',()=>setCommunityExpanded(button.getAttribute('aria-expanded')!=='true')));
+  $('[data-portal-sheet]').addEventListener('click',event=>{if(event.target.closest('[data-admin-jump]'))queueMicrotask(()=>adminPortalNavigation.close({restoreFocus:false}))});
   $('[data-portal-tablist]').addEventListener('click',event=>{const control=event.target.closest('[data-portal-target]');if(control)setAdminView(ADMIN_AREAS[control.dataset.portalTarget]?.views[0]||'dashboard')});
   initializeAdminCollapsibles();
+}
+
+function setCommunityExpanded(expanded){
+  $$('[data-community-toggle]').forEach(b=>b.setAttribute('aria-expanded',String(expanded)));
+  $$('[data-community-links]').forEach(node=>node.hidden=!expanded);
 }

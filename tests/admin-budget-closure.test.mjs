@@ -98,7 +98,7 @@ test('actual coordinator task selection reproduces the 12h workload without poll
   const memberTasks=read('admin/member-detail.js').match(/export function memberRefreshTasks\(\)\{[\s\S]*?\n\}/)[0].replace('export ','');
   const noop=()=>{},state={selectedEventId:'e',memberPage:1,historyPagination:{page:1},galleryMode:'community'};
   const mocks={adminState:state,ADMIN_REFRESH,beginEventContext:noop,renderMemberHeader:noop,renderMemberTab:noop,renderMembers:noop,
-    dashboardWantsPlanner:()=>false,renderAdminFunnel:noop,receiveDashboardPreferences:noop,
+    dashboardWantsPlanner:()=>false,dashboardWantsMailing:()=>false,resourceFreshness:new Map(),resourceDue:()=>true,renderAdminFunnel:noop,receiveDashboardPreferences:noop,
     renderReservations:noop,renderAccommodation:noop,renderGallery:noop,renderHistoryClaims:noop,renderReservationDetail:noop,
     reservationRequestPath:id=>'/reservations'+(id?'?id='+id:''),galleryRequestPath:()=>'/gallery',historyRequestPath:()=>'/history',scopedPath:p=>p};
   let now=0;const counts={},fresh=new Map();let context={key:'e',eventId:'e',authenticated:true,visible:true,online:true};
@@ -116,9 +116,9 @@ test('actual coordinator task selection reproduces the 12h workload without poll
   const normalized={...counts,'reservation-list':counts.reservations,'member-garage':counts['member-tab']};delete normalized.reservations;delete normalized['member-tab'];
   assert.equal(normalized['dashboard-analytics'],12); // Stage 3 incremental, separately budgeted; all Stage 2 counts remain exact.
   delete normalized['dashboard-analytics'];
-  assert.deepEqual(normalized,PERIODIC_PER_CONTEXT);
+  assert.deepEqual(normalized,{...PERIODIC_PER_CONTEXT,summary:144}); // NEW adds 96 shared summaries over eight Member hours; other work unchanged.
   const previous={...counts};for(const condition of [{visible:false},{online:false},{denied:true},{authenticated:false}]){context={...context,visible:true,online:true,denied:false,authenticated:true,...condition};await coordinator.trigger('poll');}
   assert.deepEqual(counts,previous);coordinator.dispose();
   Object.assign(state,{activeAdminView:'mailing',memberId:null,selectedReservationId:null});
-  assert.equal(runInNewContext(memberTasks+'\n(function(){'+body+'return tasks.length;})()',{...mocks,context:{view:'mailing',eventId:'e'},reason:'poll'}),0);
+  assert.equal(runInNewContext(memberTasks+'\n(function(){'+body+'return tasks.length;})()',{...mocks,context:{view:'mailing',eventId:'e'},reason:'poll'}),1); // Shared badge summary, no hidden domain.
 });

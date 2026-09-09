@@ -16,17 +16,18 @@ test.describe('desktop Admin portal', () => {
 
     expect(observations.requests).not.toContain('GET /api/admin/gallery');
     expect(observations.requests).not.toContain('GET /api/admin/reservations');
-    await page.locator('.admin-section-nav [data-portal-target="finance"]').click();
+    await page.locator('.admin-section-nav [data-portal-target="reservations"]').click();
     await expect(page.locator('[data-admin-panel="reservations"]')).toHaveClass(/is-active/);
     await expect(page.locator('[data-reservation-list]')).toContainText('Eva');
 
-    await page.locator('[data-admin-jump="payments"]').click();
+    await page.locator('.admin-section-nav [data-portal-target="payments"]').click();
     await expect(page.locator('[data-admin-panel="payments"]')).toHaveClass(/is-active/);
     await expect(page.locator('[data-payment-count]')).toHaveText('0 záznamů z 1');
 
+    await page.locator('.admin-section-nav [data-portal-target="reservations"]').click();
     await page.locator('[data-admin-jump="accommodation"]').click();
     await expect.poll(()=>observations.requests.includes('GET /api/admin/accommodation')).toBe(true);
-    await page.locator('.admin-section-nav [data-portal-target="community"]').click();await page.locator('[data-admin-jump="photos"]').click();
+    await page.locator('.admin-section-nav [data-community-toggle]').click();await page.locator('.admin-section-nav [data-admin-jump="photos"]').click();
     await expect.poll(()=>observations.requests.includes('GET /api/admin/gallery')).toBe(true);
     await page.locator('[data-gallery-mode="history"]').click();
     await expect.poll(()=>observations.requests.includes('GET /api/admin/history/claims')).toBe(true);
@@ -47,7 +48,7 @@ test.describe('desktop Admin portal', () => {
 
     await page.goto('/admin.html');
     await expect(page.locator('[data-admin-view]')).toBeVisible();
-    await page.locator('.admin-section-nav [data-portal-target="finance"]').click();
+    await page.locator('.admin-section-nav [data-portal-target="reservations"]').click();
 
     const row = page.locator('[data-reservation-list] tr[data-reservation-open]').first();
     await row.focus();

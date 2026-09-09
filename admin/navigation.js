@@ -1,10 +1,13 @@
-import { ADMIN_VIEW_IDS } from '../admin-view-model.js?v=20260908-admin-stage3';
+import { ADMIN_VIEW_IDS } from '../admin-view-model.js?v=20260909-admin-command';
 import {ADMIN_AREAS,areaFor,cleanDrill} from './destinations.js';
 
 const id=value=>/^[a-z0-9_-]{1,128}$/i.test(value||'')?value:null;
 export function adminRoute(search,fallback='dashboard'){
   const params=new URLSearchParams(search),requested=params.get('section');
   let section=requested?(ADMIN_VIEW_IDS.includes(requested)?requested:'dashboard'):fallback;
+  // Reviewed five-area links and the historic Club alias keep their original meaning.
+  if(requested==='finance')section=['reservations','accommodation','payments'].includes(params.get('view'))?params.get('view'):'reservations';
+  if(requested==='club')section='club';
   if(Object.hasOwn(ADMIN_AREAS,requested))section=ADMIN_AREAS[requested].views.includes(params.get('view'))?params.get('view'):ADMIN_AREAS[requested].views[0];
   const galleryMode=section==='club'?'history':params.get('mode')==='history'?'history':'community';if(section==='club')section='gallery';
   return {section,galleryMode,drill:cleanDrill(Object.fromEntries(params)),composition:params.get('composition')==='onsite'?'onsite':'preparation',range:['7','30','all'].includes(params.get('range'))?params.get('range'):'all',

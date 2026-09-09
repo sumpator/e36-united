@@ -1,47 +1,8 @@
 import {test,expect} from '@playwright/test';
-import {prepareAdminE2ePage} from './fixtures.mjs';
-import {memberRuntime} from '../helpers/admin-member-runtime.mjs';
-import {getAdminDashboard,getAdminPreferences,saveAdminPreferences} from '../../worker/admin/dashboard.js';
-import {getAdminSummary} from '../../worker/admin/summary.js';
-import {getAdminEvents,getAdminReservations,getAdminGallery,getAdminHistoryClaims} from '../../worker/domains.js';
-import {getAdminMember,listAdminMembers} from '../../worker/admin/members.js';
-import {getAdminOperation} from '../../worker/admin/commands.js';
 import {factoryPreferences} from '../../admin/dashboard-model.js';
-const headers={'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'Authorization, Content-Type, If-Match, Idempotency-Key','Access-Control-Allow-Methods':'GET, PUT, OPTIONS'};
-async function fixture(page){
- const observations=await prepareAdminE2ePage(page),r=memberRuntime(),calls=[],writes=[],failures=new Set();let mode='',tail=Promise.resolve();
- const batch=r.env.DB.batch;r.env.DB.batch=ss=>{const next=tail.then(()=>batch(ss));tail=next.catch(()=>{});return next};
- r.db.exec("UPDATE reservations SET created_at='2026-08-01 12:00:00',submitted_at='2026-08-02',attendance_type='full_weekend',show_shine='Ano'; INSERT INTO reservations(id,member_id,event_id,status,crew,amount_due_czk,amount_paid_czk,created_at,submitted_at,attendance_type,show_shine) VALUES('pending','n','e','pending',3,1000,1300,'2026-09-07','2026-09-07','saturday_only','Možná'),('cancelled','a','e','cancelled',5,0,400,'2026-08-15','2026-08-15','day_visit','Ne'); INSERT INTO event_accommodation_options(id,event_id,name,kind,inventory_mode,units_total,capacity_per_unit) VALUES('cab','e','Chatka','cabin','limited',8,4),('tent','e','Stan','tent','unlimited',0,2); INSERT INTO reservation_accommodation(reservation_id,option_id,people_count,unit_count,option_name,kind,unit_price_czk,person_price_czk,bedding_fee_per_person_czk,city_tax_per_person_per_night_czk,nights,base_total_czk,person_total_czk,bedding_total_czk,city_tax_total_czk,total_czk) VALUES('r','cab',2,1,'Chatka','cabin',0,0,0,0,2,0,0,0,0,0),('pending','tent',3,2,'Stan','tent',0,0,0,0,2,0,0,0,0,0);");
- const env={...r.env,ADMIN_READ:true},origin='https://e36united.cz';
- await page.route('https://api.e36united.cz/api/admin/**',async route=>{
-  const q=route.request(),url=new URL(q.url()),path=url.pathname;
-  if(q.method()==='OPTIONS')return route.fulfill({status:204,headers});
-  if(!/\/(dashboard|preferences|summary|events|reservations|members|operations|gallery|history\/claims)(\/|$)/.test(path))return route.fallback();
-  calls.push(q.method()+' '+url.pathname+url.search);
-  if(mode==='denied'||mode==='unavailable'&&path.endsWith('/dashboard')||mode==='preferences-unavailable'&&path.endsWith('/preferences')){failures.add(q.url());return route.fulfill({status:mode==='denied'?403:503,headers,json:{message:'Synthetic controlled failure'}});}
-  let response;
-  if(path.endsWith('/preferences')){
-   if(q.method()==='PUT'){
-    writes.push({key:q.headers()['idempotency-key'],revision:q.headers()['if-match'],body:q.postDataJSON()});
-    if(mode==='undelivered'){failures.add(q.url());return route.abort('connectionfailed');}
-    response=await saveAdminPreferences(new Request(q.url(),{method:'PUT',headers:q.headers(),body:q.postData()}),env,{uid:'a'},origin);
-    if(mode==='lost'){failures.add(q.url());return route.abort('connectionfailed');}
-   }else response=await getAdminPreferences(env,{uid:'a'},origin);
-  }else if(path.endsWith('/dashboard'))response=await getAdminDashboard(env,url,origin,new Date('2026-09-08T12:00:00Z'));
-  else if(path.endsWith('/summary'))response=await getAdminSummary(env,url,origin,new Date('2026-09-08T12:00:00Z'));
-  else if(path.endsWith('/events'))response=await getAdminEvents(env,origin);
-  else if(path.endsWith('/reservations'))response=await getAdminReservations(env,url,origin);
-  else if(path.includes('/operations/'))response=await getAdminOperation(env,{uid:'a'},path.split('/').at(-1),origin);
-  else if(path.endsWith('/gallery'))response=await getAdminGallery(env,origin,url);
-  else if(path.endsWith('/history/claims'))response=await getAdminHistoryClaims(env,url,origin);
-  else if(path.endsWith('/members'))response=await listAdminMembers(env,url,origin);
-  else if(path.includes('/members/')){const parts=path.split('/');response=await getAdminMember(env,url,parts[4],parts[5],origin);}
-  else return route.fallback();
-  if(response.status>=400)failures.add(q.url());
-  return route.fulfill({status:response.status,headers,body:await response.text()});
- });
- return {r,calls,writes,observations,failures,get mode(){return mode},set mode(v){mode=v},stored(){const row=r.db.prepare("SELECT * FROM admin_preferences WHERE id='a'").get();return row?{revision:row.revision,value:JSON.parse(row.configuration_json)}:null},otherDevice(value){const row=this.stored();r.db.prepare("INSERT INTO admin_preferences(id,schema_version,configuration_json,revision) VALUES('a',1,?,?) ON CONFLICT(id) DO UPDATE SET configuration_json=excluded.configuration_json,revision=excluded.revision").run(JSON.stringify(value),(row?.revision||0)+1);r.db.prepare("INSERT INTO admin_resource_versions(resource_type,resource_id,revision) VALUES('preferences','a',1) ON CONFLICT(resource_type,resource_id) DO UPDATE SET revision=revision+1").run();}};
-}
+import {commandDefaults} from '../../admin/command-model.js';
+import {commandFixture} from './command-fixture.mjs';
+const fixture=page=>commandFixture(page,{legacy:true});
 const editor=page=>page.locator('[data-dashboard-preferences]');
 const card=(page,id)=>page.locator('[data-widget="'+id+'"]');
 async function open(page){await page.goto('/admin.html?section=dashboard&event=e');await expect(page.locator('[data-kpi-reservations]')).toHaveText('2');await expect(page.locator('[data-dashboard-edit]')).toBeEnabled();}
@@ -51,7 +12,7 @@ function clean(c){expect(c.observations.pageErrors).toEqual([]);expect(c.observa
 
 for(const width of [1440,390])test('Stage 3 factory compositions, exact graphs, mobile navigation and screenshot '+width,async({page},info)=>{
  await page.setViewportSize({width,height:900});const c=await fixture(page);await open(page);
- await expect(page.locator('.admin-section-nav [data-portal-target]')).toHaveCount(5);await expect(page.locator('.dashboard-kpi')).toHaveCount(4);
+ await expect(page.locator('.admin-section-nav > button')).toHaveCount(6);await expect(page.locator('.dashboard-kpi')).toHaveCount(4);
  await expect(page.locator('[data-kpi-people]')).toHaveText('5');await expect(page.locator('[data-kpi-recorded]')).toContainText('1');
  await expect(page.locator('[data-admin-funnel]')).toBeHidden();expect(c.calls.some(p=>p.includes('/funnel'))).toBe(false);
  for(const id of ['trend','occupancy','finance','statuses','attendance','sns'])await expect(card(page,id).getByText('Zobrazit data',{exact:true})).toBeVisible();
@@ -73,7 +34,7 @@ for(const width of [1440,390])test('Stage 3 factory compositions, exact graphs, 
 test('Stage 3 exact finance drill, Member 360, Back restores range/composition/filter/scroll without writes',async({page})=>{
  const c=await fixture(page);await open(page);await page.locator('[data-dashboard-composition]').selectOption('onsite');await card(page,'trend').locator('[data-dashboard-range]').selectOption('30');
  await card(page,'outstanding').scrollIntoViewIfNeeded();const scroll=await page.evaluate(()=>scrollY);
- await card(page,'outstanding').locator('button').click();await expect(page).toHaveURL(/section=finance.*view=payments.*scope=outstanding/);await expect(page.locator('[data-admin-panel="payments"] [data-dashboard-filter]')).toContainText('Aktivní rezervace se zbývající úhradou');
+ await card(page,'outstanding').locator('button').click();await expect(page).toHaveURL(/section=payments.*view=payments.*scope=outstanding/);await expect(page.locator('[data-admin-panel="payments"] [data-dashboard-filter]')).toContainText('Aktivní rezervace se zbývající úhradou');
  await expect(page.locator('[data-payment-list] tr[data-reservation-open]')).toHaveCount(1);await page.locator('[data-payment-list] [data-member-open="m"]').click();await expect(page.locator('[data-member-dialog]')).toContainText('EU-MEMBER');
  await page.goBack();await expect(page.locator('[data-member-dialog]')).not.toBeVisible();await expect(page).toHaveURL(/scope=outstanding/);await page.goBack();await expect(page.locator('[data-dashboard-title]')).toHaveText('Na srazu');await expect(page.locator('[data-dashboard-range]')).toHaveValue('30');
  await expect.poll(()=>page.evaluate(()=>history.state?.scrollY)).toBeCloseTo(scroll,0);
@@ -86,13 +47,13 @@ test('Stage 3 preferences save, reorder, size, independent compositions, cancel 
  await page.reload();await expect(card(page,'people')).toHaveCount(0);await expect(page.locator('[data-dashboard-edit]')).toBeEnabled();await edit(page);await editor(page).locator('[data-widget-add]').selectOption('people');page.once('dialog',d=>d.accept());await page.locator('[data-dashboard-cancel]').click();expect(c.stored()).toEqual(first);
  await page.locator('[data-dashboard-composition]').selectOption('onsite');await edit(page);await editor(page).locator('[data-edit-widget="reservations"] [data-widget-hide]').click();await save(page);const beforeReset=c.stored();
  await page.locator('[data-dashboard-composition]').selectOption('preparation');await edit(page);page.once('dialog',d=>d.dismiss());await page.locator('[data-dashboard-reset]').click();expect(c.stored()).toEqual(beforeReset);page.once('dialog',d=>d.accept());await page.locator('[data-dashboard-reset]').click();expect(c.writes).toHaveLength(2);await save(page);
- expect(c.stored().value.compositions.preparation).toEqual(factoryPreferences().compositions.preparation);expect(c.stored().value.compositions.onsite).toEqual(beforeReset.value.compositions.onsite);clean(c);c.r.db.close();
+ expect(c.stored().value.compositions.preparation).toEqual(commandDefaults().compositions.preparation);expect(c.stored().value.compositions.onsite).toEqual(beforeReset.value.compositions.onsite);clean(c);c.r.db.close();
 });
 test('Stage 3 dirty preferences reject newer device revision, retain draft and never overwrite by refresh',async({page})=>{
  const c=await fixture(page);await open(page);await edit(page);await editor(page).locator('[data-edit-widget="people"] [data-widget-hide]').click();const draft=await editor(page).locator('[name=configuration]').inputValue();
- const newer=factoryPreferences();newer.compositions.onsite.quickLinks=['history'];c.otherDevice(newer);await page.locator('[data-refresh]').click();await expect(page.locator('[data-dashboard-preference-notice]')).toContainText('novější rozložení');await expect(editor(page).locator('[name=configuration]')).toHaveValue(draft);
- await page.locator('[data-dashboard-save]').click();await expect(editor(page)).toHaveAttribute('data-operation-state','conflict');expect(c.stored().value).toEqual(newer);expect(c.writes[0].revision).toBe('0');
- page.once('dialog',d=>d.dismiss());await page.locator('[data-dashboard-composition]').selectOption('onsite');await expect(page.locator('[data-dashboard-composition]')).toHaveValue('preparation');await expect(editor(page).locator('[name=configuration]')).toHaveValue(draft);clean(c);c.r.db.close();
+ const newer=factoryPreferences();newer.compositions.onsite.quickLinks=['history'];c.otherDevice(newer);await page.locator('[data-dashboard-revalidate]').click();await expect(page.locator('[data-dashboard-preference-notice]')).toContainText('novější rozložení');await expect(editor(page).locator('[name=configuration]')).toHaveValue(draft);
+ await page.locator('[data-dashboard-save]').click();await expect(editor(page)).toHaveAttribute('data-operation-state','conflict');expect(c.stored().value).toEqual(newer);expect(c.writes[0].revision).toBe('1');
+ page.once('dialog',d=>d.dismiss());await page.keyboard.press('Escape');await expect(editor(page)).toBeVisible();await expect(page.locator('[data-dashboard-composition]')).toHaveValue('preparation');await expect(editor(page).locator('[name=configuration]')).toHaveValue(draft);clean(c);c.r.db.close();
 });
 for(const mode of ['lost','undelivered'])test('Stage 3 preference outcome recovery '+mode,async({page})=>{
  const c=await fixture(page);await open(page);await edit(page);await editor(page).locator('[data-edit-widget="people"] [data-widget-hide]').click();c.mode=mode;await page.locator('[data-dashboard-save]').click();await expect(editor(page)).toHaveAttribute('data-operation-state','outcome_unknown');expect(c.writes).toHaveLength(1);c.mode='';

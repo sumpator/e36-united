@@ -1,9 +1,9 @@
-import {renderListPagination} from '../../lists.js?v=20260908-admin-stage3';
-import { apiRequest } from '../../api.js?v=20260908-admin-stage3';
-import { $, escapeHtml, formatDate, numeric, toast } from '../../ui.js?v=20260908-admin-stage3';
-import { activeMailingCampaignId, initializeMailingEditor, markMailingEditorSaved, openMailingEditorDraft, resetMailingEditor } from './editor.js?v=20260908-admin-stage3';
-import { initializeMailingDelivery, openMailingDelivery, resetMailingDelivery } from './delivery.js?v=20260908-admin-stage3';
-import { defaultMailingSegment } from './segments.js?v=20260908-admin-stage3';
+import {renderListPagination} from '../../lists.js?v=20260909-admin-command';
+import { apiRequest } from '../../api.js?v=20260909-admin-command';
+import { $, escapeHtml, formatDate, numeric, toast } from '../../ui.js?v=20260909-admin-command';
+import { activeMailingCampaignId, initializeMailingEditor, markMailingEditorSaved, openMailingEditorDraft, resetMailingEditor } from './editor.js?v=20260909-admin-command';
+import { initializeMailingDelivery, openMailingDelivery, resetMailingDelivery } from './delivery.js?v=20260909-admin-command';
+import { defaultMailingSegment } from './segments.js?v=20260909-admin-command';
 
 const statusLabels={draft:'Koncept',prepared:'Připravená',sent:'Odeslaná',archived:'Archiv'};
 export let campaignPage=1;

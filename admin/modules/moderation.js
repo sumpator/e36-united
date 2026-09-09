@@ -1,11 +1,11 @@
-import { canonicalMemberLink } from '../member-detail.js?v=20260908-admin-stage3';
-import {listChanged,renderListPagination} from '../lists.js?v=20260908-admin-stage3';
-import { adminCommand, editorProtected } from '../editors.js?v=20260908-admin-stage3';
-import { apiMedia, apiRequest } from '../api.js?v=20260908-admin-stage3';
-import { renderAttentionCounts } from './dashboard-events.js?v=20260908-admin-stage3';
-import { adminState } from '../state.js?v=20260908-admin-stage3';
-import { setDenied } from '../shell.js?v=20260908-admin-stage3';
-import { $, $$, escapeHtml, formatDate, galleryStatusLabel, numeric, photosLabel, recordsLabel, rememberSessionChoice, toast } from '../ui.js?v=20260908-admin-stage3';
+import { canonicalMemberLink } from '../member-detail.js?v=20260909-admin-command';
+import {listChanged,renderListPagination} from '../lists.js?v=20260909-admin-command';
+import { adminCommand, editorProtected } from '../editors.js?v=20260909-admin-command';
+import { apiMedia, apiRequest } from '../api.js?v=20260909-admin-command';
+import { renderAttentionCounts } from './dashboard-events.js?v=20260909-admin-command';
+import { adminState } from '../state.js?v=20260909-admin-command';
+import { setDenied } from '../shell.js?v=20260909-admin-command';
+import { $, $$, escapeHtml, formatDate, galleryStatusLabel, numeric, photosLabel, recordsLabel, rememberSessionChoice, toast } from '../ui.js?v=20260909-admin-command';
 
 const galleryFilterLabels={pending:'Žádosti',approved:'Schválené',rejected:'Zamítnuté',all:'Všechny'};
 const galleryMediaUrls=new Map();
@@ -154,7 +154,7 @@ export async function loadHistoryClaims({page=1}={}){const sequence=++historyReq
 export function refreshHistoryClaims(page=1){adminState.historyPagination.page=page;window.dispatchEvent(new CustomEvent('admin:invalidate'))}
 export async function reviewHistoryClaim(container,component,status){
   const claimId=container.dataset.historyId,review=$(`[data-history-review="${component}"]`,container),note=$('[data-history-review-note]',review)?.value.trim()||'';if(status==='rejected'&&!note){toast('Při zamítnutí je důvod povinný.');$('[data-history-review-note]',review)?.focus();return}
-  $$('[data-history-action]',review).forEach(button=>button.disabled=true);try{await adminCommand(`/api/admin/history/claims/${encodeURIComponent(claimId)}/${component}`,{method:'PATCH',body:{status,reviewNote:note},editor:container});toast(component==='attendance'?'Rozhodnutí o docházce bylo uloženo.':'Rozhodnutí o Show & Shine bylo uloženo.');refreshHistoryClaims(adminState.historyPagination.page)}catch(error){if(error.status===403){setDenied();return}toast(error.message||'Rozhodnutí se nepodařilo uložit.')}finally{$$('[data-history-action]',review).forEach(button=>button.disabled=false)}
+  $$('[data-history-action]',review).forEach(button=>button.disabled=true);try{await adminCommand(`/api/admin/history/claims/${encodeURIComponent(claimId)}/${component}`,{method:'PATCH',body:{status,reviewNote:note},editor:container});toast(component==='attendance'?'Rozhodnutí o docházce bylo uloženo.':'Rozhodnutí o Show & Shine bylo uloženo.');/* adminCommand already invalidates the shared summary and current page once. */}catch(error){if(error.status===403){setDenied();return}toast(error.message||'Rozhodnutí se nepodařilo uložit.')}finally{$$('[data-history-action]',review).forEach(button=>button.disabled=false)}
 }
 
 async function galleryMediaUrl(id){

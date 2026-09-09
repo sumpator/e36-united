@@ -5,6 +5,14 @@ import {OVERDUE_SQL} from './lists.js';
 
 export const ADMIN_TREND_SQL=`SELECT date(created_at) AS day,COUNT(*) AS count
  FROM reservations WHERE event_id=? GROUP BY date(created_at) ORDER BY day`;
+export const ADMIN_RECENT_SQL=`WITH recent AS MATERIALIZED (
+ SELECT id,member_id,created_at,car_model,accommodation,crew,payment_status,status
+ FROM reservations WHERE event_id=? ORDER BY created_at DESC,id DESC LIMIT 5
+ ) SELECT r.id,r.member_id AS memberId,r.created_at AS createdAt,r.car_model AS carModel,
+ COALESCE(a.option_name,r.accommodation) AS accommodation,r.crew,r.payment_status AS paymentStatus,r.status,
+ COALESCE(m.nickname,m.name) AS memberName
+ FROM recent r JOIN members m ON m.id=r.member_id
+ LEFT JOIN reservation_accommodation a ON a.reservation_id=r.id ORDER BY r.created_at DESC,r.id DESC`;
 export const ADMIN_DASHBOARD_ATTENTION_SQL=`SELECT
  COALESCE(SUM(r.status IN ('pending','approved') AND r.amount_due_czk>r.amount_paid_czk AND NOT COALESCE(${OVERDUE_SQL},0)),0) AS awaiting,
  MIN(CASE WHEN r.status='pending' THEN r.submitted_at END) AS oldestPendingAt
@@ -14,10 +22,12 @@ export async function getAdminDashboard(env,url,origin,now=new Date()){
   if(!/^[a-z0-9_-]{1,128}$/i.test(eventId||''))return json({error:'invalid_event'},400,origin);
   const event=await env.DB.prepare('SELECT id FROM events WHERE id=?').bind(eventId).first();
   if(!event)return json({error:'event_not_found'},404,origin);
-  const [rows,attention]=await env.DB.batch([env.DB.prepare(ADMIN_TREND_SQL).bind(eventId),
-    env.DB.prepare(ADMIN_DASHBOARD_ATTENTION_SQL).bind(eventId)]);
+  const command=url.searchParams.get('presentation')==='command';
+  const [rows,attention,recent]=await env.DB.batch([env.DB.prepare(ADMIN_TREND_SQL).bind(eventId),
+    env.DB.prepare(ADMIN_DASHBOARD_ATTENTION_SQL).bind(eventId),...(command?[env.DB.prepare(ADMIN_RECENT_SQL).bind(eventId)]:[])]);
   return json({ok:true,context:{eventId,unit:'reservations',population:'all-stored-statuses',timezone:'UTC',timestamp:'created_at'},
     freshness:{generatedAt:now.toISOString(),businessUpdatedAt:null,consistency:'primary-batch'},
+    ...(command?{presentation:'command-v1',recent:recent.results}:{}),
     attention:attention.results[0],days:rows.results.filter(r=>r.day!==null),missingDateCount:rows.results.find(r=>r.day===null)?.count||0},200,origin);
 }
 export async function getAdminPreferences(env,auth,origin){

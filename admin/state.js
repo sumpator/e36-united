@@ -1,12 +1,12 @@
-import { ADMIN_VIEW_IDS, RESERVATION_VIEW_MODES } from '../admin-view-model.js?v=20260908-admin-stage3';
-import { readSessionChoice, readSessionValue, readSessionYear } from './ui.js?v=20260908-admin-stage3';
+import { ADMIN_VIEW_IDS, RESERVATION_VIEW_MODES } from '../admin-view-model.js?v=20260909-admin-command';
+import { readSessionChoice, readSessionValue, readSessionYear } from './ui.js?v=20260909-admin-command';
 
 export const adminState={
   currentUser:null,
   sessionGeneration:0,
   denied:false,
   summary:null,
-  dashboardAnalytics:null,dashboardPreferences:null,dashboardPreferenceRevision:0,
+  dashboardAnalytics:null,dashboardMailing:null,dashboardPreferences:null,dashboardPreferenceRevision:0,
   dashboardComposition:'preparation',dashboardRange:'all',dashboardDrill:{},
   resourceStates:{},
   loading:false,
@@ -40,6 +40,7 @@ export const adminState={
 
 export function resetAdminDomainState(){
   adminState.summary=null;
+  adminState.dashboardMailing=null;
   adminState.dashboardAnalytics=null;adminState.dashboardPreferences=null;adminState.dashboardPreferenceRevision=0;adminState.dashboardDrill={};adminState.dashboardComposition='preparation';adminState.dashboardRange='all';
   adminState.reservationPagination=null;adminState.reservationCounts=null;adminState.reservationPage=1;adminState.reservationDetail=null;adminState.galleryPage=1;adminState.galleryPagination=null;adminState.galleryCounts=null;
   adminState.resourceStates={};
@@ -59,7 +60,8 @@ export function resetAdminFiltersForLogin(){
   adminState.reservationDetailFilters.clear();
   adminState.reservationFiltersOpen=false;
   adminState.galleryFilter='pending';
-  adminState.galleryMode='community';
+  // The allowlisted initial / Back route owns galleryMode; login must not turn
+  // a historic Club/history deep link into the community-photo queue.
   adminState.paymentFilter='attention';
 }
 

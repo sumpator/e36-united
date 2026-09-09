@@ -179,3 +179,7 @@ One new local commit: `perf: reduce and document Stage 2 admin read costs`; SHA 
 - Optional Poslední změny omitted: audit/receipts do not provide complete cross-domain activity and do not justify another history/query system.
 - Required single commit: `feat: add configurable admin dashboard and grouped navigation`; resulting SHA and post-push equality/CI are reported externally after commit, not self-embedded. Latest user amendment authorizes only the green checkpoint push, superseding the original local-only push restriction.
 - No deployment, production migration/data write, provider/configuration call/change, email, real-contact import, secrets/DNS change or paid-service activation. Stage4 NOT started; await operator visual/user review.
+
+## 2026-09-09 — approved NEW UI, local-only continuation
+
+See [NEW implementation and review record](admin-new-command-center.md) and `admin-command-budget.json` for the six-entry menu, exact badges, frontend-only schema-v1 layout adapter, connected review, additive opt-in read projections and separate NEW cost. Future publication requires a separately approved Worker rollout; no deployment/migration/production write was performed here. Stage 2 remains operator-accepted with its 1M target formally unmet (3,904,805 including reserve); 60/120/300s remains authoritative. NEW does not reopen that decision. Historical Stage 1–3 and rollout records above are unchanged.

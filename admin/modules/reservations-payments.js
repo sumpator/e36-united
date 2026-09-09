@@ -1,13 +1,14 @@
-import { canonicalMemberLink } from '../member-detail.js?v=20260908-admin-stage3';
-import {listChanged,renderListPagination} from '../lists.js?v=20260908-admin-stage3';
-import { adminCommand, editorProtected, allowAdminNavigation } from '../editors.js?v=20260908-admin-stage3';
-import { accommodationVisualMarkup, bindAccommodationVisualFallbacks } from '../../accommodation-visual.js?v=20260908-admin-stage3';
-import { RESERVATION_DETAIL_FILTERS, RESERVATION_PRIMARY_FILTERS, RESERVATION_VIEW_MODES, adminItemPayment, filterAdminPayments, filterAdminReservations, paymentMatchesFilter, reservationMatchesFilter } from '../../admin-view-model.js?v=20260908-admin-stage3';
-import { apiBaseUrl, apiRequest } from '../api.js?v=20260908-admin-stage3';
-import { renderAttentionCounts } from './dashboard-events.js?v=20260908-admin-stage3';
-import { adminState } from '../state.js?v=20260908-admin-stage3';
-import { setDenied } from '../shell.js?v=20260908-admin-stage3';
-import { $, $$, attendanceLabel, attendanceShortLabel, escapeHtml, formatDate, formatMoney, numeric, paymentLabel, paymentQrSvg, recordsLabel, rememberSessionChoice, statusLabel, toast } from '../ui.js?v=20260908-admin-stage3';
+import { canonicalMemberLink } from '../member-detail.js?v=20260909-admin-command';
+import {showReservationMedia,clearReservationMedia} from '../reservation-media.js';
+import {listChanged,renderListPagination} from '../lists.js?v=20260909-admin-command';
+import { adminCommand, editorProtected, allowAdminNavigation } from '../editors.js?v=20260909-admin-command';
+import { accommodationVisualMarkup, bindAccommodationVisualFallbacks } from '../../accommodation-visual.js?v=20260909-admin-command';
+import { RESERVATION_DETAIL_FILTERS, RESERVATION_PRIMARY_FILTERS, RESERVATION_VIEW_MODES, adminItemPayment, filterAdminPayments, filterAdminReservations, paymentMatchesFilter, reservationMatchesFilter } from '../../admin-view-model.js?v=20260909-admin-command';
+import { apiBaseUrl, apiRequest } from '../api.js?v=20260909-admin-command';
+import { renderAttentionCounts } from './dashboard-events.js?v=20260909-admin-command';
+import { adminState } from '../state.js?v=20260909-admin-command';
+import { setDenied } from '../shell.js?v=20260909-admin-command';
+import { $, $$, attendanceLabel, attendanceShortLabel, escapeHtml, formatDate, formatMoney, numeric, paymentLabel, paymentQrSvg, recordsLabel, rememberSessionChoice, statusLabel, toast } from '../ui.js?v=20260909-admin-command';
 
 const paymentFilterLabels={attention:'Vyžaduje kontrolu',all:'Vše',unpaid:'K platbě',underpaid:'Doplatek',paid:'Zaplaceno',overpaid:'Přeplatek'};
 let reservationDrawerReturnFocus=null;
@@ -79,8 +80,8 @@ function renderReservationDrawer(){
     <header><span class="admin-kicker">RESERVATION DETAIL</span><h2 id="admin-reservation-drawer-title">${escapeHtml(member.nickname||member.name||'United member')}</h2><p>${escapeHtml(member.name||'Jméno neuvedeno')} · ${escapeHtml(member.email||'E-mail neuveden')}</p><div><small class="admin-badge admin-badge--${escapeHtml(item.status)}">${escapeHtml(item.changePending?'Změna čeká na schválení':statusLabel(item.status))}</small><small class="admin-badge admin-payment--${escapeHtml(payment.status)}">${escapeHtml(payment.overdue&&payment.remainingCzk>0?'Po splatnosti':paymentLabel(payment.status))}</small></div></header>
     <h3 class="admin-drawer-section-title">Rezervace</h3>
     <div class="admin-reservation-drawer-grid">
-      <section><small>ČLEN</small><b>${canonicalMemberLink(item.memberId||member.id,member.name||'—')}</b><span>${escapeHtml(member.nickname||'Bez přezdívky')} · ${escapeHtml(member.memberCode||'Bez kódu')}</span><span>${escapeHtml(member.email||'—')}</span></section>
-      <section><small>AUTO</small><b>${escapeHtml([car.body,car.model].filter(Boolean).join(' · ')||'—')}</b><span>${escapeHtml([car.nickname,car.year,car.color].filter(Boolean).join(' · ')||'Bez dalších údajů')}</span></section>
+      <section><small>ČLEN</small><b>${canonicalMemberLink(item.memberId||member.id,member.name||'—')}</b><span>${escapeHtml(member.nickname||'Bez přezdívky')} · ${escapeHtml(member.memberCode||'Bez kódu')}</span><span>${escapeHtml(member.email||'—')}</span><span class="command-qr">Členské QR: ${typeof item.reviewContext?.qrIssued==='boolean'?(item.reviewContext.qrIssued?'Vydáno':'Nevydáno'):'Nelze ověřit'}</span><button type="button" data-member-qr-open="${escapeHtml(item.memberId||member.id)}">Otevřít QR identitu člena</button></section>
+      <section><small>VŮZ V REZERVACI</small>${item.reviewContext?.selectedCarPhoto?'<img class="command-selected-car" data-reservation-car-photo alt="Fotografie vozu vybraného v rezervaci"/>':'<p>Fotografie vybraného vozu není dostupná.</p>'}<b>${escapeHtml([car.body,car.model].filter(Boolean).join(' · ')||'—')}</b><span>${escapeHtml([car.nickname,car.year,car.color].filter(Boolean).join(' · ')||'Bez dalších údajů')}</span></section>
       <section><small>POBYT</small><b>${escapeHtml(attendanceShortLabel(item))} · ${numeric(item.crew)} ${numeric(item.crew)===1?'osoba':'osob'}</b><span>${escapeHtml(attendanceLabel(item.attendanceType))} · příjezd ${escapeHtml(item.arrival||'—')}</span></section>
       <section class="admin-drawer-accommodation"><small>UBYTOVÁNÍ</small>${accommodationVisual}<b>${escapeHtml(accommodation)}</b><span>${snapshot?`max. ${numeric(snapshot.capacityPerUnit)} osob / jednotku · ${numeric(snapshot.nights)} ${numeric(snapshot.nights)===1?'noc':'noci'} · ${escapeHtml(formatMoney(snapshot.totalCzk))}`:'Cena není ve snapshotu'}</span>${item.capacityConflict?'<em>Pending požadavek nyní přesahuje potvrzenou dostupnost.</em>':''}</section>
       <section><small>SHOW &amp; SHINE</small><b>${escapeHtml(item.showShine||'Ne')}</b><span>Zájem o účast v soutěži</span></section>
@@ -94,6 +95,7 @@ function renderReservationDrawer(){
     <h3 class="admin-drawer-section-title">Admin akce</h3>
     <div class="admin-review admin-reservation-drawer-review"><input maxlength="1000" data-review-note placeholder="Krátká admin poznámka (hlavně při zamítnutí)" value="${escapeHtml(item.reviewNote||'')}"/><div class="admin-review-actions">${reservationActions(item)}</div></div>
   </article>`;bindAccommodationVisualFallbacks($('[data-reservation-drawer-content]'));
+  showReservationMedia($('[data-reservation-car-photo]'),item.reviewContext?.selectedCarPhoto);
 }
 
 export function openReservationDrawer(id,source){
@@ -105,6 +107,7 @@ export function openReservationDrawer(id,source){
 }
 
 export function closeReservationDrawer(){
+  clearReservationMedia();
   const wasOpen=adminState.selectedReservationId;
   const drawer=$('[data-reservation-drawer]');if(drawer)drawer.hidden=true;adminState.selectedReservationId=null;document.body.classList.remove('admin-overlay-open');
   if(reservationDrawerReturnFocus?.isConnected)reservationDrawerReturnFocus.focus();reservationDrawerReturnFocus=null;
@@ -166,7 +169,7 @@ export async function updateReservation(card,status,reloadEventData){
 }
 
 export async function updateReservationPayment(card,markFull=false,reloadEventData){
-  const reservationId=card.dataset.reservationId,item=adminState.reservationItems.find(entry=>entry.id===reservationId),payment=itemPayment(item),input=$('[data-payment-amount]',card);
+  const reservationId=card.dataset.reservationId,item=reservationById(reservationId),payment=itemPayment(item),input=$('[data-payment-amount]',card);
   const amountPaidCzk=markFull?numeric(payment.amountDueCzk):Number(input?.value);
   if(!Number.isInteger(amountPaidCzk)||amountPaidCzk<0||amountPaidCzk>10000000){toast('Zadej celou uhrazenou částku od 0 do 10 000 000 Kč.');input?.focus();return}
   $$('[data-payment-save], [data-payment-full]',card).forEach(button=>button.disabled=true);

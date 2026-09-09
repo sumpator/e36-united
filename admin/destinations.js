@@ -1,12 +1,13 @@
 // Presentation/navigation IDs only. Never execute commands or accept arbitrary URLs.
 export const ADMIN_AREAS = Object.freeze({
   dashboard:{label:'Přehled',views:['dashboard']},
-  finance:{label:'Rezervace & finance',views:['reservations','accommodation','payments']},
-  community:{label:'Komunita',views:['members','gallery','club']},
+  reservations:{label:'Rezervace',views:['reservations','accommodation']},
+  payments:{label:'Platby',views:['payments']},
+  community:{label:'Komunita',views:['members','gallery','club','united-club']},
   mailing:{label:'Mailing',views:['mailing']},
   settings:{label:'Nastavení',views:['event']},
 });
-export const VIEW_LABELS=Object.freeze({dashboard:'Přehled',reservations:'Rezervace',accommodation:'Ubytování',payments:'Platby',members:'Členové',gallery:'Fotky',club:'United Club',mailing:'Mailing',event:'Aktuální United'});
+export const VIEW_LABELS=Object.freeze({dashboard:'Přehled',reservations:'Rezervace',accommodation:'Ubytování',payments:'Platby',members:'Členové',gallery:'Fotky',club:'Historie & S&S','united-club':'United Club',mailing:'Mailing',event:'Nastavení ročníku'});
 export const areaFor=(view,mode)=>view==='gallery'||view==='club'?'community':Object.keys(ADMIN_AREAS).find(key=>ADMIN_AREAS[key].views.includes(view))||'dashboard';
 export const DESTINATIONS=Object.freeze({
   members:{label:'Členové',view:'members',scope:'global'},
