@@ -20,11 +20,14 @@ async function geometry(page,width){
  expect(h.height).toBeGreaterThanOrEqual(width===390?150:180);expect(h.height).toBeLessThanOrEqual(width===390?230:250);expect(close.y).toBeGreaterThanOrEqual(0);expect(close.x+close.width).toBeLessThanOrEqual(width);expect(panel.height).toBeGreaterThan(200);
  expect(await modal(page).evaluate(n=>n.scrollWidth<=n.clientWidth+1)).toBe(true);expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBe(true);
 }
-for(const width of [1600,390])test('HERO photo overview coalesces across tabs and refresh; Garage remains lazy '+width,async({page},info)=>{
+for(const [width,wideFont] of [[1600,false],[390,false],[390,true]])test('HERO photo overview coalesces across tabs and refresh; Garage remains lazy '+width+(wideFont?' wide fallback font':''),async({page},info)=>{
  await page.setViewportSize({width,height:width===390?844:900});await page.clock.install();await spyUrls(page);const c=await commandFixture(page);c.r.db.exec("UPDATE cars SET body='sedan' WHERE id='c'; UPDATE members SET nickname='Modrý cestovatel',name='Testovací člen' WHERE id='m'");
  await start(page,c);await expect(hero(page)).toBeVisible();await expect(page.locator('[data-member-hero]')).toHaveClass(/has-photo/);await expect(modal(page)).toContainText('Hlavní vůz');await expect(modal(page)).toContainText('Blue · BMW 328i · Sedan');
  expect(jsonCalls(c)).toEqual(['GET /api/admin/members/m?eventId=e','GET /api/admin/members/m/club?eventId=e&page=1']);expect(photoCalls(c)).toEqual(['GET /api/admin/members/m/media/cars/c/p']);
- await geometry(page,width);await shot(page,info,'hero-photo-'+width);const url=await hero(page).getAttribute('src');await hero(page).evaluate(n=>n.dataset.sameNode='yes');
+ // System UI font metrics differ between Windows and the Linux CI runner. The
+ // wider available fallback reproduces the CI wrapping on Windows as well.
+ if(wideFont)await page.addStyleTag({content:'.admin-page{font-family:Verdana,sans-serif}'});
+ await geometry(page,width);await shot(page,info,'hero-photo-'+width+(wideFont?'-wide':''));const url=await hero(page).getAttribute('src');await hero(page).evaluate(n=>n.dataset.sameNode='yes');
  await select(page,'club');await expect(modal(page)).toContainText('S&S TOP 3');await select(page,'overview');await expect(hero(page)).toHaveAttribute('src',url);
  await page.clock.runFor(61000);await expect.poll(()=>jsonCalls(c).filter(q=>q.startsWith('GET /api/admin/members/m?')).length).toBe(2);await expect(hero(page)).toHaveAttribute('data-same-node','yes');expect(photoCalls(c)).toHaveLength(1);expect((await page.evaluate(()=>window.heroUrls.created))).toEqual([url]);
  expect(c.calls.some(q=>q.includes('/garage?'))).toBe(false);await select(page,'garage');await expect(modal(page).locator('[data-member-media]').first()).toHaveAttribute('src',/^blob:/);expect(c.calls.filter(q=>q.includes('/garage?'))).toHaveLength(1);await expect(modal(page)).toContainText('Track');if(width===1600)await shot(page,info,'hero-garage-1600');

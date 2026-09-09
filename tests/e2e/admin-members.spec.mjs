@@ -80,8 +80,13 @@ test('Member uses one sixty-second coordinator, suspends background list and hid
  const imageReads=c.calls.filter(p=>p.includes('/media/')).length;expect(imageReads).toBe(2); // Hero plus the explicit Garage image, both complete before clock advancement.
  const writes=c.r.writes;let count=0;page.on('request',q=>{if(q.method()==='GET'&&q.url().includes('/api/admin/'))count++});
  c.r.db.exec("UPDATE members SET nickname='Updated by another admin' WHERE id='m'");await page.clock.runFor(60_100);await expect(drawer(page)).toContainText('Updated by another admin');expect(count).toBeLessThanOrEqual(3);expect(c.calls.filter(p=>p.includes('/media/'))).toHaveLength(imageReads);
+ await expect(page.locator('[data-admin-freshness]')).toHaveAttribute('data-state','fresh');
  count=0;await page.evaluate(()=>{Object.defineProperty(navigator,'onLine',{configurable:true,get:()=>false});window.dispatchEvent(new Event('offline'))});await page.clock.runFor(300_000);expect(count).toBe(0);
  await page.evaluate(()=>{Object.defineProperty(navigator,'onLine',{configurable:true,get:()=>true});window.dispatchEvent(new Event('online'))});await expect.poll(()=>count).toBeGreaterThan(0);
+ // The first observed GET is not completion of the three-resource online flight.
+ // Drain that visible flight before resetting its Node-side request observer;
+ // otherwise later observations of already-dispatched GETs enter the hidden count.
+ await expect(page.locator('[data-admin-freshness]')).toHaveAttribute('data-state','fresh');
  count=0;await page.evaluate(()=>{Object.defineProperty(document,'hidden',{configurable:true,get:()=>true});document.dispatchEvent(new Event('visibilitychange'))});await page.clock.runFor(300_000);expect(count).toBe(0);expect(c.r.writes).toBe(writes);expect(c.observations.pageErrors).toEqual([]);c.r.db.close();
 });
 test('Member link from a dirty payment keeps the editor, URL context and typed amount through Back',async({page})=>{

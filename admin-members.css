@@ -89,10 +89,11 @@ html.admin-member-modal-open{overflow:hidden;scrollbar-gutter:stable}
  .admin-member-dialog [data-member-hero-media]::after{background:linear-gradient(90deg,#061421ef,#071625bc 60%,#08192660),linear-gradient(0deg,#071625a6,transparent)}
  .admin-member-dialog [data-member-identity] p{margin:2px 0}
  .admin-member-dialog [data-member-identity] .admin-member-hero-car{margin-top:4px}
- .admin-member-dialog [data-member-identity]{gap:10px}
+ .admin-member-dialog [data-member-identity]{gap:6px}
  .admin-member-monogram{width:42px;height:42px;font-size:18px;border-radius:12px}
  .admin-member-dialog [data-member-identity] h2{font-size:24px;margin:0}
- .admin-member-dialog [data-member-close]{padding:8px}
+ /* Match the shared control selector: keep mobile padding from losing the cascade. */
+ .admin-page .admin-member-dialog [data-member-close]{padding:8px}
  .admin-member-meta{gap:6px;font-size:13px;margin-top:4px}
  .admin-member-layout{grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr);flex:1}
  .admin-member-dialog nav[role=tablist]{display:none}

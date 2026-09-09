@@ -96,3 +96,28 @@ test('resource timestamps prevent lifecycle events from broadly reloading fresh 
  for(const reason of ['focus','online','pageshow','visible','context'])assert.equal(resourceDue(fresh,'a',ADMIN_REFRESH.analyticsMs,reason,2000),false);
  assert.equal(resourceDue(fresh,'a',ADMIN_REFRESH.analyticsMs,'poll',301000),true);assert.equal(resourceDue(fresh,'b',ADMIN_REFRESH.analyticsMs,'context',2000),true);assert.equal(resourceDue(fresh,'a',ADMIN_REFRESH.analyticsMs,'mutation',2000),true);
 });
+
+for(const boundary of ['hidden','offline'])test(`online refresh suspended by ${boundary} cannot dispatch a held token, queued refresh or stale timer`,async()=>{
+ const token=deferred(),started=deferred(),timers=new Map();let serial=0,holdToken=false,refreshes=0;
+ const context={key:'a:e',authenticated:true,denied:false,visible:true,online:true};
+ const actor={uid:'a',getIdToken:()=>{if(holdToken){started.resolve();return token.promise}return Promise.resolve('test-token')}};
+ const dispatches=[],signals=[];
+ const api=createAdminApiClient({baseUrl:'https://example.invalid',getContext:()=>({user:actor,generation:1,eventId:'e'}),
+  fetchRequest:async()=>{dispatches.push({visible:context.visible,online:context.online});return json()}});
+ const coordinator=createAdminRefresh({readContext:()=>context,
+  setTimer:(fn,ms)=>{timers.set(++serial,{fn,ms});return serial},clearTimer:id=>timers.delete(id),
+  refresh:async({signal})=>{refreshes++;signals.push(signal);await Promise.allSettled([api.request('/summary',{signal}),api.request('/member',{signal})])}});
+ try{
+  await coordinator.trigger('startup');assert.equal(dispatches.length,2);
+  const staleTimer=[...timers.values()][0];assert.equal(staleTimer.ms,60_000);
+  context.online=false;coordinator.suspend();holdToken=true;context.online=true;
+  const resumed=coordinator.trigger('online');await started.promise;
+  const queued=coordinator.trigger('context'); // Queued behind the held online flight.
+  context[boundary==='hidden'?'visible':'online']=false;coordinator.suspend();
+  assert.equal(signals.at(-1).aborted,true);
+  staleTimer.fn(); // Simulate a callback already dequeued before clearTimeout.
+  token.resolve('test-token');await Promise.all([resumed,queued]);
+  assert.deepEqual(dispatches,[{visible:true,online:true},{visible:true,online:true}]);
+  assert.equal(refreshes,2);assert.equal(timers.size,0);assert.equal(coordinator.getState().inFlight,false);
+ }finally{coordinator.dispose();token.resolve('test-token')}
+});
