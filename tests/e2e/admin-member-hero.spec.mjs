@@ -20,18 +20,51 @@ async function geometry(page,width){
  expect(h.height).toBeGreaterThanOrEqual(width===390?150:180);expect(h.height).toBeLessThanOrEqual(width===390?230:250);expect(close.y).toBeGreaterThanOrEqual(0);expect(close.x+close.width).toBeLessThanOrEqual(width);expect(panel.height).toBeGreaterThan(200);
  expect(await modal(page).evaluate(n=>n.scrollWidth<=n.clientWidth+1)).toBe(true);expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBe(true);
 }
-for(const [width,wideFont] of [[1600,false],[390,false],[390,true]])test('HERO photo overview coalesces across tabs and refresh; Garage remains lazy '+width+(wideFont?' wide fallback font':''),async({page},info)=>{
+for(const [width,wideFont] of [[1600,false],[1920,false],[390,false],[390,true]])test('HERO photo overview coalesces across tabs and refresh; Garage remains lazy '+width+(wideFont?' wide fallback font':''),async({page},info)=>{
  await page.setViewportSize({width,height:width===390?844:900});await page.clock.install();await spyUrls(page);const c=await commandFixture(page);c.r.db.exec("UPDATE cars SET body='sedan' WHERE id='c'; UPDATE members SET nickname='Modrý cestovatel',name='Testovací člen' WHERE id='m'");
  await start(page,c);await expect(hero(page)).toBeVisible();await expect(page.locator('[data-member-hero]')).toHaveClass(/has-photo/);await expect(modal(page)).toContainText('Hlavní vůz');await expect(modal(page)).toContainText('Blue · BMW 328i · Sedan');
  expect(jsonCalls(c)).toEqual(['GET /api/admin/members/m?eventId=e','GET /api/admin/members/m/club?eventId=e&page=1']);expect(photoCalls(c)).toEqual(['GET /api/admin/members/m/media/cars/c/p']);
  // System UI font metrics differ between Windows and the Linux CI runner. The
- // wider available fallback reproduces the CI wrapping on Windows as well.
+ // wider fallback adds coverage, but is not a substitute for Linux system fonts.
  if(wideFont)await page.addStyleTag({content:'.admin-page{font-family:Verdana,sans-serif}'});
+ console.info('HERO geometry',JSON.stringify({width,wideFont,hero:await page.locator('[data-member-hero]').boundingBox(),close:await page.locator('[data-member-close]').boundingBox()}));
  await geometry(page,width);await shot(page,info,'hero-photo-'+width+(wideFont?'-wide':''));const url=await hero(page).getAttribute('src');await hero(page).evaluate(n=>n.dataset.sameNode='yes');
  await select(page,'club');await expect(modal(page)).toContainText('S&S TOP 3');await select(page,'overview');await expect(hero(page)).toHaveAttribute('src',url);
  await page.clock.runFor(61000);await expect.poll(()=>jsonCalls(c).filter(q=>q.startsWith('GET /api/admin/members/m?')).length).toBe(2);await expect(hero(page)).toHaveAttribute('data-same-node','yes');expect(photoCalls(c)).toHaveLength(1);expect((await page.evaluate(()=>window.heroUrls.created))).toEqual([url]);
  expect(c.calls.some(q=>q.includes('/garage?'))).toBe(false);await select(page,'garage');await expect(modal(page).locator('[data-member-media]').first()).toHaveAttribute('src',/^blob:/);expect(c.calls.filter(q=>q.includes('/garage?'))).toHaveLength(1);await expect(modal(page)).toContainText('Track');if(width===1600)await shot(page,info,'hero-garage-1600');
  await select(page,'overview');await expect(hero(page)).toHaveAttribute('src',url);await page.locator('[data-member-close]').click();await expect(hero(page)).toHaveCount(0);expect(await page.evaluate(u=>window.heroUrls.revoked.includes(u),url)).toBe(true);clean(c);c.r.db.close();
+});
+for(const photo of [true,false])for(const wideFont of [false,true])test(`HERO two-line mobile geometry 390 ${photo?'photo':'fallback'} ${wideFont?'wide':'system'}`,async({page},info)=>{
+ await page.setViewportSize({width:390,height:844});await page.clock.install();const c=await commandFixture(page);
+ c.r.db.exec("UPDATE cars SET body='sedan' WHERE id='c'; UPDATE members SET nickname='Automobilový cestovatel',name='Testovací člen' WHERE id='m'");
+ if(!photo)c.r.db.exec("DELETE FROM car_photos WHERE car_id='c'");
+ await start(page,c);await expect(page.locator('[data-member-freshness]')).toContainText('Sekce: načteno');
+ if(photo)await expect(hero(page)).toBeVisible();else await expect(hero(page)).toHaveCount(0);
+ if(wideFont)await page.addStyleTag({content:'.admin-page{font-family:Verdana,sans-serif}'});
+ const measured=await page.locator('[data-member-hero]').evaluate(header=>{
+  const box=n=>n.getBoundingClientRect().toJSON(),title=header.querySelector('h2'),close=header.querySelector('[data-member-close]'),range=document.createRange();
+  range.selectNodeContents(title);const titleLines=new Set([...range.getClientRects()].filter(r=>r.width&&r.height).map(r=>r.y)).size;
+  const textRects=[],walker=document.createTreeWalker(header,NodeFilter.SHOW_TEXT);let text;
+  while((text=walker.nextNode()))if(text.textContent.trim()){range.selectNodeContents(text);textRects.push(...[...range.getClientRects()].filter(r=>r.width&&r.height).map(r=>r.toJSON()))}
+  const image=header.querySelector('[data-member-hero-image]');
+  const textOverflow=[header,...header.querySelectorAll('[data-member-identity],.admin-member-identity-copy,h2,p')].map(n=>{const s=getComputedStyle(n);return [s.overflowX,s.overflowY]});
+  return {hero:box(header),title:box(title),titleLines,close:box(close),closePosition:getComputedStyle(close).position,columns:getComputedStyle(header).gridTemplateColumns,textOverflow,picker:box(document.querySelector('[data-member-section-select]')),panel:box(document.querySelector('[data-member-panel]')),textRects,
+   photo:image&&!image.hidden?{objectFit:getComputedStyle(image).objectFit,transform:getComputedStyle(image).transform,naturalWidth:image.naturalWidth,naturalHeight:image.naturalHeight}:null};
+ });
+ await info.attach('mobile-hero-geometry',{body:JSON.stringify(measured,null,2),contentType:'application/json'});
+ console.info('HERO two-line geometry',JSON.stringify({photo,wideFont,hero:measured.hero,title:measured.title,titleLines:measured.titleLines,close:measured.close,panel:measured.panel}));
+ await shot(page,info,`hero-two-line-390-${photo?'photo':'fallback'}-${wideFont?'wide':'system'}`);
+ expect(measured.titleLines).toBe(2);await geometry(page,390);
+ expect(measured.closePosition).toBe('absolute');expect(measured.columns.split(' ')).toHaveLength(1);
+ for(const overflow of measured.textOverflow)expect(overflow).toEqual(['visible','visible']);
+ expect(measured.title.x+measured.title.width).toBeLessThanOrEqual(measured.close.x);
+ expect(measured.close.width).toBeGreaterThanOrEqual(44);expect(measured.close.height).toBeGreaterThanOrEqual(44);
+ expect(measured.close.x).toBeGreaterThanOrEqual(0);expect(measured.close.y+measured.close.height).toBeLessThanOrEqual(844);
+ await expect(page.locator('[data-member-section-select]')).toBeVisible();expect(measured.picker.y).toBeGreaterThanOrEqual(measured.hero.y+measured.hero.height);expect(measured.picker.y+measured.picker.height).toBeLessThan(844);
+ for(const rect of measured.textRects){expect(rect.x).toBeGreaterThanOrEqual(measured.hero.x-1);expect(rect.x+rect.width).toBeLessThanOrEqual(measured.hero.x+measured.hero.width+1);expect(rect.y).toBeGreaterThanOrEqual(measured.hero.y-1);expect(rect.y+rect.height).toBeLessThanOrEqual(measured.hero.y+measured.hero.height+1)}
+ if(photo){expect(measured.photo.objectFit).toBe('cover');expect(measured.photo.transform).toBe('none');expect(measured.photo.naturalWidth).toBeGreaterThan(0);expect(measured.photo.naturalHeight).toBeGreaterThan(0)}
+ await expect(page.locator('.admin-member-monogram')).toHaveText('AC');await expect(page.locator('.admin-member-meta')).toContainText('EU-MEMBER');await expect(page.locator('.admin-member-status')).toContainText('Aktivní');await expect(page.locator('.admin-member-hero-car')).toContainText('BMW 328i');
+ clean(c);c.r.db.close();
 });
 for(const [kind,width]of [['without-photo',1600],['without-primary',1600],['without-photo',390]])test('HERO branded fallback '+kind+' '+width,async({page},info)=>{
  await page.setViewportSize({width,height:width===390?844:900});const c=await commandFixture(page);
