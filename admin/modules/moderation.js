@@ -1,11 +1,11 @@
-import { canonicalMemberLink } from '../member-detail.js?v=20260909-admin-member-modal-r4';
-import {listChanged,renderListPagination} from '../lists.js?v=20260909-admin-member-modal-r4';
-import { adminCommand, editorProtected, forgetAdminEditor } from '../editors.js?v=20260909-admin-member-modal-r4';
-import { apiMedia, apiRequest } from '../api.js?v=20260909-admin-member-modal-r4';
-import { renderAttentionCounts } from './dashboard-events.js?v=20260909-admin-member-modal-r4';
-import { adminState } from '../state.js?v=20260909-admin-member-modal-r4';
-import { setDenied } from '../shell.js?v=20260909-admin-member-modal-r4';
-import { $, $$, escapeHtml, formatDate, galleryStatusLabel, numeric, photosLabel, recordsLabel, rememberSessionChoice, toast } from '../ui.js?v=20260909-admin-member-modal-r4';
+import { canonicalMemberLink } from '../member-detail.js?v=20260909-admin-member-hero-r5';
+import {listChanged,renderListPagination} from '../lists.js?v=20260909-admin-member-hero-r5';
+import { adminCommand, editorProtected, forgetAdminEditor } from '../editors.js?v=20260909-admin-member-hero-r5';
+import { apiMedia, apiRequest } from '../api.js?v=20260909-admin-member-hero-r5';
+import { renderAttentionCounts } from './dashboard-events.js?v=20260909-admin-member-hero-r5';
+import { adminState } from '../state.js?v=20260909-admin-member-hero-r5';
+import { setDenied } from '../shell.js?v=20260909-admin-member-hero-r5';
+import { $, $$, escapeHtml, formatDate, galleryStatusLabel, numeric, photosLabel, recordsLabel, rememberSessionChoice, toast } from '../ui.js?v=20260909-admin-member-hero-r5';
 
 const galleryFilterLabels={pending:'Žádosti',approved:'Schválené',rejected:'Zamítnuté',all:'Všechny'};
 const galleryMediaUrls=new Map();

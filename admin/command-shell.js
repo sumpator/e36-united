@@ -1,6 +1,6 @@
-import { commandBadges, BADGE_SCOPE } from './command-model.js?v=20260909-admin-member-modal-r4';
-import { adminState } from './state.js?v=20260909-admin-member-modal-r4';
-import {commandIcon} from './command-icons.js?v=20260909-admin-member-modal-r4';
+import { commandBadges, BADGE_SCOPE } from './command-model.js?v=20260909-admin-member-hero-r5';
+import { adminState } from './state.js?v=20260909-admin-member-hero-r5';
+import {commandIcon} from './command-icons.js?v=20260909-admin-member-hero-r5';
 const navButton = (id, label) => `<button data-portal-target="${id}" type="button"><span class="command-nav-icon" aria-hidden="true">${commandIcon(id)}</span><span>${label}</span>${Object.hasOwn(BADGE_SCOPE, id) ? `<b data-command-badge="${id}" hidden></b>` : ''}</button>`;
 export function initializeCommandShell() {
   for (const nav of document.querySelectorAll('.admin-section-nav,.portal-nav-sheet-list')) {

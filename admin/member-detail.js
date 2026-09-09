@@ -1,9 +1,9 @@
-import {adminState} from './state.js?v=20260909-admin-member-modal-r4';
-import {$,escapeHtml as esc} from './ui.js?v=20260909-admin-member-modal-r4';
-import {apiRequest} from './api.js?v=20260909-admin-member-modal-r4';
-import {ADMIN_REFRESH} from './refresh-policy.js?v=20260909-admin-member-modal-r4';
-import qrcode from '../vendor/qrcode-generator.mjs?v=20260909-admin-member-modal-r4';
-import {MEMBER_TABS,memberIdentity,memberOverview,memberReservation,memberSection,memberEmpty} from './member-presentation.js?v=20260909-admin-member-modal-r4';
+import {adminState} from './state.js?v=20260909-admin-member-hero-r5';
+import {$,escapeHtml as esc} from './ui.js?v=20260909-admin-member-hero-r5';
+import {apiRequest} from './api.js?v=20260909-admin-member-hero-r5';
+import {ADMIN_REFRESH} from './refresh-policy.js?v=20260909-admin-member-hero-r5';
+import qrcode from '../vendor/qrcode-generator.mjs?v=20260909-admin-member-hero-r5';
+import {MEMBER_TABS,memberIdentity,memberOverview,memberReservation,memberSection,memberEmpty} from './member-presentation.js?v=20260909-admin-member-hero-r5';
 
 export {MEMBER_TABS};
 export function canonicalMemberLink(id,label='Člen'){
@@ -16,6 +16,8 @@ export function memberQrSvg(payload){
 let initialized=false,opener=null,searchTimer=null,searchSequence=0,searchController=null,searchFlight=null,observer=null,mediaGeneration=0;
 let renderedTab=null,headerData=null,clubData=null,projectionKey=null,overviewSignature=null;
 let scrollLock=null;
+// One private hero per current member context, independent of lazy tab media.
+let hero=null,heroGeneration=0;
 const searchCache=new Map(),media=new Map(),mediaControllers=new Set();
 const routeChange=()=>window.dispatchEvent(new CustomEvent('admin:membercontext'));
 const currentKey=()=>[adminState.sessionGeneration,adminState.selectedEventId,adminState.memberId||'',adminState.memberTab||'overview',adminState.memberPage||1].join('|');
@@ -53,7 +55,7 @@ function syncTabs(){
 }
 function selectMemberSection(tab){
  if(!Object.hasOwn(MEMBER_TABS,tab)||adminState.memberTab===tab)return;
- releaseMemberMedia();overviewSignature=null;$('[data-member-dialog] [data-domain-status="member-tab"]')?.remove();delete adminState.resourceStates['member-tab'];
+ releaseMemberMedia({preserveHero:true});overviewSignature=null;$('[data-member-dialog] [data-domain-status="member-tab"]')?.remove();delete adminState.resourceStates['member-tab'];
  adminState.memberTab=tab;adminState.memberPage=1;syncTabs();$('[data-member-panel]').scrollTop=0;
  $('[data-member-tab-content]').textContent='Načítám sekci…';renderMemberReadState();window.dispatchEvent(new CustomEvent('admin:membertab'));routeChange();
 }
@@ -61,7 +63,8 @@ function pagination(payload,kind){const p=payload.pagination;if(!p)return '';ret
 function rows(items,render){return items?.length?items.map(render).join(''):'<p>Žádné záznamy v tomto rozsahu.</p>'}
 export function renderMemberHeader(payload){
  ensureProjectionContext();headerData=payload;
- const identity=memberIdentity(payload.member);if($('[data-member-identity]').innerHTML!==identity)$('[data-member-identity]').innerHTML=identity;
+ const identity=memberIdentity(payload.member,payload.heroCar);if($('[data-member-identity]').innerHTML!==identity)$('[data-member-identity]').innerHTML=identity;
+ renderMemberHero(payload);
  $('[data-member-event]').innerHTML=payload.reservations?.length?payload.reservations.map(memberReservation).join(''):memberEmpty('Na tento ročník zatím nemá rezervaci.','reservations');syncTabs();renderMemberReadState();
 }
 export function renderMembers(payload){$('[data-member-list]').innerHTML=rows(payload.members,m=>`<article class="admin-member-card">${canonicalMemberLink(m.memberId,m.nickname||m.name)}<p>${esc(m.memberCode)} · ${esc(m.name)} · ${esc(m.status)}</p><small>${esc(m.email)}</small></article>`)+pagination(payload,'list')}
@@ -77,7 +80,8 @@ export function memberRefreshTasks(){
  if(['members','united-club'].includes(adminState.activeAdminView))return [['members','/api/admin/members?page='+(adminState.membersPage||1),renderMembers,ADMIN_REFRESH.operationalMs]];
  return [];
 }
-function releaseMemberMedia(){
+function releaseMemberMedia({preserveHero=false}={}){
+ if(!preserveHero)releaseMemberHero();
  renderedTab=null;mediaGeneration++;observer?.disconnect();
  // Detach live image consumers before revoking their URLs, including navigation
  // while WebKit is still decoding a private image. Ownership/generation stay intact.
@@ -85,6 +89,37 @@ function releaseMemberMedia(){
  $('[data-member-image-dialog]')?.close();
  for(const c of mediaControllers)c.abort();mediaControllers.clear();
  for(const item of media.values())if(item.url)URL.revokeObjectURL(item.url);media.clear();
+}
+function releaseMemberHero(){
+ heroGeneration++;hero?.controller.abort();
+ if(hero?.image){hero.image.removeAttribute('src');hero.image.remove();}
+ if(hero?.url)URL.revokeObjectURL(hero.url);
+ hero=null;$('[data-member-hero]')?.classList.remove('has-photo');
+}
+function renderMemberHero(payload){
+ const car=payload.heroCar,photo=car?.photo,id=adminState.memberId;
+ const valid=value=>typeof value==='string'&&/^[a-z0-9_-]{1,128}$/i.test(value);
+ const path=valid(id)&&valid(car?.id)&&valid(photo?.id)?`/api/admin/members/${encodeURIComponent(id)}/media/cars/${encodeURIComponent(car.id)}/${encodeURIComponent(photo.id)}`:null;
+ if(!path||photo.mediaPath!==path||payload.member?.memberId!==id||payload.context?.memberId!==id){releaseMemberHero();return;}
+ const context=[adminState.sessionGeneration,adminState.selectedEventId,id].join('|'),key=context+'|'+path+'|'+(photo.version||'');
+ if(hero?.key===key)return; // Includes failed media: do not retry every header poll.
+ releaseMemberHero();const generation=heroGeneration,controller=new AbortController();
+ const item={key,controller,url:null,image:null};hero=item;
+ const current=()=>hero===item&&generation===heroGeneration&&context===[adminState.sessionGeneration,adminState.selectedEventId,adminState.memberId].join('|')&&adminState.currentUser&&!adminState.denied;
+ void (async()=>{
+  try{
+   const blob=await apiRequest(path,{consume:'blob',signal:controller.signal});if(!current())return;
+   const image=new Image();item.image=image;image.alt='';image.dataset.memberHeroImage='';image.hidden=true;
+   item.url=URL.createObjectURL(blob);image.src=item.url;$('[data-member-hero-media]').append(image);
+   await image.decode();if(!current())return;
+   image.hidden=false;$('[data-member-hero]').classList.add('has-photo');
+  }catch{
+   if(!current())return;
+   item.image?.removeAttribute('src');item.image?.remove();item.image=null;
+   if(item.url)URL.revokeObjectURL(item.url);item.url=null;
+   // The branded base stays visible for missing, denied or undecodable media.
+  }
+ })();
 }
 async function loadMedia(path,version){
  const key=path+'|'+version,existing=media.get(key);if(existing)return existing.promise;
@@ -120,7 +155,7 @@ function containMemberFocus(event,dialog){
 export function initializeMembers({openReservation,openHistory}){
  if(initialized)return;initialized=true;adminState.memberTab='overview';adminState.memberPage=1;adminState.membersPage=1;
  const search=document.createElement('form');search.className='admin-member-search';search.dataset.memberSearchForm='';search.setAttribute('role','search');search.innerHTML='<label>Najít člena / vložit členský QR <input data-member-search autocomplete="off" maxlength="100" placeholder="Jméno, e-mail, kód nebo auto (min. 2 znaky)" /></label><button type="submit">Najít</button><div data-member-suggestions aria-live="polite"></div>';$('[data-admin-view]').prepend(search);
- const dialog=document.createElement('dialog');dialog.dataset.memberDialog='';dialog.className='admin-member-dialog';dialog.setAttribute('aria-labelledby','admin-member-heading');dialog.innerHTML='<header><div data-member-identity><h2 id="admin-member-heading">Načítám člena…</h2></div><button type="button" data-member-close aria-label="Zavřít detail člena">Zavřít ×</button><p data-member-freshness role="status"></p></header><p data-member-load-error role="status" hidden></p><div class="admin-member-layout"><nav role="tablist" aria-orientation="vertical" aria-label="Sekce člena">'+Object.entries(MEMBER_TABS).map(([key,label])=>`<button type="button" role="tab" id="member-tab-${key}" aria-controls="admin-member-panel" data-member-tab="${key}">${label}</button>`).join('')+'</nav><label class="admin-member-section-picker" for="member-section-select"><span>Sekce člena</span><select id="member-section-select" data-member-section-select>'+Object.entries(MEMBER_TABS).map(([key,label])=>`<option value="${key}">${label}</option>`).join('')+'</select></label><div id="admin-member-panel" data-member-panel role="tabpanel" tabindex="0"><section data-member-event></section><section data-member-tab-content></section></div></div>';document.body.append(dialog);
+ const dialog=document.createElement('dialog');dialog.dataset.memberDialog='';dialog.className='admin-member-dialog';dialog.setAttribute('aria-labelledby','admin-member-heading');dialog.innerHTML='<header data-member-hero><div data-member-hero-media aria-hidden="true"></div><div data-member-identity><h2 id="admin-member-heading">Načítám člena…</h2></div><button type="button" data-member-close aria-label="Zavřít detail člena">Zavřít ×</button><p data-member-freshness role="status"></p></header><p data-member-load-error role="status" hidden></p><div class="admin-member-layout"><nav role="tablist" aria-orientation="vertical" aria-label="Sekce člena">'+Object.entries(MEMBER_TABS).map(([key,label])=>`<button type="button" role="tab" id="member-tab-${key}" aria-controls="admin-member-panel" data-member-tab="${key}">${label}</button>`).join('')+'</nav><label class="admin-member-section-picker" for="member-section-select"><span>Sekce člena</span><select id="member-section-select" data-member-section-select>'+Object.entries(MEMBER_TABS).map(([key,label])=>`<option value="${key}">${label}</option>`).join('')+'</select></label><div id="admin-member-panel" data-member-panel role="tabpanel" tabindex="0"><section data-member-event></section><section data-member-tab-content></section></div></div>';document.body.append(dialog);
  $('[data-member-section-select]').addEventListener('change',event=>selectMemberSection(event.target.value));
  dialog.querySelector('[role="tablist"]').addEventListener('keydown',event=>{
   const tabs=[...dialog.querySelectorAll('[data-member-tab]')],index=tabs.indexOf(document.activeElement);if(index<0)return;

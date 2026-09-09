@@ -1,6 +1,6 @@
 // Read-only presentation of the existing Member projections; no requests or policy.
-import {escapeHtml as esc,formatMoney,formatDate} from './ui.js?v=20260909-admin-member-modal-r4';
-import {commandIcon} from './command-icons.js?v=20260909-admin-member-modal-r4';
+import {escapeHtml as esc,formatMoney,formatDate} from './ui.js?v=20260909-admin-member-hero-r5';
+import {commandIcon} from './command-icons.js?v=20260909-admin-member-hero-r5';
 
 export const MEMBER_TABS=Object.freeze({overview:'Přehled',event:'Vybraný ročník',reservations:'Rezervace a platby',garage:'Garáž',photos:'Fotky',club:'United Club',history:'Historie a S&S',points:'Body',mailing:'Mailing',qr:'Členské QR'});
 const labels={active:'Aktivní',inactive:'Neaktivní',suspended:'Pozastavený',blocked:'Blokovaný',admin:'Administrátor',member:'Člen',pending:'Čeká na schválení',approved:'Schváleno',rejected:'Zamítnuto',cancelled:'Zrušeno',draft:'Koncept',not_submitted:'Nepodáno',not_claimed:'Nenárokováno',unpaid:'Neuhrazeno',paid:'Uhrazeno',underpaid:'Částečně uhrazeno',overpaid:'Přeplatek',not_required:'Bez platby',full_weekend:'Celý víkend',saturday_only:'Sobota',day_visit:'Jednodenní návštěva',none:'Bez ubytování',sedan:'Sedan',coupe:'Coupé',touring:'Touring',compact:'Compact',cabrio:'Cabrio',unknown:'Neznámý stav'};
@@ -21,9 +21,10 @@ const paymentFacts=r=>{
  const known=Number.isFinite(r.amountDueCzk)&&Number.isFinite(r.amountPaidCzk);
  return facts([['Předpis',money(r.amountDueCzk)],['Evidovaně uhrazeno',money(r.amountPaidCzk)],['Zbývá uhradit',known?money(Math.max(0,r.amountDueCzk-r.amountPaidCzk)):'—'],['Přeplatek',known?money(Math.max(0,r.amountPaidCzk-r.amountDueCzk)):'—']]);
 };
-export function memberIdentity(m){
+export function memberIdentity(m,heroCar=null){
  const title=m.nickname||m.name||'Člen',initials=title.trim().split(/\s+/u).slice(0,2).map(s=>s[0]).join('').toLocaleUpperCase('cs-CZ');
- return `<span class="admin-member-monogram" aria-hidden="true">${esc(initials)}</span><div class="admin-member-identity-copy"><small>ČLEN UNITED</small><h2 id="admin-member-heading">${esc(title)}</h2>${m.name&&m.name!==title?`<p>${esc(m.name)}</p>`:''}<div class="admin-member-meta"><strong>${value(m.memberCode)}</strong><span class="admin-member-status">${memberLabel(m.status)}</span><small>${memberLabel(m.role)}</small></div></div>`;
+ const car=heroCar?`<p class="admin-member-hero-car"><span>Hlavní vůz</span> ${[heroCar.nickname?esc(heroCar.nickname):'',esc(heroCar.model||''),heroCar.body?memberLabel(heroCar.body):''].filter(Boolean).join(' · ')}</p>`:'';
+ return `<span class="admin-member-monogram" aria-hidden="true">${esc(initials)}</span><div class="admin-member-identity-copy"><small>ČLEN UNITED</small><h2 id="admin-member-heading">${esc(title)}</h2>${m.name&&m.name!==title?`<p>${esc(m.name)}</p>`:''}<div class="admin-member-meta"><strong>${value(m.memberCode)}</strong><span class="admin-member-status">${memberLabel(m.status)}</span><small>${memberLabel(m.role)}</small></div>${car}</div>`;
 }
 function clubFacts(p){return `<div class="admin-member-rating"><small>Hodnost United</small><strong>${value(p.rating?.name)}</strong></div>`+facts([['Dostupné body',value(p.points?.available)],['Celkem získané body',value(p.points?.lifetime)]]);}
 function achievements(items,compact=false){

@@ -47,6 +47,17 @@ async function paged(env,select,from,where,args,page){
 }
 const reservationFields='r.id,r.member_id AS memberId,r.event_id AS eventId,e.year,e.title,r.status,r.crew,r.attendance_type AS attendanceType,r.accommodation,r.accommodation_units AS accommodationUnits,r.car_id AS carId,r.car_model AS carModel,r.show_shine AS showShine,r.amount_due_czk AS amountDueCzk,r.amount_paid_czk AS amountPaidCzk,r.payment_vs AS variableSymbol,r.created_at AS createdAt,r.arrival,r.payment_status AS storedPaymentStatus,r.paid_at AS paidAt,ra.option_name AS stayName,ra.people_count AS stayPeople,ra.unit_count AS stayUnits,ra.nights AS stayNights';
 
+// Owner-index lookup only; no secondary-car fallback. Stable if legacy data has
+// more than one primary. Photo order matches the existing Garage projection.
+export const MEMBER_HERO_CAR_SQL='SELECT id,model,body,nickname FROM cars WHERE member_id=? AND is_primary=1 ORDER BY created_at,id LIMIT 1';
+export const MEMBER_HERO_PHOTO_SQL='SELECT id,created_at AS version FROM car_photos WHERE car_id=? ORDER BY sort_order,id LIMIT 1';
+async function memberHeroCar(env,memberId){
+  const car=await statement(env,MEMBER_HERO_CAR_SQL,[memberId]).first();
+  if(!car)return null;
+  const photo=await statement(env,MEMBER_HERO_PHOTO_SQL,[car.id]).first();
+  return {...car,photo:photo?{...photo,mediaPath:`/api/admin/members/${encodeURIComponent(memberId)}/media/cars/${encodeURIComponent(car.id)}/${encodeURIComponent(photo.id)}`} :null};
+}
+
 export async function getAdminMember(env,url,memberId,tab,origin){
   if(!validId(memberId))return json({error:'invalid_member'},400,origin);
   const member=await statement(env,`SELECT ${identity} FROM members m WHERE m.id=?`,[memberId]).first();
@@ -58,7 +69,8 @@ export async function getAdminMember(env,url,memberId,tab,origin){
     const event=eventId?await statement(env,'SELECT id,year,title FROM events WHERE id=?',[eventId]).first():null;
     if(eventId&&!event)return json({error:'event_not_found'},404,origin);
     const reservations=eventId?await all(env,`SELECT ${reservationFields} FROM reservations r JOIN events e ON e.id=r.event_id LEFT JOIN reservation_accommodation ra ON ra.reservation_id=r.id WHERE r.member_id=? AND r.event_id=? ORDER BY r.created_at DESC,r.id LIMIT 20`,[memberId,eventId]):[];
-    return response({context,member,event,reservations},origin);
+    const heroCar=await memberHeroCar(env,memberId);
+    return response({context,member,event,reservations,heroCar},origin);
   }
   if(tab==='reservations')data=await paged(env,reservationFields,'reservations r JOIN events e ON e.id=r.event_id LEFT JOIN reservation_accommodation ra ON ra.reservation_id=r.id','r.member_id=? ORDER BY e.year DESC,r.id',[memberId],page);
   else if(tab==='garage'){

@@ -229,11 +229,12 @@ test('NEW shared summary stays due over Member, with at most three periodic reso
  // otherwise the unchanged 20s API timeout can race its still-delivering response.
  const image=page.locator('[data-member-media]').first();await image.scrollIntoViewIfNeeded();
  await expect.poll(()=>image.evaluate(n=>n.complete&&n.naturalWidth>0)).toBe(true);
- expect(c.calls.filter(p=>p.includes('/media/'))).toHaveLength(1);const start=c.calls.length;
+ await expect(page.locator('[data-member-hero-image]')).toBeVisible();
+ expect(c.calls.filter(p=>p.includes('/media/'))).toEqual(Array(2).fill('GET /api/admin/members/m/media/cars/c/p'));const start=c.calls.length; // One hero + existing explicit Garage image.
  for(let i=0;i<5;i++){const before=c.calls.length;await page.clock.runFor(61000);await expect.poll(()=>c.calls.length).toBeGreaterThan(before);await expect(page.locator('[data-admin-freshness]')).toHaveAttribute('data-state','fresh');}
  await expect.poll(()=>c.calls.slice(start).filter(p=>p.includes('/summary')).length).toBe(1);
  expect(c.calls.slice(start).filter(p=>/\/dashboard|\/reservations\?/.test(p))).toHaveLength(0);
  expect(c.calls.slice(start).filter(p=>!p.includes('/media/')).length).toBeLessThanOrEqual(11); // 5 header + 5 active Garage + 1 shared summary.
- expect(c.calls.filter(p=>p.includes('/media/'))).toHaveLength(1); // Explicit visible image is never polled.
+ expect(c.calls.filter(p=>p.includes('/media/'))).toEqual(Array(2).fill('GET /api/admin/members/m/media/cars/c/p')); // Neither image is polled.
  await page.evaluate(()=>{Object.defineProperty(document,'hidden',{configurable:true,get:()=>true});document.dispatchEvent(new Event('visibilitychange'));});const stop=c.calls.length;await page.clock.runFor(600000);expect(c.calls.length).toBe(stop);expect(c.writes).toEqual([]);clean(c);c.r.db.close();
 });

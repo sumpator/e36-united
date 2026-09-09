@@ -12,6 +12,7 @@ import {hydrateReservationAccommodationVisual} from '../worker/domains/reservati
 import {reservationListQuery} from '../worker/admin/lists.js';
 import {resourceDue,ADMIN_REFRESH} from '../admin/refresh-policy.js';
 import {createAdminRefresh} from '../admin/refresh.js';
+import {MEMBER_HERO_CAR_SQL,MEMBER_HERO_PHOTO_SQL} from '../worker/admin/members.js';
 const read=path=>readFileSync(new URL('../'+path,import.meta.url),'utf8');
 const before=JSON.parse(read('docs/admin-budget-before.json')),after=JSON.parse(read('docs/admin-budget-after.json'));
 const sql=source=>source.replace(/\s+/g,' ').trim();
@@ -32,7 +33,11 @@ test('budget evidence describes actual current authorized SQL and never prices a
   const {runtime,report}=await captureAdminBudget();
   for(const endpoint of report){
     const recorded=after.report.find(e=>e.name===endpoint.name);assert.ok(recorded);
-    assert.deepEqual(endpoint.queries.map(q=>sql(q.sql)),recorded.queries.map(q=>sql(q.sql)),endpoint.name);
+    // Keep the accepted historical Stage 2 evidence exact. The separately tested
+    // r5 header addon must be these two scoped lookups, not an unpriced exception.
+    const addon=endpoint.name==='member-header'?[MEMBER_HERO_CAR_SQL,MEMBER_HERO_PHOTO_SQL]:[];
+    assert.deepEqual(endpoint.queries.map(q=>sql(q.sql)),[...recorded.queries.map(q=>sql(q.sql)),...addon],endpoint.name);
+    if(addon.length)assert.deepEqual(endpoint.queries.slice(-2).map(q=>q.args),[['m'],['c']]);
     assert.match(endpoint.queries[0].sql,/SELECT id, role, status\s+FROM members/);
     assert.ok(recorded.estimatedRows>=2);
     for(const q of recorded.queries)if(q.profileError){assert.equal(q.localVisits,null);assert.ok(q.localVmSteps>0);assert.ok(q.estimatedRows>=q.localVmSteps);}

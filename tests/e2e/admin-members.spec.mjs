@@ -75,7 +75,9 @@ test('Member mobile direct entry, tabs, Back, reload and private media cleanup p
  await page.locator('[data-member-list] [data-member-open="m"]').click();await expect(drawer(page)).toContainText('EU-MEMBER');await page.goBack();await expect(drawer(page)).not.toBeVisible();expect(c.observations.pageErrors).toEqual([]);c.r.db.close();
 });
 test('Member uses one sixty-second coordinator, suspends background list and hidden/offline requests',async({page})=>{
- await page.clock.install();const c=await fixture(page);await page.goto('/admin.html?section=members&member=m');await expect(drawer(page)).toContainText('EU-MEMBER');await drawer(page).locator('[data-member-tab="garage"]').click();await expect(drawer(page).locator('img').first()).toHaveAttribute('src',/^blob:/);const imageReads=c.calls.filter(p=>p.includes('/media/')).length;
+ await page.clock.install();const c=await fixture(page);await page.goto('/admin.html?section=members&member=m');await expect(drawer(page)).toContainText('EU-MEMBER');await drawer(page).locator('[data-member-tab="garage"]').click();
+ await expect(drawer(page).locator('[data-member-hero-image]')).toBeVisible();const garageImage=drawer(page).locator('[data-member-media]').first();await expect(garageImage).toHaveAttribute('src',/^blob:/);await expect.poll(()=>garageImage.evaluate(n=>n.complete&&n.naturalWidth>0)).toBe(true);
+ const imageReads=c.calls.filter(p=>p.includes('/media/')).length;expect(imageReads).toBe(2); // Hero plus the explicit Garage image, both complete before clock advancement.
  const writes=c.r.writes;let count=0;page.on('request',q=>{if(q.method()==='GET'&&q.url().includes('/api/admin/'))count++});
  c.r.db.exec("UPDATE members SET nickname='Updated by another admin' WHERE id='m'");await page.clock.runFor(60_100);await expect(drawer(page)).toContainText('Updated by another admin');expect(count).toBeLessThanOrEqual(3);expect(c.calls.filter(p=>p.includes('/media/'))).toHaveLength(imageReads);
  count=0;await page.evaluate(()=>{Object.defineProperty(navigator,'onLine',{configurable:true,get:()=>false});window.dispatchEvent(new Event('offline'))});await page.clock.runFor(300_000);expect(count).toBe(0);

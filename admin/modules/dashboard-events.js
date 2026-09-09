@@ -1,9 +1,9 @@
-import { adminCommand, editorProtected, changedFields, forgetAdminEditor } from '../editors.js?v=20260909-admin-member-modal-r4';
-import { adminActionCountState, adminModerationCounts, paymentNeedsAttention, reservationMatchesFilter } from '../../admin-view-model.js?v=20260909-admin-member-modal-r4';
-import { apiRequest } from '../api.js?v=20260909-admin-member-modal-r4';
-import { adminState } from '../state.js?v=20260909-admin-member-modal-r4';
-import { setDenied } from '../shell.js?v=20260909-admin-member-modal-r4';
-import { $, $$, escapeHtml, formatDate, formatMoney, numeric, toast } from '../ui.js?v=20260909-admin-member-modal-r4';
+import { adminCommand, editorProtected, changedFields, forgetAdminEditor } from '../editors.js?v=20260909-admin-member-hero-r5';
+import { adminActionCountState, adminModerationCounts, paymentNeedsAttention, reservationMatchesFilter } from '../../admin-view-model.js?v=20260909-admin-member-hero-r5';
+import { apiRequest } from '../api.js?v=20260909-admin-member-hero-r5';
+import { adminState } from '../state.js?v=20260909-admin-member-hero-r5';
+import { setDenied } from '../shell.js?v=20260909-admin-member-hero-r5';
+import { $, $$, escapeHtml, formatDate, formatMoney, numeric, toast } from '../ui.js?v=20260909-admin-member-hero-r5';
 
 
 export function renderEventSelector(){

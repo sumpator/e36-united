@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {MEMBER_TABS,memberIdentity,memberOverview,memberSection,memberLabel} from '../admin/member-presentation.js';
 import {adminRoute,adminRouteUrl} from '../admin/navigation.js';
 import {memberRefreshTasks} from '../admin/member-detail.js';
-import {adminState} from '../admin/state.js?v=20260909-admin-member-modal-r4';
+import {adminState} from '../admin/state.js?v=20260909-admin-member-hero-r5';
 import {ADMIN_REFRESH} from '../admin/refresh-policy.js';
 const header={member:{memberId:'m',name:'Testovací člen',nickname:'Řidič',email:'example@example.invalid',memberCode:'EU-TEST',status:'active',role:'member',createdAt:'2026-01-01'},event:{id:'e',title:'United 2026'},reservations:[]};
 

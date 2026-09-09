@@ -14,7 +14,16 @@ html.admin-member-modal-open{overflow:hidden;scrollbar-gutter:stable}
 .admin-page .admin-member-dialog{margin:auto;inset:0;width:min(1240px,calc(100vw - 48px));max-width:none;height:auto;max-height:calc(100dvh - 48px);padding:0;box-sizing:border-box;color:#edf3f8;background:#0b1926;border:1px solid #35556e;border-radius:18px;box-shadow:0 24px 100px #0009;font:inherit}
 .admin-page .admin-member-dialog[open]{display:flex;flex-direction:column}
 .admin-member-dialog::backdrop,.admin-member-image-dialog::backdrop{background:#030b14c9}
-.admin-page .admin-member-dialog>header{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px 20px;flex:none;padding:20px 24px 12px;border-bottom:1px solid #294258;background:radial-gradient(ellipse at 0 0,#17436388,transparent 70%),linear-gradient(125deg,#102539,#0c1b29)}
+.admin-page .admin-member-dialog>header{position:relative;isolation:isolate;display:grid;grid-template-columns:minmax(0,1fr) auto;align-content:center;min-height:clamp(180px,24dvh,220px);box-sizing:border-box;gap:8px 20px;flex:none;padding:20px 24px 12px;border-bottom:1px solid #294258;background:repeating-linear-gradient(0deg,transparent 0 31px,#568bb60c 31px 32px),repeating-linear-gradient(90deg,transparent 0 31px,#568bb60c 31px 32px),linear-gradient(115deg,#16374e,#0a1826 65%,#14324a)}
+.admin-member-dialog [data-member-hero]::before{content:'E36 / UNITED';position:absolute;right:6%;top:28%;color:#6abcf322;font-size:clamp(28px,4vw,56px);font-weight:800;font-style:italic;letter-spacing:4px;pointer-events:none;z-index:-1}
+.admin-member-dialog [data-member-hero-media]{position:absolute;inset:0;z-index:-1;pointer-events:none;border-radius:inherit}
+.admin-member-dialog [data-member-hero-media] img{width:100%;height:100%;object-fit:cover;object-position:center 55%;border-radius:inherit}
+.admin-member-dialog [data-member-hero-media] img[hidden]{display:none}
+.admin-member-dialog [data-member-hero-media]::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,#061421f5 0%,#071625eb 30%,#08192680 65%,#08192638),linear-gradient(0deg,#071625aa,transparent 65%);border-radius:inherit}
+.admin-member-dialog [data-member-hero]:not(.has-photo) [data-member-hero-media]{visibility:hidden}
+.admin-member-dialog [data-member-hero].has-photo::before{content:none}
+.admin-member-dialog [data-member-identity] .admin-member-hero-car{display:inline-block;margin:9px 0 0;padding:3px 8px;border-left:2px solid #36b4f6;background:#071725b8;border-radius:0 4px 4px 0;color:#d1e7f5;font-size:13px;line-height:1.4}
+.admin-member-hero-car>span{color:#8eb3cd;margin-right:6px}
 .admin-member-dialog [data-member-close]{align-self:start}
 .admin-member-dialog [data-member-identity]{display:flex;align-items:center;gap:18px;min-width:0}
 .admin-member-monogram{width:64px;height:64px;flex:none;display:grid;place-items:center;background:linear-gradient(135deg,#225c84,#14344b);border:1px solid #3a7297;border-radius:18px;color:#d9f2ff;font-size:24px;font-weight:750}
@@ -76,12 +85,15 @@ html.admin-member-modal-open{overflow:hidden;scrollbar-gutter:stable}
 @media(max-width:760px){
  html.admin-member-modal-open{scrollbar-gutter:auto}
  .admin-page .admin-member-dialog{width:100vw;max-width:100vw;height:100dvh;max-height:100dvh;margin:0;border-radius:0;border:0}
- .admin-page .admin-member-dialog>header{padding:calc(14px + env(safe-area-inset-top)) max(14px,env(safe-area-inset-right)) 10px max(14px,env(safe-area-inset-left));gap:8px}
+ .admin-page .admin-member-dialog>header{min-height:clamp(150px,21dvh,180px);padding:calc(10px + env(safe-area-inset-top)) max(14px,env(safe-area-inset-right)) 8px max(14px,env(safe-area-inset-left));gap:6px 8px}
+ .admin-member-dialog [data-member-hero-media]::after{background:linear-gradient(90deg,#061421ef,#071625bc 60%,#08192660),linear-gradient(0deg,#071625a6,transparent)}
+ .admin-member-dialog [data-member-identity] p{margin:2px 0}
+ .admin-member-dialog [data-member-identity] .admin-member-hero-car{margin-top:4px}
  .admin-member-dialog [data-member-identity]{gap:10px}
  .admin-member-monogram{width:42px;height:42px;font-size:18px;border-radius:12px}
- .admin-member-dialog [data-member-identity] h2{font-size:24px}
+ .admin-member-dialog [data-member-identity] h2{font-size:24px;margin:0}
  .admin-member-dialog [data-member-close]{padding:8px}
- .admin-member-meta{gap:6px;font-size:13px}
+ .admin-member-meta{gap:6px;font-size:13px;margin-top:4px}
  .admin-member-layout{grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr);flex:1}
  .admin-member-dialog nav[role=tablist]{display:none}
  .admin-member-section-picker{display:grid;gap:6px;padding:12px 14px;font-size:14px;color:#bad0e1;border-bottom:1px solid #294258}

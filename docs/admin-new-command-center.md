@@ -432,3 +432,78 @@ Celkem **42 souborů (3 nové, 39 upravených)**. Po normalizaci samotného r3/r
 - `playwright.config.mjs`: přidává nový soubor do dosavadní WebKit allowlist; nemění timeouts/retries/workers. Tento append-only dokument.
 
 Cache-only zbytek včetně `scripts/check-admin-module-graph.mjs` mění pouze jednotný release token, nikoli sdílené runtime chování. Žádný nový dependency/framework, Worker/API/auth/SQL/schema/business změna, veřejný web ani Member Portal. Skutečná Cloudflare data, fyzické mobilní zařízení a vzdálené CI nejsou v tomto lokálním tasku ověřovány. Neproběhl push žádné větve, deployment, produkční přístup/zápis, vzdálená migrace, provider/e-mail operace ani produkční QR provisioning. Výsledkem je jediný lokální implementační commit; následuje vizuální kontrola operátora, nikoli automatické pokračování.
+
+## 2026-09-09 — lokální primary-car hero Member 360 (r5)
+
+Follow-up výhradně k `88a886482076048912ac8cc78d00bf997db9271d` na `feat/admin-responsive-member-modal`. Výchozí HEAD/větev i čistý strom byly ověřeny; main a origin/main zůstávají na `632836a283c2f23c4b02302761eac60c9a749549`. Žádný release ani produkční přístup.
+
+### Úzký read kontrakt a výběr
+
+Existující `GET /api/admin/members/:memberId?eventId=…` přidává pouze:
+
+```js
+heroCar: null
+// nebo
+heroCar: { id, model, body, nickname, photo: null }
+// nebo photo: { id, version, mediaPath }
+```
+
+Identita, event, rezervace, context, freshness i obálka zůstávají; dataVersion nadále otiskuje celý payload. Žádný nový endpoint, R2 key ani kolekce aut/fotek v headeru. Auto musí splnit `member_id=? AND is_primary=1`; při více historicky označených primary je výběr stabilní podle `created_at,id`. Bez primary se nevybírá secondary. Jedna fotografie odpovídá současnému Garage pořadí `sort_order,id`; version je dosavadní `created_at`. MediaPath vede výhradně na stávající `/api/admin/members/{memberId}/media/cars/{carId}/{photoId}`, jehož kontrola vlastnictví a R2 obsluha se nemění.
+
+### SQL / query-plan důkaz
+
+Přesné dva nové dotazy jsou exportované konstanty v `worker/admin/members.js` a test je spouští nad nezměněnou Stage 2 growth fixture: 500 členů, 750 aut, 750 car_photos, 900 rezervací.
+
+```sql
+SELECT id,model,body,nickname FROM cars
+WHERE member_id=? AND is_primary=1 ORDER BY created_at,id LIMIT 1;
+
+SELECT id,created_at AS version FROM car_photos
+WHERE car_id=? ORDER BY sort_order,id LIMIT 1;
+```
+
+EXPLAIN QUERY PLAN: `SEARCH cars USING INDEX idx_cars_member (member_id=?)` + `USE TEMP B-TREE FOR ORDER BY`; fotografie: `SEARCH car_photos USING INDEX admin_car_photos_car (car_id=?)`. Žádný full-table SCAN. Každý lookup vrací nejvýše jeden řádek. **LIMIT není důkaz jednoho procházeného řádku:** car index omezí hledání na vozy daného člena; tento subset se filtruje/řadí (ve growth fixture nejvýše 3 vozy/člen). Náklad tohoto subsetu může růst s počtem vlastních aut, ne s celou tabulkou. Photo index pokrývá i požadované pořadí. Žádný nový index/migrace.
+
+Header se zvoleným platným eventem má nyní 5 SQL namísto 3 při existujícím primary, 4 bez primary; tedy +2 nebo +1 lookup. Společná DB kontrola Admin oprávnění zůstává navíc. Media GET má vlastní dosavadní ownership lookup. Nula read-induced writes a R2 čtení při samotném JSON headeru. Toto je **lokální query-plan/fixture důkaz, nikoli Cloudflare meta.rows_read**. Historické budget JSON a přijetí nesplněného 1M cíle se nepřepisují. Regresní kontrola stále vyžaduje všechny původní SQL přesně a navíc právě tyto dva header dotazy se správnými parametry.
+
+### Request budget a private lifecycle
+
+- Otevření Přehledu z čerstvého dashboardu: stejné 2 JSON GET (header + Club); summary zůstává sdílený. **+0 JSON, +nejvýše 1 private hero media GET** pouze pro platný header photo path.
+- Bez primary/fotografie žádný media GET. Žádné automatické Garage/Photos/History/Mailing/QR čtení.
+- Header 60 s, Club a summary 300 s; coordinator/fanout se nemění. Přehled → Club → Přehled ani header se stejným photo/version nevytváří nové stažení, object URL či nový img node.
+- Explicitní Garage stále načítá celý vlastní stránkovaný zdroj a jeho původní viditelná média. Hero má jeden samostatný current-member slot, ne cache celého Garage. Proto otevření Garage může stáhnout její fotografii vedle hero (ve fixture celkem 2 media GET); následný polling nestahuje ani jednu znovu.
+- Hero fetch používá stávající autorizovaný apiRequest, AbortController a session/event/member/generation kontrolu před vytvořením URL i po decode. A→B nikdy nesmí vykreslit opožděné A. URL je pouze v paměti a aktuálním modalu.
+- Při změně člena, zavření, logout nebo access loss se nejprve odpojí img.src, zruší request a revokuje URL. Tabová média mají zachovaný vlastní cleanup; nested image dialog/fokus se nemění.
+- Chybějící R2 objekt, 404 i decode error zůstanou branded fallback bez broken img/JS exception. Neúspěšný klíč se nepokouší znovu stahovat při každém header pollu; nový photo/version nebo znovuotevření umožní nový pokus.
+
+### Vizuál a bezpečnost
+
+Zachován široký native modal, všechny sekce, výchozí čtyřkartový Přehled, mobile select, routing/Back/Forward/reload, source draft/fokus/scroll i confirmed-render/recovery. Pouze hlavička má cover foto s tmavším levým gradientem, drobný chip „Hlavní vůz“ a zachovaný monogram. Fotografie je Garage dekorace, ne profilová identita. Bez ní navy/grid `E36 / UNITED` fallback v CSS, bez staženého stock assetu nebo nové závislosti.
+
+Základní min-height je desktop clamp 180–220 px, mobil 150–180 px. Obsah smí přirozeně zvětšit hlavičku při zalomení (např. WebKit s delším car chipem přibližně 200 px); text se neřeže ani nezmenšuje. Close a „Sekce člena“ zůstávají dostupné a začátek overview je vidět. Syntetická identita/ownership používá existující repository foto `assets/images/showshine/ss_sedan.webp` přes lokální autorizovaný media handler; nejde o tvrzení, komu skutečné vyfotografované auto patří.
+
+### Validace
+
+Přidáno 8 Node a 11 browserových scénářů pro každý engine: vlastnictví/stabilní výběr/absence primary/absence photo/verze/R2 404/oddělený Garage/growth plan; browser foto/fallback/decode/404/A→B/close/logout/denied/počet requestů/refresh/dlouhá mobilní identita.
+
+Původní dvě coordinator E2E adaptace rozlišují nový hero a původní explicitní Garage obrázek před posunem syntetického času. Počet JSON úloh, nula dalších media GET při pollingu, hidden/offline a zero-write assertiony se nesnížily. Starý Node state import je pouze r5 token. Původní responsive request test nyní odděluje přesné dva JSON GET od přesně jednoho povoleného hero GET. Žádné změny timeoutů/retries ani safety assertionů. První úplný Chromium měl 126 PASS / 2 tyto neadaptované testy FAIL; cílený ověřovací běh po adaptaci prošel 4/4 v obou enginech.
+
+Finální gate po všech úpravách: **Node 392/392 PASS, Chromium 128/128 PASS (2,9 min), WebKit 97/97 PASS (3,1 min)**. Žádné retries/skip. `git diff --check` PASS. Syntax 119 produkčních + 68 diagnostických/testových souborů, produkční import graph 120 modulů bez cyklů/chyb. Admin graph 42 modulů / 133 lokálních vazeb, jednotný `20260909-admin-member-hero-r5`, bez token chyb/cyklů. Dosavadní command/dashboard/mailing budget kontroly PASS. Wrangler 4.129.0 dry-run 314.19 KiB / 70.07 KiB gzip PASS, bez uploadu. Aktuální D1 prepare/bind/first signatury ověřeny proti veřejným Workers typům, bez instalace závislostí.
+
+Reprodukce: `node --test tests/*.mjs`; `node --experimental-vm-modules scripts/check-admin-module-graph.mjs`; `pnpm test:e2e --project=chromium --output=test-results/hero-final-chromium-green`; `pnpm test:e2e --project=webkit --output=test-results/hero-final-webkit`; `wrangler deploy --dry-run --outdir test-results/hero-worker-dry-run`; `git diff --check`. Kompletní browser gate používá CI=1, jeden worker, retries=0, lokální fixtures mimo OS sandbox. Nejde o GitHub CI, fyzický Safari/iPhone ani produkční smoke.
+
+Žádný push, deployment, migrace/schema změna, změna business pravidel, QR provisioning, produkční přístup/zápis, provider/e-mail operace. Právě jeden nový lokální follow-up commit; dále pouze vizuální kontrola operátora.
+
+### Skutečné lokální screenshoty r5
+
+Inventář tohoto follow-upu: **43 souborů (41 upravených, 2 nové)**. **31 cache-only** po normalizaci r4/r5 tokenu a CRLF; **12 ostatních**: čtyři aplikační soubory (`admin-members.css`, `admin/member-detail.js`, `admin/member-presentation.js`, `worker/admin/members.js`), šest testových souborů, WebKit allowlist v `playwright.config.mjs` a tento append-only dokument. Nové jsou pouze `tests/admin-member-hero.test.mjs` a `tests/e2e/admin-member-hero.spec.mjs`. Žádný nový produkční modul, CSS soubor, asset, schema soubor nebo dependency.
+
+Všech sedm finálních Chromium snímků bylo otevřeno a vizuálně zkontrolováno; mobilní fotografie byla navíc otevřena z WebKitu. Screenshoty jsou skutečné viewporty, lokální a gitignored, ne mockupy. Při odstranění test-results je obnoví uvedený browser běh.
+
+- [Primary auto bez fotografie — desktop fallback](../test-results/hero-final-chromium-green/admin-member-hero-HERO-branded-fallback-without-photo-1600-chromium/hero-without-photo-1600.png)
+- [Mobilní fallback](../test-results/hero-final-chromium-green/admin-member-hero-HERO-branded-fallback-without-photo-390-chromium/hero-without-photo-390.png)
+- [Bez primary auta — desktop fallback](../test-results/hero-final-chromium-green/admin-member-hero-HERO-branded-fallback-without-primary-1600-chromium/hero-without-primary-1600.png)
+- [Dlouhá mobilní identita](../test-results/hero-final-chromium-green/admin-member-hero-HERO-lon-22c25-ing-close-or-section-picker-chromium/hero-long-mobile.png)
+- [Member Přehled 390 × 844 — fotografie](../test-results/hero-final-chromium-green/admin-member-hero-HERO-pho-26c6d-esh-Garage-remains-lazy-390-chromium/hero-photo-390.png)
+- [Existující Garáž s automotive hero](../test-results/hero-final-chromium-green/admin-member-hero-HERO-pho-e9e36-sh-Garage-remains-lazy-1600-chromium/hero-garage-1600.png)
+- [Member Přehled 1600 × 900 — primary foto](../test-results/hero-final-chromium-green/admin-member-hero-HERO-pho-e9e36-sh-Garage-remains-lazy-1600-chromium/hero-photo-1600.png)
