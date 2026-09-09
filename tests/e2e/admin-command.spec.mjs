@@ -1,5 +1,79 @@
 import {test,expect} from '@playwright/test';
 import {commandFixture} from './command-fixture.mjs';
+import {readFileSync} from 'node:fs';
+import {ADMIN_RELEASE_TOKEN} from '../../scripts/check-admin-module-graph.mjs';
+
+for(const width of [1440,390])test('CACHE SAFE generated Reservations/Payments navigation, history and ordinary reload '+width,async({page})=>{
+  await page.setViewportSize({width,height:900});const c=await commandFixture(page);
+  try{
+    await open(page);
+    const select=async id=>{
+      if(width===390)await page.locator('[data-portal-menu-open]').click();
+      const nav=page.locator(width===390?'.portal-nav-sheet-list':'.admin-section-nav');
+      await nav.locator(`[data-portal-target="${id}"]`).click();
+    };
+    const selected=async id=>{
+      await expect(page).toHaveURL(url=>url.searchParams.get('section')===id&&url.searchParams.get('view')===id);
+      await expect(page.locator(`[data-admin-panel="${id}"]`)).toBeVisible();
+      await expect(page.locator(`[data-admin-panel="${id}"]`)).toHaveClass(/is-active/);
+      await expect(page.locator('[data-admin-panel="dashboard"]')).toBeHidden();
+    };
+    await select('reservations');await selected('reservations');
+    await select('payments');await selected('payments');
+    await page.goBack();await selected('reservations');
+    await page.goForward();await selected('payments');
+    await page.reload();await selected('payments');
+    await select('reservations');await selected('reservations');
+    await page.reload();await selected('reservations');
+    expect(c.writes).toEqual([]);expect(c.r.writes).toBe(0);clean(c);
+  }finally{c.r.db.close();}
+});
+
+test('CACHE SAFE stale unversioned destination poison reproduces old failure but is never requested by current graph',async({page})=>{
+  const c=await commandFixture(page),requests=[],poisonHits=[];
+  let legacyEdges=true;
+  // Controlled stale module response, not a new cache/service worker. The browser fixture
+  // routes disable HTTP caching; this tests URL identity and poisoned responses explicitly.
+  const stale=`export * from './destinations.js?v=${ADMIN_RELEASE_TOKEN}';
+    export const ADMIN_AREAS={dashboard:{views:['dashboard']},finance:{views:['reservations','accommodation','payments']},community:{views:['members','gallery','club']},mailing:{views:['mailing']},settings:{views:['event']}};
+    export const areaFor=view=>Object.keys(ADMIN_AREAS).find(k=>ADMIN_AREAS[k].views.includes(view))||'dashboard';`;
+  await page.route(url=>url.origin==='http://127.0.0.1:4173'&&/\.(m?js)$/.test(url.pathname),async route=>{
+    const url=new URL(route.request().url());requests.push(url.href);
+    if(url.pathname==='/admin/destinations.js'&&!url.search){
+      poisonHits.push(url.href);return route.fulfill({contentType:'text/javascript',body:stale});
+    }
+    // Negative control: recreate precisely the two stable nested import edges from NEW.
+    if(legacyEdges&&['/admin/shell.js','/admin/navigation.js'].includes(url.pathname)){
+      const source=readFileSync(new URL('../..'+url.pathname,import.meta.url),'utf8');
+      return route.fulfill({contentType:'text/javascript',body:source.replace(`'./destinations.js?v=${ADMIN_RELEASE_TOKEN}'`,"'./destinations.js'")});
+    }
+    return route.fallback();
+  });
+  try{
+    await open(page);const rail=page.locator('.admin-section-nav');
+    await rail.locator('[data-portal-target="reservations"]').click();
+    await expect(page.locator('[data-admin-panel="dashboard"]')).toBeVisible();
+    await expect(page.locator('[data-admin-panel="reservations"]')).toBeHidden();
+    expect(new URL(page.url()).searchParams.get('section')).toBe('dashboard');expect(poisonHits.length).toBeGreaterThan(0);
+    // Same fixture/session, ordinary reload, no cache clear or storage reset. Keep the
+    // poison route available: the fixed source must never request that stable URL.
+    legacyEdges=false;requests.length=0;poisonHits.length=0;
+    await page.reload();await expect(page.locator('[data-dashboard-edit]')).toBeEnabled();
+    await rail.locator('[data-portal-target="reservations"]').click();
+    await expect(page.locator('[data-admin-panel="reservations"]')).toBeVisible();
+    await expect(page).toHaveURL(/section=reservations&view=reservations/);
+    await rail.locator('[data-portal-target="payments"]').click();
+    await expect(page.locator('[data-admin-panel="payments"]')).toBeVisible();
+    await expect(page.locator('[data-admin-panel="dashboard"]')).toBeHidden();
+    await expect(page).toHaveURL(/section=payments&view=payments/);
+    expect(poisonHits).toEqual([]);expect(requests.length).toBeGreaterThan(30);
+    expect(requests.filter(value=>new URL(value).search!==`?v=${ADMIN_RELEASE_TOKEN}`)).toEqual([]);
+    expect(requests.some(value=>new URL(value).pathname==='/admin/destinations.js')).toBe(true);
+    const urls=new Map();for(const value of requests){const u=new URL(value);if(!urls.has(u.pathname))urls.set(u.pathname,new Set());urls.get(u.pathname).add(u.href);}
+    expect([...urls.values()].every(values=>values.size===1)).toBe(true);
+    expect(c.writes).toEqual([]);expect(c.r.writes).toBe(0);clean(c);
+  }finally{c.r.db.close();}
+});
 for(const width of [1440,1280,390])test('NEW dashboard real layout, draft preview and responsive shell '+width,async({page},info)=>{
   await page.setViewportSize({width,height:width===390?844:900});const c=await commandFixture(page);
   await page.goto('/admin.html?section=dashboard&event=e');

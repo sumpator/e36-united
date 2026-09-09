@@ -1,8 +1,8 @@
-import {adminState} from './state.js?v=20260909-admin-command';
-import {$,escapeHtml as esc,formatMoney} from './ui.js?v=20260909-admin-command';
-import {apiRequest} from './api.js?v=20260909-admin-command';
-import {ADMIN_REFRESH} from './refresh-policy.js?v=20260909-admin-command';
-import qrcode from '../vendor/qrcode-generator.mjs';
+import {adminState} from './state.js?v=20260909-admin-command-r2';
+import {$,escapeHtml as esc,formatMoney} from './ui.js?v=20260909-admin-command-r2';
+import {apiRequest} from './api.js?v=20260909-admin-command-r2';
+import {ADMIN_REFRESH} from './refresh-policy.js?v=20260909-admin-command-r2';
+import qrcode from '../vendor/qrcode-generator.mjs?v=20260909-admin-command-r2';
 
 export const MEMBER_TABS=Object.freeze({event:'Event',reservations:'Rezervace / finance',garage:'Garage',photos:'Fotky',club:'United Club',history:'Historie / S&S',points:'Points',mailing:'Mailing',qr:'QR identita'});
 export function canonicalMemberLink(id,label='Člen'){

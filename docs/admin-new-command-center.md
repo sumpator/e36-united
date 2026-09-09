@@ -178,3 +178,89 @@ Final read-only D1 check: reservations **0**, members **5**, QR identities **0**
 No migration/schema change, business-data write, preference save/reset, reservation approval/payment, QR provisioning, provider readiness/send, email, DNS/secrets/bindings/billing change or redesign was performed. No Member Portal session smoke was started because its automatic tracking writes are outside this read-only release. No production data or private media URLs are stored in this note.
 
 The reviewed NEW commits remain on GitHub `main`; production Pages deliberately serves the previous frontend while the additive NEW Worker remains active. **Do not automatically push this documentation or another commit: a future push may redeploy NEW again.** A separately authorized cache-safe release fix and warm-session regression gate are needed before re-release. This note is local documentation only; stop after reporting the rollback.
+
+## Cache-safe module graph hotfix — local only, 2026-09-09
+
+Starting point: clean `main` at `c9ab4f713345033f17ca9a787d90f71dc19b1372`, local `origin/main` at `72af7e299bf7ae73db1724033558f7572bca37fd`, 1 ahead / 0 behind. No remote/production access or history rewrite in this hotfix task. The previous rollout/rollback record remains historical and unchanged.
+
+### Audit and narrow correction
+
+The V8 static dependency parser traced `admin.html -> admin.js` through **40 local browser modules and 128 unique importer/specifier edges including the HTML entry**, plus two excluded absolute Firebase SDK imports. Repeated identical imports within one file count as one parser dependency. Of those local edges, **108 used the then-current `20260909-admin-command` token**, **20 were unversioned**, and none used another nonempty token. This includes two unversioned edges to the locally hosted vendor `.mjs` QR module; its implementation is unchanged.
+
+Complete unversioned-edge inventory before the fix:
+
+| Importer | Unversioned specifiers |
+| --- | --- |
+| `admin/ui.js` | `../vendor/qrcode-generator.mjs` |
+| `admin/dashboard.js` | `./dashboard-model.js`, `./command-model.js`, `./command-cards.js`, `./command-icons.js`, `./command-shell.js`, `./destinations.js`, `./dashboard-data.js` |
+| `admin/dashboard-model.js` | `./destinations.js` |
+| `admin/command-model.js` | `./dashboard-model.js` |
+| `admin/command-cards.js` | `./dashboard-data.js`, `./command-icons.js` |
+| `admin/member-detail.js` | `../vendor/qrcode-generator.mjs` |
+| `admin/command-shell.js` | `./command-model.js`, `./command-icons.js` |
+| `admin.js` | `./admin/command-shell.js` |
+| `admin/lists.js` | `./destinations.js` |
+| `admin/navigation.js` | `./destinations.js` |
+| `admin/shell.js` | `./destinations.js` |
+| `admin/modules/reservations-payments.js` | `../reservation-media.js` |
+
+All 128 local edges now use **`20260909-admin-command-r2`**, including the HTML entry, nested imports, shared state consumers and the local QR module. No source is reachable under multiple browser URLs/tokens. Absolute Firebase URLs remain untouched. CSS links were reviewed: NEW styles already have their distinct NEW/polish tokens, shared styles are unchanged by this hotfix; no stylesheet or CSS link was edited.
+
+The deterministic negative-control browser test confirms the failure mechanism: serve the old `ADMIN_AREAS.finance` map through the formerly unversioned shell/navigation edges, then click the generated NEW Reservations button. It falls back to Overview because the old map has no `reservations` key. With the current edges restored, an ordinary reload in the same fixture/session reaches Reservations and Payments correctly and never requests the poisoned stable URL. This is a controlled stale-response/URL-identity test; Playwright routing disables HTTP cache, so it is not represented as a measurement of a real four-hour production cache lifetime. No cache clear, incognito workaround, service worker, runtime cache framework or production header change was added.
+
+Direct imports under `worker/` remain byte-identical, including normal imports of `admin/destinations.js` and `admin/dashboard-model.js`; Node/test imports likewise were not mass-versioned. The shared browser-reachable `dashboard-model.js -> destinations.js` edge must carry the browser token. That transitive shared edge also enters the local Worker dry-run bundle: esbuild retains a second copy of pure destination constants alongside the normal server import (313.41 KiB / 69.91 KiB gzip versus 310.28 / 69.77 before). No mutable browser state, SQL, API behavior or server policy was changed. No config alias or server-import rewrite was introduced to hide this small bundle-only consequence.
+
+### Regression gate
+
+- `scripts/check-admin-module-graph.mjs`: V8 `SourceTextModule` parse only, no linking/evaluation/network. Follows static imports, side-effect imports and re-exports; checks entry/current token, exact URL identity, missing sources, duplicate runtime URLs and cycles. Only the reviewed external Firebase imports are excluded. Worker/Node-only roots are not traversed from Admin.
+- `tests/admin-module-graph.test.mjs`: six cases cover the actual full graph plus future unversioned side-effect imports, multiline re-exports, mixed versions/fragments, stale HTML entry, inline-module bypass, commented imports, Firebase exclusions, unrelated Worker/Node roots, absolute local imports and missing dependencies.
+- Three added browser cases in `tests/e2e/admin-command.spec.mjs`: generated navigation at 1440px and 390px (actual active panels, canonical URLs, Overview hidden, Back/Forward, ordinary reload), plus the stale-response negative control/current-graph request audit. Same canonical fixture and explicit zero-write assertions; no existing assertion was modified or removed.
+
+Reproduce the focused check locally:
+
+```text
+node --experimental-vm-modules scripts/check-admin-module-graph.mjs
+node --test tests/admin-module-graph.test.mjs tests/admin-command.test.mjs
+pnpm exec playwright test --grep "CACHE SAFE"
+```
+
+### Exact change inventory
+
+Application files below contain **cache URL changes only**, verified by comparing each full file to the starting commit after stripping the old/new Admin query token. No other application text differs.
+
+- `admin.html`
+- `admin.js`
+- `admin/api.js`
+- `admin/command-cards.js`
+- `admin/command-model.js`
+- `admin/command-shell.js`
+- `admin/dashboard-model.js`
+- `admin/dashboard.js`
+- `admin/editors.js`
+- `admin/lists.js`
+- `admin/member-detail.js`
+- `admin/modules/accommodation.js`
+- `admin/modules/dashboard-events.js`
+- `admin/modules/funnel.js`
+- `admin/modules/mailing/campaigns.js`
+- `admin/modules/mailing/contacts.js`
+- `admin/modules/mailing/delivery.js`
+- `admin/modules/mailing/editor.js`
+- `admin/modules/mailing/index.js`
+- `admin/modules/mailing/preview.js`
+- `admin/modules/mailing/segments.js`
+- `admin/modules/mailing/tracking.js`
+- `admin/modules/moderation.js`
+- `admin/modules/reservations-payments.js`
+- `admin/navigation.js`
+- `admin/refresh.js`
+- `admin/reservation-media.js`
+- `admin/shell.js`
+- `admin/state.js`
+- `admin/ui.js`
+
+Additional files: `scripts/check-admin-module-graph.mjs` (new), `tests/admin-module-graph.test.mjs` (new), `tests/e2e/admin-command.spec.mjs` (additive tests only), and this append-only documentation note. No dependency changes.
+
+Final local gate: focused Node **15/15**, full Node **367/367**, full Chromium **83/83**, configured WebKit **52/52**. Counts increased only by six Node and three browser regressions per engine. Production syntax **117 files PASS**; production import graph **117 modules, zero missing imports/cycles**; Admin browser graph **40 modules / 128 local edges, zero token errors/cycles**. Worker **dry-run only PASS**, **313.41 KiB / 69.91 KiB gzip**, with the pure-constant duplication described above. Git whitespace check passes. Existing experimental Node/SQLite, color-environment and Git LF/CRLF warnings are non-failing; no unresolved application regression or unexpected browser error remains.
+
+All 30 application-file diffs are cache-URL-only. Worker source, SQL, migrations, API/auth/business rules, CSS/UI, refresh cadence, configuration, dependencies, public/Member frontend and existing test assertions are unchanged. This is one local hotfix commit above the rollback documentation; no push, deployment, production access/write, provider call, email or QR provisioning. This local hotfix does not authorize or perform another rollout.

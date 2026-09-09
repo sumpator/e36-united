@@ -1,4 +1,4 @@
-import { apiMedia } from './api.js?v=20260909-admin-command';
+import { apiMedia } from './api.js?v=20260909-admin-command-r2';
 let observer = null,
   controller = null,
   objectUrl = null,

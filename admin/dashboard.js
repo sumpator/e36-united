@@ -1,13 +1,13 @@
-import {adminState} from './state.js?v=20260909-admin-command';
-import {adminCommand,bindCurrentEditors,forgetAdminEditor,editorProtected,allowAdminNavigation} from './editors.js?v=20260909-admin-command';
-import {COMPOSITIONS,validatePreferences} from './dashboard-model.js';
-import {COMMAND_WIDGETS as WIDGETS,commandDefaults as factoryPreferences,commandLayout,commandBadges} from './command-model.js';
-import {commandCard,metricInfo} from './command-cards.js';
-import {commandIcon} from './command-icons.js';
-import {renderCommandShell} from './command-shell.js';
-import {DESTINATIONS,QUICK_LINK_IDS,destination,drillLabel} from './destinations.js';
-import {dashboardKpi,chartModel,attentionModel,showValue} from './dashboard-data.js';
-import {$,escapeHtml as esc,toast} from './ui.js?v=20260909-admin-command';
+import {adminState} from './state.js?v=20260909-admin-command-r2';
+import {adminCommand,bindCurrentEditors,forgetAdminEditor,editorProtected,allowAdminNavigation} from './editors.js?v=20260909-admin-command-r2';
+import {COMPOSITIONS,validatePreferences} from './dashboard-model.js?v=20260909-admin-command-r2';
+import {COMMAND_WIDGETS as WIDGETS,commandDefaults as factoryPreferences,commandLayout,commandBadges} from './command-model.js?v=20260909-admin-command-r2';
+import {commandCard,metricInfo} from './command-cards.js?v=20260909-admin-command-r2';
+import {commandIcon} from './command-icons.js?v=20260909-admin-command-r2';
+import {renderCommandShell} from './command-shell.js?v=20260909-admin-command-r2';
+import {DESTINATIONS,QUICK_LINK_IDS,destination,drillLabel} from './destinations.js?v=20260909-admin-command-r2';
+import {dashboardKpi,chartModel,attentionModel,showValue} from './dashboard-data.js?v=20260909-admin-command-r2';
+import {$,escapeHtml as esc,toast} from './ui.js?v=20260909-admin-command-r2';
 
 let navigate=()=>{},refresh=()=>{},draft=null,pendingPreferences=null,acceptNext=false;
 const clone=value=>JSON.parse(JSON.stringify(value));
