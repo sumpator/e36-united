@@ -12,9 +12,59 @@ for(const width of [1440,1280,390])test('NEW dashboard real layout, draft previe
   await expect(page.locator('.command-settings')).toBeVisible();
   await expect(page.locator('[data-preview-widget]')).toHaveCount(5);
   await page.screenshot({path:info.outputPath('NEW-settings-'+width+'.png')});
+  const rows=page.locator('.command-module-row'),ids=await rows.evaluateAll(ns=>ns.map(n=>n.dataset.editWidget));
+  expect(new Set(ids).size).toBe(ids.length);await expect(page.locator('[data-widget-add],[data-widget-hide]')).toHaveCount(0);
+  if(width===390){
+    const preview=page.locator('[data-layout-preview]');await expect(preview).not.toHaveAttribute('open','');
+    const last=rows.last();await last.scrollIntoViewIfNeeded();
+    const rowBox=await last.boundingBox(),footerBox=await page.locator('.dashboard-edit-actions').boundingBox();expect(rowBox.y+rowBox.height).toBeLessThanOrEqual(footerBox.y+1);
+    await preview.locator('summary').click();await expect(preview).toHaveAttribute('open','');await preview.scrollIntoViewIfNeeded();
+    await page.screenshot({path:info.outputPath('NEW-settings-expanded-390.png')});
+  }
   expect(c.observations.pageErrors).toEqual([]);expect(c.observations.unhandledApi).toEqual([]);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBe(true);
   expect(c.writes).toEqual([]);expect(c.r.writes).toBe(0);c.r.db.close();
+});
+
+test('POLISH pending reservation approval uses one existing command and converges unique badges',async({page},info)=>{
+ await page.setViewportSize({width:1440,height:900});const c=await commandFixture(page);
+ c.r.db.exec("UPDATE events SET payment_deadline='2099-09-01' WHERE id='e'; UPDATE reservations SET status='pending',car_id='c2',car_model='BMW 325i',arrival='Pátek',note='Testovací data: přijedeme společně v pátek.' WHERE id='r'; INSERT INTO car_photos(id,car_id,r2_key) VALUES('selected','c2','synthetic/selected'); UPDATE gallery_submissions SET status='pending' WHERE id='g'; UPDATE united_history_claims SET attendance_status='pending' WHERE id='h'");
+ await open(page);const badge=name=>page.locator('.admin-section-nav [data-command-badge="'+name+'"]');
+ // r + pending/overpaid + cancelled/overpaid are three distinct financial/reservation entities.
+ await expect(badge('reservations')).toHaveText('2');await expect(badge('dashboard')).toHaveText('5');
+ await page.screenshot({path:info.outputPath('POLISH-pending-dashboard.png'),fullPage:true});
+ await page.locator('[data-widget="payment-summary"] details summary').click();
+ await page.locator('[data-command-reservation="r"]').click();const drawer=page.locator('[data-reservation-drawer]');
+ await expect(drawer.locator('[data-review-action="approved"]')).toHaveText('Schválit rezervaci');await expect(drawer.locator('[data-review-action="rejected"]')).toHaveText('Zamítnout rezervaci');
+ await expect(drawer).toContainText('Celý víkend');await expect(drawer).toContainText('Testovací data: přijedeme');await expect(drawer.locator('.command-qr')).toHaveText('Členské QR: Nevydáno');
+ const img=drawer.locator('[data-reservation-car-photo]');await img.scrollIntoViewIfNeeded();await expect.poll(()=>img.evaluate(n=>n.complete&&n.naturalWidth>0)).toBe(true);
+ expect(c.calls.some(p=>p.endsWith('/media/cars/c2/selected'))).toBe(true);expect(c.calls.some(p=>p.endsWith('/media/cars/c/p'))).toBe(false);
+ await drawer.locator('.admin-reservation-drawer-panel').evaluate(n=>n.scrollTo(0,0));await page.screenshot({path:info.outputPath('POLISH-pending-before.png')});
+ const before=c.calls.filter(p=>p.includes('/summary')).length;
+ await drawer.locator('[data-review-action="approved"]').click();
+ await expect.poll(()=>c.r.db.prepare("SELECT status FROM reservations WHERE id='r'").get().status).toBe('approved');
+ await expect(badge('reservations')).toHaveText('1');await expect(badge('dashboard')).toHaveText('4');await expect(badge('photos')).toHaveText('1');await expect(badge('history')).toHaveText('1');
+ await expect(page.locator('[data-admin-freshness]')).toHaveAttribute('data-state','fresh');
+ expect(c.calls.filter(p=>p.includes('/summary')).length).toBe(before+1);
+ expect(c.writes.map(w=>w.component)).toEqual(['reservation']);await expect(drawer.locator('[data-review-action="approved"]')).toHaveCount(0);
+ await page.screenshot({path:info.outputPath('POLISH-approved-detail.png')});await page.keyboard.press('Escape');await expect(drawer).toBeHidden();
+ await expect(page.locator('[data-widget="payment-summary"] details')).toHaveAttribute('open','');
+ await page.locator('[data-widget="payment-summary"] details summary').click();
+ await page.evaluate(()=>window.scrollTo(0,0));
+ await expect(page.locator('[data-kpi-reservations]')).toHaveText('2');await page.screenshot({path:info.outputPath('POLISH-approved-dashboard.png'),fullPage:true});
+ expect(c.r.db.prepare('SELECT COUNT(*) n FROM member_qr_identities').get().n).toBe(0);clean(c);c.r.db.close();
+});
+
+test('POLISH optional Mailing uses the shared coordinator only while enabled and visible',async({page})=>{
+ await page.clock.install();const c=await commandFixture(page);await open(page);const count=()=>c.calls.filter(p=>p.includes('/mailing/overview')).length;
+ await page.clock.runFor(301000);await expect(page.locator('[data-admin-freshness]')).toHaveAttribute('data-state','fresh');expect(count()).toBe(0);
+ await page.locator('[data-dashboard-edit]').click();await page.locator('[data-widget-toggle="mailing"]').check();await page.locator('[data-dashboard-save]').click();await expect(page.locator('.command-settings')).not.toBeVisible();
+ await expect(page.locator('[data-widget="mailing"]')).toContainText('kontaktů');await expect(page.locator('[data-admin-freshness]')).toHaveAttribute('data-state','fresh');
+ const enabled=count();expect(enabled).toBe(1);
+ await page.clock.runFor(301000);await expect.poll(count).toBe(enabled+1);await expect(page.locator('[data-admin-freshness]')).toHaveAttribute('data-state','fresh');
+ await page.locator('[data-dashboard-edit]').click();await page.locator('[data-widget-toggle="mailing"]').uncheck();await page.locator('[data-dashboard-save]').click();await expect(page.locator('.command-settings')).not.toBeVisible();
+ const disabled=count();await page.clock.runFor(301000);await expect(page.locator('[data-admin-freshness]')).toHaveAttribute('data-state','fresh');expect(count()).toBe(disabled);
+ expect(c.writes).toHaveLength(2);clean(c);c.r.db.close();
 });
 
 test('NEW empty-data dashboard is truthful and history evidence stays in its private review context',async({page},info)=>{
@@ -50,6 +100,7 @@ test('NEW separate history decisions converge badges without clearing the other 
 });
 function clean(c){expect(c.observations.pageErrors).toEqual([]);expect(c.observations.unhandledApi).toEqual([]);expect(c.observations.consoleErrors.filter(e=>!c.failures.has(e.url)||!/Failed to load resource|Fetch API cannot load|net::ERR/.test(e.text))).toEqual([]);}
 test('NEW six destinations, Community disclosure, legacy aliases and canonical Club tab',async({page},info)=>{
+ await page.setViewportSize({width:1440,height:900});
  const c=await commandFixture(page);await open(page);const rail=page.locator('.admin-section-nav');
  await expect(rail.locator(':scope > button')).toHaveCount(6);const before=page.url();await rail.locator('[data-community-toggle]').click();expect(page.url()).toBe(before);
  await expect(rail.locator('[data-community-links] button')).toHaveCount(4);await page.screenshot({path:info.outputPath('NEW-community.png')});

@@ -27,7 +27,8 @@ function boundSql(sql,args){
 try{
   const {runtime,report:current}=await (process.argv.includes('--command')?captureCommandBudget():process.argv.includes('--stage3')?captureDashboardBudget():captureAdminBudget());
   const replay=process.argv.indexOf('--replay');
-  const report=replay<0?current:JSON.parse(readFileSync(process.argv[replay+1],'utf8')).report;
+  const selected=process.argv.includes('--mailing')?current.filter(r=>r.name==='mailing-overview'):current;
+  const report=replay<0?selected:JSON.parse(readFileSync(process.argv[replay+1],'utf8')).report;
   if(process.argv.includes('--before-index'))runtime.db.exec("DROP INDEX admin_reservations_page; DELETE FROM schema_migrations WHERE id='2026-09-08-admin-read-budget'");
   for(const endpoint of report)for(const q of endpoint.queries){
     q.bytecode=runtime.db.prepare('EXPLAIN '+q.sql).all(...q.args);

@@ -15,9 +15,9 @@ export function statusLabel(status){return({pending:'Čeká',approved:'Schválen
 export function galleryStatusLabel(status){return({pending:'Čeká na schválení',approved:'Schválena',rejected:'Zamítnuta'})[status]||status||'—'}
 export function paymentLabel(status){return({paid:'Zaplaceno',unpaid:'K platbě',underpaid:'Doplatek',overpaid:'Přeplatek',not_required:'Bez platby',overdue:'Po splatnosti',early_paid:'Zaplaceno',refunded:'Vráceno'})[status]||status||'—'}
 export function paymentQrSvg(spayd){if(!spayd)return '';try{const qr=qrcode(0,'M');qr.addData(spayd,'Byte');qr.make();return qr.createSvgTag({cellSize:4,margin:8,scalable:true})}catch(error){console.error('QR payment render failed',error);return ''}}
-export function attendanceLabel(type){return({full_weekend:'Full weekend',saturday_only:'Sobota',day_visit:'Day visit'})[type]||type||'—'}
+export function attendanceLabel(type){return({full_weekend:'Celý víkend',saturday_only:'Sobota',day_visit:'Jednodenní návštěva'})[type]||type||'—'}
 export function attendanceShortLabel(item){
-  if(item.attendanceType==='full_weekend')return item.arrival==='Pátek'?'Pá → Ne':'Full weekend';
+  if(item.attendanceType==='full_weekend')return item.arrival==='Pátek'?'Pá → Ne':'Celý víkend';
   if(item.attendanceType==='saturday_only')return 'Sobota';
   if(item.attendanceType==='day_visit')return 'Na otočku';
   return item.arrival||'—';

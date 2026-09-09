@@ -6,10 +6,10 @@ import {OVERDUE_SQL} from './lists.js';
 export const ADMIN_TREND_SQL=`SELECT date(created_at) AS day,COUNT(*) AS count
  FROM reservations WHERE event_id=? GROUP BY date(created_at) ORDER BY day`;
 export const ADMIN_RECENT_SQL=`WITH recent AS MATERIALIZED (
- SELECT id,member_id,created_at,car_model,accommodation,crew,payment_status,status
+ SELECT id,member_id,created_at,car_model,accommodation,crew,payment_status,status,amount_due_czk,amount_paid_czk
  FROM reservations WHERE event_id=? ORDER BY created_at DESC,id DESC LIMIT 5
  ) SELECT r.id,r.member_id AS memberId,r.created_at AS createdAt,r.car_model AS carModel,
- COALESCE(a.option_name,r.accommodation) AS accommodation,r.crew,r.payment_status AS paymentStatus,r.status,
+ COALESCE(a.option_name,r.accommodation) AS accommodation,r.crew,r.payment_status AS paymentStatus,r.status,r.amount_due_czk AS amountDueCzk,r.amount_paid_czk AS amountPaidCzk,
  COALESCE(m.nickname,m.name) AS memberName
  FROM recent r JOIN members m ON m.id=r.member_id
  LEFT JOIN reservation_accommodation a ON a.reservation_id=r.id ORDER BY r.created_at DESC,r.id DESC`;

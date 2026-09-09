@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {commandCard,recentPaymentLabel} from '../admin/command-cards.js';
 import {commandBadges,commandDefaults,commandLayout} from '../admin/command-model.js';
 import {factoryPreferences,validatePreferences} from '../admin/dashboard-model.js';
 import {adminRoute} from '../admin/navigation.js';
@@ -51,6 +52,9 @@ test('canonical summary counts a dual-pending history claim once, independent of
 test('bounded recent preview uses latest created_at across statuses, not pending/submitted ordering',async()=>{
   const r=memberRuntime();r.db.exec("UPDATE reservations SET created_at='2026-09-08',submitted_at='2020-01-01'; INSERT INTO reservations(id,member_id,event_id,status,created_at,submitted_at) VALUES('pending','n','e','pending','2020-01-01','2030-01-01'),('cancelled','a','e','cancelled','2026-09-09','2026-09-09')");
   const newer=await (await getAdminDashboard(r.env,url('presentation=command'),origin)).json();assert.deepEqual(newer.recent.map(r=>r.id),['cancelled','r','pending']);assert.equal(newer.presentation,'command-v1');
+  const amounts=r.db.prepare('SELECT amount_due_czk,amount_paid_czk FROM reservations WHERE id=?').get('r');
+  assert.equal(newer.recent.find(row=>row.id==='r').amountDueCzk,amounts.amount_due_czk);
+  assert.equal(newer.recent.find(row=>row.id==='r').amountPaidCzk,amounts.amount_paid_czk);
   const old=await (await getAdminDashboard(r.env,url(''),origin)).json();assert.equal(old.recent,undefined);
   const plan=r.db.prepare('EXPLAIN QUERY PLAN '+ADMIN_RECENT_SQL).all('e');assert.ok(plan.length);assert.ok(newer.recent.length<=5);assert.equal(r.writes,0);r.db.close();
 });
@@ -63,4 +67,17 @@ test('reservation context exposes only selected owned photo and actual QR presen
   assert.equal((await adminMemberMedia(env,'m','cars','cn','pn',origin)).status,404);
   assert.equal((await (await getAdminReservations(env,url('id=r&projection=detail'),origin)).json()).reservations[0].reviewContext,undefined);
   assert.equal(r.writes,0);assert.equal(r.mediaReads,0);r.db.close();
+});
+
+test('polish payment labels use exact amounts, preserve stored values and have honest old-API fallback',()=>{
+ for(const [due,paid,label] of [[0,0,'Bez platby'],[1000,0,'Čeká na úhradu'],[1000,200,'Částečně uhrazeno'],[1000,1000,'Uhrazeno'],[1000,1300,'Přeplatek'],[0,400,'Přeplatek']]){
+  const row={amountDueCzk:due,amountPaidCzk:paid,paymentStatus:'unpaid'},copy=structuredClone(row);
+  assert.equal(recentPaymentLabel(row),label);assert.deepEqual(row,copy);
+ }
+ assert.equal(recentPaymentLabel({paymentStatus:'unpaid'}),'Evidováno jako neuhrazené');assert.equal(recentPaymentLabel({}),'Nelze ověřit');
+});
+test('polish known-zero finance is neutral, unknown is distinct and positive overdue stays urgent',()=>{
+ const markup=value=>commandCard('payment-summary',{summary:{overview:{payments:{overdue:value}}}},()=>'',()=> '');
+ assert.match(markup(0),/data-money-kind="overdue" class="command-money neutral"/);assert.match(markup(0),/0 rezervací/);
+ assert.match(markup(2),/data-money-kind="overdue" class="command-money red"/);assert.match(markup(undefined),/data-money-kind="overdue" class="command-money unknown"/);
 });

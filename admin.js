@@ -54,7 +54,7 @@ function freshness(state){
   const stamp=state.lastSuccess?new Date(state.lastSuccess).toLocaleTimeString('cs-CZ'):'—';
   node.dataset.state=state.state;
   renderDashboard();
-  node.textContent=state.state==='fresh'?`Kontrola dokončena ${stamp} · Přehled načten ${adminState.resourceStates.summary?.lastSuccess?new Date(adminState.resourceStates.summary.lastSuccess).toLocaleTimeString('cs-CZ'):'—'} (obnova přehledu cca 5 min)`:state.state==='loading'?'Aktualizuji…':state.state==='denied'?'Přístup byl odebrán.':`Data mohou být zastaralá / bez spojení · poslední úplná aktualizace ${stamp}`;
+  node.textContent=state.state==='fresh'?`Data aktuální · obnoveno ${stamp}`:state.state==='loading'?'Aktualizuji…':state.state==='denied'?'Přístup byl odebrán.':`Data mohou být zastaralá · poslední obnova ${stamp}`;
 }
 async function refreshResources({context,signal,isCurrent,reason}){
   beginEventContext(context.eventId);

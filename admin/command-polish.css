@@ -1,0 +1,91 @@
+/* Targeted NEW polish: the existing 12-column layout and native editors remain. */
+.admin-page .command-icon { width:24px; height:24px; flex:none; vertical-align:middle; }
+.admin-page .dashboard-card .command-icon path,.admin-page .dashboard-card .command-icon circle { fill:none; stroke:currentColor; stroke-width:1.7; }
+.admin-page .command-nav-icon { display:grid; place-items:center; }
+.admin-page .command-heading-icon,.admin-page .command-card-icon {
+  display:inline-grid; place-items:center; width:40px; height:40px;
+  border-radius:12px; background:#073557; color:#23b6ff; flex:none;
+}
+.admin-page .dashboard-card>h3 { display:flex; align-items:center; gap:12px; margin:0 0 16px; font-size:19px; }
+.admin-page .dashboard-heading { min-height:76px; margin-bottom:12px; }
+.admin-page .dashboard-card { padding:18px; }
+.admin-page .command-approvals { gap:12px; }
+.admin-page .command-approvals>section { padding:14px; display:grid; grid-template-columns:40px 1fr; gap:8px 10px; align-items:center; }
+.admin-page .command-approvals h4 { margin:0; font-size:14px; }
+.admin-page .command-approvals strong { grid-column:1/-1; margin:6px 0 0; font-size:36px; line-height:1.15; }
+.admin-page .command-approvals .command-action-caption,.admin-page .command-approvals small,.admin-page .command-approvals button { grid-column:1/-1; margin:0; }
+.admin-page .command-action-caption { font-size:14px; color:#e0eaf4; }
+.admin-page .command-approvals small { min-height:36px; font-size:13px; line-height:1.4; color:#9eb6ca; }
+.admin-page .command-approvals button { margin-top:6px; min-height:44px; }
+.admin-page [data-command-clear]:empty { display:none; }
+.admin-page .command-info { margin-top:10px; color:#a9bfd2; font-size:13px; }
+.admin-page .command-info summary { display:inline-flex; align-items:center; min-height:36px; cursor:pointer; text-decoration:underline; text-underline-offset:4px; }
+.admin-page .command-info p { margin:4px 0 0; line-height:1.55; }
+.admin-page .command-money.neutral { background:#112231; border-color:#294356; }
+.admin-page .command-money.neutral>small:first-child { color:#b8cad8; }
+.admin-page .command-money.unknown { background:#19222b; border:1px dashed #92a1ae; }
+.admin-page .command-money strong { font-size:24px; }
+.admin-page .command-stats { margin:4px 0 10px; }
+.admin-page .command-capacity { margin:8px 0; }
+.admin-page .command-capacity small { color:#b8c7d5; }
+.admin-page .command-capacity small,.admin-page .command-no-accommodation { font-size:13px; }
+.admin-page [data-widget="trend"] .command-info { margin:0 0 8px; }
+.admin-page [data-dashboard-age][hidden] { display:none; }
+.admin-page .command-settings { width:min(700px,calc(100vw - 32px)); overflow:hidden; font-family:Inter,system-ui,sans-serif; }
+.admin-page .dashboard-preferences { display:flex; flex-direction:column; max-height:calc(100dvh - 100px); overflow:hidden; padding:20px; }
+.admin-page .dashboard-preferences[hidden] { display:none; }
+.admin-page .dashboard-preferences>header { flex:none; padding-bottom:14px; }
+.admin-page .dashboard-preferences h2 { display:flex; align-items:center; gap:10px; font-size:21px; }
+.admin-page [data-dashboard-edit-fields] { display:flex; flex-direction:column; overflow:auto; min-height:0; padding:0 5px 16px 0; scroll-padding-bottom:20px; }
+.admin-page .command-composition-label { order:-2; margin:0 0 8px; color:#a9bfd2; }
+.admin-page .command-layout-preview { order:-1; margin-bottom:14px; }
+.admin-page .command-layout-preview>summary { min-height:44px; cursor:pointer; color:#b8cfe1; font-size:14px; }
+.admin-page .command-preview { margin:0; padding:8px; gap:5px; }
+.admin-page .command-preview>div { min-height:38px; padding:6px; }
+.admin-page .command-preview span { font-size:12px; margin:0 0 4px; }
+.admin-page .command-preview i { height:5px; }
+.admin-page .command-preview svg { height:16px; width:100%; }
+.admin-page .dashboard-preferences .command-module-list { display:block; padding:0 12px 4px; margin:0; flex:none; }
+.admin-page .command-module-row { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:12px; align-items:center; padding:10px 0; border-bottom:1px solid #263e51; }
+.admin-page .command-module-row:last-child { border-bottom:0; }
+.admin-page .command-module-toggle { display:flex; align-items:center; gap:10px; min-height:44px; font-weight:650; }
+.admin-page .command-module-toggle input { width:19px; height:19px; accent-color:#009fff; flex:none; }
+.admin-page .command-module-options { display:flex; align-items:center; gap:12px; }
+.admin-page .command-module-options label { display:flex; gap:6px; align-items:center; font-size:13px; color:#a9bfd2; }
+.admin-page .command-move { display:flex; gap:4px; }
+.admin-page .command-move button { width:44px; height:44px; padding:0; }
+.admin-page .command-module-row[data-enabled="false"] .command-module-options { opacity:.45; }
+.admin-page .command-quick-controls { margin:14px 0 0; display:flex; flex-wrap:wrap; gap:8px 16px; flex:none; }
+.admin-page .command-quick-controls label { display:flex; align-items:center; gap:6px; min-height:36px; }
+.admin-page .dashboard-edit-actions { position:static; margin:0; padding:12px 0 0; flex:none; border-top:1px solid #294256; display:grid; grid-template-columns:1fr 1fr; }
+.admin-page [data-dashboard-reset] { grid-column:1/-1; min-height:36px; background:transparent; border-color:transparent; color:#aac1d5; text-decoration:underline; font-weight:400; }
+.admin-page [data-dashboard-revalidate] { align-self:start; flex:none; padding:4px 8px; min-height:32px; margin:8px 0; font-size:12px; }
+.admin-page .command-reservation-reference { color:#9ab4c9; margin:8px 0; font-size:13px; }
+.admin-page .admin-reservation-drawer-panel { font-family:Inter,system-ui,sans-serif; }
+.admin-page .command-stay dl { margin:8px 0 0; }
+.admin-page .command-stay dl>div { display:grid; grid-template-columns:1fr 1fr; gap:12px; padding:8px 0; border-bottom:1px solid #294255; }
+.admin-page .command-stay dt { color:#abc0d2; font-size:14px; }
+.admin-page .command-stay dd { margin:0; font-size:14px; font-weight:600; }
+.admin-page .admin-reservation-drawer-review .admin-review-actions { display:flex; }
+.admin-page .admin-reservation-drawer-review .admin-review-actions button { min-height:52px; flex:1; font-size:15px; }
+.admin-page .admin-reservation-drawer-card [data-review-action="approved"] { background:#075b3b; border-color:#15885b; }
+.admin-page .admin-reservation-drawer-card [data-review-action="rejected"] { background:#571b2e; border-color:#92334e; }
+@media(min-width:601px) {
+  .admin-page .command-layout-preview:not([open])>.command-preview { display:grid; }
+  .admin-page .command-layout-preview>summary { display:none; }
+}
+@media(max-width:600px) {
+  .admin-page .command-settings { width:100%; height:100dvh; max-height:100dvh; margin:0; border-radius:0; }
+  .admin-page .dashboard-preferences { height:100dvh; max-height:100dvh; padding:16px 14px max(12px,env(safe-area-inset-bottom)); }
+  .admin-page .command-module-row { grid-template-columns:1fr; gap:2px; }
+  .admin-page .command-module-options { justify-content:space-between; padding-left:29px; }
+  .admin-page .command-module-list { order:0; }
+  .admin-page .command-layout-preview { order:2; margin:14px 0 0; flex:none; }
+  .admin-page .command-quick-controls { order:1; }
+  .admin-page .command-layout-preview>summary { display:list-item; padding:12px 0; }
+  .admin-page .command-preview>div { min-height:50px; }
+  .admin-page .dashboard-preferences h2 { font-size:19px; }
+  .admin-page .command-move button { min-height:44px; }
+  .admin-page .admin-reservation-drawer-review .admin-review-actions { flex-wrap:wrap; }
+  .admin-page .command-approvals small { min-height:0; }
+}

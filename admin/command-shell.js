@@ -1,21 +1,10 @@
 import { commandBadges, BADGE_SCOPE } from './command-model.js';
 import { adminState } from './state.js?v=20260909-admin-command';
-const icons = {
-  dashboard: '▤',
-  reservations: '▣',
-  payments: '▱',
-  community: '♧',
-  mailing: '✉',
-  settings: '⚙',
-  photos: '▧',
-  history: '◷',
-  members: '♙',
-  'united-club': '☆'
-};
-const navButton = (id, label) => `<button data-portal-target="${id}" type="button"><span class="command-nav-icon" aria-hidden="true">${icons[id]}</span><span>${label}</span>${Object.hasOwn(BADGE_SCOPE, id) ? `<b data-command-badge="${id}" hidden></b>` : ''}</button>`;
+import {commandIcon} from './command-icons.js';
+const navButton = (id, label) => `<button data-portal-target="${id}" type="button"><span class="command-nav-icon" aria-hidden="true">${commandIcon(id)}</span><span>${label}</span>${Object.hasOwn(BADGE_SCOPE, id) ? `<b data-command-badge="${id}" hidden></b>` : ''}</button>`;
 export function initializeCommandShell() {
   for (const nav of document.querySelectorAll('.admin-section-nav,.portal-nav-sheet-list')) {
-    nav.innerHTML = navButton('dashboard', 'Přehled') + navButton('reservations', 'Rezervace') + navButton('payments', 'Platby') + `<button type="button" data-community-toggle aria-expanded="false"><span class="command-nav-icon" aria-hidden="true">${icons.community}</span><span>Komunita</span><b data-command-badge="community" hidden></b><span aria-hidden="true">⌄</span></button><div data-community-links hidden>${[['members', 'Členové'], ['photos', 'Fotky'], ['club', 'Historie & S&S'], ['united-club', 'United Club']].map(([id, label]) => `<button type="button" data-admin-jump="${id}"><span class="command-nav-icon" aria-hidden="true">${icons[id === 'club' ? 'history' : id]}</span><span>${label}</span>${['photos', 'club'].includes(id) ? `<b data-command-badge="${id === 'club' ? 'history' : id}" hidden></b>` : ''}</button>`).join('')}</div>` + navButton('mailing', 'Mailing') + navButton('settings', 'Nastavení');
+    nav.innerHTML = navButton('dashboard', 'Přehled') + navButton('reservations', 'Rezervace') + navButton('payments', 'Platby') + `<button type="button" data-community-toggle aria-expanded="false"><span class="command-nav-icon" aria-hidden="true">${commandIcon('community')}</span><span>Komunita</span><b data-command-badge="community" hidden></b><span aria-hidden="true">⌄</span></button><div data-community-links hidden>${[['members', 'Členové'], ['photos', 'Fotky'], ['club', 'Historie & S&S'], ['united-club', 'United Club']].map(([id, label]) => `<button type="button" data-admin-jump="${id}"><span class="command-nav-icon" aria-hidden="true">${commandIcon(id === 'club' ? 'history' : id)}</span><span>${label}</span>${['photos', 'club'].includes(id) ? `<b data-command-badge="${id === 'club' ? 'history' : id}" hidden></b>` : ''}</button>`).join('')}</div>` + navButton('mailing', 'Mailing') + navButton('settings', 'Nastavení');
   }
   const header = document.querySelector('.admin-header .nav');
   const title = document.createElement('span');

@@ -1,0 +1,108 @@
+{
+  "measurement": "LOCAL SQLite counters and EXPLAIN; NOT Cloudflare meta.rows_read",
+  "version": "3.53.4 2026-07-24 19:02:57 bf7c7f30031888f4e796e429ab3978879485813aaca6f641c7b33e4e09459bcc (64-bit)",
+  "population": {
+    "members": 500,
+    "reservations": 900,
+    "contacts": 102
+  },
+  "estimatedCeiling": 374432,
+  "localVisits": null,
+  "queries": [
+    {
+      "sql": "\n    SELECT id, role, status\n    FROM members\n    WHERE id = ?\n  ",
+      "args": [
+        "a"
+      ],
+      "plan": [
+        "SEARCH members USING INDEX sqlite_autoindex_members_1 (id=?)"
+      ],
+      "localVisits": 1,
+      "estimatedRows": 2
+    },
+    {
+      "sql": "\n    WITH stored_contacts AS (\n      SELECT\n        c.id,\n        c.id AS persisted_contact_id,\n        COALESCE(NULLIF(trim(m.email), ''), c.email) AS email,\n        lower(trim(COALESCE(NULLIF(trim(m.email), ''), c.email))) AS normalized_email,\n        COALESCE(NULLIF(trim(m.name), ''), c.name, '') AS name,\n        COALESCE(NULLIF(trim(m.nickname), ''), c.nickname, '') AS nickname,\n        COALESCE(c.current_member_id, m.id) AS member_id,\n        c.current_member_id AS canonical_member_id,\n        c.privacy_consent_status,\n        c.privacy_consent_source,\n        c.privacy_consent_at,\n        c.mailing_consent_status,\n        c.mailing_consent_source,\n        c.mailing_consent_at,\n        c.deliverability_status,\n        c.suppression_status,\n        c.possible_duplicate\n      FROM mailing_contacts c\n      LEFT JOIN members m ON m.id = COALESCE(\n        c.current_member_id,\n        (SELECT matched.id FROM members matched WHERE lower(trim(matched.email)) = c.normalized_email LIMIT 1)\n      )\n    ),\n    projected_members AS (\n      SELECT\n        'member:' || m.id AS id,\n        NULL AS persisted_contact_id,\n        m.email,\n        lower(trim(m.email)) AS normalized_email,\n        m.name,\n        COALESCE(m.nickname, '') AS nickname,\n        m.id AS member_id,\n        m.id AS canonical_member_id,\n        'unknown' AS privacy_consent_status,\n        NULL AS privacy_consent_source,\n        NULL AS privacy_consent_at,\n        'unknown' AS mailing_consent_status,\n        NULL AS mailing_consent_source,\n        NULL AS mailing_consent_at,\n        'unknown' AS deliverability_status,\n        'eligible' AS suppression_status,\n        0 AS possible_duplicate\n      FROM members m\n      WHERE NOT EXISTS (\n        SELECT 1 FROM mailing_contacts c\n        WHERE c.current_member_id = m.id OR c.normalized_email = lower(trim(m.email))\n      )\n    ),\n    contact_universe AS (\n      SELECT * FROM stored_contacts\n      UNION ALL\n      SELECT * FROM projected_members\n    )\n    SELECT\n      u.*,\n      m.status AS member_status,\n      CASE WHEN m.status = 'active' THEN 1 ELSE 0 END AS active_member,\n      CASE WHEN m.id IS NOT NULL AND EXISTS (\n        SELECT 1 FROM reservations r\n        JOIN events current_event ON current_event.id = r.event_id AND current_event.is_current = 1\n        WHERE r.member_id = m.id AND r.status IN ('pending', 'approved')\n      ) THEN 1 ELSE 0 END AS registered_current_event,\n      CASE WHEN m.id IS NOT NULL AND NOT (\n        trim(COALESCE(m.name, '')) <> ''\n        AND trim(COALESCE(m.email, '')) <> ''\n        AND trim(COALESCE(m.member_code, '')) <> ''\n        AND m.history_completed_at IS NOT NULL\n        AND EXISTS (SELECT 1 FROM cars WHERE member_id = m.id)\n        AND (SELECT COUNT(*) FROM gallery_submissions WHERE member_id = m.id AND status = 'approved') >= 5\n      ) THEN 1 ELSE 0 END AS incomplete_profile,\n      CASE WHEN m.id IS NULL THEN 0 ELSE (\n        SELECT COUNT(*) FROM (\n          SELECT a.event_id FROM attendance a\n          WHERE a.member_id = m.id AND a.status IN ('verified', 'approved')\n          UNION\n          SELECT h.event_id FROM united_history_claims h\n          WHERE h.member_id = m.id AND h.attendance_status = 'approved'\n        )\n      ) END AS participation_count,\n      CASE WHEN m.id IS NOT NULL AND (\n        EXISTS (SELECT 1 FROM reservations r WHERE r.member_id = m.id AND r.status IN ('pending', 'approved') AND r.show_shine = 'Ano')\n        OR EXISTS (SELECT 1 FROM united_history_claims h WHERE h.member_id = m.id AND h.sns_competed = 1 AND h.sns_status = 'approved')\n        OR EXISTS (SELECT 1 FROM attendance a WHERE a.member_id = m.id AND a.status IN ('verified', 'approved') AND (a.winner = 1 OR trim(COALESCE(a.category, '')) <> ''))\n      ) THEN 1 ELSE 0 END AS show_shine_participant,\n      COALESCE((\n        SELECT GROUP_CONCAT(DISTINCT s.source_type || ':' || COALESCE(CAST(s.event_year AS TEXT), ''))\n        FROM mailing_contact_sources s WHERE s.contact_id = u.persisted_contact_id\n      ), '') AS source_labels,\n      COALESCE((\n        SELECT GROUP_CONCAT(year) FROM (\n          SELECT s.event_year AS year FROM mailing_contact_sources s\n          WHERE s.contact_id = u.persisted_contact_id AND s.event_year IS NOT NULL\n          UNION\n          SELECT e.year FROM attendance a JOIN events e ON e.id = a.event_id\n          WHERE a.member_id = u.member_id AND a.status IN ('verified', 'approved')\n          UNION\n          SELECT e.year FROM united_history_claims h JOIN events e ON e.id = h.event_id\n          WHERE h.member_id = u.member_id AND h.attendance_status = 'approved'\n        )\n      ), '') AS historical_years,\n      COALESCE((SELECT GROUP_CONCAT(DISTINCT t.tag) FROM mailing_contact_tags t WHERE t.contact_id = u.persisted_contact_id), '') AS tags\n    FROM contact_universe u\n    LEFT JOIN members m ON m.id = u.member_id\n    ORDER BY CASE WHEN m.id IS NULL THEN 1 ELSE 0 END, lower(COALESCE(u.name, '')), u.normalized_email\n  ",
+      "args": [],
+      "plan": [
+        "CO-ROUTINE contact_universe",
+        "COMPOUND QUERY",
+        "LEFT-MOST SUBQUERY",
+        "SCAN c",
+        "SEARCH m USING INDEX sqlite_autoindex_members_1 (id=?) LEFT-JOIN",
+        "CORRELATED SCALAR SUBQUERY 1",
+        "SCAN matched",
+        "UNION ALL",
+        "SCAN m",
+        "CORRELATED SCALAR SUBQUERY 3",
+        "MULTI-INDEX OR",
+        "INDEX 1",
+        "SEARCH c USING INDEX sqlite_autoindex_mailing_contacts_3 (current_member_id=?)",
+        "INDEX 2",
+        "SEARCH c USING INDEX sqlite_autoindex_mailing_contacts_2 (normalized_email=?)",
+        "SCAN u",
+        "SEARCH m USING INDEX sqlite_autoindex_members_1 (id=?) LEFT-JOIN",
+        "CORRELATED SCALAR SUBQUERY 7",
+        "SEARCH current_event USING INDEX idx_events_single_current (is_current=?)",
+        "SEARCH r USING INDEX sqlite_autoindex_reservations_2 (member_id=? AND event_id=?)",
+        "CORRELATED SCALAR SUBQUERY 8",
+        "SEARCH cars USING COVERING INDEX idx_cars_member (member_id=?)",
+        "CORRELATED SCALAR SUBQUERY 9",
+        "SEARCH gallery_submissions USING COVERING INDEX admin_gallery_member (member_id=? AND status=?)",
+        "CORRELATED SCALAR SUBQUERY 12",
+        "CO-ROUTINE (subquery-11)",
+        "MERGE (UNION)",
+        "LEFT",
+        "SEARCH a USING INDEX sqlite_autoindex_attendance_2 (member_id=?)",
+        "RIGHT",
+        "SEARCH h USING INDEX sqlite_autoindex_united_history_claims_2 (member_id=?)",
+        "SCAN (subquery-11)",
+        "CORRELATED SCALAR SUBQUERY 13",
+        "SEARCH r USING INDEX idx_reservations_member (member_id=?)",
+        "CORRELATED SCALAR SUBQUERY 14",
+        "SEARCH h USING INDEX admin_history_member_sns (member_id=? AND sns_status=?)",
+        "CORRELATED SCALAR SUBQUERY 15",
+        "SEARCH a USING INDEX idx_attendance_member (member_id=?)",
+        "CORRELATED SCALAR SUBQUERY 16",
+        "USE TEMP B-TREE FOR group_concat(DISTINCT)",
+        "SEARCH s USING INDEX idx_mailing_contact_sources_contact (contact_id=?)",
+        "CORRELATED SCALAR SUBQUERY 20",
+        "CO-ROUTINE (subquery-19)",
+        "MERGE (UNION)",
+        "LEFT",
+        "MERGE (UNION)",
+        "LEFT",
+        "SEARCH s USING COVERING INDEX idx_mailing_contact_sources_contact (contact_id=? AND event_year>?)",
+        "RIGHT",
+        "SEARCH a USING INDEX idx_attendance_member (member_id=?)",
+        "SEARCH e USING INDEX sqlite_autoindex_events_1 (id=?)",
+        "USE TEMP B-TREE FOR ORDER BY",
+        "RIGHT",
+        "SEARCH h USING INDEX admin_history_member_sns (member_id=?)",
+        "SEARCH e USING INDEX sqlite_autoindex_events_1 (id=?)",
+        "USE TEMP B-TREE FOR ORDER BY",
+        "SCAN (subquery-19)",
+        "CORRELATED SCALAR SUBQUERY 21",
+        "SEARCH t USING COVERING INDEX sqlite_autoindex_mailing_contact_tags_1 (contact_id=?)",
+        "USE TEMP B-TREE FOR ORDER BY"
+      ],
+      "localVisits": null,
+      "localVmSteps": 374429,
+      "localFullScanSteps": 25552,
+      "estimatedRows": 374429,
+      "estimationMethod": "Coarse local VM-step ceiling + fast-count population, not a measured row count",
+      "profileError": {
+        "exitCode": 3221225477,
+        "stderr": ""
+      }
+    },
+    {
+      "sql": "SELECT COUNT(*) AS count FROM mailing_campaigns WHERE status = 'draft'",
+      "args": [],
+      "plan": [
+        "SEARCH mailing_campaigns USING COVERING INDEX idx_mailing_campaigns_status (status=?)"
+      ],
+      "localVisits": 1,
+      "estimatedRows": 1
+    }
+  ]
+}

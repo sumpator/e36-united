@@ -5,6 +5,8 @@ import {getAdminSummary} from '../../worker/admin/summary.js';
 import {getAdminEvents,getAdminReservations,getAdminGallery,getAdminHistoryClaims} from '../../worker/domains.js';
 import {getAdminMember,listAdminMembers,adminMemberMedia} from '../../worker/admin/members.js';
 import {readFileSync} from 'node:fs';
+import {patchAdminReservation} from '../../worker/domains.js';
+import {routeAdminMailing} from '../../worker/domains/mailing/index.js';
 import {getAdminOperation} from '../../worker/admin/commands.js';
 import {factoryPreferences} from '../../admin/dashboard-model.js';
 import {runAdminCommand} from '../../worker/admin/commands.js';
@@ -21,7 +23,7 @@ export async function commandFixture(page,{legacy=false}={}){
  await page.route('https://api.e36united.cz/api/admin/**',async route=>{
   const q=route.request(),url=new URL(q.url()),path=url.pathname;
   if(q.method()==='OPTIONS')return route.fulfill({status:204,headers});
-  if(!/\/(dashboard|preferences|summary|events|reservations|members|operations|gallery|history\/(claims|evidence))(\/|$)/.test(path))return route.fallback();
+  if(!/\/(dashboard|preferences|summary|events|reservations|members|operations|gallery|mailing\/overview|history\/(claims|evidence))(\/|$)/.test(path))return route.fallback();
   calls.push(q.method()+' '+url.pathname+url.search);
   if(mode==='denied'||mode==='unavailable'&&path.endsWith('/dashboard')||mode==='summary-unavailable'&&path.endsWith('/summary')||mode==='preferences-unavailable'&&path.endsWith('/preferences')){failures.add(q.url());return route.fulfill({status:mode==='denied'?403:503,headers,json:{message:'Synthetic controlled failure'}});}
   let response;
@@ -35,6 +37,11 @@ export async function commandFixture(page,{legacy=false}={}){
   }else if(path.endsWith('/dashboard'))response=await getAdminDashboard(env,url,origin,new Date('2026-09-08T12:00:00Z'));
   else if(path.endsWith('/summary'))response=await getAdminSummary(env,url,origin,new Date('2026-09-08T12:00:00Z'));
   else if(path.endsWith('/events'))response=await getAdminEvents(env,origin);
+  else if(/\/reservations\/[^/]+$/.test(path)&&q.method()==='PATCH'){
+   const id=path.split('/').at(-1),request=new Request(q.url(),{method:q.method(),headers:q.headers(),body:q.postData()});writes.push({component:'reservation',revision:q.headers()['if-match']});
+   response=await runAdminCommand(request,env,{uid:'a'},'reservation',id,origin,commandEnv=>patchAdminReservation(request,commandEnv,{uid:'a'},id,origin));
+  }
+  else if(path.endsWith('/mailing/overview'))response=await routeAdminMailing({request:new Request(q.url()),env,url,auth:{uid:'a'},origin});
   else if(path.endsWith('/reservations'))response=await getAdminReservations(env,url,origin);
   else if(path.includes('/operations/'))response=await getAdminOperation(env,{uid:'a'},path.split('/').at(-1),origin);
   else if(path.endsWith('/gallery'))response=await getAdminGallery(env,origin,url);
