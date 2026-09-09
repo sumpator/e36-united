@@ -264,3 +264,79 @@ Additional files: `scripts/check-admin-module-graph.mjs` (new), `tests/admin-mod
 Final local gate: focused Node **15/15**, full Node **367/367**, full Chromium **83/83**, configured WebKit **52/52**. Counts increased only by six Node and three browser regressions per engine. Production syntax **117 files PASS**; production import graph **117 modules, zero missing imports/cycles**; Admin browser graph **40 modules / 128 local edges, zero token errors/cycles**. Worker **dry-run only PASS**, **313.41 KiB / 69.91 KiB gzip**, with the pure-constant duplication described above. Git whitespace check passes. Existing experimental Node/SQLite, color-environment and Git LF/CRLF warnings are non-failing; no unresolved application regression or unexpected browser error remains.
 
 All 30 application-file diffs are cache-URL-only. Worker source, SQL, migrations, API/auth/business rules, CSS/UI, refresh cadence, configuration, dependencies, public/Member frontend and existing test assertions are unchanged. This is one local hotfix commit above the rollback documentation; no push, deployment, production access/write, provider call, email or QR provisioning. This local hotfix does not authorize or perform another rollout.
+
+## Potvrzené zápisy a chráněné Admin editory — lokální oprava, 2026-09-09
+
+Výchozí čistý `main`, HEAD i `origin/main`: `85fe0c861295b71be74c5438a85341f9ae1dfaa2`, ověřeno po jednom fetchi. Práce je pouze na nové lokální větvi `fix/admin-confirmed-render`. Tato poznámka nemění historické rollout výsledky a neschvaluje publikaci. Další publikační krok musí nejprve ověřit opravu v CI na **neprodukční větvi**; tento task nic nepushuje.
+
+### Doložená příčina a hranice důkazu
+
+`updateReservation()` zahazoval částečný potvrzený výsledek a upravoval pouze načtený seznam. Při otevření z dashboardu byl seznam prázdný. Následný GET uložil `approved` do `reservationDetail`, ale `editorProtected()` kvůli čistému fokusu přeskočil celý drawer. Úspěšný GET byl označen jako fresh a neexistovalo dokončení odloženého renderu. Bind navíc mohl převzít novou základní revizi z kanonických dat, přestože vstupy stále zobrazovaly staré hodnoty. `confirmed()` původně označoval všechny právě viditelné hodnoty za uložené, včetně neodeslaného druhého pole a textu napsaného během čekání.
+
+Nový deterministický test před změnou aplikace **selhal** na původní podmínce `[data-review-action="approved"]` count **0**, skutečně **1**, timeout **7000 ms**. Bariéra zadržela pouze detail GET po skutečném lokálním approval commandu; poznámka zůstala čistá a zaměřená. DB i kanonický detail už byly `approved`. Stejná podmínka po opravě prochází bez opuštění pole. Přesný fokus původního GitHub runu `34356170172` zachycen nebyl: tato řízená reprodukce není zpětným záznamem CI.
+
+Doplňující red/green test prokázal stejný problém základní revize v ubytování: dirty první karta blokovala seznam, druhá karta stále zobrazovala starý název, ale bind změnil její `data-base-revision` **1 → 2**. Po opravě zůstává revize **1**, dokud se vstupy skutečně nevykreslí. To brání potvrzení dalších změn proti neviděnému serverovému základu.
+
+### Potvrzení, drafty a render
+
+- Receipt musí odpovídat ID operace, actor UID, typu příkazu, cílové entitě, eventu a CAS base/result revision. Existující request client nadále kontroluje i objekt session, generation a event; pozdní výsledek do zavřeného/přepnutého editoru nespouští další mutation refresh.
+- Reservation command aplikuje **vrácenou** částečnou projekci do stejného detailu i již načtené stejné položky seznamu. Neodvozuje stav z odeslaného body. Merge zachovává chybějící `reviewContext`/selected car/QR, finance, člena a media vazby; explicitní nula/null zůstávají autoritativní. Starší revize nepřepíše novější detail ani položku seznamu. Receipt-only/replay nic nevymýšlí a použije stávající řízenou revalidaci. Ztracená odpověď se obnovuje přes receipt, bez druhého zápisu.
+- Příkaz uchová neměnný odeslaný body, snapshot ovládacích prvků a přesně odeslaná pole. Potvrzení posune jen jejich základ; nesouvisející a pozdější editace zůstávají draftem. Výslovné „plně uhrazeno“ promítne odeslanou částku jen tehdy, pokud mezitím uživatel pole nezměnil. Cizí konflikt se automaticky nepřebázuje. Starší uložené recovery záznamy bez snapshotu se zpracují konzervativně, nikoli jako potvrzení všech živých vstupů.
+- Stav, dostupné akce a read-only finance draweru se aktualizují cíleně. Vstupy, jejich text/selection/fokus, celý article a scroll kontejner se neodstraňují. Čistý fokus není dirty draft, ale může nadále chránit úplný remount. Schválená rezervace už nenabízí Schválit, ani při fokusu v poznámce.
+- Vizuální kontrola zachytila posun hlavičky způsobený novou stavovou zprávou v existujícím CSS gridu. Zprávy proto zůstávají uvnitř hlavičky a cílený render zachová jejich DOM uzly. Nový test ověřuje pořadí hlavičky před členskými údaji. CSS ani návrh obrazovky se nemění.
+- Malá lokální fronta v existujícím editor modulu uchovává nejnovější relevantní render callback. Dokončí jej po zániku ochrany událostmi input/change/focusout nebo výslovným zahozováním, bez nového timeru či GET. Entity/session/navigace/close/logout/denied kontext frontu zneplatní. Binding nepřevezme novou revizi jen proto, že se povedl GET; renderer jej obnoví až po bezpečné hydrataci.
+- GET freshness a render nejsou totéž: při chráněném editoru shell uvádí „Data načtena · chráněný editor čeká na úplné zobrazení“ a editor vlastní vysvětlení. Úspěšný GET není falešnou síťovou chybou. Stav operace a dirty/conflict/recovery informace jsou samostatné. Částečný readonly render nevyžaduje blur, zavření ani reload.
+- Potvrzená operace se zpracuje jednou. Rezervace i platba využijí jednu stávající logickou invalidaci; odstraněn byl redundantní payment reload. Při odchodu z kontextu proběhne jeho další běžné čtení, ne pozdní refresh cizího detailu. Žádné nové periodické časovače, serverové endpointy, SQL ani doménové operace.
+
+### Omezený audit browserových call sites
+
+| Oblast | Odložení / uchovaná data | Dokončení renderu | Neodeslané hodnoty |
+| --- | --- | --- | --- |
+| Rezervace z dashboardu i seznamu | Fokus/dirty/saving/unknown/conflict chrání vstupy; kanonický detail a seznam přijímají potvrzenou projekci monotónně. | Readonly stav/akce ihned; nejnovější celý drawer z fronty po uvolnění. | Poznámka vs. platba i post-send text se potvrzují odděleně. |
+| Platba ve stejném draweru | Stejný mechanismus; žádný druhý mutation/refresh, žádný výpočet nových platebních pravidel. | Readonly finance ihned, vstupy bezpečně později. | Uložení platby nepotvrdí jinou poznámku; mark-full nevytvoří falešný draft. |
+| History / S&S | Stejná prokázaná sdílená ochrana; přijatá claims/counts data se uchovají, readonly rozhodnutí se aktualizují. | Samostatné existující attendance/S&S příkazy, potom deferred list render; otevřené karty zůstávají zachované. | Attendance note nepotvrdí SNS note. Žádná společná backendová operace ani změna uzamčených výsledků. |
+| Ubytování | Seznam může blokovat karta nebo lokální soubor. Nejnovější payload čeká; baseline jiné nevykreslené karty se neposune. | Deferred list po uvolnění ochrany; lokální foto jen dosavadním explicitním discard/upload postupem. | Named-field snapshot; post-send změna nezmizí při confirmed. |
+| Ročník | Fokus/dirty chrání formulář. Audit doložil, že samotný aktivní `/events` GET dříve nenavazoval na renderer. | Existující aktivní events read nyní předá data rendereru; deferred hydratace bez dalšího GET. | `changedFields()` a původní CAS konflikt zůstávají. Žádná změna intervalu. |
+| Dashboard preferences | Existující configuration draft/pending preferences a CAS/recovery; celý snapshot se potvrzuje samostatně. | Čistý zaměřený editor má deferred příjem; konfliktní koncept nadále vyžaduje dosavadní explicitní porovnání/aplikaci. | Editace po odeslání zůstane otevřená a neuložená, save ji nezavře. |
+| Galerie / lightbox | Grid nemá textový editor; lightbox ano. Audit doplnil ochranu jeho textarea při následném potvrzeném renderu. | Potvrzený status/akce cíleně; úplný lightbox po uvolnění, close odstraní vazbu. | Vrácený `photo` výsledek, nikoli domnělý status z body; post-send poznámka zůstává draftem. |
+
+Záměrně beze změny: business/auth pravidla, reversal policy, ceny/VS/QR, provider operace, vzdálená data, cadence 60/120/300 s, ostatní historické refresh volby mimo potvrzenou reservation/payment cestu. Žádná obecná cache, nový event bus nebo framework.
+
+### Cache, testovací kontrakty a CI diagnostika
+
+Celý kontrolovaný Admin import graph a HTML entry používají jednotně **`20260909-admin-command-r3`**. Nový čistý `admin/confirmed-state.js` sdružuje pouze malé merge/snapshot/receipt funkce. Worker source/importy zůstaly beze změny; dry-run ověřuje i existující transitive shared browser token. Navigační CACHE SAFE testy a jejich negativní kontrola zůstávají.
+
+Původní behavioral assertions nebyly odstraněny ani oslabeny. Původní approval count **0 / 7000 ms** zůstává. Testovací opravy doplňují skutečný receipt kontrakt do dvou starších mocks a sjednocují UID syntetického browseru s lokálním Worker actor `a`. Historický badge test navíc ověřuje dokončené první rozhodnutí před druhým příkazem. Command fixture umí volitelnou bariéru až za skutečným lokálním handlerem a používá syntetická media; žádná změna produkční sítě nebo potlačení chyb.
+
+CI zachová dosavadní fail/retries=0. Výstupy Chromium a WebKit jsou v oddělených adresářích včetně run attempt. Failure-only upload ukládá trace, screenshot, error context i HTML report, názvy obsahují engine/run/attempt, retence **5 dní**. Konfigurace vychází z aktuálního [oficiálního upload-artifact v7](https://github.com/actions/upload-artifact) a jeho podporovaných inputů. Žádné `continue-on-error`, další retry, production tokeny ani změny Cloudflare konfigurace. Skutečný upload artefaktů v GitHub Actions v tomto lokálním tasku proveden nebyl.
+
+### Reprodukce a závěrečné ověření
+
+```text
+node --test tests/*.mjs
+node --experimental-vm-modules scripts/check-admin-module-graph.mjs
+pnpm test:e2e tests/e2e/admin-confirmed-render.spec.mjs --project=chromium --project=webkit
+pnpm test:e2e --project=chromium --output=test-results/final-chromium
+pnpm test:e2e --project=webkit --output=test-results/final-webkit
+pnpm test:e2e tests/e2e/admin-confirmed-render.spec.mjs --project=chromium --project=webkit --grep "clean focus keeps|older detail response|lost response recovery" --repeat-each=3 --output=test-results/confirmed-repeat
+```
+
+Finální gate nad posledním aplikačním diffem: Node **376/376 PASS**, kompletní Chromium **102/102 PASS**, celá nakonfigurovaná WebKit sada **71/71 PASS**. Přibylo pouze 9 cílených Node testů a 19 deterministických browserových případů v každém enginu; původních 367 / 83 / 52 zůstává zahrnuto. Doplňková tři opakování tří řízených pořadí (delayed GET + čistý fokus, starší GET po commandu, ztracená odpověď + recovery) v obou enginech: **18/18 PASS**, nikoli retry selhání. Existující safe-write, draft, conflict, recovery, access-loss a CACHE SAFE navigační testy jsou součástí zelených sad.
+
+Lokální ověření používá Windows, Node 24.19.0, pnpm 11.19.0, Playwright 1.62.1 a stejné fixtures, jeden worker, retries=0; úplný gate a doplňková opakování používají také `CI=1`. Docker není dostupný a WSL nemá připravenou lokální distribuci. **Nejde o měření Linux GitHub CI ani certifikaci fyzického Safari/iPhonu.** GitHub CI ani upload nových diagnostických artefaktů nebyl spuštěn; musí být ověřen až v samostatně schváleném publikačním kroku na neprodukční větvi.
+
+Lokální čtyřmigrační forward chain odpovídá kanonickému schématu, oba in-memory SQLite DB mají integrity `ok`, nulové FK chyby a 8 registry záznamů. Nešlo o migraci vzdálené D1. Wrangler 4.129.0 **dry-run pouze PASS**, 313.41 KiB / 69.91 KiB gzip; žádný upload. Finální syntax kontrola: **118** first-party production souborů + **64** diagnostických/testových PASS. Produkční import graph včetně lokálního vendor leafu: **119 modulů**, žádné chybějící importy/cykly. Admin cache graf: **41 modulů / 130 lokálních vazeb**, 2 schválené externí Firebase importy, žádné token chyby/cykly. `git diff --check` PASS. Nezávažná upozornění: experimentální Node VM/SQLite, souběžné NO_COLOR/FORCE_COLOR, Git LF/CRLF a dostupná novější verze Wrangleru; závislosti se neaktualizovaly.
+
+Vizuálně ověřený [screenshot schváleného detailu se zachovaným fokusem](../test-results/final-chromium/admin-confirmed-render-CON-3bb9b--status-and-actions-current-chromium/confirmed-focused-detail.png) je reprodukován testem `CONFIRMED dashboard empty list...`. Screenshot i ostatní Playwright artefakty jsou lokální, gitignored a obsahují pouze syntetická data; nejsou součástí commitu. Po odstranění test-results se znovu vytvoří uvedeným testem. Hlavička je nahoře, status Schválená, Schválit chybí a čistá poznámka má stále fokus. Test samostatně ověřuje i zachování caret/selection/scroll při post-send rozepsaném textu.
+
+### Přesný inventář změn a lokální uzavření
+
+Celkem **41 souborů** (3 nové, 38 upravených):
+
+- Funkční oprava: `admin.js`, `admin/editors.js`, `admin/dashboard.js`, `admin/modules/reservations-payments.js`, `admin/modules/moderation.js`, `admin/modules/accommodation.js`, `admin/modules/dashboard-events.js`; nový `admin/confirmed-state.js`.
+- Pouze `r2 → r3`, ověřeno porovnáním celého obsahu po normalizaci tokenu a CRLF: `admin.html`, `admin/api.js`, `admin/command-cards.js`, `admin/command-model.js`, `admin/command-shell.js`, `admin/dashboard-model.js`, `admin/lists.js`, `admin/member-detail.js`, `admin/modules/funnel.js`, `admin/modules/mailing/campaigns.js`, `admin/modules/mailing/contacts.js`, `admin/modules/mailing/delivery.js`, `admin/modules/mailing/editor.js`, `admin/modules/mailing/index.js`, `admin/modules/mailing/preview.js`, `admin/modules/mailing/segments.js`, `admin/modules/mailing/tracking.js`, `admin/navigation.js`, `admin/refresh.js`, `admin/reservation-media.js`, `admin/shell.js`, `admin/state.js`, `admin/ui.js`.
+- CI/cache diagnostika: `.github/workflows/ci.yml`, `playwright.config.mjs`, `scripts/check-admin-module-graph.mjs` (jen token).
+- Testy: nové `tests/admin-confirmed-state.test.mjs`, `tests/e2e/admin-confirmed-render.spec.mjs`; upravené `tests/e2e/fixtures.mjs`, `tests/e2e/command-fixture.mjs`, `tests/e2e/admin-safety.spec.mjs`, `tests/e2e/feedback-admin.spec.mjs`.
+- Dokumentace: append-only `docs/admin-new-command-center.md`.
+
+Žádný Worker, SQL/migrace, stylesheet, public/Member aplikace, závislost nebo provider konfigurace se nemění. Výstup je jeden lokální opravný commit `fix: reconcile confirmed admin writes and protected renders` na `fix/admin-confirmed-render`; `main` a `origin/main` zůstávají na výchozím `85fe0c861295b71be74c5438a85341f9ae1dfaa2`. Žádný push, produkční přístup/zápis, vzdálená migrace, QR provisioning, e-mail/provider akce, deployment ani rollback. Tím tento lokální task končí.

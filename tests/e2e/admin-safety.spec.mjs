@@ -19,7 +19,7 @@ async function fixture(page){
   writes.push({op,base,body});
   if(mode==='undelivered'){failedUrls.add(request.url());return route.abort('connectionfailed');}
   if(base!==revision&&!receipts.has(op)){failedUrls.add(request.url());return reply(route,{message:'Data se mezitím změnila.',current:{revision}},409);}
-  if(!receipts.has(op)){paid=body.amountPaidCzk;revision+=2;receipts.set(op,{id:op,state:'confirmed',revision,entityId:id,eventId:'united-2026'})}
+  if(!receipts.has(op)){paid=body.amountPaidCzk;revision+=2;receipts.set(op,{id:op,state:'confirmed',actorId:'e2e-member-001',operation:'payment',baseRevision:base,revision,entityId:id,eventId:'united-2026'})}
   if(mode==='lost'){failedUrls.add(request.url());return route.abort('connectionfailed');}
   if(mode==='delayed')await new Promise(resolve=>control.release=resolve);
   return reply(route,{ok:true,operation:receipts.get(op),reservation:{id,payment:row().payment}}).catch(()=>{});

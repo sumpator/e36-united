@@ -1,5 +1,5 @@
-import { ADMIN_VIEW_IDS, RESERVATION_VIEW_MODES } from '../admin-view-model.js?v=20260909-admin-command-r2';
-import { readSessionChoice, readSessionValue, readSessionYear } from './ui.js?v=20260909-admin-command-r2';
+import { ADMIN_VIEW_IDS, RESERVATION_VIEW_MODES } from '../admin-view-model.js?v=20260909-admin-command-r3';
+import { readSessionChoice, readSessionValue, readSessionYear } from './ui.js?v=20260909-admin-command-r3';
 
 export const adminState={
   currentUser:null,

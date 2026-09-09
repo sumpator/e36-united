@@ -1,5 +1,5 @@
-import { ADMIN_VIEW_IDS } from '../admin-view-model.js?v=20260909-admin-command-r2';
-import {ADMIN_AREAS,areaFor,cleanDrill} from './destinations.js?v=20260909-admin-command-r2';
+import { ADMIN_VIEW_IDS } from '../admin-view-model.js?v=20260909-admin-command-r3';
+import {ADMIN_AREAS,areaFor,cleanDrill} from './destinations.js?v=20260909-admin-command-r3';
 
 const id=value=>/^[a-z0-9_-]{1,128}$/i.test(value||'')?value:null;
 export function adminRoute(search,fallback='dashboard'){

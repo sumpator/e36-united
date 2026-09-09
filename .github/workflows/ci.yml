@@ -39,7 +39,35 @@ jobs:
         run: pnpm exec playwright install --with-deps chromium webkit
 
       - name: Run browser E2E suite
-        run: pnpm test:e2e --project=chromium
+        id: chromium
+        env:
+          PLAYWRIGHT_HTML_OUTPUT_DIR: playwright-report/chromium-${{ github.run_attempt }}
+        run: pnpm test:e2e --project=chromium --output=test-results/chromium-${{ github.run_attempt }}
+
+      - name: Preserve Chromium failure diagnostics
+        if: ${{ failure() && steps.chromium.outcome == 'failure' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: browser-chromium-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            test-results/chromium-${{ github.run_attempt }}/
+            playwright-report/chromium-${{ github.run_attempt }}/
+          retention-days: 5
+          if-no-files-found: warn
 
       - name: Run focused WebKit reliability suite
-        run: pnpm test:e2e --project=webkit
+        id: webkit
+        env:
+          PLAYWRIGHT_HTML_OUTPUT_DIR: playwright-report/webkit-${{ github.run_attempt }}
+        run: pnpm test:e2e --project=webkit --output=test-results/webkit-${{ github.run_attempt }}
+
+      - name: Preserve WebKit failure diagnostics
+        if: ${{ failure() && steps.webkit.outcome == 'failure' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: browser-webkit-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            test-results/webkit-${{ github.run_attempt }}/
+            playwright-report/webkit-${{ github.run_attempt }}/
+          retention-days: 5
+          if-no-files-found: warn

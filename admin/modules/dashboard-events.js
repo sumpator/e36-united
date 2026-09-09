@@ -1,9 +1,9 @@
-import { adminCommand, editorProtected, changedFields } from '../editors.js?v=20260909-admin-command-r2';
-import { adminActionCountState, adminModerationCounts, paymentNeedsAttention, reservationMatchesFilter } from '../../admin-view-model.js?v=20260909-admin-command-r2';
-import { apiRequest } from '../api.js?v=20260909-admin-command-r2';
-import { adminState } from '../state.js?v=20260909-admin-command-r2';
-import { setDenied } from '../shell.js?v=20260909-admin-command-r2';
-import { $, $$, escapeHtml, formatDate, formatMoney, numeric, toast } from '../ui.js?v=20260909-admin-command-r2';
+import { adminCommand, editorProtected, changedFields, forgetAdminEditor } from '../editors.js?v=20260909-admin-command-r3';
+import { adminActionCountState, adminModerationCounts, paymentNeedsAttention, reservationMatchesFilter } from '../../admin-view-model.js?v=20260909-admin-command-r3';
+import { apiRequest } from '../api.js?v=20260909-admin-command-r3';
+import { adminState } from '../state.js?v=20260909-admin-command-r3';
+import { setDenied } from '../shell.js?v=20260909-admin-command-r3';
+import { $, $$, escapeHtml, formatDate, formatMoney, numeric, toast } from '../ui.js?v=20260909-admin-command-r3';
 
 
 export function renderEventSelector(){
@@ -18,8 +18,9 @@ export function selectedEvent(){return adminState.events.find(event=>event.id===
 
 export function renderEventSettings(event){
   const form=$('[data-event-settings-form]');
-  if(!form||!event||editorProtected(form,event.revision))return;
+  if(!form||!event||editorProtected(form,event.revision,()=>renderEventSettings(event)))return;
   if(form.dataset.hydratedEvent===event.id&&form.dataset.hydratedRevision===String(event.revision??0))return;
+  forgetAdminEditor(form);
   form.inert=false;form.dataset.hydratedEvent=event.id;form.dataset.hydratedRevision=String(event.revision??0);
   const year=$('[data-event-settings-year]');if(year)year.textContent=event.year||'—';
   form.elements.registrationStatus.value=event.registrationStatus||'closed';

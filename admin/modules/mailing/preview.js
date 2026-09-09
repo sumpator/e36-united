@@ -1,5 +1,5 @@
-import { apiRequest } from '../../api.js?v=20260909-admin-command-r2';
-import { $, $$ } from '../../ui.js?v=20260909-admin-command-r2';
+import { apiRequest } from '../../api.js?v=20260909-admin-command-r3';
+import { $, $$ } from '../../ui.js?v=20260909-admin-command-r3';
 
 let previewTimer=null,previewSequence=0;
 

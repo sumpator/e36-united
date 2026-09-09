@@ -1,13 +1,13 @@
-import {adminState} from './state.js?v=20260909-admin-command-r2';
-import {adminCommand,bindCurrentEditors,forgetAdminEditor,editorProtected,allowAdminNavigation} from './editors.js?v=20260909-admin-command-r2';
-import {COMPOSITIONS,validatePreferences} from './dashboard-model.js?v=20260909-admin-command-r2';
-import {COMMAND_WIDGETS as WIDGETS,commandDefaults as factoryPreferences,commandLayout,commandBadges} from './command-model.js?v=20260909-admin-command-r2';
-import {commandCard,metricInfo} from './command-cards.js?v=20260909-admin-command-r2';
-import {commandIcon} from './command-icons.js?v=20260909-admin-command-r2';
-import {renderCommandShell} from './command-shell.js?v=20260909-admin-command-r2';
-import {DESTINATIONS,QUICK_LINK_IDS,destination,drillLabel} from './destinations.js?v=20260909-admin-command-r2';
-import {dashboardKpi,chartModel,attentionModel,showValue} from './dashboard-data.js?v=20260909-admin-command-r2';
-import {$,escapeHtml as esc,toast} from './ui.js?v=20260909-admin-command-r2';
+import {adminState} from './state.js?v=20260909-admin-command-r3';
+import {adminCommand,bindCurrentEditors,forgetAdminEditor,editorProtected,allowAdminNavigation,adminEditorDirty} from './editors.js?v=20260909-admin-command-r3';
+import {COMPOSITIONS,validatePreferences} from './dashboard-model.js?v=20260909-admin-command-r3';
+import {COMMAND_WIDGETS as WIDGETS,commandDefaults as factoryPreferences,commandLayout,commandBadges} from './command-model.js?v=20260909-admin-command-r3';
+import {commandCard,metricInfo} from './command-cards.js?v=20260909-admin-command-r3';
+import {commandIcon} from './command-icons.js?v=20260909-admin-command-r3';
+import {renderCommandShell} from './command-shell.js?v=20260909-admin-command-r3';
+import {DESTINATIONS,QUICK_LINK_IDS,destination,drillLabel} from './destinations.js?v=20260909-admin-command-r3';
+import {dashboardKpi,chartModel,attentionModel,showValue} from './dashboard-data.js?v=20260909-admin-command-r3';
+import {$,escapeHtml as esc,toast} from './ui.js?v=20260909-admin-command-r3';
 
 let navigate=()=>{},refresh=()=>{},draft=null,pendingPreferences=null,acceptNext=false;
 const clone=value=>JSON.parse(JSON.stringify(value));
@@ -26,7 +26,7 @@ export function receiveDashboardPreferences(payload){
   if(!validatePreferences(payload.preferences))throw new Error('Neznámý nebo poškozený formát preferencí. Uložení není dostupné.');
   if(payload.stored===false)payload={...payload,preferences:factoryPreferences()};
   const root=form();
-  if(!adminState.dashboardPreferences||acceptNext||!root.hidden&&!editorProtected(root,payload.revision)){
+  if(!adminState.dashboardPreferences||acceptNext||!root.hidden&&!editorProtected(root,payload.revision,()=>receiveDashboardPreferences(payload))){
     adminState.dashboardPreferences=clone(payload.preferences);adminState.dashboardPreferenceRevision=payload.revision;
     acceptNext=false;pendingPreferences=null;
     if(!root.hidden){forgetAdminEditor(root);draft=clone(payload.preferences);writeDraft(false);editFields();bindCurrentEditors();}
@@ -142,7 +142,7 @@ export function initializeDashboard({onNavigate,onRefresh}){
     if(target.hasAttribute('data-recovery-action'))queueMicrotask(()=>{if(draft){readDraft();editFields();}});
   });
   form().addEventListener('submit',async event=>{event.preventDefault();readDraft();if(!validatePreferences(draft))return;const save=$('[data-dashboard-save]');save.disabled=true;
-    try{const result=await adminCommand('/api/admin/preferences',{method:'PUT',body:draft,editor:form()});acceptNext=true;if(result.preferences)receiveDashboardPreferences({...result,revision:result.operation.revision});await refresh('manual');closeEditor();toast('Rozložení uloženo pro tento účet.');}
+    try{const result=await adminCommand('/api/admin/preferences',{method:'PUT',body:draft,editor:form(),submitted:{':configuration':form().elements.configuration.value}});if(adminEditorDirty(form())){toast('Rozložení uloženo; další rozepsané změny zůstávají neuložené.');return}acceptNext=true;if(result.preferences)receiveDashboardPreferences({...result,revision:result.operation.revision});await refresh('manual');closeEditor();toast('Rozložení uloženo pro tento účet.');}
     catch(error){toast(error.message||'Rozložení nelze uložit.');}finally{save.disabled=false;}
   });
   window.addEventListener('admin:discardfiles',()=>{if(draft)closeEditor()});

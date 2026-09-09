@@ -1,11 +1,11 @@
-import { canonicalMemberLink } from '../member-detail.js?v=20260909-admin-command-r2';
-import {listChanged,renderListPagination} from '../lists.js?v=20260909-admin-command-r2';
-import { adminCommand, editorProtected } from '../editors.js?v=20260909-admin-command-r2';
-import { apiMedia, apiRequest } from '../api.js?v=20260909-admin-command-r2';
-import { renderAttentionCounts } from './dashboard-events.js?v=20260909-admin-command-r2';
-import { adminState } from '../state.js?v=20260909-admin-command-r2';
-import { setDenied } from '../shell.js?v=20260909-admin-command-r2';
-import { $, $$, escapeHtml, formatDate, galleryStatusLabel, numeric, photosLabel, recordsLabel, rememberSessionChoice, toast } from '../ui.js?v=20260909-admin-command-r2';
+import { canonicalMemberLink } from '../member-detail.js?v=20260909-admin-command-r3';
+import {listChanged,renderListPagination} from '../lists.js?v=20260909-admin-command-r3';
+import { adminCommand, editorProtected, forgetAdminEditor } from '../editors.js?v=20260909-admin-command-r3';
+import { apiMedia, apiRequest } from '../api.js?v=20260909-admin-command-r3';
+import { renderAttentionCounts } from './dashboard-events.js?v=20260909-admin-command-r3';
+import { adminState } from '../state.js?v=20260909-admin-command-r3';
+import { setDenied } from '../shell.js?v=20260909-admin-command-r3';
+import { $, $$, escapeHtml, formatDate, galleryStatusLabel, numeric, photosLabel, recordsLabel, rememberSessionChoice, toast } from '../ui.js?v=20260909-admin-command-r3';
 
 const galleryFilterLabels={pending:'Žádosti',approved:'Schválené',rejected:'Zamítnuté',all:'Všechny'};
 const galleryMediaUrls=new Map();
@@ -98,8 +98,8 @@ function showShineSummary(item){const sns=item.showShine||{};if(!sns.competed)re
 function historyReviewControl(item,component){
   const value=component==='attendance'?item.attendance:item.showShine,status=value?.status;if(component==='sns'&&status==='not_claimed')return '<p>Člen Show & Shine v tomto ročníku nenárokuje.</p>';
   const note=value?.reviewNote?`<p>${escapeHtml(value.reviewNote)}</p>`:'';
-  if(status==='approved')return `${note}${historyReviewActions(item,component)}`;
-  return `${note}<label><span>DŮVOD ROZHODNUTÍ</span><textarea data-history-review-note maxlength="1000" placeholder="Povinné při zamítnutí"></textarea></label>${historyReviewActions(item,component)}`;
+  if(status==='approved')return `${note}<div data-history-actions>${historyReviewActions(item,component)}</div>`;
+  return `${note}<label><span>DŮVOD ROZHODNUTÍ</span><textarea data-history-review-note maxlength="1000" placeholder="Povinné při zamítnutí"></textarea></label><div data-history-actions>${historyReviewActions(item,component)}</div>`;
 }
 function historyClaimCard(item){
   const member=item.member||{},pending=historyNeedsAction(item);return `<details class="admin-history-card${pending?' is-actionable':''}" data-history-id="${escapeHtml(item.id)}"><summary><div><span class="admin-kicker">UNITED ${numeric(item.eventYear)}</span><h3>${canonicalMemberLink(item.memberId||member.id,member.nickname||member.name||member.email||'United member')}</h3><p>${escapeHtml([member.name,member.memberCode].filter(Boolean).join(' · '))}</p></div><div class="admin-history-card-state"><span>${escapeHtml(historyTypeSummary(item))}</span><b class="admin-badge admin-badge--${pending?'pending':'resolved'}">${pending?'Vyžaduje akci':'Bez čekající akce'}</b><time>${escapeHtml(formatDate(item.submittedAt))}</time></div></summary><div class="admin-history-card-detail"><p class="admin-history-member-email">${escapeHtml(member.email||'E-mail neuveden')}</p>${historyEvidenceGrid(item)}<div class="admin-history-decisions"><section data-history-review="attendance"><div class="admin-history-decision-head"><div><small>DOCHÁZKA</small><b>${escapeHtml(historyComponentLabel(item.attendance?.status))}</b></div><i class="admin-badge admin-badge--${escapeHtml(item.attendance?.status)}">${escapeHtml(historyComponentLabel(item.attendance?.status))}</i></div>${historyReviewControl(item,'attendance')}</section><section data-history-review="sns"><div class="admin-history-decision-head"><div><small>SHOW &amp; SHINE</small><b>${escapeHtml(showShineSummary(item))}</b></div><i class="admin-badge admin-badge--${escapeHtml(item.showShine?.status)}">${escapeHtml(historyComponentLabel(item.showShine?.status))}</i></div>${historyReviewControl(item,'sns')}</section></div></div></details>`;
@@ -119,8 +119,19 @@ function renderHistoryPagination(){
   const nav=$('[data-history-pagination]');if(!nav)return;nav.hidden=adminState.historyPagination.totalPages<=1;$('[data-history-page-label]',nav).textContent=`Strana ${adminState.historyPagination.page} z ${adminState.historyPagination.totalPages}`;const previous=$('[data-history-page="previous"]',nav),next=$('[data-history-page="next"]',nav);previous.disabled=adminState.historyPagination.page<=1;next.disabled=adminState.historyPagination.page>=adminState.historyPagination.totalPages;
 }
 export function renderHistoryClaims(payload=null){
-  if(payload&&[...document.querySelectorAll('[data-history-id]')].some(root=>editorProtected(root,payload.claims?.find(item=>item.id===root.dataset.historyId)?.revision))){adminState.historyCounts={...adminState.historyCounts,...payload.counts};renderAttentionCounts();return false}
   if(payload){adminState.historyClaims=Array.isArray(payload.claims)?payload.claims:[];adminState.historyCounts={...adminState.historyCounts,...(payload.counts||{})};adminState.historyYears=Array.isArray(payload.facets?.years)?payload.facets.years:[];adminState.historyPagination={...adminState.historyPagination,...(payload.pagination||{})};if(payload.filters){adminState.historyFilter=payload.filters.status||adminState.historyFilter;adminState.historyClaimType=payload.filters.type||adminState.historyClaimType;adminState.historyYear=payload.filters.year||'all';adminState.historySearch=payload.filters.q??adminState.historySearch;rememberHistoryFilters()}}
+  let blocked=false;
+  for(const root of document.querySelectorAll('[data-history-id]')){
+    const item=adminState.historyClaims.find(item=>item.id===root.dataset.historyId);
+    if(editorProtected(root,item?.revision,()=>renderHistoryClaims()))blocked=true;
+    if(item&&blocked){
+      const template=document.createElement('template');template.innerHTML=historyClaimCard(item);const fresh=template.content.firstElementChild;
+      for(const selector of ['.admin-history-card-state',...['attendance','sns'].flatMap(component=>['.admin-history-decision-head','[data-history-actions]'].map(part=>'[data-history-review="'+component+'"] '+part))]){
+        const a=root.querySelector(selector),b=fresh.querySelector(selector);if(a&&b&&a.innerHTML!==b.innerHTML)a.replaceChildren(...b.childNodes);
+      }
+    }
+  }
+  if(blocked){renderAttentionCounts();return false}
   renderHistoryTabs();renderHistoryControls();renderHistoryPagination();renderAttentionCounts();const items=filteredHistoryClaims(),list=$('[data-history-list]');if(!list)return;$('[data-gallery-count]').textContent=`${recordsLabel(items.length)} z ${adminState.historyPagination.total}`;
   const openIds=new Set([...list.querySelectorAll('details[open]')].map(node=>node.dataset.historyId));
   if(!items.length){list.innerHTML='<div class="admin-empty">Tomuto filtru neodpovídá žádná historická žádost.</div>';return}list.innerHTML=items.map(historyClaimCard).join('');for(const node of list.querySelectorAll('[data-history-id]'))if(openIds.has(node.dataset.historyId))node.open=true;
@@ -154,7 +165,7 @@ export async function loadHistoryClaims({page=1}={}){const sequence=++historyReq
 export function refreshHistoryClaims(page=1){adminState.historyPagination.page=page;window.dispatchEvent(new CustomEvent('admin:invalidate'))}
 export async function reviewHistoryClaim(container,component,status){
   const claimId=container.dataset.historyId,review=$(`[data-history-review="${component}"]`,container),note=$('[data-history-review-note]',review)?.value.trim()||'';if(status==='rejected'&&!note){toast('Při zamítnutí je důvod povinný.');$('[data-history-review-note]',review)?.focus();return}
-  $$('[data-history-action]',review).forEach(button=>button.disabled=true);try{await adminCommand(`/api/admin/history/claims/${encodeURIComponent(claimId)}/${component}`,{method:'PATCH',body:{status,reviewNote:note},editor:container});toast(component==='attendance'?'Rozhodnutí o docházce bylo uloženo.':'Rozhodnutí o Show & Shine bylo uloženo.');/* adminCommand already invalidates the shared summary and current page once. */}catch(error){if(error.status===403){setDenied();return}toast(error.message||'Rozhodnutí se nepodařilo uložit.')}finally{$$('[data-history-action]',review).forEach(button=>button.disabled=false)}
+  $$('[data-history-action]',review).forEach(button=>button.disabled=true);try{await adminCommand(`/api/admin/history/claims/${encodeURIComponent(claimId)}/${component}`,{method:'PATCH',body:{status,reviewNote:note},editor:container,submitted:{[component+':historyReviewNote']:$('[data-history-review-note]',review)?.value||''},onConfirmed:payload=>{const item=adminState.historyClaims.find(item=>item.id===claimId);if(item&&payload.claimId===claimId&&payload.component===component&&payload.operation.entityId===claimId&&payload.operation.revision>=item.revision){const key=component==='attendance'?'attendance':'showShine';item[key]={...item[key],status:payload.status,reviewNote:payload.reviewNote};item.revision=payload.operation.revision;renderHistoryClaims()}}});toast(component==='attendance'?'Rozhodnutí o docházce bylo uloženo.':'Rozhodnutí o Show & Shine bylo uloženo.');/* adminCommand already invalidates the shared summary and current page once. */}catch(error){if(error.status===403){setDenied();return}toast(error.message||'Rozhodnutí se nepodařilo uložit.')}finally{$$('[data-history-action]',review).forEach(button=>button.disabled=false)}
 }
 
 async function galleryMediaUrl(id){
@@ -182,7 +193,7 @@ function renderGalleryLightbox(){
   const item=adminState.galleryItems.find(photo=>photo.id===selectedGalleryId);
   if(!item){closeGalleryLightbox();return}
   const content=$('[data-gallery-lightbox-content]');
-  content.innerHTML=`<article class="admin-gallery-lightbox-card" data-gallery-id="${escapeHtml(item.id)}">
+  const markup=`<article class="admin-gallery-lightbox-card" data-gallery-id="${escapeHtml(item.id)}">
     <div class="admin-gallery-lightbox-media"><img alt="Fotografie od ${escapeHtml(galleryIdentity(item))}" data-gallery-media="${escapeHtml(item.id)}"/></div>
     <div class="admin-gallery-lightbox-info">
       <span class="admin-kicker">FOTOGRAFIE ČLENA</span><h2 id="admin-gallery-lightbox-title">${escapeHtml(galleryIdentity(item))}</h2>
@@ -192,15 +203,25 @@ function renderGalleryLightbox(){
       <div class="admin-gallery-review"><label><span>ADMIN POZNÁMKA</span><textarea data-gallery-review-note maxlength="1000" placeholder="Krátká admin poznámka">${escapeHtml(item.reviewNote||'')}</textarea></label><div class="admin-review-actions">${galleryActions(item)}</div></div>
     </div>
   </article>`;
-  hydrateGalleryMedia(content);
+  const editor=content.querySelector('article');
+  if(editorProtected(editor,item.revision,renderGalleryLightbox)){
+    const template=document.createElement('template');template.innerHTML=markup;
+    for(const selector of ['.admin-gallery-lightbox-info > .admin-badge','.admin-review-actions']){
+      const a=editor.querySelector(selector),b=template.content.querySelector(selector);if(a&&b&&a.innerHTML!==b.innerHTML)a.replaceWith(b);
+    }
+    return false;
+  }
+  forgetAdminEditor(editor);content.innerHTML=markup;hydrateGalleryMedia(content);
 }
 export function openGalleryLightbox(id,source){
   if(!adminState.galleryItems.some(item=>item.id===id))return;
+  if(selectedGalleryId!==id)forgetAdminEditor($('[data-gallery-lightbox-content] article'));
   selectedGalleryId=id;lightboxReturnFocus=source||document.activeElement;renderGalleryLightbox();
   $('[data-gallery-lightbox]').hidden=false;document.body.classList.add('admin-lightbox-open');
   $('[data-gallery-lightbox-close]:not(.admin-gallery-lightbox-backdrop)')?.focus();
 }
 export function closeGalleryLightbox(){
+  forgetAdminEditor($('[data-gallery-lightbox-content] article'));
   const closingId=selectedGalleryId;const lightbox=$('[data-gallery-lightbox]');if(lightbox)lightbox.hidden=true;
   document.body.classList.remove('admin-lightbox-open');selectedGalleryId=null;
   if(closingId){const visible=adminState.galleryFilter==='all'||adminState.galleryItems.some(item=>item.id===closingId&&item.status===adminState.galleryFilter);if(!visible)releaseGalleryMediaId(closingId)}
@@ -210,8 +231,8 @@ export async function updateGallery(container,status){
   const submissionId=container.dataset.galleryId;const currentItem=adminState.galleryItems.find(photo=>photo.id===submissionId);const noteField=$('[data-gallery-review-note]',container);const note=noteField?noteField.value:(currentItem?.reviewNote||'');
   $$('[data-gallery-action]',container).forEach(button=>button.disabled=true);
   try{
-    await adminCommand(`/api/admin/gallery/${encodeURIComponent(submissionId)}`,{method:'PATCH',body:{status,reviewNote:note},editor:container});
-    const item=adminState.galleryItems.find(photo=>photo.id===submissionId);if(item){item.status=status;item.reviewNote=note}
+    const payload=await adminCommand(`/api/admin/gallery/${encodeURIComponent(submissionId)}`,{method:'PATCH',body:{status,reviewNote:note},editor:container,submitted:noteField?{':galleryReviewNote':note}: {}});
+    const item=adminState.galleryItems.find(photo=>photo.id===submissionId);if(item&&payload.photo?.id===submissionId&&payload.operation.entityId===submissionId&&payload.operation.revision>=item.revision){Object.assign(item,payload.photo,{revision:payload.operation.revision})}
     renderGalleryTabs();renderGalleryCounts();renderGalleryList();if(selectedGalleryId===submissionId)renderGalleryLightbox();
     const messages={pending:'Fotografie byla vrácena k posouzení.',approved:'Fotografie byla schválena.',rejected:'Fotografie byla zamítnuta.'};toast(messages[status]||'Stav fotografie byl změněn.');
   }catch(error){if(error.status===403){setDenied();return}toast(error.message||'Fotografii se nepodařilo změnit.')}finally{$$('[data-gallery-action]',container).forEach(button=>button.disabled=false)}

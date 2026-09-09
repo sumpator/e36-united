@@ -2,20 +2,21 @@ import {factoryPreferences} from '../../admin/dashboard-model.js';
 import {test,expect} from '@playwright/test';
 import {prepareAdminE2ePage,expectNoUnexpectedClientErrors} from './fixtures.mjs';
 const headers={'Access-Control-Allow-Origin':'*','Content-Type':'application/json'};
-const reply=(route,body)=>route.fulfill({status:200,headers,body:JSON.stringify({...body,...(route.request().headers()['idempotency-key']?{operation:{id:route.request().headers()['idempotency-key'],state:'confirmed',revision:Number(route.request().headers()['if-match'])+2}}:{})})});
+const reply=(route,body)=>route.fulfill({status:200,headers,body:JSON.stringify(body)});
 
 test('History and S&S pending badge is visible on desktop/mobile and updates after each review',async({page})=>{
   await page.setViewportSize({width:1440,height:900});
   const observations=await prepareAdminE2ePage(page);
-  let attendance='pending',sns='pending';
+  let attendance='pending',sns='pending',revision=0;
   const counts=()=>({pending:attendance==='pending'||sns==='pending'?1:0,attendancePending:attendance==='pending'?1:0,snsPending:sns==='pending'?1:0,total:1,approved:attendance==='approved'||sns==='approved'?1:0,rejected:0,latestPendingYear:2026,latestYear:2026,latestYearPending:1,olderPending:0});
   await page.route('https://api.e36united.cz/api/admin/summary**',route=>reply(route,{overview:{history:counts(),gallery:{pending:0}},attention:{reservations:0,payments:0,gallery:0,history:counts().pending}}));
   await page.route('https://api.e36united.cz/api/admin/history/claims**',route=>{
     if(route.request().method()==='PATCH'){
       if(route.request().url().endsWith('/attendance'))attendance=route.request().postDataJSON().status;else sns=route.request().postDataJSON().status;
-      return reply(route,{ok:true});
+      const q=route.request(),base=Number(q.headers()['if-match']),component=q.url().split('/').at(-1);expect(base).toBe(revision);revision+=2;
+      return reply(route,{ok:true,claimId:'pending-claim',component,status:q.postDataJSON().status,reviewNote:q.postDataJSON().reviewNote,operation:{id:q.headers()['idempotency-key'],state:'confirmed',actorId:'e2e-member-001',entityId:'pending-claim',eventId:'united-2026',operation:'history-'+component,baseRevision:base,revision}});
     }
-    return reply(route,{claims:counts().pending?[{id:'pending-claim',eventYear:2026,member:{name:'Eva',email:'eva@example.test'},attendance:{status:attendance},showShine:{status:sns,competed:true,category:'coupe'},evidence:[]}]:[],counts:counts(),facets:{years:[{year:2026,pending:counts().pending,total:1}]},pagination:{page:1,totalPages:1,total:counts().pending,pageSize:24}});
+    return reply(route,{claims:counts().pending?[{id:'pending-claim',eventId:'united-2026',eventYear:2026,revision,member:{name:'Eva',email:'eva@example.test'},attendance:{status:attendance},showShine:{status:sns,competed:true,category:'coupe'},evidence:[]}]:[],counts:counts(),facets:{years:[{year:2026,pending:counts().pending,total:1}]},pagination:{page:1,totalPages:1,total:counts().pending,pageSize:24}});
   });
   await page.goto('/admin.html');
   await expect(page.locator('[data-attention-history]')).toHaveText('1');
@@ -27,6 +28,7 @@ test('History and S&S pending badge is visible on desktop/mobile and updates aft
   await card.locator('[data-history-component="attendance"][data-history-action="approved"]').click();
   await expect(page.locator('[data-attention-history]')).toHaveText('1');
   await expect(card).toHaveAttribute('open',''); // Refresh preserves the open review context.
+  await expect(card.locator('[data-history-review="attendance"] [data-history-action="approved"]')).toHaveCount(0);
   await card.locator('[data-history-component="sns"][data-history-action="approved"]').click();
   await expect(page.locator('[data-attention-history]')).toHaveText('0');await expect(page.locator('[data-history-summary="pending"]')).toHaveText('0');
   await expect(page.locator('[data-gallery-mode-count="history"]')).toBeHidden();

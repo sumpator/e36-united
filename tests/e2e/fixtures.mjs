@@ -348,7 +348,7 @@ const adminReservation = {
   },
 };
 
-export async function prepareAdminE2ePage(page) {
+export async function prepareAdminE2ePage(page,{authUid=memberId}={}) {
   const observations = { pageErrors: [], consoleErrors: [], unhandledApi: [], requests: [], campaignWrites: [] };
   const mailingStarter=createMailingStarterDraft();
   let mailingCampaigns=[];
@@ -365,7 +365,7 @@ export async function prepareAdminE2ePage(page) {
   await page.route('https://static.wixstatic.com/**', route => route.fulfill({ status: 200, contentType: 'image/svg+xml', body: imageSvg }));
   await page.route('https://e36united.cz/united-logo-blue-silver-transparent.png', route => route.fulfill({ status: 200, contentType: 'image/svg+xml', body: imageSvg }));
   await page.route('https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js', route => route.fulfill({ status: 200, contentType: 'text/javascript; charset=utf-8', body: firebaseAppModule }));
-  await page.route('https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js', route => route.fulfill({ status: 200, contentType: 'text/javascript; charset=utf-8', body: firebaseAuthModule }));
+  await page.route('https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js', route => route.fulfill({ status: 200, contentType: 'text/javascript; charset=utf-8', body: firebaseAuthModule.replace('uid: '+JSON.stringify(memberId),'uid: '+JSON.stringify(authUid)) }));
 
   await page.route(`${API_BASE}/**`, async route => {
     const request = route.request();

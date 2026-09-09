@@ -1,10 +1,10 @@
-import { adminCommand, editorProtected } from '../editors.js?v=20260909-admin-command-r2';
-import { accommodationVisualMarkup, bindAccommodationVisualFallbacks } from '../../accommodation-visual.js?v=20260909-admin-command-r2';
-import { selectImageFiles } from '../../image-upload.js?v=20260909-admin-command-r2';
-import { apiBaseUrl, apiRequest, apiUpload } from '../api.js?v=20260909-admin-command-r2';
-import { adminState } from '../state.js?v=20260909-admin-command-r2';
-import { setDenied } from '../shell.js?v=20260909-admin-command-r2';
-import { $, escapeHtml, formatMoney, numeric, toast } from '../ui.js?v=20260909-admin-command-r2';
+import { adminCommand, editorProtected, adminEditorDirty } from '../editors.js?v=20260909-admin-command-r3';
+import { accommodationVisualMarkup, bindAccommodationVisualFallbacks } from '../../accommodation-visual.js?v=20260909-admin-command-r3';
+import { selectImageFiles } from '../../image-upload.js?v=20260909-admin-command-r3';
+import { apiBaseUrl, apiRequest, apiUpload } from '../api.js?v=20260909-admin-command-r3';
+import { adminState } from '../state.js?v=20260909-admin-command-r3';
+import { setDenied } from '../shell.js?v=20260909-admin-command-r3';
+import { $, escapeHtml, formatMoney, numeric, toast } from '../ui.js?v=20260909-admin-command-r3';
 
 const accommodationPhotoSelections=new Map();
 export function resetAccommodationMedia(){for(const selection of accommodationPhotoSelections.values())URL.revokeObjectURL(selection.url);accommodationPhotoSelections.clear();document.querySelectorAll('[data-local-file]').forEach(node=>delete node.dataset.localFile)}
@@ -49,7 +49,7 @@ function accommodationCard(item){
 
 export function renderAccommodation(payload){
   const createForm=$('[data-accommodation-create-form]');if(createForm)createForm.inert=false;
-  const protectedCards=[...document.querySelectorAll('[data-accommodation-id]')].some(card=>editorProtected(card,payload.options?.find(item=>item.id===card.dataset.accommodationId)?.revision));
+  const protectedCards=[...document.querySelectorAll('[data-accommodation-id]')].some(card=>editorProtected(card,payload.options?.find(item=>item.id===card.dataset.accommodationId)?.revision,()=>renderAccommodation(payload)));
   if(protectedCards||accommodationPhotoSelections.size){adminState.accommodationItems=payload.options||[];return false}
   for(const selection of accommodationPhotoSelections.values())URL.revokeObjectURL(selection.url);accommodationPhotoSelections.clear();
   adminState.accommodationItems=Array.isArray(payload.options)?payload.options:[];
@@ -75,7 +75,7 @@ export async function saveAccommodation(form,optionId='',reloadEventData){
     const body=accommodationFormPayload(form);if(!optionId)body.eventId=adminState.selectedEventId;
     await adminCommand(optionId?`/api/admin/accommodation/${encodeURIComponent(optionId)}`:'/api/admin/accommodation',{method:optionId?'PATCH':'POST',body,editor:form});
     toast(optionId?'Ubytování bylo upraveno.':'Ubytování bylo přidáno.');
-    if(!optionId){form.reset();form.elements.unitsTotal.value=0;form.elements.capacityPerUnit.value=4;form.elements.active.checked=true;form.closest('details').open=false}
+    if(!optionId&&!adminEditorDirty(form)){form.reset();form.elements.unitsTotal.value=0;form.elements.capacityPerUnit.value=4;form.elements.active.checked=true;form.closest('details').open=false}
     await reloadEventData();
   }catch(error){if(error.status===403){setDenied();return}toast(error.message||'Ubytování se nepodařilo uložit.')}finally{if(button)button.disabled=false}
 }
