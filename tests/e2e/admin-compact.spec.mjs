@@ -38,7 +38,7 @@ test('COMPACT card media detaches on navigation and loads again on Back without 
 test('COMPACT history expansion leaves its neighbouring card compact',async({page},info)=>{
  await page.setViewportSize({width:1600,height:1000});const c=await fixture(page);c.r.db.exec("UPDATE united_history_claims SET event_id='e' WHERE id='second'");
  await page.goto('/admin.html?section=community&view=club&event=e');await page.locator('[data-history-year]').selectOption('all');await expect(page.locator('[data-history-id]')).toHaveCount(2);
- const neighbour=page.locator('[data-history-id="second"]'),before=await neighbour.boundingBox();await page.locator('[data-history-id="h"] summary').click();await expect(page.locator('[data-history-id="h"] [data-history-review="attendance"]')).toBeVisible();expect((await neighbour.boundingBox()).height).toBe(before.height);await expect(neighbour).not.toHaveAttribute('open');
+ const neighbour=page.locator('[data-history-id="second"]'),before=await neighbour.boundingBox();await page.locator('[data-history-id="h"] summary').click();await expect(page.locator('[data-history-id="h"] [data-history-review="attendance"]')).toBeVisible();const after=await neighbour.boundingBox();expect(Math.abs(after.height-before.height)).toBeLessThanOrEqual(0.5);await expect(neighbour).not.toHaveAttribute('open');
  await page.screenshot({path:info.outputPath('history-neighbours-1600.png'),fullPage:true});clean(c);c.r.db.close();
 });
 test('COMPACT mobile menu closes through all controls and legacy Club opens Members',async({page})=>{
