@@ -1,9 +1,9 @@
-import {adminState} from './state.js?v=20260909-admin-member-hero-r5';
-import {$,escapeHtml as esc} from './ui.js?v=20260909-admin-member-hero-r5';
-import {apiRequest} from './api.js?v=20260909-admin-member-hero-r5';
-import {ADMIN_REFRESH} from './refresh-policy.js?v=20260909-admin-member-hero-r5';
-import qrcode from '../vendor/qrcode-generator.mjs?v=20260909-admin-member-hero-r5';
-import {MEMBER_TABS,memberIdentity,memberOverview,memberReservation,memberSection,memberEmpty} from './member-presentation.js?v=20260909-admin-member-hero-r5';
+import {adminState} from './state.js?v=20260910-admin-private-media-r6';
+import {$,escapeHtml as esc} from './ui.js?v=20260910-admin-private-media-r6';
+import {apiRequest} from './api.js?v=20260910-admin-private-media-r6';
+import {ADMIN_REFRESH} from './refresh-policy.js?v=20260910-admin-private-media-r6';
+import qrcode from '../vendor/qrcode-generator.mjs?v=20260910-admin-private-media-r6';
+import {MEMBER_TABS,memberIdentity,memberOverview,memberReservation,memberSection,memberEmpty} from './member-presentation.js?v=20260910-admin-private-media-r6';
 
 export {MEMBER_TABS};
 export function canonicalMemberLink(id,label='Člen'){
@@ -83,12 +83,15 @@ export function memberRefreshTasks(){
 function releaseMemberMedia({preserveHero=false}={}){
  if(!preserveHero)releaseMemberHero();
  renderedTab=null;mediaGeneration++;observer?.disconnect();
- // Detach live image consumers before revoking their URLs, including navigation
- // while WebKit is still decoding a private image. Ownership/generation stay intact.
- document.querySelectorAll('[data-member-dialog] [data-member-media],[data-member-full-image]').forEach(img=>img.removeAttribute('src'));
- $('[data-member-image-dialog]')?.close();
+ // Physically detach live consumers before revoking while WebKit may still be
+ // decoding a private blob. Reattach the empty reusable preview afterwards.
+ const imageDialog=$('[data-member-image-dialog]'),fullImage=$('[data-member-full-image]');
+ imageDialog?.close();
+ document.querySelectorAll('[data-member-dialog] [data-member-media]').forEach(img=>{img.remove();img.removeAttribute('src')});
+ if(fullImage){fullImage.remove();fullImage.removeAttribute('src')}
  for(const c of mediaControllers)c.abort();mediaControllers.clear();
  for(const item of media.values())if(item.url)URL.revokeObjectURL(item.url);media.clear();
+ if(fullImage&&imageDialog?.isConnected)imageDialog.append(fullImage);
 }
 function releaseMemberHero(){
  heroGeneration++;hero?.controller.abort();

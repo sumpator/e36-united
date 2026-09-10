@@ -7,6 +7,14 @@ const clean=c=>{expect(c.writes).toEqual([]);expect(c.r.writes).toBe(0);expect(c
 const shot=(page,info,name)=>page.screenshot({path:info.outputPath(name+'.png')});
 async function select(page,tab){if(await page.locator('[data-member-section-select]').isVisible())await page.locator('[data-member-section-select]').selectOption(tab);else await page.locator(`[data-member-tab="${tab}"]`).click();}
 async function noOverflow(page){expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBe(true);}
+async function spyPrivateMediaLifecycle(page,{holdPhoto=false}={}){await page.addInitScript(hold=>{
+ const create=URL.createObjectURL.bind(URL),revoke=URL.revokeObjectURL.bind(URL),consumers=new Map();let barrier;
+ window.privateMediaLifecycle={created:[],revoked:[],watch(url,nodes){consumers.set(url,nodes)},barrier:{arrived:false,returned:false,release(){barrier?.release()}}};
+ URL.createObjectURL=blob=>{const url=create(blob);window.privateMediaLifecycle.created.push(url);return url};
+ URL.revokeObjectURL=url=>{const nodes=consumers.get(url)||[];window.privateMediaLifecycle.revoked.push({url,connected:nodes.map(node=>node.isConnected)});consumers.delete(url);return revoke(url)};
+ if(hold){const request=fetch.bind(window);let holdNext=true;fetch=async(input,init)=>{const response=await request(input,init),url=String(input);if(!holdNext||!url.includes('/api/admin/members/m/media/photos/g'))return response;
+   holdNext=false;barrier={promise:null,release:null};barrier.promise=new Promise(resolve=>barrier.release=resolve);window.privateMediaLifecycle.barrier.arrived=true;await barrier.promise;window.privateMediaLifecycle.barrier.returned=true;return response;};}
+ },holdPhoto)}
 async function aligned(page){
  const boxes=await page.locator('[data-dashboard-grid]>.dashboard-card').evaluateAll(nodes=>nodes.map(n=>{const b=n.getBoundingClientRect();return{id:n.dataset.widget,x:b.x,y:b.y,bottom:b.bottom,width:b.width};}));
  for(const a of boxes)for(const b of boxes)if(a.id!==b.id&&Math.abs(a.y-b.y)<2)expect(Math.abs(a.bottom-b.bottom),a.id+' / '+b.id).toBeLessThanOrEqual(1);
@@ -121,4 +129,27 @@ test('RESPONSIVE existing read-only sections keep pagination independent history
  await modal(page).locator('[data-member-page="2"]').click();await expect(modal(page).locator('.admin-member-ledger')).toHaveCount(1);expect(c.calls.filter(q=>q.includes('/points?')&&q.includes('page=2'))).toHaveLength(1);
  await select(page,'mailing');await expect(modal(page)).toContainText('different@example.invalid');await expect(modal(page)).toContainText('Synthetic campaign');
  await select(page,'qr');await page.reload();await expect(page).toHaveURL(/tab=qr/);await expect(modal(page)).toContainText('Členské QR zatím nebylo vydáno');clean(c);c.r.db.close();
+});
+
+test('RESPONSIVE private photo consumers detach before one revoke and reload after rapid Back',async({page})=>{
+ await spyPrivateMediaLifecycle(page);const c=await commandFixture(page);
+ await page.goto('/admin.html?section=community&view=members&event=e');await expect(page.locator('[data-member-list] [data-member-open="m"]')).toBeVisible();await page.locator('[data-member-list] [data-member-open="m"]').click();await select(page,'photos');await expect(modal(page)).toContainText('Synthetic');
+ const photo=modal(page).locator('[data-member-media]').first();await expect(photo).toHaveAttribute('src',/^blob:/);const url=await photo.getAttribute('src');
+ await modal(page).locator('[data-member-image]').first().click();await expect(page.locator('[data-member-image-dialog]')).toBeVisible();await expect(page.locator('[data-member-full-image]')).toHaveAttribute('src',url);
+ await page.evaluate(value=>window.privateMediaLifecycle.watch(value,[...document.querySelectorAll('[data-member-media],[data-member-full-image]')].filter(node=>node.src===value)),url);
+ await page.goBack();await expect(modal(page)).toBeHidden();
+ expect(await page.evaluate(value=>window.privateMediaLifecycle.revoked.filter(item=>item.url===value),url)).toEqual([{url,connected:[false,false]}]);
+ await page.goForward();await expect(modal(page)).toContainText('Synthetic');const returned=modal(page).locator('[data-member-media]').first();await expect(returned).toHaveAttribute('src',/^blob:/);await expect.poll(()=>returned.evaluate(node=>node.complete&&node.naturalWidth>0)).toBe(true);const returnedUrl=await returned.getAttribute('src');
+ await modal(page).locator('[data-member-image]').first().click();await expect(page.locator('[data-member-image-dialog]')).toBeVisible();await page.evaluate(value=>window.privateMediaLifecycle.watch(value,[...document.querySelectorAll('[data-member-media],[data-member-full-image]')].filter(node=>node.src===value)),returnedUrl);
+ await page.locator('[data-member-image-close]').click();await modal(page).locator('[data-member-close]').click();await expect(modal(page)).toBeHidden();await page.evaluate(()=>window.dispatchEvent(new CustomEvent('admin:accesslost')));
+ expect(await page.evaluate(value=>window.privateMediaLifecycle.revoked.filter(item=>item.url===value),returnedUrl)).toEqual([{url:returnedUrl,connected:[false,false]}]);expect(await page.evaluate(value=>window.privateMediaLifecycle.revoked.filter(item=>item.url===value).length,url)).toBe(1);clean(c);c.r.db.close();
+});
+
+test('RESPONSIVE late private photo response after close cannot assign an object URL',async({page})=>{
+ await spyPrivateMediaLifecycle(page,{holdPhoto:true});const c=await commandFixture(page);
+ await page.goto('/admin.html?section=community&view=members&event=e');await expect(page.locator('[data-member-list] [data-member-open="m"]')).toBeVisible();await page.locator('[data-member-list] [data-member-open="m"]').click();await select(page,'photos');await page.waitForFunction(()=>window.privateMediaLifecycle.barrier.arrived);
+ const before=await page.evaluate(()=>window.privateMediaLifecycle.created.length);await page.goBack();await expect(modal(page)).toBeHidden();
+ await page.evaluate(()=>window.privateMediaLifecycle.barrier.release());await page.waitForFunction(()=>window.privateMediaLifecycle.barrier.returned);
+ await expect.poll(()=>page.evaluate(()=>window.privateMediaLifecycle.created.length)).toBe(before);await expect(modal(page).locator('[data-member-media][src]')).toHaveCount(0);
+ await page.goForward();await expect(modal(page)).toContainText('Synthetic');const returned=modal(page).locator('[data-member-media]').first();await expect(returned).toHaveAttribute('src',/^blob:/);await expect.poll(()=>returned.evaluate(node=>node.complete&&node.naturalWidth>0)).toBe(true);await modal(page).locator('[data-member-close]').click();clean(c);c.r.db.close();
 });

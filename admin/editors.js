@@ -1,6 +1,6 @@
-import { apiRequest } from './api.js?v=20260909-admin-member-hero-r5';
-import { adminState } from './state.js?v=20260909-admin-member-hero-r5';
-import { confirmedFields, commandReceiptMatches } from './confirmed-state.js?v=20260909-admin-member-hero-r5';
+import { apiRequest } from './api.js?v=20260910-admin-private-media-r6';
+import { adminState } from './state.js?v=20260910-admin-private-media-r6';
+import { confirmedFields, commandReceiptMatches } from './confirmed-state.js?v=20260910-admin-private-media-r6';
 
 const roots=new Map(),pending=new Map();
 const deferred=new Map();
