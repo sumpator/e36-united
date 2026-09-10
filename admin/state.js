@@ -1,5 +1,5 @@
-import { ADMIN_VIEW_IDS, RESERVATION_VIEW_MODES } from '../admin-view-model.js?v=20260910-admin-private-media-r6';
-import { readSessionChoice, readSessionValue, readSessionYear } from './ui.js?v=20260910-admin-private-media-r6';
+import { ADMIN_VIEW_IDS, RESERVATION_VIEW_MODES } from '../admin-view-model.js?v=20260910-admin-compact-r1';
+import { readSessionChoice, readSessionValue, readSessionYear } from './ui.js?v=20260910-admin-compact-r1';
 
 export const adminState={
   currentUser:null,
@@ -26,6 +26,7 @@ export const adminState={
   activeAdminView:readSessionChoice('e36UnitedAdmin.activeView',ADMIN_VIEW_IDS,'dashboard'),
   selectedReservationId:null,
   galleryItems:[],
+  queueMember:null,
   galleryFilter:'pending',
   galleryMode:'community',
   historyClaims:[],
@@ -58,6 +59,7 @@ export function resetAdminFiltersForLogin(){
   // Safe route-provided drill-downs are restored by navigation after authentication.
   adminState.reservationFilter='all';
   adminState.reservationDetailFilters.clear();
+  if(adminState.queueMember)adminState.reservationDetailFilters.add('pending');
   adminState.reservationFiltersOpen=false;
   adminState.galleryFilter='pending';
   // The allowlisted initial / Back route owns galleryMode; login must not turn
@@ -66,6 +68,7 @@ export function resetAdminFiltersForLogin(){
 }
 
 export function resetAdminFiltersForEvent(){
+  adminState.queueMember=null;
   adminState.dashboardDrill={};
   adminState.reservationPage=1;adminState.reservationPagination=null;adminState.reservationDetail=null;
   adminState.reservationFilter='all';

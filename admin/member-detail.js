@@ -1,9 +1,18 @@
-import {adminState} from './state.js?v=20260910-admin-private-media-r6';
-import {$,escapeHtml as esc} from './ui.js?v=20260910-admin-private-media-r6';
-import {apiRequest} from './api.js?v=20260910-admin-private-media-r6';
-import {ADMIN_REFRESH} from './refresh-policy.js?v=20260910-admin-private-media-r6';
-import qrcode from '../vendor/qrcode-generator.mjs?v=20260910-admin-private-media-r6';
-import {MEMBER_TABS,memberIdentity,memberOverview,memberReservation,memberSection,memberEmpty} from './member-presentation.js?v=20260910-admin-private-media-r6';
+import {adminState} from './state.js?v=20260910-admin-compact-r1';
+import {$,escapeHtml as esc} from './ui.js?v=20260910-admin-compact-r1';
+import {apiRequest} from './api.js?v=20260910-admin-compact-r1';
+import {ADMIN_REFRESH} from './refresh-policy.js?v=20260910-admin-compact-r1';
+import qrcode from '../vendor/qrcode-generator.mjs?v=20260910-admin-compact-r1';
+import {MEMBER_TABS,memberIdentity,memberOverview,memberReservation,memberSection,memberEmpty} from './member-presentation.js?v=20260910-admin-compact-r1';
+import {compactMemberIdentity,compactMemberPhoto,createCardMedia} from './member-cards.js?v=20260910-admin-compact-r1';
+const cardsMedia=createCardMedia();
+let memberListMarkup=null;
+function clearCards(){cardsMedia.clear();memberListMarkup=null}
+if(typeof window!=='undefined'){
+ window.addEventListener('admin:accesslost',clearCards);
+ window.addEventListener('admin:viewchange',()=>{if(adminState.activeAdminView!=='members')clearCards()});
+ window.addEventListener('admin:eventchanged',clearCards);
+}
 
 export {MEMBER_TABS};
 export function canonicalMemberLink(id,label='Člen'){
@@ -67,7 +76,11 @@ export function renderMemberHeader(payload){
  renderMemberHero(payload);
  $('[data-member-event]').innerHTML=payload.reservations?.length?payload.reservations.map(memberReservation).join(''):memberEmpty('Na tento ročník zatím nemá rezervaci.','reservations');syncTabs();renderMemberReadState();
 }
-export function renderMembers(payload){$('[data-member-list]').innerHTML=rows(payload.members,m=>`<article class="admin-member-card">${canonicalMemberLink(m.memberId,m.nickname||m.name)}<p>${esc(m.memberCode)} · ${esc(m.name)} · ${esc(m.status)}</p><small>${esc(m.email)}</small></article>`)+pagination(payload,'list')}
+export function renderMembers(payload){
+ const list=$('[data-member-list]'),markup=rows(payload.members,m=>`<article class="admin-member-card compact-member-card">${compactMemberPhoto(m)}${compactMemberIdentity(m)}</article>`)+pagination(payload,'list');
+ if(markup!==memberListMarkup){clearCards();list.innerHTML=markup;memberListMarkup=markup}
+ if(!adminState.memberId&&!adminState.pendingMemberRoute)cardsMedia.hydrate(list);
+}
 export function renderMemberTab(payload){
  ensureProjectionContext();
  if(payload.context.tab==='club'){clubData=payload;if(adminState.memberTab==='overview'){renderMemberReadState();return;}}
@@ -77,7 +90,7 @@ export function renderMemberTab(payload){
 export function memberRefreshTasks(){
  if(adminState.memberId){const base='/api/admin/members/'+encodeURIComponent(adminState.memberId),suffix='?eventId='+encodeURIComponent(adminState.selectedEventId)+'&page='+(adminState.memberPage||1);const tasks=[['member-header',base+'?eventId='+encodeURIComponent(adminState.selectedEventId),renderMemberHeader,ADMIN_REFRESH.operationalMs]];
   if(adminState.memberTab!=='event'){const tab=adminState.memberTab==='overview'?'club':adminState.memberTab;tasks.push(['member-tab',base+'/'+tab+suffix,renderMemberTab,['club','history','points','mailing','qr'].includes(tab)?ADMIN_REFRESH.analyticsMs:ADMIN_REFRESH.operationalMs]);}return tasks}
- if(['members','united-club'].includes(adminState.activeAdminView))return [['members','/api/admin/members?page='+(adminState.membersPage||1),renderMembers,ADMIN_REFRESH.operationalMs]];
+ if(['members','united-club'].includes(adminState.activeAdminView))return [['members','/api/admin/members?page='+(adminState.membersPage||1)+'&presentation=cards&eventId='+encodeURIComponent(adminState.selectedEventId),renderMembers,ADMIN_REFRESH.operationalMs]];
  return [];
 }
 function releaseMemberMedia({preserveHero=false}={}){
@@ -134,7 +147,7 @@ function hydrateMemberMedia(){
  observer?.disconnect();const active=new Set([...document.querySelectorAll('[data-member-media]')].map(n=>n.dataset.memberMedia+'|'+n.dataset.mediaVersion));for(const[key,item]of media)if(!active.has(key)){if(item.url)URL.revokeObjectURL(item.url);media.delete(key)}
  observer=new IntersectionObserver(entries=>{for(const entry of entries)if(entry.isIntersecting){const img=entry.target;observer.unobserve(img);void loadMedia(img.dataset.memberMedia,img.dataset.mediaVersion).then(url=>{if(url&&img.isConnected)img.src=url;else if(img.isConnected)img.alt='Fotografie teď není dostupná'})}},{root:$('[data-member-dialog]')});document.querySelectorAll('[data-member-media]').forEach(img=>observer.observe(img));
 }
-export function clearMemberPrivateState(){closeMember({route:false});searchSequence++;clearTimeout(searchTimer);searchController?.abort();searchCache.clear();searchFlight=null;adminState.membersPage=1;$('[data-member-search]').value='';$('[data-member-suggestions]').replaceChildren();$('[data-member-list]').replaceChildren()}
+export function clearMemberPrivateState(){clearCards();closeMember({route:false});searchSequence++;clearTimeout(searchTimer);searchController?.abort();searchCache.clear();searchFlight=null;adminState.membersPage=1;$('[data-member-search]').value='';$('[data-member-suggestions]').replaceChildren();$('[data-member-list]').replaceChildren()}
 async function searchMembers(){
  clearTimeout(searchTimer);const q=$('[data-member-search]').value.trim();const target=$('[data-member-suggestions]');
  if(q.replace(/[^\p{L}\p{N}]/gu,'').length<2){searchSequence++;searchController?.abort();target.replaceChildren();return}
@@ -170,6 +183,8 @@ export function initializeMembers({openReservation,openHistory}){
  image.addEventListener('keydown',event=>{containMemberFocus(event,image);if(event.key==='Escape'){event.preventDefault();event.stopPropagation();image.close()}});
  search.addEventListener('submit',event=>{event.preventDefault();void searchMembers()});$('[data-member-search]').addEventListener('input',()=>{clearTimeout(searchTimer);searchSequence++;searchController?.abort();searchFlight=null;searchTimer=setTimeout(()=>void searchMembers(),ADMIN_REFRESH.searchDebounceMs)});
  document.addEventListener('click',event=>{
+  const card=event.target.closest('[data-member-list] .compact-member-card');
+  if(card&&!event.target.closest('button,a,input,select,textarea')){openMember(card.querySelector('[data-member-open]').dataset.memberOpen,card.querySelector('[data-member-open]'));return;}
   const member=event.target.closest('[data-member-open],[data-member-qr-open]');if(member){event.preventDefault();event.stopImmediatePropagation();$('[data-member-suggestions]').replaceChildren();openMember(member.dataset.memberOpen||member.dataset.memberQrOpen,member,{tab:member.hasAttribute('data-member-qr-open')?'qr':member.dataset.memberOpenTab||(adminState.activeAdminView==='united-club'?'club':'overview')});return}
   if(event.target.closest('[data-member-close]')){closeMember();return}
   const tab=event.target.closest('[data-member-tab],[data-member-section]');if(tab){selectMemberSection(tab.dataset.memberTab||tab.dataset.memberSection);return}

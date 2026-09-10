@@ -1,4 +1,4 @@
-import { escapeHtml } from '../../ui.js?v=20260910-admin-private-media-r6';
+import { escapeHtml } from '../../ui.js?v=20260910-admin-compact-r1';
 const labels={recipients:'Příjemci',sent:'Odesláno',delivered:'Doručeno',opened:'Otevřeno',clicked:'Kliknuto',bounced:'Nedoručeno / blokováno',unsubscribed:'Odhlášeno'};
 const states={prepared:'Připraveno',sent:'Odesláno',delivered:'Doručeno',soft_bounce:'Dočasně nedoručeno',hard_bounce:'Trvale nedoručeno',blocked:'Blokováno / spam',unsubscribed:'Odhlášeno'};
 export function renderMailingTracking(target,tracking){

@@ -4,7 +4,7 @@ import {commandFixture} from './command-fixture.mjs';
 import {adminMemberMedia} from '../../worker/admin/members.js';
 const modal=p=>p.locator('[data-member-dialog]'),hero=p=>p.locator('[data-member-hero-image]');
 const photoCalls=c=>c.calls.filter(q=>q.includes('/members/')&&q.includes('/media/'));
-const jsonCalls=c=>c.calls.filter(q=>q.startsWith('GET ')&&!q.includes('/media/'));
+const jsonCalls=c=>c.calls.filter(q=>q.startsWith('GET /api/admin/members/')&&!q.includes('/media/'));
 const shot=(p,i,name)=>p.screenshot({path:i.outputPath(name+'.png')});
 async function select(p,tab){if(await p.locator('[data-member-section-select]').isVisible())await p.locator('[data-member-section-select]').selectOption(tab);else await p.locator('[data-member-tab="'+tab+'"]').click();}
 async function spyUrls(page){await page.addInitScript(()=>{
@@ -13,7 +13,9 @@ async function spyUrls(page){await page.addInitScript(()=>{
  URL.createObjectURL=blob=>{const url=create(blob);window.heroUrls.created.push(url);return url;};
  URL.revokeObjectURL=url=>{window.heroUrls.revoked.push(url);return revoke(url);};
 });}
-async function start(page,c){await page.goto('/admin.html?event=e&section=community&view=members');await expect(page.locator('[data-member-list] [data-member-open="m"]')).toBeVisible();await expect(page.locator('[data-admin-freshness]')).toHaveAttribute('data-state','fresh');c.calls.length=0;await page.locator('[data-member-list] [data-member-open="m"]').click();await expect(modal(page).locator('[data-member-overview]')).toBeVisible();await expect(modal(page)).toContainText('320i');}
+// Search opens the same SPA Member overlay without introducing list-card media
+// into Hero ownership counts, and preserves a real parent entry for Close/Back.
+async function start(page,c){await page.goto('/admin.html?event=e&section=dashboard');await expect(page.locator('[data-admin-freshness]')).toHaveAttribute('data-state','fresh');await page.locator('[data-member-search]').fill('member@example.invalid');await page.locator('[data-member-search]').press('Enter');const result=page.locator('[data-member-suggestions] [data-member-open="m"]');await expect(result).toBeVisible();c.calls.length=0;await result.click();await expect(modal(page).locator('[data-member-overview]')).toBeVisible();await expect(modal(page)).toContainText('320i');}
 function clean(c){expect(c.writes).toEqual([]);expect(c.r.writes).toBe(0);expect(c.r.db.prepare('SELECT COUNT(*) n FROM member_qr_identities').get().n).toBe(0);expect(c.observations.pageErrors).toEqual([]);expect(c.observations.unhandledApi).toEqual([]);expect(c.observations.consoleErrors.filter(e=>!c.failures.has(e.url))).toEqual([]);}
 async function geometry(page,width){
  const h=await page.locator('[data-member-hero]').boundingBox(),close=await page.locator('[data-member-close]').boundingBox(),panel=await page.locator('[data-member-panel]').boundingBox();
@@ -89,9 +91,13 @@ for(const kind of ['404','decode'])test('HERO media '+kind+' safely falls back w
  await page.clock.runFor(61000);await expect.poll(()=>jsonCalls(c).filter(q=>q.includes('/members/m?')).length).toBe(2);expect(photoCalls(c)).toHaveLength(1);await select(page,'club');await expect(modal(page)).toContainText('S&S TOP 3');clean(c);c.r.db.close();
 });
 test('HERO delayed A cannot create or show private image in B context',async({page})=>{
- await spyUrls(page);const c=await commandFixture(page);let release,arrive,delivered;const held=new Promise(r=>release=r),arrived=new Promise(r=>arrive=r),sent=new Promise(r=>delivered=r);
- await controlledMedia(page,c,async id=>{if(id==='m'){arrive();await held;delivered();}return {};});
- try{await start(page,c);await arrived;await page.locator('[data-member-close]').click();await page.locator('[data-member-list] [data-member-open="n"]').click();await expect(modal(page)).toContainText('EU-OTHER');await expect(hero(page)).toBeVisible();
+ await spyUrls(page);const c=await commandFixture(page);let release,arrive,delivered,holdHero=false;const held=new Promise(r=>release=r),arrived=new Promise(r=>arrive=r),sent=new Promise(r=>delivered=r);
+ await controlledMedia(page,c,async id=>{if(id==='m'&&holdHero){arrive();await held;delivered();}return {};});
+ try{
+ // Arm only after the new list-card photo has loaded: the barrier must hold
+ // the Hero request, not an earlier request for the same URL by a list card.
+ await page.goto('/admin.html?event=e&section=community&view=members');await expect(page.locator('[data-card-media]')).toHaveCount(2);await expect.poll(()=>page.locator('[data-card-media]').evaluateAll(images=>images.every(n=>n.naturalWidth>0))).toBe(true);c.calls.length=0;await page.evaluate(()=>{window.heroUrls.created=[];window.heroUrls.revoked=[]});holdHero=true;
+ await page.locator('[data-member-list] [data-member-open="m"]').click();await arrived;await page.locator('[data-member-close]').click();await page.locator('[data-member-list] [data-member-open="n"]').click();await expect(modal(page)).toContainText('EU-OTHER');await expect(hero(page)).toBeVisible();
  const b=await hero(page).getAttribute('src');release();await sent;await select(page,'club');await expect(modal(page)).toContainText('316i');await select(page,'overview');await expect(hero(page)).toHaveAttribute('src',b);expect(await page.evaluate(()=>window.heroUrls.created)).toEqual([b]);expect(photoCalls(c)).toEqual(['GET /api/admin/members/m/media/cars/c/p','GET /api/admin/members/n/media/cars/cn/pn']);clean(c);
  }finally{release();await page.locator('[data-member-close]').click();c.r.db.close();}
 });

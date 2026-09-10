@@ -38,5 +38,6 @@ export function reservationListQuery(url){
  if(drill.from){parts.push('date(r.created_at)>=?');bindings.push(drill.from)}
  if(drill.to){parts.push('date(r.created_at)<=?');bindings.push(drill.to)}
  const detail=p.get('id');if(detail){parts.length=0;parts.push('r.id=?');bindings.length=0;bindings.push(detail)}
+ if(p.get('queueMember')){parts.push('r.member_id=?');bindings.push(p.get('queueMember').slice(0,128))}
  return{where:parts.join(' AND '),bindings,page:Math.max(1,Math.min(100000,parseInt(p.get('page'))||1)),pageSize:Math.max(1,Math.min(100,parseInt(p.get('pageSize'))||50))};
 }

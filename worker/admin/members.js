@@ -2,6 +2,7 @@ import { json } from '../http/responses.js';
 import { cors } from '../http/cors.js';
 import { deriveUnitedAchievements, deriveMemberRating } from '../domains/club/achievements.js';
 import { MEMBER_QR_PREFIX, parseMemberQr } from './member-qr.js';
+import { memberCardSummaries } from './member-cards.js';
 
 const validId=value=>typeof value==='string'&&/^[a-z0-9_-]{1,128}$/i.test(value);
 const identity='m.id AS memberId,m.member_code AS memberCode,m.name,m.nickname,m.email,m.phone,m.status,m.role,m.created_at AS createdAt,m.updated_at AS updatedAt';
@@ -33,6 +34,12 @@ export async function listAdminMembers(env,url,origin){
     statement(env,`SELECT COUNT(*) total FROM members m${query.where}`,query.args),
   ]);
   const total=Number(result[1].results[0].total);
+  if(url.searchParams.get('presentation')==='cards'){
+    const eventId=url.searchParams.get('eventId')||'';
+    if(eventId&&!validId(eventId))return json({error:'invalid_event'},400,origin);
+    const summaries=await memberCardSummaries(env,result[0].results.map(m=>m.memberId),eventId);
+    for(const m of result[0].results)m.card=summaries.get(m.memberId);
+  }
   return response({members:result[0].results,pagination:{page,pageSize,total,totalPages:Math.max(1,Math.ceil(total/pageSize))}},origin);
 }
 

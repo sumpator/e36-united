@@ -1,6 +1,6 @@
 // Read-only presentation of the existing Member projections; no requests or policy.
-import {escapeHtml as esc,formatMoney,formatDate} from './ui.js?v=20260910-admin-private-media-r6';
-import {commandIcon} from './command-icons.js?v=20260910-admin-private-media-r6';
+import {escapeHtml as esc,formatMoney,formatDate} from './ui.js?v=20260910-admin-compact-r1';
+import {commandIcon} from './command-icons.js?v=20260910-admin-compact-r1';
 
 export const MEMBER_TABS=Object.freeze({overview:'Přehled',event:'Vybraný ročník',reservations:'Rezervace a platby',garage:'Garáž',photos:'Fotky',club:'United Club',history:'Historie a S&S',points:'Body',mailing:'Mailing',qr:'Členské QR'});
 const labels={active:'Aktivní',inactive:'Neaktivní',suspended:'Pozastavený',blocked:'Blokovaný',admin:'Administrátor',member:'Člen',pending:'Čeká na schválení',approved:'Schváleno',rejected:'Zamítnuto',cancelled:'Zrušeno',draft:'Koncept',not_submitted:'Nepodáno',not_claimed:'Nenárokováno',unpaid:'Neuhrazeno',paid:'Uhrazeno',underpaid:'Částečně uhrazeno',overpaid:'Přeplatek',not_required:'Bez platby',full_weekend:'Celý víkend',saturday_only:'Sobota',day_visit:'Jednodenní návštěva',none:'Bez ubytování',sedan:'Sedan',coupe:'Coupé',touring:'Touring',compact:'Compact',cabrio:'Cabrio',unknown:'Neznámý stav'};

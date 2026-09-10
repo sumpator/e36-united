@@ -558,6 +558,8 @@ async function patchAdminReservationPayment(request, env, auth, reservationId, o
 }
 
 async function getAdminGallery(env, origin, url = new URL('https://local.invalid')) {
+  const queueMember=env.ADMIN_READ?url.searchParams.get('queueMember'):null;
+  if(queueMember&&!/^[a-z0-9_-]{1,128}$/i.test(queueMember))return json({error:'invalid_member'},400,origin);
   const status=['pending','approved','rejected'].includes(url.searchParams.get('status'))?url.searchParams.get('status'):null;
   const page=Math.max(1,parseInt(url.searchParams.get('page'))||1),pageSize=50;
   const query = `
@@ -570,14 +572,15 @@ async function getAdminGallery(env, origin, url = new URL('https://local.invalid
     JOIN members m ON m.id = g.member_id
     WHERE g.status IN ('pending', 'approved', 'rejected')
     ${env.ADMIN_READ&&status?'AND g.status=?':''}
+    ${queueMember?'AND g.member_id=?':''}
     ORDER BY g.created_at DESC, g.id
     ${env.ADMIN_READ?'LIMIT ? OFFSET ?':''}
   `;
   let rows,counts,pagination;
   if(env.ADMIN_READ){
     const result=await env.DB.batch([
-      env.DB.prepare(query).bind(...(status?[status]:[]),pageSize,(page-1)*pageSize),
-      env.DB.prepare("SELECT COUNT(*) AS total,COUNT(CASE WHEN status='pending' THEN 1 END) pending,COUNT(CASE WHEN status='approved' THEN 1 END) approved,COUNT(CASE WHEN status='rejected' THEN 1 END) rejected FROM gallery_submissions WHERE status IN ('pending','approved','rejected')"),
+      env.DB.prepare(query).bind(...(status?[status]:[]),...(queueMember?[queueMember]:[]),pageSize,(page-1)*pageSize),
+      env.DB.prepare("SELECT COUNT(*) AS total,COUNT(CASE WHEN status='pending' THEN 1 END) pending,COUNT(CASE WHEN status='approved' THEN 1 END) approved,COUNT(CASE WHEN status='rejected' THEN 1 END) rejected FROM gallery_submissions WHERE status IN ('pending','approved','rejected')"+(queueMember?' AND member_id=?':'')).bind(...(queueMember?[queueMember]:[])),
     ]);
     rows=result[0];counts=result[1].results[0];const total=status?counts[status]:counts.total;
     pagination={page,pageSize,total,totalPages:Math.max(1,Math.ceil(total/pageSize))};

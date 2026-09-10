@@ -38,11 +38,12 @@ test('NEW badges use unions, global counts, honest unknowns and known zeros rath
   assert.equal(commandBadges({}).dashboard,null);delete s.overview.gallery.pending;assert.equal(commandBadges(s).community,null);
   s.overview.gallery.pending=0;s.overview.history.pending=0;assert.equal(commandBadges(s).community,0);
 });
-test('old finance and club URLs keep meanings; new United Club is a separate Members destination',()=>{
+test('old finance and history URLs keep meanings; duplicate United Club redirects to Members',()=>{
   assert.equal(adminRoute('?section=finance&view=payments').section,'payments');
   assert.equal(adminRoute('?section=finance&view=accommodation').section,'accommodation');
   for(const path of ['?section=club','?section=community&view=club'])assert.deepEqual([adminRoute(path).section,adminRoute(path).galleryMode],['gallery','history']);
-  assert.equal(adminRoute('?section=community&view=united-club').section,'united-club');
+  assert.equal(adminRoute('?section=community&view=united-club').section,'members');
+  assert.equal(adminRoute('?section=united-club').section,'members');
 });
 test('canonical summary counts a dual-pending history claim once, independent of its evidence',async()=>{
   const r=memberRuntime();r.db.exec("UPDATE united_history_claims SET attendance_status='pending',sns_status='pending'; UPDATE gallery_submissions SET status='pending'");

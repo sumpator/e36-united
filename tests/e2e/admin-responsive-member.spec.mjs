@@ -122,7 +122,7 @@ test('RESPONSIVE existing read-only sections keep pagination independent history
  await select(page,'reservations');await expect(modal(page).locator('[data-member-tab-content] [data-member-reservation="r"]')).toBeVisible();await expect(modal(page)).toContainText('Evidovaně uhrazeno');
  await select(page,'photos');await expect(modal(page)).toContainText('Synthetic');await expect(modal(page).locator('[data-member-media]').first()).toHaveAttribute('src',/^blob:/);
  // Existing router replaces the current Member tab, not one history entry per tab.
- await page.goBack();await expect(modal(page)).toBeHidden();await expect(page).not.toHaveURL(/member=/);await expect(page.locator('[data-member-list]')).toContainText('EU-MEMBER');
+ await page.goBack();await expect(modal(page)).toBeHidden();await expect(page).not.toHaveURL(/member=/);await expect(page.locator('[data-member-list] [data-member-open="m"]')).toHaveText('First');
  await page.goForward();await expect(page).toHaveURL(/tab=photos/);await expect(modal(page)).toContainText('Synthetic');
  await select(page,'history');const states=modal(page).locator('.admin-member-history-states');await expect(states).toContainText('Schváleno');await expect(states).toContainText('Zamítnuto');await shot(page,info,'member-history-separate-states');
  await select(page,'points');await expect(modal(page).locator('.admin-member-ledger')).toHaveCount(20);await expect(modal(page)).toContainText('Celkem 21');

@@ -7,7 +7,7 @@ const focusableSelector = [
   '[tabindex]:not([tabindex="-1"])',
 ].join(',');
 
-export function initPortalNavigation({ root, onSelect }) {
+export function initPortalNavigation({ root, onSelect, toggleMenu = false }) {
   if (!root) return null;
 
   const tablist = root.querySelector('[data-portal-tablist]');
@@ -43,16 +43,16 @@ export function initPortalNavigation({ root, onSelect }) {
     returnFocus = null;
   };
 
-  const open = () => {
+  const open = ({ opener = document.activeElement } = {}) => {
     if (!sheet) return;
-    returnFocus = document.activeElement;
+    returnFocus = opener;
     sheet.hidden = false;
     openButton?.setAttribute('aria-expanded', 'true');
     document.body.classList.add('portal-sheet-open');
-    requestAnimationFrame(() => dialog?.querySelector(focusableSelector)?.focus());
+    requestAnimationFrame(() => {if(!sheet.hidden)dialog?.querySelector(focusableSelector)?.focus()});
   };
 
-  openButton?.addEventListener('click', open);
+  openButton?.addEventListener('click', () => toggleMenu && !sheet.hidden ? close() : open({opener:toggleMenu?openButton:document.activeElement}));
   sheet?.addEventListener('click', (event) => {
     if (event.target.closest('[data-portal-sheet-close]')) {
       close();

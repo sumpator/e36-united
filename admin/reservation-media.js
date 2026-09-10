@@ -1,4 +1,4 @@
-import { apiMedia } from './api.js?v=20260910-admin-private-media-r6';
+import { apiMedia } from './api.js?v=20260910-admin-compact-r1';
 let observer = null,
   controller = null,
   objectUrl = null,

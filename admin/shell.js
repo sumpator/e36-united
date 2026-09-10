@@ -1,9 +1,9 @@
-import { allowAdminNavigation } from './editors.js?v=20260910-admin-private-media-r6';
-import { initPortalNavigation } from '../portal-navigation.js?v=20260910-admin-private-media-r6';
-import { ADMIN_VIEW_IDS } from '../admin-view-model.js?v=20260910-admin-private-media-r6';
-import {ADMIN_AREAS,VIEW_LABELS,areaFor} from './destinations.js?v=20260910-admin-private-media-r6';
-import { adminState } from './state.js?v=20260910-admin-private-media-r6';
-import { $, $$, rememberSessionChoice } from './ui.js?v=20260910-admin-private-media-r6';
+import { allowAdminNavigation } from './editors.js?v=20260910-admin-compact-r1';
+import { initPortalNavigation } from '../portal-navigation.js?v=20260910-admin-compact-r1';
+import { ADMIN_VIEW_IDS } from '../admin-view-model.js?v=20260910-admin-compact-r1';
+import {ADMIN_AREAS,VIEW_LABELS,areaFor} from './destinations.js?v=20260910-admin-compact-r1';
+import { adminState } from './state.js?v=20260910-admin-compact-r1';
+import { $, $$, rememberSessionChoice } from './ui.js?v=20260910-admin-compact-r1';
 
 const adminCollapseStorageKey='e36UnitedAdmin.collapsedSections.v1';
 const adminCollapsePreferences=readAdminCollapsePreferences();
@@ -61,6 +61,7 @@ function initializeAdminCollapsibles(){
 }
 
 export function setAdminView(view,{focus=true}={}){
+  if(view==='united-club')view='members';
   const nextView=['club','photos'].includes(view)?'gallery':ADMIN_VIEW_IDS.includes(view)?view:'dashboard';
   const nextMode=view==='club'?'history':view==='photos'?'community':adminState.galleryMode;
   const changed=nextView!==adminState.activeAdminView||nextView==='gallery'&&nextMode!==adminState.galleryMode;
@@ -68,6 +69,10 @@ export function setAdminView(view,{focus=true}={}){
   if(changed)window.dispatchEvent(new CustomEvent('admin:beforenavigation'));
   if(nextView==='gallery')setCommunity(nextMode);
   adminState.activeAdminView=nextView;rememberSessionChoice('e36UnitedAdmin.activeView',nextView);
+  let queueNotice=$('[data-member-queue-notice]');
+  if(!queueNotice){queueNotice=document.createElement('p');queueNotice.dataset.memberQueueNotice='';queueNotice.innerHTML='Čekající žádosti vybraného člena. <button type="button" data-member-queue-clear>Zobrazit všechny členy ve frontě</button>';}
+  queueNotice.hidden=!adminState.queueMember||!['gallery','reservations'].includes(nextView);
+  $(`[data-admin-panel="${nextView}"]`)?.prepend(queueNotice);
   $$('[data-admin-panel]').forEach(panel=>{const active=panel.dataset.adminPanel===(nextView==='united-club'?'members':nextView);panel.hidden=!active;panel.classList.toggle('is-active',active);panel.setAttribute('aria-hidden',String(!active))});
   const membersHeading=$('[data-admin-panel="members"] h2');if(membersHeading)membersHeading.textContent=nextView==='united-club'?'United Club · členové':'Členové';
   $$('[data-admin-jump]').forEach(button=>{const active=button.dataset.adminJump===nextView;button.classList.toggle('is-active',active);if(active)button.setAttribute('aria-current','page');else button.removeAttribute('aria-current')});
@@ -85,8 +90,11 @@ export function initializeAdminShell({onCloseOverlays=()=>{},onDenied=()=>{},onC
   closeOverlays=onCloseOverlays;
   closeDeniedOverlays=onDenied;
   setCommunity=onCommunityMode;
-  adminPortalNavigation=initPortalNavigation({root:$('[data-portal-nav="admin"]'),onSelect:area=>setAdminView(ADMIN_AREAS[area]?.views[0]||'dashboard')});
-  $$('[data-community-toggle]').forEach(button=>button.addEventListener('click',()=>setCommunityExpanded(button.getAttribute('aria-expanded')!=='true')));
+  adminPortalNavigation=initPortalNavigation({root:$('[data-portal-nav="admin"]'),toggleMenu:true,onSelect:area=>{adminState.queueMember=null;return setAdminView(ADMIN_AREAS[area]?.views[0]||'dashboard')}});
+  $$('[data-community-toggle]').forEach(button=>button.addEventListener('click',()=>{
+    if(button.closest('[data-portal-tablist]')&&window.matchMedia('(max-width:1050px)').matches){setCommunityExpanded(true);adminPortalNavigation.open({opener:button});}
+    else setCommunityExpanded(button.getAttribute('aria-expanded')!=='true');
+  }));
   $('[data-portal-sheet]').addEventListener('click',event=>{if(event.target.closest('[data-admin-jump]'))queueMicrotask(()=>adminPortalNavigation.close({restoreFocus:false}))});
   $('[data-portal-tablist]').addEventListener('click',event=>{const control=event.target.closest('[data-portal-target]');if(control)setAdminView(ADMIN_AREAS[control.dataset.portalTarget]?.views[0]||'dashboard')});
   initializeAdminCollapsibles();

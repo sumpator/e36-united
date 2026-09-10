@@ -1,9 +1,9 @@
-import { adminCommand, editorProtected, changedFields, forgetAdminEditor } from '../editors.js?v=20260910-admin-private-media-r6';
-import { adminActionCountState, adminModerationCounts, paymentNeedsAttention, reservationMatchesFilter } from '../../admin-view-model.js?v=20260910-admin-private-media-r6';
-import { apiRequest } from '../api.js?v=20260910-admin-private-media-r6';
-import { adminState } from '../state.js?v=20260910-admin-private-media-r6';
-import { setDenied } from '../shell.js?v=20260910-admin-private-media-r6';
-import { $, $$, escapeHtml, formatDate, formatMoney, numeric, toast } from '../ui.js?v=20260910-admin-private-media-r6';
+import { adminCommand, editorProtected, changedFields, forgetAdminEditor } from '../editors.js?v=20260910-admin-compact-r1';
+import { adminActionCountState, adminModerationCounts, paymentNeedsAttention, reservationMatchesFilter } from '../../admin-view-model.js?v=20260910-admin-compact-r1';
+import { apiRequest } from '../api.js?v=20260910-admin-compact-r1';
+import { adminState } from '../state.js?v=20260910-admin-compact-r1';
+import { setDenied } from '../shell.js?v=20260910-admin-compact-r1';
+import { $, $$, escapeHtml, formatDate, formatMoney, numeric, toast } from '../ui.js?v=20260910-admin-compact-r1';
 
 
 export function renderEventSelector(){

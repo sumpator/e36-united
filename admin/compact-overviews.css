@@ -1,0 +1,57 @@
+/* Page-bounded identities; expanding history affects only its own card. */
+.admin-page [data-member-list],.admin-page .admin-history-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;align-items:start}
+.admin-page [data-member-list]>.admin-member-pagination,.admin-page [data-member-list]>.admin-empty,.admin-page .admin-history-list>.admin-empty{grid-column:1/-1}
+.admin-page .compact-member-card{position:relative;isolation:isolate;min-width:0;padding:20px;border:1px solid #36536a;border-radius:12px;background:#102536;overflow-wrap:anywhere}
+.compact-member-photo{position:absolute;inset:0;z-index:-1;border-radius:inherit;overflow:hidden;background:linear-gradient(135deg,#183c55,#091521)}
+.compact-member-photo span{position:absolute;right:12px;top:12px;font-weight:900;letter-spacing:.12em;color:#83b9d3;font-size:12px}
+.compact-member-photo img{width:100%;height:100%;object-fit:cover;opacity:.55}
+.compact-member-photo:after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,rgba(3,12,22,.92),rgba(3,12,22,.5)),linear-gradient(0deg,#071522e6,transparent)}
+.admin-page .compact-member-identity{position:relative;min-width:0;color:#f4f8fc}
+.admin-page .compact-member-identity>.admin-member-link{font-size:23px;line-height:1.25;font-weight:800;min-height:44px;text-align:left}
+.compact-member-identity p{margin:6px 0;font-size:15px;line-height:1.5}
+.compact-member-identity>a{position:relative;color:#c8e9ff;display:inline-block;min-height:44px;padding-block:9px;line-height:1.5;overflow-wrap:anywhere}
+.compact-member-facts{display:flex;flex-wrap:wrap;gap:6px 16px}
+.admin-page [data-member-pending]{position:relative;min-height:44px;padding:10px 12px;margin-top:8px;font-size:14px;white-space:normal}
+.admin-page .compact-member-identity [data-member-pending]{background:#302b1c;color:#ffda8c;border:1px solid #b38b3f}
+.admin-page [data-member-queue-notice]{padding:12px;border:1px solid #36536a;border-radius:8px;background:#102536;display:flex;align-items:center;flex-wrap:wrap;gap:12px}
+.admin-page [data-member-queue-notice][hidden]{display:none}
+.admin-page [data-member-queue-clear]{min-height:44px;padding:10px;color:#d7eaff;background:#19354b;border:1px solid #42627a;border-radius:6px}
+.admin-page .admin-history-card{padding:0;min-width:0;align-self:start;border-radius:12px}
+.admin-page .admin-history-card>summary{display:block;min-width:0;padding:20px;list-style:none;cursor:pointer}
+.admin-page .admin-history-card>summary::after{content:'Rozbalit detail ↓';display:block;position:relative;margin-top:12px;color:#b4dbfa;font-size:14px}
+.admin-page .admin-history-card[open]>summary::after{content:'Sbalit detail ↑'}
+.admin-page .admin-history-card-state{position:relative;display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.admin-page .admin-history-card-state time{flex-basis:100%;white-space:normal}
+.admin-page .admin-history-card-detail{padding:16px;min-width:0}
+.admin-page .admin-history-decisions{grid-template-columns:minmax(0,1fr)}
+.admin-page .admin-history-decision-head{flex-wrap:wrap}
+.admin-page .admin-history-review-actions,.admin-page .admin-gallery-card-controls,.admin-page .admin-gallery-quick-actions{flex-wrap:wrap}
+.admin-page .admin-gallery-card-controls{gap:10px;align-items:flex-start}
+.admin-page .admin-gallery-quick-actions{min-width:0;max-width:100%;margin-left:0}
+.admin-page .admin-accommodation-card{display:grid;grid-template-columns:160px minmax(0,1fr);gap:14px;align-items:start}
+.admin-page .admin-accommodation-card>.admin-accommodation-head{grid-column:2;flex-wrap:wrap}
+.admin-page .admin-accommodation-card>.admin-accommodation-summary{grid-column:2;margin:0}
+.admin-page .admin-accommodation-card>:is(.admin-capacity-warning,.admin-accommodation-photo,details){grid-column:1/-1}
+.admin-page .admin-accommodation-card>.admin-accommodation-preview{grid-row:1/span 2;padding:0;border:0;background:transparent;cursor:zoom-in}
+.admin-page .admin-accommodation-visual{margin:0;width:160px;height:112px;aspect-ratio:auto}
+.admin-page .admin-accommodation-visual img{width:100%;height:100%;object-fit:contain}
+.admin-accommodation-image-dialog{background:#0c1b29;color:white;border:1px solid #42627a;border-radius:12px;width:min(900px,95vw);max-height:90dvh}
+.admin-accommodation-image-dialog img{display:block;max-width:100%;max-height:75dvh;object-fit:contain;margin:auto}
+.admin-accommodation-image-dialog button{min-height:44px;margin-bottom:12px}
+.admin-accommodation-image-dialog::backdrop{background:#000b}
+@media(min-width:1450px){.admin-page [data-member-list],.admin-page .admin-history-list{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(min-width:1950px){.admin-page [data-member-list],.admin-page .admin-history-list{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media(max-width:1050px){
+ .admin-page.portal-sheet-open .admin-portal-nav{z-index:1001}
+ .admin-page .admin-section-nav>[data-community-links]{display:none}
+ .admin-page .portal-nav-sheet-list [data-community-links]:not([hidden]){display:grid;gap:4px}
+ .admin-page [data-portal-menu-open][aria-expanded=true]{position:relative;z-index:901}
+}
+@media(max-width:700px){
+ .admin-page [data-member-list],.admin-page .admin-history-list{grid-template-columns:minmax(0,1fr)}
+ .admin-page .admin-accommodation-card{grid-template-columns:96px minmax(0,1fr);gap:10px}
+ .admin-page .admin-accommodation-visual{width:96px;height:96px}
+ .admin-page .admin-accommodation-card>.admin-accommodation-summary{grid-column:1/-1}
+ .admin-page .admin-accommodation-card>.admin-accommodation-preview{grid-row:1}
+ .admin-page .admin-accommodation-photo{grid-template-columns:minmax(0,1fr)}
+}

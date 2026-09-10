@@ -177,9 +177,9 @@ test('NEW six destinations, Community disclosure, legacy aliases and canonical C
  await page.setViewportSize({width:1440,height:900});
  const c=await commandFixture(page);await open(page);const rail=page.locator('.admin-section-nav');
  await expect(rail.locator(':scope > button')).toHaveCount(6);const before=page.url();await rail.locator('[data-community-toggle]').click();expect(page.url()).toBe(before);
- await expect(rail.locator('[data-community-links] button')).toHaveCount(4);await page.screenshot({path:info.outputPath('NEW-community.png')});
- await rail.locator('[data-admin-jump="united-club"]').click();await expect(page).toHaveURL(/view=united-club/);await expect(page.locator('[data-admin-panel="members"] h2')).toHaveText('United Club · členové');
- await page.locator('[data-member-list] [data-member-open="m"]').click();await expect(page.locator('[data-member-tab="club"]')).toHaveAttribute('aria-selected','true');await expect(page.locator('[data-member-tab-content]')).toContainText('Dostupné body');
+ await expect(rail.locator('[data-community-links] button')).toHaveCount(3);await expect(rail.locator('[data-admin-jump="united-club"]')).toHaveCount(0);await page.screenshot({path:info.outputPath('NEW-community.png')});
+ await page.goto('/admin.html?section=community&view=united-club&event=e');await expect(page).toHaveURL(/view=members/);await expect(page.locator('[data-admin-panel="members"] h2')).toHaveText('Členové');
+ await page.locator('[data-member-list] [data-member-open="m"]').click();await page.locator('[data-member-tab="club"]').click();await expect(page.locator('[data-member-tab="club"]')).toHaveAttribute('aria-selected','true');await expect(page.locator('[data-member-tab-content]')).toContainText('Dostupné body');
  await page.goBack();await expect(page.locator('[data-member-dialog]')).not.toBeVisible();
  await page.goto('/admin.html?section=finance&view=accommodation&event=e');await expect(page.locator('[data-admin-panel="accommodation"]')).toBeVisible();
  await page.goto('/admin.html?section=club&event=e');await expect(page.locator('[data-gallery-history]')).toBeVisible();

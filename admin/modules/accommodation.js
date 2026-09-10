@@ -1,14 +1,21 @@
-import { adminCommand, editorProtected, adminEditorDirty } from '../editors.js?v=20260910-admin-private-media-r6';
-import { accommodationVisualMarkup, bindAccommodationVisualFallbacks } from '../../accommodation-visual.js?v=20260910-admin-private-media-r6';
-import { selectImageFiles } from '../../image-upload.js?v=20260910-admin-private-media-r6';
-import { apiBaseUrl, apiRequest, apiUpload } from '../api.js?v=20260910-admin-private-media-r6';
-import { adminState } from '../state.js?v=20260910-admin-private-media-r6';
-import { setDenied } from '../shell.js?v=20260910-admin-private-media-r6';
-import { $, escapeHtml, formatMoney, numeric, toast } from '../ui.js?v=20260910-admin-private-media-r6';
+import { adminCommand, editorProtected, adminEditorDirty } from '../editors.js?v=20260910-admin-compact-r1';
+import { accommodationVisualMarkup, bindAccommodationVisualFallbacks } from '../../accommodation-visual.js?v=20260910-admin-compact-r1';
+import { selectImageFiles } from '../../image-upload.js?v=20260910-admin-compact-r1';
+import { apiBaseUrl, apiRequest, apiUpload } from '../api.js?v=20260910-admin-compact-r1';
+import { adminState } from '../state.js?v=20260910-admin-compact-r1';
+import { setDenied } from '../shell.js?v=20260910-admin-compact-r1';
+import { $, escapeHtml, formatMoney, numeric, toast } from '../ui.js?v=20260910-admin-compact-r1';
 
 const accommodationPhotoSelections=new Map();
 export function resetAccommodationMedia(){for(const selection of accommodationPhotoSelections.values())URL.revokeObjectURL(selection.url);accommodationPhotoSelections.clear();document.querySelectorAll('[data-local-file]').forEach(node=>delete node.dataset.localFile)}
 window.addEventListener('admin:discardfiles',resetAccommodationMedia);
+let previewDialog;
+document.addEventListener('click',event=>{
+  const button=event.target.closest('[data-accommodation-preview]');if(!button)return;
+  if(!previewDialog){previewDialog=document.createElement('dialog');previewDialog.className='admin-accommodation-image-dialog';previewDialog.setAttribute('aria-label','Náhled ubytování');previewDialog.innerHTML='<button type="button">Zavřít náhled ×</button><img alt=""/>';previewDialog.querySelector('button').onclick=()=>previewDialog.close();document.body.append(previewDialog);}
+  const source=button.querySelector('img'),image=previewDialog.querySelector('img');image.src=source.currentSrc||source.src;image.alt=source.alt;previewDialog.showModal();
+});
+window.addEventListener('admin:accesslost',()=>previewDialog?.close());
 
 function accommodationAvailability(item){
   if(item.inventoryMode==='unlimited')return '<strong>bez omezení</strong><small>kapacita se neblokuje</small>';
@@ -19,7 +26,7 @@ function accommodationAvailability(item){
 function accommodationCard(item){
   const inactive=item.active?'':' is-inactive',hasPhoto=item.visual?.hasCustomPhoto===true,conflict=numeric(item.pendingConflictUnits);
   return `<article class="admin-accommodation-card${inactive}" data-accommodation-id="${escapeHtml(item.id)}">
-    ${accommodationVisualMarkup(item,{apiBaseUrl,className:'admin-accommodation-visual'})}
+    <button type="button" class="admin-accommodation-preview" aria-label="Zvětšit náhled: ${escapeHtml(item.name)}" data-accommodation-preview>${accommodationVisualMarkup(item,{apiBaseUrl,className:'admin-accommodation-visual'})}</button>
     <div class="admin-accommodation-head"><div><span class="admin-kicker">${item.kind==='cabin'?'CHATKA':'STAN'}${item.active?'':' · NEAKTIVNÍ'}</span><h3>${escapeHtml(item.name)}</h3></div><div class="admin-accommodation-availability">${accommodationAvailability(item)}</div></div>
     <div class="admin-accommodation-summary"><span>max. <b>${numeric(item.capacityPerUnit)}</b> osob / jednotku</span><span><b>${escapeHtml(formatMoney(item.unitPriceCzk))}</b> / jednotku / noc</span><span><b>${escapeHtml(formatMoney(item.personPriceCzk))}</b> / osobu</span></div>
     ${conflict?`<p class="admin-capacity-warning"><b>${conflict} pending</b> ${conflict===1?'požadavek již nebude možné schválit':'požadavky již nebude možné schválit'} bez uvolnění kapacity.</p>`:''}

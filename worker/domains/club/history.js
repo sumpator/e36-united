@@ -2,6 +2,7 @@ import { cors } from "../../http/cors.js";
 import { readJsonObject } from "../../http/request.js";
 import { json } from "../../http/responses.js";
 import { clean } from "../../utils/text.js";
+import { memberCardSummaries } from '../../admin/member-cards.js';
 import { extensionFor, validateImageFile } from "../media.js";
 import {
   attendancePointStatements,
@@ -93,6 +94,8 @@ async function getAdminHistoryClaims(env, url, origin) {
     OR lower(m.member_code) LIKE '%' || lower(?) || '%'
   )`];
   const bindings = [q, q, q, q, q];
+  const queueMember=url.searchParams.get('queueMember');
+  if(queueMember){if(!/^[a-z0-9_-]{1,128}$/i.test(queueMember))return json({error:'invalid_member'},400,origin);where.push('c.member_id = ?');bindings.push(queueMember);}
   if (selectedYear != null) { where.push("e.year = ?"); bindings.push(selectedYear); }
 
   const statusColumn = claimType === "attendance" ? "c.attendance_status" : "c.sns_status";
@@ -139,6 +142,12 @@ async function getAdminHistoryClaims(env, url, origin) {
     LIMIT ? OFFSET ?
   `).bind(...bindings, pageSize, offset).all();
   const claims = (rows.results || []).map(publicAdminHistoryClaim);
+  if(url.searchParams.get('presentation')==='cards'){
+    const eventId=url.searchParams.get('eventId')||'';
+    if(eventId&&!/^[a-z0-9_-]{1,128}$/i.test(eventId))return json({error:'invalid_event'},400,origin);
+    const cards=await memberCardSummaries(env,claims.map(c=>c.member.id),eventId);
+    for(const claim of claims)claim.member.card=cards.get(claim.member.id);
+  }
   await attachHistoryEvidence(env, claims, true);
   return json({
     ok: true,
