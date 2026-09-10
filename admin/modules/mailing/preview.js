@@ -1,5 +1,5 @@
-import { apiRequest } from '../../api.js?v=20260910-admin-compact-r1';
-import { $, $$ } from '../../ui.js?v=20260910-admin-compact-r1';
+import { apiRequest } from '../../api.js?v=20260910-admin-card-ux-r1';
+import { $, $$ } from '../../ui.js?v=20260910-admin-card-ux-r1';
 
 let previewTimer=null,previewSequence=0;
 

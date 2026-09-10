@@ -1,4 +1,4 @@
-import qrcode from '../vendor/qrcode-generator.mjs?v=20260910-admin-compact-r1';
+import qrcode from '../vendor/qrcode-generator.mjs?v=20260910-admin-card-ux-r1';
 
 export const $=(selector,root=document)=>root.querySelector(selector);
 export const $$=(selector,root=document)=>[...root.querySelectorAll(selector)];

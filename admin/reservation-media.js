@@ -1,4 +1,4 @@
-import { apiMedia } from './api.js?v=20260910-admin-compact-r1';
+import { apiMedia } from './api.js?v=20260910-admin-card-ux-r1';
 let observer = null,
   controller = null,
   objectUrl = null,

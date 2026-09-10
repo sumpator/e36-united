@@ -1,4 +1,4 @@
-import {QUICK_LINK_IDS} from './destinations.js?v=20260910-admin-compact-r1';
+import {QUICK_LINK_IDS} from './destinations.js?v=20260910-admin-card-ux-r1';
 export const COMPOSITIONS=Object.freeze({preparation:'Příprava srazu',onsite:'Na srazu'});
 export const WIDGETS=Object.freeze({
   reservations:{label:'Rezervace',kind:'kpi',sizes:['compact'],definition:'Pending + approved · rezervace',destination:'active'},

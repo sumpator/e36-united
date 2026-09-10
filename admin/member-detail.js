@@ -1,10 +1,10 @@
-import {adminState} from './state.js?v=20260910-admin-compact-r1';
-import {$,escapeHtml as esc} from './ui.js?v=20260910-admin-compact-r1';
-import {apiRequest} from './api.js?v=20260910-admin-compact-r1';
-import {ADMIN_REFRESH} from './refresh-policy.js?v=20260910-admin-compact-r1';
-import qrcode from '../vendor/qrcode-generator.mjs?v=20260910-admin-compact-r1';
-import {MEMBER_TABS,memberIdentity,memberOverview,memberReservation,memberSection,memberEmpty} from './member-presentation.js?v=20260910-admin-compact-r1';
-import {compactMemberIdentity,compactMemberPhoto,createCardMedia} from './member-cards.js?v=20260910-admin-compact-r1';
+import {adminState} from './state.js?v=20260910-admin-card-ux-r1';
+import {$,escapeHtml as esc} from './ui.js?v=20260910-admin-card-ux-r1';
+import {apiRequest} from './api.js?v=20260910-admin-card-ux-r1';
+import {ADMIN_REFRESH} from './refresh-policy.js?v=20260910-admin-card-ux-r1';
+import qrcode from '../vendor/qrcode-generator.mjs?v=20260910-admin-card-ux-r1';
+import {MEMBER_TABS,memberIdentity,memberOverview,memberReservation,memberSection,memberEmpty} from './member-presentation.js?v=20260910-admin-card-ux-r1';
+import {compactMemberDetails,compactMemberIdentity,compactMemberPhoto,createCardMedia} from './member-cards.js?v=20260910-admin-card-ux-r1';
 const cardsMedia=createCardMedia();
 let memberListMarkup=null;
 function clearCards(){cardsMedia.clear();memberListMarkup=null}
@@ -77,7 +77,7 @@ export function renderMemberHeader(payload){
  $('[data-member-event]').innerHTML=payload.reservations?.length?payload.reservations.map(memberReservation).join(''):memberEmpty('Na tento ročník zatím nemá rezervaci.','reservations');syncTabs();renderMemberReadState();
 }
 export function renderMembers(payload){
- const list=$('[data-member-list]'),markup=rows(payload.members,m=>`<article class="admin-member-card compact-member-card">${compactMemberPhoto(m)}${compactMemberIdentity(m)}</article>`)+pagination(payload,'list');
+ const list=$('[data-member-list]'),markup=rows(payload.members,m=>`<article class="admin-member-card compact-member-card">${compactMemberIdentity(m)}${compactMemberPhoto(m)}${compactMemberDetails(m)}</article>`)+pagination(payload,'list');
  if(markup!==memberListMarkup){clearCards();list.innerHTML=markup;memberListMarkup=markup}
  if(!adminState.memberId&&!adminState.pendingMemberRoute)cardsMedia.hydrate(list);
 }

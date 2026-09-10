@@ -1,5 +1,5 @@
-import { canonicalMemberLink } from '../member-detail.js?v=20260910-admin-compact-r1';
-import {compactMemberIdentity,compactMemberPhoto,createCardMedia} from '../member-cards.js?v=20260910-admin-compact-r1';
+import { canonicalMemberLink } from '../member-detail.js?v=20260910-admin-card-ux-r1';
+import {compactMemberIdentity,compactMemberPhoto,createCardMedia} from '../member-cards.js?v=20260910-admin-card-ux-r1';
 const historyCardMedia=createCardMedia();
 export function releaseHistoryCardMedia(){historyCardMedia.clear()}
 if(typeof window!=='undefined'){
@@ -7,13 +7,13 @@ if(typeof window!=='undefined'){
  window.addEventListener('admin:accesslost',()=>historyCardMedia.clear());
  window.addEventListener('admin:eventchanged',()=>historyCardMedia.clear());
 }
-import {listChanged,renderListPagination} from '../lists.js?v=20260910-admin-compact-r1';
-import { adminCommand, editorProtected, forgetAdminEditor } from '../editors.js?v=20260910-admin-compact-r1';
-import { apiMedia, apiRequest } from '../api.js?v=20260910-admin-compact-r1';
-import { renderAttentionCounts } from './dashboard-events.js?v=20260910-admin-compact-r1';
-import { adminState } from '../state.js?v=20260910-admin-compact-r1';
-import { setDenied } from '../shell.js?v=20260910-admin-compact-r1';
-import { $, $$, escapeHtml, formatDate, galleryStatusLabel, numeric, photosLabel, recordsLabel, rememberSessionChoice, toast } from '../ui.js?v=20260910-admin-compact-r1';
+import {listChanged,renderListPagination} from '../lists.js?v=20260910-admin-card-ux-r1';
+import { adminCommand, editorProtected, forgetAdminEditor } from '../editors.js?v=20260910-admin-card-ux-r1';
+import { apiMedia, apiRequest } from '../api.js?v=20260910-admin-card-ux-r1';
+import { renderAttentionCounts } from './dashboard-events.js?v=20260910-admin-card-ux-r1';
+import { adminState } from '../state.js?v=20260910-admin-card-ux-r1';
+import { setDenied } from '../shell.js?v=20260910-admin-card-ux-r1';
+import { $, $$, escapeHtml, formatDate, galleryStatusLabel, numeric, photosLabel, recordsLabel, rememberSessionChoice, toast } from '../ui.js?v=20260910-admin-card-ux-r1';
 
 const galleryFilterLabels={pending:'Žádosti',approved:'Schválené',rejected:'Zamítnuté',all:'Všechny'};
 const galleryMediaUrls=new Map();
@@ -147,7 +147,7 @@ export function renderHistoryClaims(payload=null){
   if(!items.length){list.innerHTML='<div class="admin-empty">Tomuto filtru neodpovídá žádná historická žádost.</div>';return}list.innerHTML=items.map(historyClaimCard).join('');for(const node of list.querySelectorAll('[data-history-id]'))if(openIds.has(node.dataset.historyId))node.open=true;
   for(const node of list.querySelectorAll('[data-history-id]')){
     const item=items.find(item=>item.id===node.dataset.historyId),summary=node.querySelector('summary');
-    summary.classList.add('compact-member-card');summary.firstElementChild.innerHTML=compactMemberPhoto(item.member)+compactMemberIdentity(item.member)+`<span class="admin-kicker">UNITED ${numeric(item.eventYear)}</span>`;
+    summary.classList.add('compact-member-card');summary.firstElementChild.innerHTML=compactMemberIdentity(item.member)+compactMemberPhoto(item.member)+`<span class="admin-kicker">UNITED ${numeric(item.eventYear)}</span>`;
     const statuses=document.createElement('p');statuses.textContent='Účast: '+historyComponentLabel(item.attendance?.status)+' · S&S: '+historyComponentLabel(item.showShine?.status);summary.querySelector('.admin-history-card-state').append(statuses);
   }
   historyCardMedia.hydrate(list);

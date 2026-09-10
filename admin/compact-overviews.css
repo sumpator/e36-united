@@ -1,23 +1,29 @@
 /* Page-bounded identities; expanding history affects only its own card. */
 .admin-page [data-member-list],.admin-page .admin-history-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;align-items:start}
 .admin-page [data-member-list]>.admin-member-pagination,.admin-page [data-member-list]>.admin-empty,.admin-page .admin-history-list>.admin-empty{grid-column:1/-1}
-.admin-page .compact-member-card{position:relative;isolation:isolate;min-width:0;padding:20px;border:1px solid #36536a;border-radius:12px;background:#102536;overflow-wrap:anywhere}
-.compact-member-photo{position:absolute;inset:0;z-index:-1;border-radius:inherit;overflow:hidden;background:linear-gradient(135deg,#183c55,#091521)}
-.compact-member-photo span{position:absolute;right:12px;top:12px;font-weight:900;letter-spacing:.12em;color:#83b9d3;font-size:12px}
-.compact-member-photo img{width:100%;height:100%;object-fit:cover;opacity:.55}
-.compact-member-photo:after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,rgba(3,12,22,.92),rgba(3,12,22,.5)),linear-gradient(0deg,#071522e6,transparent)}
+.admin-page .compact-member-card{position:relative;min-width:0;padding:20px;border:1px solid #36536a;border-radius:12px;background:#102536;overflow-wrap:anywhere}
+.admin-page [data-member-list]>.compact-member-card{display:grid;grid-template-rows:auto 112px minmax(116px,1fr);gap:12px;min-height:342px;height:342px}
+.compact-member-photo{position:relative;min-width:0;height:112px;border:1px solid #294c64;border-radius:8px;overflow:hidden;background:linear-gradient(135deg,#183c55,#091521)}
+.compact-member-photo span{position:absolute;z-index:2;right:12px;top:12px;font-weight:900;letter-spacing:.12em;color:#83b9d3;font-size:12px}
+.compact-member-photo img{position:relative;z-index:1;width:100%;height:100%;object-fit:cover}
+.compact-member-photo:after{content:'';position:absolute;z-index:1;inset:0;background:linear-gradient(90deg,rgba(3,12,22,.15),transparent 60%),linear-gradient(0deg,rgba(3,12,22,.35),transparent 55%);pointer-events:none}
 .admin-page .compact-member-identity{position:relative;min-width:0;color:#f4f8fc}
-.admin-page .compact-member-identity>.admin-member-link{font-size:23px;line-height:1.25;font-weight:800;min-height:44px;text-align:left}
-.compact-member-identity p{margin:6px 0;font-size:15px;line-height:1.5}
-.compact-member-identity>a{position:relative;color:#c8e9ff;display:inline-block;min-height:44px;padding-block:9px;line-height:1.5;overflow-wrap:anywhere}
-.compact-member-facts{display:flex;flex-wrap:wrap;gap:6px 16px}
+.admin-page .compact-member-identity>.admin-member-link{display:block;max-width:100%;min-height:36px;padding:2px 0;border:0;background:transparent;color:#f4f8fc;font-size:23px;line-height:1.25;font-weight:800;text-align:left;text-decoration:none;overflow-wrap:anywhere;cursor:pointer}
+.admin-page .compact-member-identity>.admin-member-link:focus-visible{outline:2px solid var(--admin-blue);outline-offset:3px;border-radius:3px}
+.compact-member-identity p{margin:4px 0 0;color:#c4d1dc;font-size:15px;line-height:1.4;font-weight:650}
+.compact-member-data{display:grid;grid-template-rows:auto auto 1fr;align-content:start;min-width:0}
+.compact-member-data>a{color:#c8e9ff;display:inline-block;min-height:34px;padding-block:5px;line-height:1.5;overflow-wrap:anywhere}
+.compact-member-data>a:focus-visible,.admin-page [data-member-pending]:focus-visible{outline:2px solid var(--admin-blue);outline-offset:2px}
+.compact-member-facts{display:flex;flex-wrap:wrap;gap:5px 14px;margin:2px 0;font-size:14px;line-height:1.35}
 .admin-page [data-member-pending]{position:relative;min-height:44px;padding:10px 12px;margin-top:8px;font-size:14px;white-space:normal}
-.admin-page .compact-member-identity [data-member-pending]{background:#302b1c;color:#ffda8c;border:1px solid #b38b3f}
+.admin-page .compact-member-data [data-member-pending]{align-self:end;background:#302b1c;color:#ffda8c;border:1px solid #b38b3f}
 .admin-page [data-member-queue-notice]{padding:12px;border:1px solid #36536a;border-radius:8px;background:#102536;display:flex;align-items:center;flex-wrap:wrap;gap:12px}
 .admin-page [data-member-queue-notice][hidden]{display:none}
 .admin-page [data-member-queue-clear]{min-height:44px;padding:10px;color:#d7eaff;background:#19354b;border:1px solid #42627a;border-radius:6px}
 .admin-page .admin-history-card{padding:0;min-width:0;align-self:start;border-radius:12px}
-.admin-page .admin-history-card>summary{display:block;min-width:0;padding:20px;list-style:none;cursor:pointer}
+.admin-page .admin-history-card>summary{display:block;min-width:0;min-height:342px;height:342px;padding:20px;list-style:none;cursor:pointer}
+.admin-page .admin-history-card[open]>summary{height:auto}
+.admin-page .admin-history-card>summary>div:first-child{display:grid;grid-template-rows:auto 112px auto;gap:12px}
 .admin-page .admin-history-card>summary::after{content:'Rozbalit detail ↓';display:block;position:relative;margin-top:12px;color:#b4dbfa;font-size:14px}
 .admin-page .admin-history-card[open]>summary::after{content:'Sbalit detail ↑'}
 .admin-page .admin-history-card-state{position:relative;display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
@@ -27,7 +33,8 @@
 .admin-page .admin-history-decision-head{flex-wrap:wrap}
 .admin-page .admin-history-review-actions,.admin-page .admin-gallery-card-controls,.admin-page .admin-gallery-quick-actions{flex-wrap:wrap}
 .admin-page .admin-gallery-card-controls{gap:10px;align-items:flex-start}
-.admin-page .admin-gallery-quick-actions{min-width:0;max-width:100%;margin-left:0}
+.admin-page .admin-gallery-card-controls>.admin-badge{flex:1 1 132px;width:auto;max-width:none;overflow:visible;padding:5px 8px;font-size:.65rem!important;line-height:1.3;text-overflow:clip;white-space:normal;overflow-wrap:anywhere}
+.admin-page .admin-gallery-quick-actions{flex:0 0 auto;min-width:0;max-width:100%;margin-left:auto}
 .admin-page .admin-accommodation-card{display:grid;grid-template-columns:160px minmax(0,1fr);gap:14px;align-items:start}
 .admin-page .admin-accommodation-card>.admin-accommodation-head{grid-column:2;flex-wrap:wrap}
 .admin-page .admin-accommodation-card>.admin-accommodation-summary{grid-column:2;margin:0}
@@ -49,6 +56,9 @@
 }
 @media(max-width:700px){
  .admin-page [data-member-list],.admin-page .admin-history-list{grid-template-columns:minmax(0,1fr)}
+ .admin-page [data-member-list]>.compact-member-card,.admin-page .admin-history-card>summary{height:380px;min-height:380px}
+ .admin-page .admin-history-card[open]>summary{height:auto}
+ .admin-page .admin-gallery-card-controls>.admin-badge{flex:none;max-width:100%;border-radius:6px}
  .admin-page .admin-accommodation-card{grid-template-columns:96px minmax(0,1fr);gap:10px}
  .admin-page .admin-accommodation-visual{width:96px;height:96px}
  .admin-page .admin-accommodation-card>.admin-accommodation-summary{grid-column:1/-1}

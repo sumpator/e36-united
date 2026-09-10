@@ -9,13 +9,21 @@ async function fixture(page){
 for(const width of [390,1600])test('COMPACT members, pending priority and history cards '+width,async({page},info)=>{
  await page.setViewportSize({width,height:1000});const c=await fixture(page);
  await page.goto('/admin.html?section=members&event=e');const member=page.locator('.compact-member-card').filter({has:page.locator('[data-member-open="m"]')});
+ await expect(member.locator('.compact-member-identity>.admin-member-link')).toHaveText('Dlouhá přezdívka United');await expect(member.locator('.compact-member-identity>p')).toHaveText('Alexandr Dlouhý Příjmení Člena');
+ expect(await member.evaluate(card=>[...card.children].map(node=>node.className))).toEqual(['compact-member-identity','compact-member-photo','compact-member-data']);
  await expect(member).toContainText('United: 0×');await expect(member.locator('[data-member-pending]')).toHaveText('Čeká: 3 →');
  await expect(member.locator('[data-card-media]')).toHaveJSProperty('complete',true);await expect.poll(()=>member.locator('[data-card-media]').evaluate(n=>n.naturalWidth)).toBeGreaterThan(0);
+ expect(Math.abs((await member.locator('.compact-member-photo').boundingBox()).height-112)).toBeLessThanOrEqual(.5);
+ const heights=await page.locator('[data-member-list]>.compact-member-card').evaluateAll(cards=>cards.map(card=>card.getBoundingClientRect().height));expect(Math.max(...heights)-Math.min(...heights)).toBeLessThanOrEqual(.5);
+ const memberBox=await member.boundingBox(),pendingBox=await member.locator('[data-member-pending]').boundingBox();expect(pendingBox.y+pendingBox.height).toBeLessThanOrEqual(memberBox.y+memberBox.height);
+ expect(await page.locator('[data-member-list]').evaluate(node=>getComputedStyle(node).gridTemplateColumns.split(' ').length)).toBe(width===390?1:3);
  expect(c.calls.filter(q=>/GET \/api\/admin\/members\/[^/]+(\?|\/(garage|history|club))/.test(q))).toEqual([]);
  expect(c.calls.filter(q=>q.includes('/members?'))).toHaveLength(1);
  await expect(page.locator('[data-member-open="a"]').locator('..').locator('..').locator('[data-card-media]')).toHaveCount(0);
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
  await page.screenshot({path:info.outputPath('members-'+width+'.png'),fullPage:true});
+ await page.evaluate(()=>document.addEventListener('click',event=>{if(event.target.closest('.compact-member-data>a'))event.preventDefault()},{capture:true,once:true}));await member.locator('.compact-member-data>a').click();await expect(page.locator('[data-member-dialog]')).toBeHidden();
+ await member.locator('[data-member-open]').click();await expect(page.locator('[data-member-dialog]')).toBeVisible();await page.locator('[data-member-close]').click();await expect(page.locator('[data-member-dialog]')).toBeHidden();
  await member.locator('[data-member-pending]').click();await expect(page).toHaveURL(/queueMember=m/);await expect(page.locator('[data-history-id]')).toHaveCount(1);await expect(page.locator('[data-history-id]')).toContainText('UNITED 2025');
  expect(c.calls.some(q=>q.includes('/history/claims?')&&q.includes('year=all')&&q.includes('queueMember=m'))).toBe(true);
  await page.locator('[data-history-id] summary').click();await expect(page.locator('[data-history-review="attendance"]')).toBeVisible();await page.screenshot({path:info.outputPath('history-expanded-'+width+'.png'),fullPage:true});
@@ -38,7 +46,8 @@ test('COMPACT card media detaches on navigation and loads again on Back without 
 test('COMPACT history expansion leaves its neighbouring card compact',async({page},info)=>{
  await page.setViewportSize({width:1600,height:1000});const c=await fixture(page);c.r.db.exec("UPDATE united_history_claims SET event_id='e' WHERE id='second'");
  await page.goto('/admin.html?section=community&view=club&event=e');await page.locator('[data-history-year]').selectOption('all');await expect(page.locator('[data-history-id]')).toHaveCount(2);
- const neighbour=page.locator('[data-history-id="second"]'),before=await neighbour.boundingBox();await page.locator('[data-history-id="h"] summary').click();await expect(page.locator('[data-history-id="h"] [data-history-review="attendance"]')).toBeVisible();const after=await neighbour.boundingBox();expect(Math.abs(after.height-before.height)).toBeLessThanOrEqual(0.5);await expect(neighbour).not.toHaveAttribute('open');
+ const cards=page.locator('[data-history-id]'),closedHeights=await cards.evaluateAll(nodes=>nodes.map(node=>node.getBoundingClientRect().height));expect(Math.max(...closedHeights)-Math.min(...closedHeights)).toBeLessThanOrEqual(.5);
+ const neighbour=page.locator('[data-history-id="second"]'),before=await neighbour.boundingBox();await expect(neighbour.locator('.compact-member-identity>.admin-member-link')).toBeVisible();await expect(neighbour.locator('.compact-member-photo')).toBeVisible();await page.locator('[data-history-id="h"] summary').click();await expect(page.locator('[data-history-id="h"] [data-history-review="attendance"]')).toBeVisible();const after=await neighbour.boundingBox();expect(Math.abs(after.height-before.height)).toBeLessThanOrEqual(0.5);await expect(neighbour).not.toHaveAttribute('open');
  await page.screenshot({path:info.outputPath('history-neighbours-1600.png'),fullPage:true});clean(c);c.r.db.close();
 });
 test('COMPACT mobile menu closes through all controls and legacy Club opens Members',async({page})=>{
@@ -54,7 +63,8 @@ for(const width of [390,1600])test('COMPACT accommodation, photo actions and pop
  await expect(page.locator('[data-accommodation-preview]').first()).toBeVisible();expect((await page.locator('.admin-accommodation-visual').first().boundingBox()).height).toBeLessThanOrEqual(112);
  await page.screenshot({path:info.outputPath('accommodation-'+width+'.png'),fullPage:true});await page.locator('[data-accommodation-preview]').first().click();await expect(page.locator('.admin-accommodation-image-dialog')).toBeVisible();await page.keyboard.press('Escape');
  await page.goto('/admin.html?section=community&view=gallery&event=e');await expect(page.locator('[data-gallery-id]')).toBeVisible();
- const card=await page.locator('[data-gallery-id]').boundingBox(),button=await page.locator('[data-gallery-id] [data-gallery-action="rejected"]').boundingBox();expect(button.x+button.width).toBeLessThanOrEqual(card.x+card.width);await page.screenshot({path:info.outputPath('photos-'+width+'.png'),fullPage:true});
+ const gallery=page.locator('[data-gallery-id]'),badge=gallery.locator('.admin-gallery-card-controls>.admin-badge');await expect(badge).toHaveText('Čeká na schválení');expect(await badge.evaluate(node=>({whiteSpace:getComputedStyle(node).whiteSpace,overflow:getComputedStyle(node).overflow,textOverflow:getComputedStyle(node).textOverflow}))).toEqual({whiteSpace:'normal',overflow:'visible',textOverflow:'clip'});
+ const card=await gallery.boundingBox(),button=await gallery.locator('[data-gallery-action="rejected"]').boundingBox(),status=await badge.boundingBox();expect(button.x+button.width).toBeLessThanOrEqual(card.x+card.width);expect(status.x+status.width).toBeLessThanOrEqual(card.x+card.width);await page.screenshot({path:info.outputPath('photos-'+width+'.png'),fullPage:true});
  await page.goto('/admin.html?section=reservations&event=e&reservation=r');await expect(page.locator('[data-payment-amount]')).toBeVisible();await page.locator('[data-payment-amount]').fill('333');await page.screenshot({path:info.outputPath('reservation-'+width+'.png'),fullPage:true});
  await page.locator('[data-reservation-drawer] [data-member-open]').click();await expect(page.locator('[data-member-dialog]')).toBeVisible();await page.locator('[data-member-close]').click();await expect(page.locator('[data-member-dialog]')).toBeHidden();await expect(page.locator('[data-payment-amount]')).toHaveValue('333');expect(c.writes).toEqual([]);clean(c);c.r.db.close();
 });

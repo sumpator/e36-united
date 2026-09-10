@@ -5,6 +5,14 @@ import {listAdminMembers} from '../worker/admin/members.js';
 import {memberCardsSql} from '../worker/admin/member-cards.js';
 import {getAdminHistoryClaims,getAdminGallery} from '../worker/domains.js';
 import {reservationListQuery} from '../worker/admin/lists.js';
+import {compactMemberDetails,compactMemberIdentity,compactMemberPhoto} from '../admin/member-cards.js';
+
+test('compact member presentation keeps identity, photo and concise actions separate',()=>{
+ const member={memberId:'m',nickname:'Řidič',name:'Skutečné jméno',email:'member@example.invalid',card:{eventId:'e',attendances:2,reservationStatus:'pending',pending:{reservations:1,attendance:0,sns:0,photos:0},photo:{mediaPath:'/api/admin/members/m/media/cars/c/p',version:'1'}}};
+ assert.match(compactMemberIdentity(member),/>Řidič<\/button><p>Skutečné jméno<\/p>/);assert.doesNotMatch(compactMemberIdentity(member),/mailto:|data-member-pending/);
+ assert.match(compactMemberPhoto(member),/data-card-media="\/api\/admin\/members\/m\/media\/cars\/c\/p"/);
+ const details=compactMemberDetails(member);assert.match(details,/mailto:member@example\.invalid/);assert.match(details,/United: 2×/);assert.match(details,/Čeká na schválení/);assert.match(details,/data-member-pending="reservations"/);
+});
 
 test('compact page projection keeps separate pending components, primary photo order and event scope without writes',async()=>{
  const r=memberRuntime();try{
