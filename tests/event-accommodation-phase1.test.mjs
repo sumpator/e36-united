@@ -7,6 +7,7 @@ const migration = readFileSync(new URL('../D1-event-accommodation-v1.sql', impor
 const paymentMigration = readFileSync(new URL('../D1-reservation-payments-v1.sql', import.meta.url), 'utf8');
 const plannerMigration = readFileSync(new URL('../D1-member-planner-drafts-v1.sql', import.meta.url), 'utf8');
 const reservationRequestMigration = readFileSync(new URL('../db/migrations/2026-09-11-reservation-requests.sql', import.meta.url), 'utf8');
+const accommodationGalleryMigration = readFileSync(new URL('../db/migrations/2026-09-12-accommodation-gallery.sql', import.meta.url), 'utf8');
 const workerModule = {
   ...await import('../worker/domains.js'),
   default: (await import('../cloudflare-worker-media.js')).default,
@@ -57,6 +58,7 @@ function database(events = [{ id: 'event-2026', year: 2026, status: 'open' }]) {
   db.exec(paymentMigration);
   db.exec(plannerMigration);
   db.exec(reservationRequestMigration);
+  db.exec(accommodationGalleryMigration);
   return db;
 }
 
@@ -679,4 +681,44 @@ test('32. unauthenticated accommodation photo mutation is rejected before R2 or 
   let touched=false;const env={DB:{prepare(){touched=true;throw new Error('DB must not be touched')}},MEDIA:{put(){touched=true;throw new Error('R2 must not be touched')}}};
   const response=await workerModule.default.fetch(new Request('https://api.e36united.cz/api/admin/accommodation/cabin-a/photo',{method:'PUT'}),env);
   assert.equal(response.status,401);assert.equal(touched,false);
+});
+
+test('33. accommodation gallery keeps cover first, stable order, five-photo limit and no rejected-upload orphan', async () => {
+  const db=database();addOption(db);const MEDIA=new MemoryMedia(),env={DB:d1Binding(db),MEDIA};
+  const upload=async(label)=>{const form=new FormData();form.append('file',new Blob([label],{type:'image/jpeg'}),`${label}.jpg`);return workerModule.postAdminAccommodationGalleryPhoto(new Request('https://api.e36united.cz/api/admin/accommodation/cabin-a/photos',{method:'POST',body:form}),env,{uid:'admin'},'cabin-a','https://e36united.cz')};
+  const coverForm=new FormData();coverForm.append('file',new Blob(['cover-photo'],{type:'image/jpeg'}),'cover.jpg');
+  assert.equal((await workerModule.putAdminAccommodationPhoto(new Request('https://api.e36united.cz/api/admin/accommodation/cabin-a/photo',{method:'PUT',body:coverForm}),env,{uid:'admin'},'cabin-a','https://e36united.cz')).status,200);
+  for(const label of ['one','two','three','four'])assert.equal((await upload(label)).status,201);
+  const listing=await workerModule.getAdminAccommodation(env,new URL('https://api.e36united.cz/api/admin/accommodation?eventId=event-2026'),'https://e36united.cz'),option=(await listing.json()).options[0];
+  assert.equal(option.photos.length,5);assert.equal(option.photos[0].role,'cover');assert.deepEqual(option.photos.slice(1).map(photo=>photo.sortOrder),[1,2,3,4]);assert.equal(option.visual.imageUrl,option.photos[0].imageUrl);
+  const publicEvent=await workerModule.getPublicCurrentEvent(env,'https://e36united.cz'),plannerOption=(await publicEvent.json()).accommodationOptions[0];assert.deepEqual(plannerOption.photos.map(photo=>photo.id),option.photos.map(photo=>photo.id));assert.equal(plannerOption.photos.some(photo=>'r2Key' in photo),false);
+  const objectCount=MEDIA.objects.size,rejected=await upload('sixth');assert.equal(rejected.status,409);assert.equal(MEDIA.objects.size,objectCount,'rejected upload removes its newly written R2 object');
+  const delivered=await workerModule.publicAccommodationGalleryMedia(env,'cabin-a',option.photos[1].id,new URL(`https://api.e36united.cz${option.photos[1].imageUrl}`),'https://e36united.cz');assert.equal(delivered.status,200);assert.equal(await delivered.text(),'one');
+});
+
+test('34. additional accommodation photos reorder and delete independently while the cover remains unchanged', async () => {
+  const db=database();addOption(db);const MEDIA=new MemoryMedia(),env={DB:d1Binding(db),MEDIA};
+  const put=async(path,label,method='POST')=>{const form=new FormData();form.append('file',new Blob([label],{type:'image/webp'}),`${label}.webp`);return method==='PUT'?workerModule.putAdminAccommodationPhoto(new Request(`https://api.e36united.cz${path}`,{method,body:form}),env,{uid:'admin'},'cabin-a','https://e36united.cz'):workerModule.postAdminAccommodationGalleryPhoto(new Request(`https://api.e36united.cz${path}`,{method,body:form}),env,{uid:'admin'},'cabin-a','https://e36united.cz')};
+  await put('/api/admin/accommodation/cabin-a/photo','cover','PUT');await put('/api/admin/accommodation/cabin-a/photos','first');await put('/api/admin/accommodation/cabin-a/photos','second');
+  let listing=await workerModule.getAdminAccommodation(env,new URL('https://api.e36united.cz/api/admin/accommodation?eventId=event-2026'),'https://e36united.cz'),photos=(await listing.json()).options[0].photos,firstId=photos[1].id,secondId=photos[2].id;
+  const moveRequest=new Request(`https://api.e36united.cz/api/admin/accommodation/cabin-a/photos/${secondId}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({direction:'up'})});
+  assert.equal((await workerModule.patchAdminAccommodationGalleryPhoto(moveRequest,env,{uid:'admin'},'cabin-a',secondId,'https://e36united.cz')).status,200);
+  listing=await workerModule.getAdminAccommodation(env,new URL('https://api.e36united.cz/api/admin/accommodation?eventId=event-2026'),'https://e36united.cz');photos=(await listing.json()).options[0].photos;assert.deepEqual(photos.map(photo=>photo.id),['cover',secondId,firstId]);
+  const removedKey=db.prepare('SELECT r2_key FROM event_accommodation_photos WHERE id=?').get(secondId).r2_key;
+  assert.equal((await workerModule.deleteAdminAccommodationGalleryPhoto(env,{uid:'admin'},'cabin-a',secondId,'https://e36united.cz')).status,200);assert.equal(MEDIA.objects.has(removedKey),false);assert.equal(MEDIA.objects.has('accommodation/event-2026/cabin-a/cover'),true);
+  listing=await workerModule.getAdminAccommodation(env,new URL('https://api.e36united.cz/api/admin/accommodation?eventId=event-2026'),'https://e36united.cz');photos=(await listing.json()).options[0].photos;assert.deepEqual(photos.map(photo=>photo.id),['cover',firstId]);assert.equal(photos[1].sortOrder,1);
+});
+
+test('35. without a cover the first additional photo becomes visual and the empty option keeps fallback metadata', async () => {
+  const db=database();addOption(db);addOption(db,{id:'tent-empty',name:'Stan',kind:'tent'});const MEDIA=new MemoryMedia(),env={DB:d1Binding(db),MEDIA};
+  const form=new FormData();form.append('file',new Blob(['gallery-first'],{type:'image/png'}),'first.png');await workerModule.postAdminAccommodationGalleryPhoto(new Request('https://api.e36united.cz/api/admin/accommodation/cabin-a/photos',{method:'POST',body:form}),env,{uid:'admin'},'cabin-a','https://e36united.cz');
+  const listing=await workerModule.getAdminAccommodation(env,new URL('https://api.e36united.cz/api/admin/accommodation?eventId=event-2026'),'https://e36united.cz'),options=(await listing.json()).options,withPhoto=options.find(option=>option.id==='cabin-a'),empty=options.find(option=>option.id==='tent-empty');
+  assert.equal(withPhoto.photos.length,1);assert.equal(withPhoto.photos[0].role,'additional');assert.equal(withPhoto.visual.imageUrl,withPhoto.photos[0].imageUrl);assert.equal(empty.photos.length,0);assert.equal(empty.visual.hasCustomPhoto,false);
+});
+
+test('36. accommodation gallery migration is registered and keeps foreign keys valid', () => {
+  const db=database();
+  assert.equal(db.prepare("SELECT description FROM schema_migrations WHERE id='2026-09-12-accommodation-gallery'").get().description,'Add ordered accommodation gallery metadata without moving existing cover media');
+  assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(),[]);
+  assert.deepEqual(db.prepare('PRAGMA index_info(idx_event_accommodation_photos_option_order)').all().map(column=>column.name),['option_id','sort_order','id']);
 });

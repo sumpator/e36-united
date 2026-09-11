@@ -1,4 +1,4 @@
-import { apiMedia } from './api.js?v=20260911-finish-ui-r1';
+import { apiMedia } from './api.js?v=20260912-accommodation-gallery-r1';
 let observer = null,
   controller = null,
   objectUrl = null,

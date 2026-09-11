@@ -24,6 +24,41 @@ test('finished public Show and Shine keeps eight compact criteria aligned with i
  expectNoUnexpectedClientErrors(observations);
 });
 
+test('ACCOMMODATION GALLERY loads extras lazily, restores focus and supports mobile swipe',async({page})=>{
+ const observations=await prepareE2ePage(page);await page.setViewportSize({width:1440,height:900});await page.goto('/#planer');
+ await page.locator('[data-accommodation-option-id="cabin-standard"]').click();
+ const trigger=page.locator('[data-context-preview="sleep"]'),cue=trigger.locator('[data-context-accommodation-gallery-cue]');
+ await expect(cue).toBeVisible();await expect(cue).toContainText('5');
+ expect(observations.requests.filter(value=>value.includes('/accommodation/')&&value.includes('/gallery/'))).toHaveLength(0);
+ await trigger.click();const dialog=page.locator('.accommodation-gallery-dialog');await expect(dialog).toBeVisible();await expect(dialog.locator('figcaption>span')).toHaveText('1 / 5');
+ expect(observations.requests.filter(value=>value.includes('/accommodation/')&&value.includes('/gallery/'))).toHaveLength(0);
+ await dialog.locator('.accommodation-gallery-arrow--next').click();await expect(dialog.locator('figcaption>span')).toHaveText('2 / 5');
+ await expect.poll(()=>observations.requests.filter(value=>value.includes('/accommodation/')&&value.includes('/gallery/')).length).toBe(1);
+ await page.screenshot({path:'test-results/accommodation-gallery-planner.png',fullPage:false});
+ await page.keyboard.press('Escape');await expect(dialog).toBeHidden();await expect(trigger).toBeFocused();
+ await page.setViewportSize({width:390,height:844});const mobileTrigger=page.locator('[data-preview-card="sleep"]');await mobileTrigger.scrollIntoViewIfNeeded();await mobileTrigger.click();await expect(dialog).toBeVisible();
+ await dialog.dispatchEvent('pointerdown',{pointerType:'touch',clientX:280,clientY:420});await dialog.dispatchEvent('pointerup',{pointerType:'touch',clientX:100,clientY:422});
+ await expect(dialog.locator('figcaption>span')).toHaveText('2 / 5');await page.screenshot({path:'test-results/accommodation-gallery-mobile.png',fullPage:false});
+ await dialog.locator('.accommodation-gallery-close').click();await expect(mobileTrigger).toBeFocused();expectNoUnexpectedClientErrors(observations);
+});
+
+test('ACCOMMODATION GALLERY is reused by the member reservation without eager extra media',async({page})=>{
+ const reservation={...paidReservation,accommodationSnapshot:{...paidReservation.accommodationSnapshot,optionId:'cabin-standard',optionName:'Chatka Standard'}};
+ const observations=await prepareE2ePage(page,{authenticated:true,reservation});await page.goto('/member.html?section=reservation');
+ const trigger=page.locator('.reservation-unified-card [data-member-accommodation-gallery]:visible');await expect(trigger).toBeVisible();expect(observations.requests.filter(value=>value.includes('/accommodation/')&&value.includes('/gallery/'))).toHaveLength(0);
+ await trigger.click();const dialog=page.locator('.accommodation-gallery-dialog');await expect(dialog).toBeVisible();await expect(dialog.locator('figcaption>span')).toHaveText('1 / 5');expect(observations.requests.filter(value=>value.includes('/accommodation/')&&value.includes('/gallery/'))).toHaveLength(0);
+ await dialog.locator('.accommodation-gallery-arrow--next').click();await expect(dialog.locator('figcaption>span')).toHaveText('2 / 5');await expect.poll(()=>observations.requests.filter(value=>value.includes('/accommodation/')&&value.includes('/gallery/')).length).toBe(1);
+ await page.keyboard.press('Escape');await expect(trigger).toBeFocused();expectNoUnexpectedClientErrors(observations);
+});
+
+test('ACCOMMODATION GALLERY keeps judging disclosure explicit and venue first',async({page})=>{
+ const observations=await prepareE2ePage(page);await page.setViewportSize({width:1440,height:900});await page.goto('/#show-shine');
+ const disclosure=page.locator('.showshine-disclosure'),summary=page.locator('.showshine-disclosure-trigger');await expect(summary).toHaveAttribute('aria-expanded','false');await expect(summary).toHaveCSS('cursor','pointer');
+ await summary.click();await expect(disclosure).toHaveAttribute('open','');await expect(summary).toHaveAttribute('aria-expanded','true');await page.screenshot({path:'test-results/showshine-disclosure.png',fullPage:false});
+ await page.locator('#info-hub').evaluate(element=>element.scrollIntoView({behavior:'instant'}));const expanders=page.locator('.info-expanders>.info-expander');await expect(expanders.first()).toHaveAttribute('id','venue-details-panel');await expect(expanders.first()).toHaveAttribute('open','');await expect(expanders.first().locator('summary strong')).toHaveText('Místo konání — Kemp Zbraslavice');
+ await expect(page.locator('#kontakt a[href="mailto:united@e36united.cz"]')).toBeVisible();await expect(page.locator('#kontakt a[href^="tel:"]')).toHaveCount(0);await expect(page.locator('.footer-contact[href="mailto:united@e36united.cz"]')).toHaveCount(1);await expect(page.locator('#info-hub .section-head')).toHaveClass(/is-visible/);await page.locator('#info-hub').evaluate(async element=>{const animations=element.getAnimations({subtree:true}).filter(animation=>animation.playState==='running'||animation.playState==='pending');await Promise.all(animations.map(animation=>animation.finished))});await page.screenshot({path:'test-results/info-hub-upper.png',fullPage:false});expectNoUnexpectedClientErrors(observations);
+});
+
 test('login retains canonical target, reload restores it, and invalid links fall back safely',async({page})=>{
   const observations=await prepareE2ePage(page);
   await page.goto('/member.html?section=garage');await login(page);

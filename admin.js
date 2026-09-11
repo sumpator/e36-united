@@ -1,27 +1,27 @@
-import {initializeDashboard,renderDashboard,receiveDashboardPreferences,dashboardWantsPlanner,dashboardWantsMailing,clearDashboard} from './admin/dashboard.js?v=20260911-finish-ui-r1';
-import {initializeCommandShell} from './admin/command-shell.js?v=20260911-finish-ui-r1';
-import {initializeMembers,openMember,closeMember,clearMemberPrivateState,memberContextKey,memberRefreshTasks,renderMemberReadState} from './admin/member-detail.js?v=20260911-finish-ui-r1';
-import {ADMIN_REFRESH,resourceDue} from './admin/refresh-policy.js?v=20260911-finish-ui-r1';
-import {reservationRequestPath,galleryRequestPath} from './admin/lists.js?v=20260911-finish-ui-r1';
-import { initializeAdminNavigation } from './admin/navigation.js?v=20260911-finish-ui-r1';
-import { createAdminRefresh } from './admin/refresh.js?v=20260911-finish-ui-r1';
-import { initializeAdminEditors, bindCurrentEditors, forgetAdminEditor, allowAdminNavigation, clearAdminPrivateEdits, adminRenderPending } from './admin/editors.js?v=20260911-finish-ui-r1';
-import { firebaseConfig } from './firebase-config.js?v=20260911-finish-ui-r1';
+import {initializeDashboard,renderDashboard,receiveDashboardPreferences,dashboardWantsPlanner,dashboardWantsMailing,clearDashboard} from './admin/dashboard.js?v=20260912-accommodation-gallery-r1';
+import {initializeCommandShell} from './admin/command-shell.js?v=20260912-accommodation-gallery-r1';
+import {initializeMembers,openMember,closeMember,clearMemberPrivateState,memberContextKey,memberRefreshTasks,renderMemberReadState} from './admin/member-detail.js?v=20260912-accommodation-gallery-r1';
+import {ADMIN_REFRESH,resourceDue} from './admin/refresh-policy.js?v=20260912-accommodation-gallery-r1';
+import {reservationRequestPath,galleryRequestPath} from './admin/lists.js?v=20260912-accommodation-gallery-r1';
+import { initializeAdminNavigation } from './admin/navigation.js?v=20260912-accommodation-gallery-r1';
+import { createAdminRefresh } from './admin/refresh.js?v=20260912-accommodation-gallery-r1';
+import { initializeAdminEditors, bindCurrentEditors, forgetAdminEditor, allowAdminNavigation, clearAdminPrivateEdits, adminRenderPending } from './admin/editors.js?v=20260912-accommodation-gallery-r1';
+import { firebaseConfig } from './firebase-config.js?v=20260912-accommodation-gallery-r1';
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js';
 import { getAuth, setPersistence, browserLocalPersistence, onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js';
 
-import { apiRequest } from './admin/api.js?v=20260911-finish-ui-r1';
-import { adminState, resetAdminDomainState, resetAdminFiltersForEvent, resetAdminFiltersForLogin } from './admin/state.js?v=20260911-finish-ui-r1';
-import { initializeAdminShell, setAdminSectionCollapsed, setAdminView, setDenied, setLoading, setView } from './admin/shell.js?v=20260911-finish-ui-r1';
-import { $, toast } from './admin/ui.js?v=20260911-finish-ui-r1';
-import { renderEventSelector, renderEventSettings, renderOverview, saveEventSettings } from './admin/modules/dashboard-events.js?v=20260911-finish-ui-r1';
-import { previewAccommodationPhoto, resetAccommodationMedia, removeAccommodationPhoto, renderAccommodation, saveAccommodation, uploadAccommodationPhoto } from './admin/modules/accommodation.js?v=20260911-finish-ui-r1';
-import { clearReservationDetailFilters, closeReservationDrawer, openReservationDrawer, renderReservations, renderReservationDetail, reviewReservationRequest, setPaymentFilter, setPaymentSearch, setReservationFilter, setReservationSearch, setReservationViewMode, toggleReservationDetailFilter, toggleReservationFilters, updateReservation, updateReservationPayment } from './admin/modules/reservations-payments.js?v=20260911-finish-ui-r1';
-import { changeHistoryPage, clearHistoryFilters, closeGalleryLightbox, closeHistoryEvidence, historyRequestPath, hydrateOpenHistoryCard, openGalleryLightbox, openHistoryEvidence, releaseGalleryMedia, releaseHistoryEvidence, renderGallery, renderHistoryClaims, reviewHistoryClaim, setGalleryFilter, setGalleryMode, setHistoryClaimType, setHistoryFilter, setHistorySearch, setHistoryYear, updateGallery } from './admin/modules/moderation.js?v=20260911-finish-ui-r1';
-import { initializeMailingCenter, resetMailingCenter, refreshMailingCenter } from './admin/modules/mailing/index.js?v=20260911-finish-ui-r1';
-import { renderAdminFunnel } from './admin/modules/funnel.js?v=20260911-finish-ui-r1';
-import {releaseHistoryCardMedia} from './admin/modules/moderation.js?v=20260911-finish-ui-r1';
-import { refreshHistoryAttention } from './admin/modules/dashboard-events.js?v=20260911-finish-ui-r1';
+import { apiRequest } from './admin/api.js?v=20260912-accommodation-gallery-r1';
+import { adminState, resetAdminDomainState, resetAdminFiltersForEvent, resetAdminFiltersForLogin } from './admin/state.js?v=20260912-accommodation-gallery-r1';
+import { initializeAdminShell, setAdminSectionCollapsed, setAdminView, setDenied, setLoading, setView } from './admin/shell.js?v=20260912-accommodation-gallery-r1';
+import { $, toast } from './admin/ui.js?v=20260912-accommodation-gallery-r1';
+import { renderEventSelector, renderEventSettings, renderOverview, saveEventSettings } from './admin/modules/dashboard-events.js?v=20260912-accommodation-gallery-r1';
+import { moveAccommodationGalleryPhoto, previewAccommodationGalleryPhoto, previewAccommodationPhoto, removeAccommodationGalleryPhoto, resetAccommodationMedia, removeAccommodationPhoto, renderAccommodation, saveAccommodation, uploadAccommodationGalleryPhoto, uploadAccommodationPhoto } from './admin/modules/accommodation.js?v=20260912-accommodation-gallery-r1';
+import { clearReservationDetailFilters, closeReservationDrawer, openReservationDrawer, renderReservations, renderReservationDetail, reviewReservationRequest, setPaymentFilter, setPaymentSearch, setReservationFilter, setReservationSearch, setReservationViewMode, toggleReservationDetailFilter, toggleReservationFilters, updateReservation, updateReservationPayment } from './admin/modules/reservations-payments.js?v=20260912-accommodation-gallery-r1';
+import { changeHistoryPage, clearHistoryFilters, closeGalleryLightbox, closeHistoryEvidence, historyRequestPath, hydrateOpenHistoryCard, openGalleryLightbox, openHistoryEvidence, releaseGalleryMedia, releaseHistoryEvidence, renderGallery, renderHistoryClaims, reviewHistoryClaim, setGalleryFilter, setGalleryMode, setHistoryClaimType, setHistoryFilter, setHistorySearch, setHistoryYear, updateGallery } from './admin/modules/moderation.js?v=20260912-accommodation-gallery-r1';
+import { initializeMailingCenter, resetMailingCenter, refreshMailingCenter } from './admin/modules/mailing/index.js?v=20260912-accommodation-gallery-r1';
+import { renderAdminFunnel } from './admin/modules/funnel.js?v=20260912-accommodation-gallery-r1';
+import {releaseHistoryCardMedia} from './admin/modules/moderation.js?v=20260912-accommodation-gallery-r1';
+import { refreshHistoryAttention } from './admin/modules/dashboard-events.js?v=20260912-accommodation-gallery-r1';
 
 const app=initializeApp(firebaseConfig);
 const auth=getAuth(app);
@@ -278,6 +278,9 @@ document.addEventListener('click',event=>{
   const historyAction=event.target.closest('[data-history-action]');if(historyAction){const card=historyAction.closest('[data-history-id]');if(card)reviewHistoryClaim(card,historyAction.dataset.historyComponent,historyAction.dataset.historyAction);return}
   const photoUpload=event.target.closest('[data-accommodation-photo-upload]');if(photoUpload){uploadAccommodationPhoto(photoUpload.closest('[data-accommodation-id]'),loadEventData);return}
   const photoRemove=event.target.closest('[data-accommodation-photo-remove]');if(photoRemove){removeAccommodationPhoto(photoRemove.closest('[data-accommodation-id]'),loadEventData);return}
+  const galleryUpload=event.target.closest('[data-accommodation-gallery-upload]');if(galleryUpload){uploadAccommodationGalleryPhoto(galleryUpload.closest('[data-accommodation-id]'),loadEventData);return}
+  const galleryRemove=event.target.closest('[data-accommodation-gallery-remove]');if(galleryRemove){removeAccommodationGalleryPhoto(galleryRemove,loadEventData);return}
+  const galleryMove=event.target.closest('[data-accommodation-gallery-move]');if(galleryMove){moveAccommodationGalleryPhoto(galleryMove,loadEventData);return}
   const action=event.target.closest('[data-review-action]');if(action){const card=action.closest('[data-reservation-id]');if(card)updateReservation(card,action.dataset.reviewAction,loadEventData)}
 });
 
@@ -295,6 +298,7 @@ $('[data-payment-search]')?.addEventListener('input',event=>setPaymentSearch(eve
 $('[data-history-search]')?.addEventListener('input',event=>setHistorySearch(event.target.value));
 document.addEventListener('change',event=>{
   if(event.target.matches('[data-accommodation-photo-input]')){previewAccommodationPhoto(event.target);return}
+  if(event.target.matches('[data-accommodation-gallery-input]')){previewAccommodationGalleryPhoto(event.target);return}
   if(event.target.matches('[data-history-year]')){setHistoryYear(event.target.value);return}
   if(event.target.matches('[data-history-type]'))setHistoryClaimType(event.target.value);
 });

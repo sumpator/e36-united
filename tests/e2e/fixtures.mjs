@@ -29,6 +29,13 @@ export const accommodationOptions = [
       imageUrl: '/api/events/united-2026/accommodation/cabin-standard/photo?v=standard-v1',
       version: 'standard-v1',
     },
+    photos: [
+      { id: 'cover', role: 'cover', imageUrl: '/api/events/united-2026/accommodation/cabin-standard/photo?v=standard-v1', version: 'standard-v1' },
+      { id: 'standard-2', role: 'additional', imageUrl: '/api/events/united-2026/accommodation/cabin-standard/gallery/standard-2?v=2', version: '2' },
+      { id: 'standard-3', role: 'additional', imageUrl: '/api/events/united-2026/accommodation/cabin-standard/gallery/standard-3?v=3', version: '3' },
+      { id: 'standard-4', role: 'additional', imageUrl: '/api/events/united-2026/accommodation/cabin-standard/gallery/standard-4?v=4', version: '4' },
+      { id: 'standard-5', role: 'additional', imageUrl: '/api/events/united-2026/accommodation/cabin-standard/gallery/standard-5?v=5', version: '5' },
+    ],
   },
   {
     id: 'cabin-premium',
@@ -51,6 +58,7 @@ export const accommodationOptions = [
       imageUrl: '/api/events/united-2026/accommodation/cabin-premium/photo?v=premium-v1',
       version: 'premium-v1',
     },
+    photos: [{ id: 'cover', role: 'cover', imageUrl: '/api/events/united-2026/accommodation/cabin-premium/photo?v=premium-v1', version: 'premium-v1' }],
   },
 ];
 
@@ -153,6 +161,16 @@ export async function prepareE2ePage(page, {
     contentType: 'image/svg+xml',
     body: imageSvg,
   }));
+  await page.route('https://i.ytimg.com/**', route => route.fulfill({
+    status: 200,
+    contentType: 'image/svg+xml',
+    body: imageSvg,
+  }));
+  await page.route('https://www.openstreetmap.org/export/embed.html**', route => route.fulfill({
+    status: 200,
+    contentType: 'text/html; charset=utf-8',
+    body: '<!doctype html><title>Map fixture</title>',
+  }));
   await page.route('https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js', route => route.fulfill({
     status: 200,
     contentType: 'text/javascript; charset=utf-8',
@@ -180,7 +198,7 @@ export async function prepareE2ePage(page, {
       });
       return;
     }
-    if (/\/api\/events\/united-2026\/accommodation\/[^/]+\/photo$/.test(url.pathname)) {
+    if (/\/api\/events\/united-2026\/accommodation\/[^/]+\/(?:photo|gallery\/[^/]+)$/.test(url.pathname)) {
       await route.fulfill({ status: 200, contentType: 'image/svg+xml', body: imageSvg });
       return;
     }
@@ -383,7 +401,7 @@ export async function prepareAdminE2ePage(page,{authUid=memberId}={}) {
       await route.fulfill({ status: 204, headers: { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'Authorization, Content-Type, If-Match, Idempotency-Key', 'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS' } });
       return;
     }
-    if (/\/api\/events\/united-2026\/accommodation\/[^/]+\/photo$/.test(url.pathname)) {
+    if (/\/api\/events\/united-2026\/accommodation\/[^/]+\/(?:photo|gallery\/[^/]+)$/.test(url.pathname)) {
       await route.fulfill({ status: 200, contentType: 'image/svg+xml', body: imageSvg });
       return;
     }

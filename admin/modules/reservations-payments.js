@@ -1,17 +1,17 @@
-import { canonicalMemberLink } from '../member-detail.js?v=20260911-finish-ui-r1';
-import {showReservationMedia,clearReservationMedia} from '../reservation-media.js?v=20260911-finish-ui-r1';
-import {listChanged,renderListPagination} from '../lists.js?v=20260911-finish-ui-r1';
-import { adminCommand, editorProtected, allowAdminNavigation, forgetAdminEditor } from '../editors.js?v=20260911-finish-ui-r1';
-import { accommodationVisualMarkup, bindAccommodationVisualFallbacks } from '../../accommodation-visual.js?v=20260911-finish-ui-r1';
-import { RESERVATION_DETAIL_FILTERS, RESERVATION_PRIMARY_FILTERS, RESERVATION_VIEW_MODES, adminItemPayment, filterAdminPayments, filterAdminReservations, paymentMatchesFilter, reservationMatchesFilter } from '../../admin-view-model.js?v=20260911-finish-ui-r1';
-import { apiBaseUrl, apiRequest } from '../api.js?v=20260911-finish-ui-r1';
-import { renderAttentionCounts } from './dashboard-events.js?v=20260911-finish-ui-r1';
-import { adminState } from '../state.js?v=20260911-finish-ui-r1';
-import { setDenied } from '../shell.js?v=20260911-finish-ui-r1';
-import { $, $$, attendanceLabel, attendanceShortLabel, escapeHtml, formatDate, formatMoney, numeric, paymentLabel, paymentQrSvg, recordsLabel, rememberSessionChoice, statusLabel, toast } from '../ui.js?v=20260911-finish-ui-r1';
+import { canonicalMemberLink } from '../member-detail.js?v=20260912-accommodation-gallery-r1';
+import {showReservationMedia,clearReservationMedia} from '../reservation-media.js?v=20260912-accommodation-gallery-r1';
+import {listChanged,renderListPagination} from '../lists.js?v=20260912-accommodation-gallery-r1';
+import { adminCommand, editorProtected, allowAdminNavigation, forgetAdminEditor } from '../editors.js?v=20260912-accommodation-gallery-r1';
+import { accommodationVisualMarkup, bindAccommodationVisualFallbacks } from '../../accommodation-visual.js?v=20260912-accommodation-gallery-r1';
+import { RESERVATION_DETAIL_FILTERS, RESERVATION_PRIMARY_FILTERS, RESERVATION_VIEW_MODES, adminItemPayment, filterAdminPayments, filterAdminReservations, paymentMatchesFilter, reservationMatchesFilter } from '../../admin-view-model.js?v=20260912-accommodation-gallery-r1';
+import { apiBaseUrl, apiRequest } from '../api.js?v=20260912-accommodation-gallery-r1';
+import { renderAttentionCounts } from './dashboard-events.js?v=20260912-accommodation-gallery-r1';
+import { adminState } from '../state.js?v=20260912-accommodation-gallery-r1';
+import { setDenied } from '../shell.js?v=20260912-accommodation-gallery-r1';
+import { $, $$, attendanceLabel, attendanceShortLabel, escapeHtml, formatDate, formatMoney, numeric, paymentLabel, paymentQrSvg, recordsLabel, rememberSessionChoice, statusLabel, toast } from '../ui.js?v=20260912-accommodation-gallery-r1';
 
 const paymentFilterLabels={attention:'Vyžaduje kontrolu',all:'Vše',unpaid:'K platbě',underpaid:'Doplatek',paid:'Zaplaceno',overpaid:'Přeplatek'};
-import {mergeReservation} from '../confirmed-state.js?v=20260911-finish-ui-r1';
+import {mergeReservation} from '../confirmed-state.js?v=20260912-accommodation-gallery-r1';
 let reservationDrawerReturnFocus=null;
 let revisionContext='',revisionFloor=new Map();
 function floors(){

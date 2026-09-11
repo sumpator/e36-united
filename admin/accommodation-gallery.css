@@ -1,0 +1,12 @@
+.admin-accommodation-gallery{grid-column:1/-1;display:grid;gap:13px;padding:15px;border:1px solid rgba(77,163,255,.25);background:rgba(7,13,20,.62)}
+.admin-accommodation-gallery-head{display:flex;justify-content:space-between;align-items:start;gap:16px}
+.admin-accommodation-gallery-head p{margin:5px 0 0;color:var(--admin-muted);font-size:.75rem}
+.admin-accommodation-gallery-head>strong{padding:7px 10px;border:1px solid rgba(77,163,255,.35);color:var(--admin-blue-soft);font-size:.75rem;white-space:nowrap}
+.admin-accommodation-gallery-list{display:grid;gap:8px}
+.admin-accommodation-gallery-item{display:grid;grid-template-columns:86px minmax(0,1fr) auto;align-items:center;gap:11px;padding:8px;border:1px solid var(--admin-line);background:rgba(3,7,11,.55)}
+.admin-accommodation-gallery-item img{width:86px;aspect-ratio:16/9;object-fit:cover}
+.admin-accommodation-gallery-item b,.admin-accommodation-gallery-item small{display:block}
+.admin-accommodation-gallery-item b{font-size:.73rem}.admin-accommodation-gallery-item small,.admin-accommodation-gallery-empty,.admin-accommodation-gallery-status{color:var(--admin-muted);font-size:.65rem}
+.admin-accommodation-gallery-order{display:flex;gap:6px}.admin-accommodation-gallery-order button{min-width:34px;min-height:32px;border:1px solid var(--admin-line);background:#0d151e;color:#fff;cursor:pointer}.admin-accommodation-gallery-order button:disabled{opacity:.35;cursor:not-allowed}.admin-accommodation-gallery-order .is-danger{color:#ff9aab}
+.admin-accommodation-gallery-upload{display:grid;grid-template-columns:minmax(180px,1fr) auto;gap:9px;align-items:center}.admin-accommodation-gallery-upload .admin-accommodation-photo-preview,.admin-accommodation-gallery-status{grid-column:1/-1}.admin-accommodation-gallery-status{min-height:1em;margin:0}.admin-photo-picker.is-disabled{opacity:.55;cursor:not-allowed}
+@media(max-width:720px){.admin-accommodation-gallery-item{grid-template-columns:72px minmax(0,1fr)}.admin-accommodation-gallery-item img{width:72px}.admin-accommodation-gallery-order{grid-column:1/-1}.admin-accommodation-gallery-upload{grid-template-columns:1fr}}

@@ -1,5 +1,5 @@
-import { apiRequest } from '../../api.js?v=20260911-finish-ui-r1';
-import { $, $$ } from '../../ui.js?v=20260911-finish-ui-r1';
+import { apiRequest } from '../../api.js?v=20260912-accommodation-gallery-r1';
+import { $, $$ } from '../../ui.js?v=20260912-accommodation-gallery-r1';
 
 let previewTimer=null,previewSequence=0;
 

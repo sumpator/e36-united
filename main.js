@@ -30,9 +30,9 @@ initPublicMemberState({config:firebaseConfig,apiBaseUrl:portalConfig.apiBaseUrl,
 })();
 
 const coreStyles = qs('link[href^="styles.css"]');
-if (coreStyles && !coreStyles.href.includes('v=20260911-readability-r1')) coreStyles.href = 'styles.css?v=20260911-readability-r1';
+if (coreStyles && !coreStyles.href.includes('v=20260912-accommodation-gallery-r1')) coreStyles.href = 'styles.css?v=20260912-accommodation-gallery-r1';
 if (!qs('link[href^="accommodation-visual.css"]')) {
-const accommodationStyles=document.createElement('link');accommodationStyles.rel='stylesheet';accommodationStyles.href='accommodation-visual.css?v=20260827-accommodation1';document.head.append(accommodationStyles);
+const accommodationStyles=document.createElement('link');accommodationStyles.rel='stylesheet';accommodationStyles.href='accommodation-visual.css?v=20260912-accommodation-gallery-r1';document.head.append(accommodationStyles);
 }
 
 /* Header + mobile nav */
@@ -553,6 +553,7 @@ if (showshineDisclosure && showshineDisclosureTrigger) {
     if (event.key === 'Enter' || event.key === ' ') rememberDisclosureScroll();
   });
   showshineDisclosure.addEventListener('toggle', () => {
+    showshineDisclosureTrigger.setAttribute('aria-expanded',String(showshineDisclosure.open));
     if (!showshineDisclosure.open || disclosureScrollY == null) return;
     const y = disclosureScrollY;
     disclosureScrollY = null;
@@ -565,6 +566,14 @@ if (showshineDisclosure && showshineDisclosureTrigger) {
     window.setTimeout(restoreViewport, 260);
   });
 }
+
+const infoExpanders=qs('.info-expanders');
+const venueInfoExpander=qs('#venue-details-panel');
+if(infoExpanders&&venueInfoExpander)infoExpanders.prepend(venueInfoExpander);
+const legacyContactSection=qsa('section#kontakt').find(section=>section.querySelector('.contact-grid'));
+if(legacyContactSection){legacyContactSection.id='komunita';legacyContactSection.querySelector('.contact-card[href^="mailto:"]')?.remove();legacyContactSection.querySelector('.contact-grid')?.classList.add('contact-grid--community-only')}
+const footerCopy=qs('.footer-brand-block .footer-copy');
+if(footerCopy&&!qs('.footer-contact'))footerCopy.insertAdjacentHTML('afterend','<a class="footer-contact" href="mailto:united@e36united.cz">united@e36united.cz</a>');
 
 setCategory(activeShowshineCategory,{instant:true});
 }
@@ -602,6 +611,7 @@ let plannerEventData = null;
 let plannerAccommodationOptions = [];
 let plannerApiBaseUrl = '';
 let accommodationVisualTools = null;
+let accommodationGalleryTools = null;
 let updatePlanner = () => {};
 let setPlannerChoice = () => {};
 let memberPlannerMode = false;
@@ -642,6 +652,8 @@ const stayPresets = [
 const sleepGroup = qs('[data-choice-group="sleep"]', planner);
 const sleepStep = sleepGroup?.closest('.planner-step');
 const sleepPreviewCard = qs('[data-preview-card="sleep"]', planner);
+const sleepContextPreview = qs('[data-context-preview="sleep"]', planner);
+const sleepContextGalleryCue = qs('[data-context-accommodation-gallery-cue]', planner);
 const sleepTimelineStep = qs('[data-timeline-step="sleep"]', planner);
 const accommodationUnitsStep = qs('[data-accommodation-units-step]', planner);
 const accommodationUnitsEl = qs('[data-accommodation-units]', planner);
@@ -662,7 +674,7 @@ const slug = (value, fallback) => value.normalize('NFD').replace(/[\u0300-\u036f
 const personLabel = count => count === 1 ? 'osoba' : (count >= 2 && count <= 4 ? 'osoby' : 'osob');
 const plannerMoney = new Intl.NumberFormat('cs-CZ',{style:'currency',currency:'CZK',maximumFractionDigits:0});
 const plannerEscapeHtml = value => String(value||'').replace(/[&<>'"]/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[char]));
-void import('./accommodation-visual.js?v=20260828-planner1').then(tools=>{accommodationVisualTools=tools;renderPlannerAccommodationOptions(plannerState.accommodationOptionId||'');updatePlanner()}).catch(error=>console.debug('Accommodation visuals unavailable.',error));
+void Promise.all([import('./accommodation-visual.js?v=20260912-accommodation-gallery-r1'),import('./accommodation-gallery.js?v=20260912-accommodation-gallery-r1')]).then(([visuals,gallery])=>{accommodationVisualTools=visuals;accommodationGalleryTools=gallery;renderPlannerAccommodationOptions(plannerState.accommodationOptionId||'');updatePlanner()}).catch(error=>console.debug('Accommodation visuals unavailable.',error));
 const plannerAccommodationKind = () => plannerState.sleep === 'Chatka' ? 'cabin' : plannerState.sleep === 'Stan' ? 'tent' : null;
 const matchingPlannerAccommodation = () => plannerAccommodationOptions.filter(option => option.active && option.kind === plannerAccommodationKind()).sort((a,b)=>a.sortOrder-b.sortOrder||a.name.localeCompare(b.name,'cs'));
 const selectedPlannerAccommodation = () => matchingPlannerAccommodation().find(option => option.id === plannerState.accommodationOptionId) || null;
@@ -835,6 +847,9 @@ if (accommodationUnitsEl) accommodationUnitsEl.textContent = plannerState.accomm
 if (accommodationUnitsLabel) accommodationUnitsLabel.textContent = personLabel(plannerState.accommodationUnits);
 if (summaryArrival) summaryArrival.textContent = plannerState.arrival;
 const selectedOption=selectedPlannerAccommodation();
+const selectedAccommodationPhotos=selectedOption&&accommodationGalleryTools?accommodationGalleryTools.accommodationPhotos(selectedOption):[];
+if(sleepContextGalleryCue){sleepContextGalleryCue.hidden=!selectedAccommodationPhotos.length;sleepContextGalleryCue.textContent=selectedAccommodationPhotos.length===1?'Zobrazit fotografii':`Zobrazit fotografie · ${selectedAccommodationPhotos.length}`}
+if(sleepContextPreview&&accommodationGalleryTools)accommodationGalleryTools.bindAccommodationGalleryTrigger(sleepContextPreview,selectedOption||{}, {apiBaseUrl:plannerApiBaseUrl});
 if (summarySleep) summarySleep.textContent = selectedOption?.name||plannerState.sleep;
 qsa('[data-map-sleep]',planner).forEach(element=>{element.textContent=plannerState.accommodationUnits?`${selectedOption?.name||plannerState.sleep} · ${plannerState.accommodationUnits} ${personLabel(plannerState.accommodationUnits)}`:plannerState.sleep});
 if (summaryPeople) summaryPeople.textContent = plannerState.people;
@@ -896,7 +911,7 @@ const loadPlannerCurrentEvent=async()=>{
     plannerAccommodationOptions=(Array.isArray(payload?.accommodationOptions)?payload.accommodationOptions:[]).map((option,index)=>({
       id:String(option.id||''),name:String(option.name||''),kind:option.kind==='tent'?'tent':'cabin',inventoryMode:option.inventoryMode==='unlimited'?'unlimited':'limited',
       unitsTotal:Number(option.unitsTotal||0),freeUnits:option.freeUnits==null?null:Number(option.freeUnits),capacityPerUnit:Math.max(1,Number(option.capacityPerUnit||1)),
-      unitPriceCzk:Number(option.unitPriceCzk||0),personPriceCzk:Number(option.personPriceCzk||0),beddingFeePerPersonCzk:Number(option.beddingFeePerPersonCzk||0),cityTaxPerPersonPerNightCzk:Number(option.cityTaxPerPersonPerNightCzk||0),active:option.active!==false,soldOut:option.soldOut===true,sortOrder:option.sortOrder==null?index:Number(option.sortOrder),visual:option.visual||{hasCustomPhoto:false,imageUrl:null,version:null},
+      unitPriceCzk:Number(option.unitPriceCzk||0),personPriceCzk:Number(option.personPriceCzk||0),beddingFeePerPersonCzk:Number(option.beddingFeePerPersonCzk||0),cityTaxPerPersonPerNightCzk:Number(option.cityTaxPerPersonPerNightCzk||0),active:option.active!==false,soldOut:option.soldOut===true,sortOrder:option.sortOrder==null?index:Number(option.sortOrder),visual:option.visual||{hasCustomPhoto:false,imageUrl:null,version:null},photos:Array.isArray(option.photos)?option.photos.filter(photo=>photo?.imageUrl).slice(0,5):[],
     })).filter(option=>option.id&&option.name);
     if(plannerSection&&plannerEventData){plannerSection.dataset.eventId=plannerEventData.id;plannerSection.dataset.eventYear=plannerEventData.year}
     const statusCopy=qs('.planner-status span',planner);if(statusCopy&&plannerEventData)statusCopy.textContent=`Výběr pro United ${plannerEventData.year} zatím není rezervace. Dokončíš ji v Můj United.`;
@@ -1087,6 +1102,7 @@ const flowDayCopy = qs('[data-flow-day-copy]', unitedMap);
 const flowSleepImage = qs('[data-flow-sleep-image]', unitedMap);
 const flowSleepTitle = qs('[data-flow-sleep-title]', unitedMap);
 const flowSleepCopy = qs('[data-flow-sleep-copy]', unitedMap);
+const flowSleepGalleryCue = qs('[data-accommodation-gallery-cue]', unitedMap);
 const flowAccommodationUnits = qs('[data-preview-accommodation-units]', unitedMap);
 const flowShowImage = qs('[data-flow-show-image]', unitedMap);
 const flowShowTitle = qs('[data-flow-show-title]', unitedMap);
@@ -1263,6 +1279,9 @@ if (timelineProgress) {
 
 swapImage(flowDayImage, day);
 swapImage(flowSleepImage, sleepVisual);
+const sleepPhotos=liveOption&&accommodationGalleryTools?accommodationGalleryTools.accommodationPhotos(liveOption):[];
+if(flowSleepGalleryCue){flowSleepGalleryCue.hidden=!sleepPhotos.length;flowSleepGalleryCue.textContent=sleepPhotos.length===1?'Zobrazit fotografii':`Zobrazit fotografie · ${sleepPhotos.length}`}
+if(previewCards.sleep&&accommodationGalleryTools)accommodationGalleryTools.bindAccommodationGalleryTrigger(previewCards.sleep,liveOption||{}, {apiBaseUrl:plannerApiBaseUrl});
 swapImage(flowShowImage, show);
 if (flowDayTitle) flowDayTitle.textContent = state.arrival === 'Jen na otočku' ? day.title : `${state.arrival} → ${state.departure}`;
 if (flowDayCopy) flowDayCopy.textContent = state.arrival === 'Jen na otočku' ? day.copy : `${plannerNightLabel(plannerNights())} · ${day.copy.charAt(0).toLowerCase()}${day.copy.slice(1)}`;

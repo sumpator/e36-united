@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { expectNoUnexpectedClientErrors, prepareAdminE2ePage } from './fixtures.mjs';
+import { accommodationOptions, expectNoUnexpectedClientErrors, prepareAdminE2ePage } from './fixtures.mjs';
 
 test.describe('desktop Admin portal', () => {
   test.use({ viewport: { width: 1440, height: 900 } });
@@ -41,6 +41,15 @@ test.describe('desktop Admin portal', () => {
       'GET /api/admin/history/claims',
     ]));
     expectNoUnexpectedClientErrors(observations);
+  });
+
+  test('ACCOMMODATION GALLERY Admin shows ordered slots, disables max upload and reports upload errors',async({page})=>{
+    const observations=await prepareAdminE2ePage(page);const photos=[{id:'cover',role:'cover',imageUrl:'/api/events/united-2026/accommodation/cabin-premium/photo?v=1'},{id:'p2',role:'additional',imageUrl:'/api/events/united-2026/accommodation/cabin-premium/gallery/p2?v=2',sortOrder:1},{id:'p3',role:'additional',imageUrl:'/api/events/united-2026/accommodation/cabin-premium/gallery/p3?v=3',sortOrder:2},{id:'p4',role:'additional',imageUrl:'/api/events/united-2026/accommodation/cabin-premium/gallery/p4?v=4',sortOrder:3},{id:'p5',role:'additional',imageUrl:'/api/events/united-2026/accommodation/cabin-premium/gallery/p5?v=5',sortOrder:4}];
+    await page.route('https://api.e36united.cz/api/admin/accommodation**',async route=>{const request=route.request();if(request.method()==='OPTIONS')return route.fulfill({status:204,headers:{'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'Authorization, Content-Type','Access-Control-Allow-Methods':'GET, POST, OPTIONS'}});if(request.method()==='GET')return route.fulfill({status:200,headers:{'Access-Control-Allow-Origin':'*','Content-Type':'application/json'},body:JSON.stringify({options:[{...accommodationOptions[1],photos,approvedUnits:1,pendingUnits:0,pendingConflictUnits:0},{...accommodationOptions[0],photos:accommodationOptions[0].photos.slice(0,1),approvedUnits:0,pendingUnits:0,pendingConflictUnits:0}]})});return route.fulfill({status:503,headers:{'Access-Control-Allow-Origin':'*','Content-Type':'application/json'},body:JSON.stringify({message:'Testovací chyba uploadu'})})});
+    await page.goto('/admin.html');await page.locator('.admin-section-nav [data-portal-target="reservations"]').click();await page.locator('[data-admin-jump="accommodation"]').click();
+    const card=page.locator('[data-accommodation-id="cabin-premium"]');await expect(card.locator('.admin-accommodation-gallery-head>strong')).toHaveText('5 / 5');await expect(card.locator('[data-accommodation-gallery-input]')).toBeDisabled();await expect(card.locator('[data-accommodation-gallery-photo]')).toHaveCount(4);await page.screenshot({path:'test-results/accommodation-gallery-admin.png',fullPage:false});
+    const uploadCard=page.locator('[data-accommodation-id="cabin-standard"]');await uploadCard.locator('[data-accommodation-gallery-input]').setInputFiles({name:'failure.jpg',mimeType:'image/jpeg',buffer:Buffer.from('fixture-image')});await uploadCard.locator('[data-accommodation-gallery-upload]').click();await expect(uploadCard.locator('[data-accommodation-gallery-status]')).toHaveText('Testovací chyba uploadu');
+    expect(observations.campaignWrites).toHaveLength(0);expect(observations.pageErrors).toEqual([]);expect(observations.consoleErrors.every(entry=>entry.text.includes('503'))).toBe(true);
   });
 
   test('reservation drawer preserves payment details, QR and keyboard focus return', async ({ page }) => {

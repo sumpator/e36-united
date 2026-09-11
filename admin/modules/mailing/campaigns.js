@@ -1,9 +1,9 @@
-import {renderListPagination} from '../../lists.js?v=20260911-finish-ui-r1';
-import { apiRequest } from '../../api.js?v=20260911-finish-ui-r1';
-import { $, escapeHtml, formatDate, numeric, toast } from '../../ui.js?v=20260911-finish-ui-r1';
-import { activeMailingCampaignId, initializeMailingEditor, markMailingEditorSaved, openMailingEditorDraft, resetMailingEditor } from './editor.js?v=20260911-finish-ui-r1';
-import { initializeMailingDelivery, openMailingDelivery, resetMailingDelivery } from './delivery.js?v=20260911-finish-ui-r1';
-import { defaultMailingSegment } from './segments.js?v=20260911-finish-ui-r1';
+import {renderListPagination} from '../../lists.js?v=20260912-accommodation-gallery-r1';
+import { apiRequest } from '../../api.js?v=20260912-accommodation-gallery-r1';
+import { $, escapeHtml, formatDate, numeric, toast } from '../../ui.js?v=20260912-accommodation-gallery-r1';
+import { activeMailingCampaignId, initializeMailingEditor, markMailingEditorSaved, openMailingEditorDraft, resetMailingEditor } from './editor.js?v=20260912-accommodation-gallery-r1';
+import { initializeMailingDelivery, openMailingDelivery, resetMailingDelivery } from './delivery.js?v=20260912-accommodation-gallery-r1';
+import { defaultMailingSegment } from './segments.js?v=20260912-accommodation-gallery-r1';
 
 const statusLabels={draft:'Koncept',prepared:'Připravená',sent:'Odeslaná',archived:'Archiv'};
 export let campaignPage=1;

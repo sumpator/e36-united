@@ -70,6 +70,10 @@ export async function routeRequest({ request, env, url, origin }) {
   if (accommodationMediaMatch && request.method === "GET") {
     return await domain.publicAccommodationMedia(env, decodeURIComponent(accommodationMediaMatch[1]), url, origin);
   }
+  const accommodationGalleryMediaMatch = url.pathname.match(/^\/api\/accommodation\/media\/([^/]+)\/([^/]+)$/);
+  if (accommodationGalleryMediaMatch && request.method === "GET") {
+    return await domain.publicAccommodationGalleryMedia(env, decodeURIComponent(accommodationGalleryMediaMatch[1]), decodeURIComponent(accommodationGalleryMediaMatch[2]), url, origin);
+  }
 
   // Public media stream only for approved gallery submissions.
   if (url.pathname.startsWith("/api/gallery/media/") && request.method === "GET") {
@@ -191,6 +195,16 @@ export async function routeRequest({ request, env, url, origin }) {
       }
       if (adminAccommodationPhotoMatch && request.method === "DELETE") {
         return await domain.deleteAdminAccommodationPhoto(env, auth, decodeURIComponent(adminAccommodationPhotoMatch[1]), origin);
+      }
+      const adminAccommodationGalleryMatch = url.pathname.match(/^\/api\/admin\/accommodation\/([^/]+)\/photos(?:\/([^/]+))?$/);
+      if (adminAccommodationGalleryMatch && request.method === "POST" && !adminAccommodationGalleryMatch[2]) {
+        return await domain.postAdminAccommodationGalleryPhoto(request, env, auth, decodeURIComponent(adminAccommodationGalleryMatch[1]), origin);
+      }
+      if (adminAccommodationGalleryMatch && request.method === "DELETE" && adminAccommodationGalleryMatch[2]) {
+        return await domain.deleteAdminAccommodationGalleryPhoto(env, auth, decodeURIComponent(adminAccommodationGalleryMatch[1]), decodeURIComponent(adminAccommodationGalleryMatch[2]), origin);
+      }
+      if (adminAccommodationGalleryMatch && request.method === "PATCH" && adminAccommodationGalleryMatch[2]) {
+        return await domain.patchAdminAccommodationGalleryPhoto(request, env, auth, decodeURIComponent(adminAccommodationGalleryMatch[1]), decodeURIComponent(adminAccommodationGalleryMatch[2]), origin);
       }
 
       return json({ ok: false, error: "not_found", message: "Admin endpoint neexistuje." }, 404, origin);

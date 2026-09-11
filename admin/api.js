@@ -1,6 +1,6 @@
-import { portalConfig } from '../firebase-config.js?v=20260911-finish-ui-r1';
-import { adminState } from './state.js?v=20260911-finish-ui-r1';
-import { createAdminApiClient } from './request-client.js?v=20260911-finish-ui-r1';
+import { portalConfig } from '../firebase-config.js?v=20260912-accommodation-gallery-r1';
+import { adminState } from './state.js?v=20260912-accommodation-gallery-r1';
+import { createAdminApiClient } from './request-client.js?v=20260912-accommodation-gallery-r1';
 
 export const apiBaseUrl=(portalConfig.apiBaseUrl||'https://api.e36united.cz').replace(/\/$/,'');
 const client=createAdminApiClient({baseUrl:apiBaseUrl,
@@ -9,4 +9,4 @@ const client=createAdminApiClient({baseUrl:apiBaseUrl,
 });
 export const apiRequest=(path,options)=>client.request(path,options);
 export const apiMedia=(path,options={})=>client.request(path,{...options,consume:'blob'});
-export function apiUpload(path,file,options={}){const body=new FormData();body.append('file',file);return client.request(path,{...options,method:'PUT',body})}
+export function apiUpload(path,file,options={}){const body=new FormData();body.append('file',file);return client.request(path,{...options,method:options.method||'PUT',body})}
