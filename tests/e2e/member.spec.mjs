@@ -183,13 +183,22 @@ test.describe('desktop member portal', () => {
   });
 
   test('approved reservation prefill creates one change request and keeps reservation identity', async ({ page }) => {
-    const observations = await prepareE2ePage(page, { authenticated: true, registrationOpen: true, reservation: approvedReservation });
+    const observations = await prepareE2ePage(page, { authenticated: true, registrationOpen: true, reservation: approvedReservation, ignoreConsoleError:entry=>(entry.text.includes('Reservation save failed')&&entry.text.includes('Žádost obsahuje nepovolené údaje'))||(entry.url.endsWith('/api/reservations/current/requests')&&entry.text.includes('status of 400')) });
+    let rejectOnce=true;
+    await page.route('https://api.e36united.cz/api/reservations/current/requests',async route=>{
+      if(route.request().method()==='POST'&&rejectOnce){rejectOnce=false;await route.fulfill({status:400,contentType:'application/json',body:JSON.stringify({ok:false,error:'invalid_fields',message:'Žádost obsahuje nepovolené údaje.'})});return}
+      await route.fallback();
+    });
 
     await page.goto('/member.html');
     await expectMemberOverview(page);
     await page.locator('.member-sidebar [data-member-section="reservation"]').click();
 
     const form = page.locator('[data-reservation-form]');
+    await expect(page.locator('.reservation-unified-card')).toBeVisible();
+    await expect(page.locator('[data-reservation-summary]')).toContainText('Chatka Premium');
+    await expect(form).toHaveClass(/is-view-mode/);
+    await expect(page.locator('.reservation-unified-card .member-saved-accommodation-visual')).toHaveCount(1);
     await expect(form.locator('[name="arrival"]')).toHaveValue('Sobota');
     await expect(form.locator('[name="crew"]')).toHaveValue('3');
     await expect(form.locator('[name="sleep"]')).toHaveValue('Chatka');
@@ -198,26 +207,37 @@ test.describe('desktop member portal', () => {
     await expect(form.locator('[name="note"]')).toHaveValue('Příjezd po obědě.');
     await expect(page.locator('[data-reservation-submit]')).toBeDisabled();
     await page.locator('[data-request-change]').click();
+    await expect(form).toHaveClass(/is-editing/);
+    await expect(form.locator('[name="accommodationOptionId"]')).toBeEnabled();
     await expect(page.locator('[data-reservation-submit]')).toContainText('Odeslat žádost o změnu');
 
+    await form.locator('[name="accommodationOptionId"]').selectOption('cabin-standard');
     await form.locator('[name="note"]').fill('Aktualizovaný příjezd.');
+    await page.locator('[data-reservation-submit]').click();
+    const feedback=page.locator('[data-reservation-form-status]');
+    await expect(feedback).toBeVisible();await expect(feedback).toHaveAttribute('data-state','error');await expect(feedback).toContainText('Žádost obsahuje nepovolené údaje');
+    await expect(form.locator('[name="accommodationOptionId"]')).toHaveValue('cabin-standard');await expect(form.locator('[name="note"]')).toHaveValue('Aktualizovaný příjezd.');
     await page.locator('[data-reservation-submit]').click();
     await expect.poll(() => observations.reservationRequestWrites.length).toBe(1);
     expect(observations.reservationRequestWrites[0]).toMatchObject({
       reservationId: 'reservation-2026-e2e',
       arrival: 'Sobota',
       crew: 3,
-      attendanceType: 'saturday_only',
       accommodation: 'Chatka',
-      accommodationOptionId: 'cabin-premium',
+      accommodationOptionId: 'cabin-standard',
       accommodationUnits: 2,
       showShine: 'Ano',
       note: 'Aktualizovaný příjezd.',
     });
     expect(observations.reservationRequestWrites[0]).not.toHaveProperty('carId');
+    expect(observations.reservationRequestWrites[0]).not.toHaveProperty('attendanceType');
+    expect(Object.keys(observations.reservationRequestWrites[0]).sort()).toEqual(['accommodation','accommodationOptionId','accommodationUnits','arrival','crew','memberNote','note','reservationId','showShine','type'].sort());
     expect(observations.reservationWrites).toEqual([]);
     expect(observations.requests).toContain('POST /api/reservations/current/requests');
     await expect(page.locator('[data-reservation-request-status]')).toContainText('čeká na rozhodnutí');
+    await expect(feedback).toHaveAttribute('data-state','success');await expect(feedback).toContainText('Žádost o změnu byla odeslána ke schválení');
+    await expect(form).toHaveClass(/is-view-mode/);await expect(page.locator('.reservation-unified-card .member-saved-accommodation-visual')).toHaveCount(1);
+    await page.setViewportSize({width:390,height:844});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
 
     expectNoUnexpectedClientErrors(observations);
   });

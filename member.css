@@ -514,3 +514,51 @@ body:not(.member-authenticated) [data-app-view]{display:none!important}
  .reservation-saved-price{grid-template-columns:96px minmax(0,1fr)}
  .reservation-saved-price>.member-saved-accommodation-visual{width:96px}
 }
+
+/* 2026-09-11: reservation status, summary and edit state share one workbench. */
+.reservation-unified-card{--reservation-status:#69afff;--reservation-status-bg:rgba(77,163,255,.17);--reservation-status-border:rgba(105,175,255,.48);display:block}
+.reservation-unified-card.is-status-approved{--reservation-status:#66e39d;--reservation-status-bg:rgba(47,190,111,.2);--reservation-status-border:rgba(102,227,157,.58)}
+.reservation-unified-card.is-status-rejected{--reservation-status:#ff6472;--reservation-status-bg:rgba(218,47,64,.22);--reservation-status-border:rgba(255,100,114,.62)}
+.reservation-unified-card.is-status-pending{--reservation-status:#ffc15c;--reservation-status-bg:rgba(232,148,27,.21);--reservation-status-border:rgba(255,193,92,.58)}
+.reservation-unified-card.is-status-cancelled{--reservation-status:#c7858d;--reservation-status-bg:rgba(128,61,70,.22);--reservation-status-border:rgba(199,133,141,.46)}
+.reservation-detail-status{display:grid;grid-template-columns:minmax(230px,.42fr) minmax(280px,.58fr);align-items:center;gap:12px 22px;padding:18px 22px;border-bottom:1px solid rgba(105,175,255,.16);background:linear-gradient(110deg,var(--reservation-status-bg),rgba(5,8,12,.7))}
+.reservation-detail-status .reservation-state{display:grid;gap:7px;color:var(--reservation-status)}
+.reservation-detail-status .reservation-state>small{color:rgba(255,255,255,.56);font:900 8px/1 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.16em}
+.reservation-detail-status .reservation-state-value{display:flex;align-items:center;gap:10px}
+.reservation-detail-status .reservation-state i{width:30px;height:30px;flex:0 0 30px;border:1px solid var(--reservation-status-border);border-radius:9px;background:var(--reservation-status-bg);display:grid;place-items:center;color:var(--reservation-status);font:950 18px/1 ui-monospace,SFMono-Regular,Menlo,monospace}
+.reservation-detail-status .reservation-state strong{color:var(--reservation-status);font:950 clamp(18px,2vw,24px)/1 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:-.02em;text-transform:uppercase}
+.reservation-detail-status>p{margin:0;color:#afbbc6;font-size:13px;line-height:1.5}
+.reservation-detail-status>.reservation-member-comment,.reservation-detail-status>.reservation-request-status{grid-column:1/-1;margin:0}
+.reservation-detail-status>.reservation-member-comment{border-left-width:4px}
+.reservation-detail-grid{display:grid;grid-template-columns:minmax(330px,.86fr) minmax(0,1.14fr)}
+.reservation-unified-card .reservation-card-large[data-reservation-card]{height:auto;min-height:450px;border-right:1px solid rgba(105,175,255,.16);border-bottom:0;box-shadow:none}
+.reservation-unified-card .reservation-large-year{position:relative;z-index:2;margin-top:0;font-size:clamp(70px,7vw,102px)}
+.reservation-unified-card .reservation-card-large h3{position:relative;z-index:2;margin-top:18px}
+.reservation-unified-card .reservation-summary{position:absolute;left:25px;right:25px;bottom:24px;margin:0}
+.reservation-control-stack .reservation-form{min-height:450px;align-content:start}
+.reservation-control-stack .reservation-form>:is(.form-title,.reservation-member-actions,.reservation-cancel-request,.reservation-saved-price,.form-grid-two,.reservation-car-required-inline,.reservation-price-preview,.reservation-form-status,.reservation-edit-actions,.reservation-mail-state),.reservation-control-stack .reservation-form>label:has(textarea){grid-column:1/-1}
+.reservation-form.is-view-mode>[data-reservation-edit-field]{display:none!important}
+.reservation-form.is-editing>.reservation-saved-price{display:none!important}
+.reservation-form.is-view-mode .form-title{padding-bottom:10px;border-bottom:1px solid rgba(255,255,255,.08)}
+.reservation-member-actions{align-self:end;padding-top:8px;border-top:1px solid rgba(255,255,255,.08)}
+.reservation-edit-actions{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:9px;align-items:stretch}
+.reservation-edit-actions .member-secondary{min-width:138px}
+.reservation-form-status{padding:13px 15px;border:1px solid;border-radius:12px;font-size:12px;font-weight:800;line-height:1.5}
+.reservation-form-status[hidden]{display:none!important}
+.reservation-form-status[data-state="error"]{border-color:rgba(255,100,114,.5);background:rgba(180,38,54,.16);color:#ffadb5;box-shadow:inset 3px 0 #ff6472}
+.reservation-form-status[data-state="success"]{border-color:rgba(102,227,157,.45);background:rgba(47,190,111,.13);color:#a6f1c4;box-shadow:inset 3px 0 #66e39d}
+.reservation-form.is-view-mode .reservation-mail-state{display:none}
+@media(max-width:1050px){
+ .reservation-detail-grid{grid-template-columns:1fr}
+ .reservation-unified-card .reservation-card-large[data-reservation-card]{min-height:430px;border-right:0;border-bottom:1px solid rgba(105,175,255,.16)}
+}
+@media(max-width:700px){
+ .reservation-detail-status{grid-template-columns:1fr;gap:10px;padding:16px 18px}
+ .reservation-detail-status>.reservation-member-comment,.reservation-detail-status>.reservation-request-status{grid-column:1}
+ .reservation-unified-card .reservation-card-large[data-reservation-card]{min-height:470px;padding:20px}
+ .reservation-unified-card .reservation-summary{left:20px;right:20px;bottom:20px}
+ .reservation-edit-actions{grid-template-columns:1fr}
+ .reservation-edit-actions .member-secondary{width:100%}
+ .reservation-member-actions{display:grid}
+ .reservation-member-actions .member-primary,.reservation-member-actions .member-secondary{width:100%}
+}

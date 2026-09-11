@@ -15,6 +15,8 @@ function prepare(){
   r.db.exec(`UPDATE events SET registration_status='open',full_weekend_nights=2,saturday_only_nights=1 WHERE id='e';
     INSERT INTO event_accommodation_options(id,event_id,name,kind,inventory_mode,units_total,capacity_per_unit,unit_price_czk,person_price_czk,bedding_fee_per_person_czk,city_tax_per_person_per_night_czk,active)
     VALUES('cab','e','Chatka A','cabin','limited',2,4,500,0,50,25,1);
+    INSERT INTO event_accommodation_options(id,event_id,name,kind,inventory_mode,units_total,capacity_per_unit,unit_price_czk,person_price_czk,bedding_fee_per_person_czk,city_tax_per_person_per_night_czk,active)
+    VALUES('cab-premium','e','Chatka Premium','cabin','limited',2,3,700,0,50,25,1);
     INSERT INTO reservation_accommodation(reservation_id,option_id,option_name,kind,people_count,unit_count,unit_price_czk,person_price_czk,bedding_fee_per_person_czk,city_tax_per_person_per_night_czk,nights,base_total_czk,person_total_czk,bedding_total_czk,city_tax_total_czk,total_czk)
     VALUES('r','cab','Chatka A','cabin',2,1,500,0,50,25,2,1000,0,100,100,1200);
     UPDATE reservations SET arrival='Pátek',attendance_type='full_weekend',accommodation='Chatka',accommodation_units=2,show_shine='Ne',note='Původní',amount_due_czk=1200,amount_paid_czk=200,payment_status='underpaid' WHERE id='r';`);
@@ -39,6 +41,17 @@ test('approved reservation change is proposed once and only mutates authoritativ
   assert.deepEqual({...current,payment_vs:before.payment_vs},{arrival:'Sobota',crew:3,note:'Nový příjezd',amount_due_czk:725,amount_paid_czk:200,payment_status:'underpaid',status:'approved',payment_vs:before.payment_vs});
   const allocation=r.db.prepare("SELECT people_count,unit_count,nights,total_czk FROM reservation_accommodation WHERE reservation_id='r'").get();
   assert.deepEqual({...allocation},{people_count:3,unit_count:1,nights:1,total_czk:725});r.db.close();
+});
+
+test('member change payload stays on the request allowlist and a cabin type change remains pending',async()=>{
+  const r=prepare(),before={...r.db.prepare("SELECT arrival,crew,accommodation,note,amount_due_czk,status FROM reservations WHERE id='r'").get()};
+  const forbidden=await submit(r,{...change,attendanceType:'saturday_only'});assert.equal(forbidden.status,400);assert.equal((await forbidden.json()).error,'invalid_fields');
+  const response=await submit(r,{...change,accommodationOptionId:'cab-premium'});assert.equal(response.status,201);
+  const payload=await response.json(),stored=r.db.prepare('SELECT original_json,proposed_json,status FROM reservation_requests WHERE id=?').get(payload.request.id);
+  const original=JSON.parse(stored.original_json),proposed=JSON.parse(stored.proposed_json);
+  assert.equal(stored.status,'pending');assert.equal(original.accommodationOptionId,'cab');assert.equal(original.accommodationSnapshot.optionName,'Chatka A');
+  assert.equal(proposed.accommodationOptionId,'cab-premium');assert.equal(proposed.accommodationSnapshot.optionName,'Chatka Premium');assert.equal(proposed.accommodationSnapshot.unitCount,1);
+  assert.deepEqual({...r.db.prepare("SELECT arrival,crew,accommodation,note,amount_due_czk,status FROM reservations WHERE id='r'").get()},before);r.db.close();
 });
 
 test('rejected change keeps the approved reservation and exposes the member-facing comment',async()=>{
