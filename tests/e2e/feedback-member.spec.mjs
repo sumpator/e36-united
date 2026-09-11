@@ -12,6 +12,17 @@ async function login(page){
   await form.locator('[type=submit]').click();await expect(page.locator('[data-app-view]')).toBeVisible();
 }
 
+test('finished public Show and Shine keeps eight compact criteria aligned with its visual',async({page})=>{
+ const observations=await prepareE2ePage(page);
+ for(const width of [1440,390]){
+  await page.setViewportSize({width,height:900});await page.goto('/#show-shine');
+  await expect(page.locator('.showshine-disclosure-trigger strong')).toHaveText('Co všechno porota kontroluje?');await expect(page.locator('.showshine-judging-head')).toHaveCount(0);
+  await page.locator('.showshine-disclosure-trigger').click();await expect(page.locator('.judging-criterion')).toHaveCount(8);expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  if(width===1440){const criteria=await page.locator('.judging-criteria').boundingBox(),visual=await page.locator('.judging-stage').boundingBox();expect(Math.abs(criteria.y-visual.y)).toBeLessThanOrEqual(1);expect(Math.abs(criteria.height-visual.height)).toBeLessThanOrEqual(1);expect(criteria.height).toBeLessThanOrEqual(420);}
+ }
+ expectNoUnexpectedClientErrors(observations);
+});
+
 test('login retains canonical target, reload restores it, and invalid links fall back safely',async({page})=>{
   const observations=await prepareE2ePage(page);
   await page.goto('/member.html?section=garage');await login(page);
@@ -86,12 +97,18 @@ test('authenticated Planner without a reservation transfers one plan and gives p
 
 test('approved reservation uses an explicit change request and independent car assignment',async({page})=>{
   const observations=await prepareE2ePage(page,{authenticated:true,registrationOpen:true,reservation:paidReservation,cars:reservationCars});
-  await page.goto('/member.html?section=reservation');await expect(page.locator('[data-reservation-payment-detail]')).toContainText('Zaplaceno');
+  await page.goto('/member.html?section=reservation');await expect(page.locator('[data-reservation-payment-detail]')).toContainText('Zaplaceno');await expect(page.locator('.reservation-unified-card')).toContainText('STAV REZERVACE');await expect(page.locator('.reservation-unified-card [data-reservation-car-choice]')).toBeVisible();await expect(page.locator('[data-reservation-form-car]')).toBeHidden();await expect(page.locator('.reservation-unified-card .member-saved-accommodation-visual')).toHaveCount(1);await expect(page.locator('[data-reservation-summary] .accommodation-visual')).toHaveCount(0);
   await page.locator('[data-reservation-car-select]').selectOption('car-002');await clickReady(page.locator('[data-reservation-car-save]'));
-  await expect.poll(()=>observations.reservationCarWrites.length).toBe(1);expect(observations.reservationCarWrites[0]).toEqual({carId:'car-002'});
+  await expect.poll(()=>observations.reservationCarWrites.length).toBe(1);expect(observations.reservationCarWrites[0]).toEqual({carId:'car-002'});await expect(page.locator('[data-reservation-summary]')).toContainText('Touring');
   await clickReady(page.locator('[data-request-change]'));await page.locator('[data-reservation-form] [name=crew]').fill('3');await clickReady(page.locator('[data-reservation-submit]'));
   await expect.poll(()=>observations.reservationRequestWrites.length).toBe(1);expect(observations.reservationRequestWrites[0]).toMatchObject({reservationId:'reservation-flow-e2e',type:'change',crew:3});
   expect(observations.reservationRequestWrites[0]).not.toHaveProperty('carId');expect(observations.reservationWrites).toEqual([]);await expect(page.locator('[data-reservation-request-status]')).toContainText('čeká na rozhodnutí');expectNoUnexpectedClientErrors(observations);
+});
+
+test('existing rejected reservation hides a stale Planner handoff and never presents a closed registration action',async({page})=>{
+ const rejected={...paidReservation,status:'rejected',payment:null,amountPaidCzk:0};const draftId='22222222-2222-4222-8222-222222222222';
+ const observations=await prepareE2ePage(page,{authenticated:true,reservation:rejected});await page.addInitScript(({draftId})=>{const now=Date.now();localStorage.setItem('e36UnitedPlannerHandoff:'+draftId,JSON.stringify({version:1,draftId,source:'weekend-planner',eventId:'united-2026',eventYear:2026,createdAt:new Date(now-1000).toISOString(),expiresAt:new Date(now+86400000).toISOString(),arrival:'Pátek',departure:'Neděle',nights:2,attendanceType:'full_weekend',accommodation:'Bez ubytování',accommodationOptionId:null,accommodationUnits:0,crew:2,showShine:'Ne'}))},{draftId});
+ await page.goto(`/member.html?section=reservation&draft=${draftId}`);await expect(page.locator('[data-planner-handoff]')).toBeHidden();const action=page.locator('[data-reservation-submit]');await expect(action).toBeDisabled();await expect(action).toHaveText('Rezervace byla zamítnuta');await expect(action).toHaveClass(/is-rejected-closed/);await expect(page.locator('.reservation-unified-card .member-saved-accommodation-visual')).toHaveCount(1);expectNoUnexpectedClientErrors(observations);
 });
 
 test('paid reservation cancellation remains a request and keeps payment visible',async({page})=>{

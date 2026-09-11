@@ -1,10 +1,10 @@
-import {adminState} from './state.js?v=20260911-member-rows-r3';
-import {$,$$,escapeHtml as esc,rememberSessionChoice} from './ui.js?v=20260911-member-rows-r3';
-import {apiRequest} from './api.js?v=20260911-member-rows-r3';
-import {ADMIN_REFRESH} from './refresh-policy.js?v=20260911-member-rows-r3';
-import qrcode from '../vendor/qrcode-generator.mjs?v=20260911-member-rows-r3';
-import {MEMBER_TABS,memberIdentity,memberOverview,memberReservation,memberSection,memberEmpty} from './member-presentation.js?v=20260911-member-rows-r3';
-import {compactMemberDetails,compactMemberIdentity,compactMemberPhoto,createCardMedia} from './member-cards.js?v=20260911-member-rows-r3';
+import {adminState} from './state.js?v=20260911-finish-ui-r1';
+import {$,$$,escapeHtml as esc,rememberSessionChoice} from './ui.js?v=20260911-finish-ui-r1';
+import {apiRequest} from './api.js?v=20260911-finish-ui-r1';
+import {ADMIN_REFRESH} from './refresh-policy.js?v=20260911-finish-ui-r1';
+import qrcode from '../vendor/qrcode-generator.mjs?v=20260911-finish-ui-r1';
+import {MEMBER_TABS,memberIdentity,memberOverview,memberReservation,memberSection,memberEmpty} from './member-presentation.js?v=20260911-finish-ui-r1';
+import {compactMemberDetails,compactMemberIdentity,compactMemberPhoto,createCardMedia} from './member-cards.js?v=20260911-finish-ui-r1';
 const cardsMedia=createCardMedia();
 let memberListMarkup=null;
 function clearCards(){cardsMedia.clear();memberListMarkup=null}
@@ -177,7 +177,7 @@ function containMemberFocus(event,dialog){
  const target=event.shiftKey&&document.activeElement===nodes[0]?nodes.at(-1):!event.shiftKey&&document.activeElement===nodes.at(-1)?nodes[0]:null;
  if(target){event.preventDefault();target.focus();}
 }
-export function initializeMembers({openReservation,openHistory}){
+export function initializeMembers({openReservation,openHistory,openPhotoModeration}){
  if(initialized)return;initialized=true;adminState.memberTab='overview';adminState.memberPage=1;adminState.membersPage=1;
  const search=document.createElement('form');search.className='admin-member-search';search.dataset.memberSearchForm='';search.setAttribute('role','search');search.innerHTML='<label>Najít člena / vložit členský QR <input data-member-search autocomplete="off" maxlength="100" placeholder="Jméno, e-mail, kód nebo auto (min. 2 znaky)" /></label><button type="submit">Najít</button><div data-member-suggestions aria-live="polite"></div>';$('[data-admin-view]').prepend(search);
  const dialog=document.createElement('dialog');dialog.dataset.memberDialog='';dialog.className='admin-member-dialog';dialog.setAttribute('aria-labelledby','admin-member-heading');dialog.innerHTML='<header data-member-hero><div data-member-hero-media aria-hidden="true"></div><div data-member-identity><h2 id="admin-member-heading">Načítám člena…</h2></div><button type="button" data-member-close aria-label="Zavřít detail člena">Zavřít ×</button><p data-member-freshness role="status"></p></header><p data-member-load-error role="status" hidden></p><div class="admin-member-layout"><nav role="tablist" aria-orientation="vertical" aria-label="Sekce člena">'+Object.entries(MEMBER_TABS).map(([key,label])=>`<button type="button" role="tab" id="member-tab-${key}" aria-controls="admin-member-panel" data-member-tab="${key}">${label}</button>`).join('')+'</nav><label class="admin-member-section-picker" for="member-section-select"><span>Sekce člena</span><select id="member-section-select" data-member-section-select>'+Object.entries(MEMBER_TABS).map(([key,label])=>`<option value="${key}">${label}</option>`).join('')+'</select></label><div id="admin-member-panel" data-member-panel role="tabpanel" tabindex="0"><section data-member-event></section><section data-member-tab-content></section></div></div>';document.body.append(dialog);
@@ -202,6 +202,7 @@ export function initializeMembers({openReservation,openHistory}){
   const page=event.target.closest('[data-member-page]');if(page){adminState[page.dataset.memberPageKind==='list'?'membersPage':'memberPage']=Number(page.dataset.memberPage);routeChange();return}
   const res=event.target.closest('[data-member-reservation]');if(res){openReservation(res.dataset.memberReservation,res.dataset.memberEventId);return}
   if(event.target.closest('[data-member-history]')){openHistory();return}
+  const moderation=event.target.closest('[data-member-photo-moderation]');if(moderation){openPhotoModeration?.(moderation.dataset.photoStatus,adminState.memberId);return}
   const preview=event.target.closest('[data-member-image]');if(preview){const img=preview.querySelector('img'),generation=mediaGeneration;void loadMedia(img.dataset.memberMedia,img.dataset.mediaVersion).then(url=>{if(url&&generation===mediaGeneration&&adminState.memberId){$('[data-member-full-image]').src=url;image.showModal()}});return}
   if(event.target.closest('[data-member-image-close]'))image.close();
  },true);

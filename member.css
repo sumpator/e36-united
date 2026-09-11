@@ -473,3 +473,44 @@ body:not(.member-authenticated) [data-app-view]{display:none!important}
 
 @media(max-width:700px){.history-editor-years{display:flex;gap:7px;margin-inline:-2px;padding:2px 2px 7px;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none}.history-editor-years::-webkit-scrollbar{display:none}.history-editor-year{flex:0 0 92px;min-height:65px;scroll-snap-align:start}.history-editor-status-grid{grid-template-columns:1fr}.history-editor-overview .history-edit-selected,.history-detail-back{width:100%}.contextual-popover.is-mobile-sheet{left:10px!important;right:10px!important;top:auto!important;bottom:10px!important;width:auto!important;max-height:min(72svh,620px);padding:20px 46px 22px 20px;border-radius:20px}.contextual-popover.is-mobile-sheet::before{display:none}.context-popover-rows>div{min-height:42px}.context-popover-rows b{font-size:12px}.achievement-detail-popover.is-mobile-sheet{max-height:min(64svh,520px)}}
 @media(prefers-reduced-motion:reduce){.history-editor-list>.history-editor-card{animation:none}.history-editor-year{transition:none}}
+
+/* 2026-09-11: one cohesive reservation detail with compact saved pricing. */
+.reservation-workbench{display:block}
+.reservation-unified-card{display:grid;grid-template-columns:minmax(340px,.86fr) minmax(0,1.14fr);overflow:hidden;border:1px solid rgba(105,175,255,.22);border-radius:22px;background:linear-gradient(145deg,#101720,#080c11);box-shadow:0 28px 70px rgba(0,0,0,.28)}
+.reservation-unified-card .reservation-card-large[data-reservation-card]{height:100%;min-height:620px;align-self:stretch;border:0;border-right:1px solid rgba(105,175,255,.16);border-radius:0;box-shadow:inset 0 3px var(--reservation-status)}
+.reservation-unified-card .reservation-summary{position:relative;left:auto;right:auto;bottom:auto;margin-top:30px;grid-template-columns:repeat(2,minmax(0,1fr))}
+.reservation-unified-card .reservation-summary b{white-space:normal}
+.reservation-control-stack{min-width:0;background:linear-gradient(155deg,rgba(16,25,35,.98),rgba(8,12,17,.98))}
+.reservation-control-stack .reservation-form{grid-template-columns:repeat(2,minmax(0,1fr));border:0;border-radius:0;background:transparent}
+.reservation-control-stack .reservation-form>:is(.form-title,.reservation-request-status,.reservation-member-comment,.reservation-member-actions,.reservation-cancel-request,.reservation-saved-price,.form-grid-two,.reservation-car-required-inline,.reservation-price-preview,[data-reservation-submit],.reservation-mail-state),.reservation-control-stack .reservation-form>label:has(textarea){grid-column:1/-1}
+.reservation-saved-price{grid-template-columns:132px minmax(0,1fr);grid-template-areas:"visual head" "details details";align-items:center;gap:10px 14px;padding:12px}
+.reservation-saved-price>.member-saved-accommodation-visual{grid-area:visual;width:132px;margin:0}
+.reservation-saved-price>.reservation-saved-price-head{grid-area:head;display:grid;align-content:center;justify-content:stretch;gap:5px;padding:0;border:0}
+.reservation-saved-price-head span{color:#6fce9a;font-size:9px;font-weight:900;letter-spacing:.1em}
+.reservation-saved-price-head b{color:#dff7e9;font-size:12px}
+.reservation-saved-price-head strong{color:#77dfa6;font-size:18px}
+.reservation-saved-price-details{grid-area:details;border-top:1px solid rgba(98,214,168,.16)}
+.reservation-saved-price-details>summary{display:flex;align-items:center;justify-content:space-between;min-height:40px;color:#a8caba;font-size:11px;font-weight:850;cursor:pointer;list-style:none}
+.reservation-saved-price-details>summary::-webkit-details-marker{display:none}
+.reservation-saved-price-details[open]>summary span{transform:rotate(45deg)}
+.reservation-saved-price-details>div{display:grid;gap:7px;padding:0 0 4px}
+.reservation-saved-price-details small,.reservation-saved-price-details strong{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.reservation-saved-price-details small{color:#7f948a;font-size:10px}
+.reservation-saved-price-details small b{color:#c7d9cf}
+.reservation-saved-price-details strong{padding-top:8px;border-top:1px solid rgba(98,214,168,.16);color:#77dfa6;font-size:12px}
+.reservation-control-stack .reservation-car-choice{margin:0 22px 22px;grid-template-columns:minmax(0,1fr) minmax(170px,.75fr) auto;border-color:rgba(105,175,255,.16);background:rgba(77,163,255,.035)}
+.reservation-control-stack .reservation-car-choice select{width:100%;min-height:44px;padding:0 12px;border:1px solid rgba(105,175,255,.28);border-radius:10px;background:#0b131b;color:#eef7ff;font:inherit}
+.member-primary.is-rejected-closed:disabled{border:1px solid rgba(255,100,114,.42);background:rgba(135,39,50,.18);color:#ff98a3;box-shadow:none;cursor:default;opacity:1;transform:none}
+@media(max-width:1050px){
+ .reservation-unified-card{grid-template-columns:1fr}
+ .reservation-unified-card .reservation-card-large[data-reservation-card]{height:auto;min-height:480px;border-right:0;border-bottom:1px solid rgba(105,175,255,.16)}
+}
+@media(max-width:700px){
+ .reservation-unified-card{border-radius:18px}
+ .reservation-unified-card .reservation-card-large[data-reservation-card]{min-height:510px}
+ .reservation-control-stack .reservation-form{grid-template-columns:1fr;padding:18px}
+ .reservation-control-stack .reservation-form>*{grid-column:1}
+ .reservation-control-stack .reservation-car-choice{grid-template-columns:1fr;margin:0 18px 18px;padding:14px}
+ .reservation-saved-price{grid-template-columns:96px minmax(0,1fr)}
+ .reservation-saved-price>.member-saved-accommodation-visual{width:96px}
+}

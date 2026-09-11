@@ -1,5 +1,5 @@
-import { canonicalMemberLink } from '../member-detail.js?v=20260911-member-rows-r3';
-import {compactMemberIdentity,compactMemberPhoto,createCardMedia} from '../member-cards.js?v=20260911-member-rows-r3';
+import { canonicalMemberLink } from '../member-detail.js?v=20260911-finish-ui-r1';
+import {compactMemberIdentity,compactMemberPhoto,createCardMedia} from '../member-cards.js?v=20260911-finish-ui-r1';
 const historyCardMedia=createCardMedia();
 export function releaseHistoryCardMedia(){historyCardMedia.clear()}
 if(typeof window!=='undefined'){
@@ -7,13 +7,13 @@ if(typeof window!=='undefined'){
  window.addEventListener('admin:accesslost',()=>historyCardMedia.clear());
  window.addEventListener('admin:eventchanged',()=>historyCardMedia.clear());
 }
-import {listChanged,renderListPagination} from '../lists.js?v=20260911-member-rows-r3';
-import { adminCommand, editorProtected, forgetAdminEditor } from '../editors.js?v=20260911-member-rows-r3';
-import { apiMedia, apiRequest } from '../api.js?v=20260911-member-rows-r3';
-import { renderAttentionCounts } from './dashboard-events.js?v=20260911-member-rows-r3';
-import { adminState } from '../state.js?v=20260911-member-rows-r3';
-import { setDenied } from '../shell.js?v=20260911-member-rows-r3';
-import { $, $$, escapeHtml, formatDate, galleryStatusLabel, numeric, photosLabel, recordsLabel, rememberSessionChoice, toast } from '../ui.js?v=20260911-member-rows-r3';
+import {listChanged,renderListPagination} from '../lists.js?v=20260911-finish-ui-r1';
+import { adminCommand, editorProtected, forgetAdminEditor } from '../editors.js?v=20260911-finish-ui-r1';
+import { apiMedia, apiRequest } from '../api.js?v=20260911-finish-ui-r1';
+import { renderAttentionCounts } from './dashboard-events.js?v=20260911-finish-ui-r1';
+import { adminState } from '../state.js?v=20260911-finish-ui-r1';
+import { setDenied } from '../shell.js?v=20260911-finish-ui-r1';
+import { $, $$, escapeHtml, formatDate, galleryStatusLabel, numeric, photosLabel, recordsLabel, rememberSessionChoice, toast } from '../ui.js?v=20260911-finish-ui-r1';
 
 const galleryFilterLabels={pending:'Žádosti',approved:'Schválené',rejected:'Zamítnuté',all:'Všechny'};
 const galleryMediaUrls=new Map();
@@ -93,6 +93,8 @@ export function setGalleryMode(mode){
 }
 
 function historyComponentLabel(status){return({not_claimed:'Neuvedeno',pending:'Čeká na kontrolu',approved:'Schváleno',rejected:'Zamítnuto'})[status]||status||'—'}
+function historyStatusTone(status){return status==='pending'?'pending':status==='rejected'?'rejected':status==='approved'?'approved':'neutral'}
+function historyComponentStatuses(item){return `<p class="admin-history-component-statuses"><span class="is-${historyStatusTone(item.attendance?.status)}">Účast: <b>${escapeHtml(historyComponentLabel(item.attendance?.status))}</b></span><span class="is-${historyStatusTone(item.showShine?.status)}">S&S: <b>${escapeHtml(historyComponentLabel(item.showShine?.status))}</b></span></p>`}
 function historyMatchesStatus(item,filter){if(filter==='all')return true;if(filter==='pending')return item.attendance?.status==='pending'||item.showShine?.status==='pending';return item.attendance?.status===filter||item.showShine?.status===filter}
 function filteredHistoryClaims(){return adminState.historyClaims}
 function historyNeedsAction(item){return historyMatchesStatus(item,'pending')}
@@ -111,7 +113,7 @@ function historyReviewControl(item,component){
   return `${note}<label><span>DŮVOD ROZHODNUTÍ</span><textarea data-history-review-note maxlength="1000" placeholder="Povinné při zamítnutí"></textarea></label><div data-history-actions>${historyReviewActions(item,component)}</div>`;
 }
 function historyClaimCard(item){
-  const member=item.member||{},pending=historyNeedsAction(item);return `<details class="admin-history-card${pending?' is-actionable':''}" data-history-id="${escapeHtml(item.id)}"><summary><div><span class="admin-kicker">UNITED ${numeric(item.eventYear)}</span><h3>${canonicalMemberLink(item.memberId||member.id,member.nickname||member.name||member.email||'United member')}</h3><p>${escapeHtml([member.name,member.memberCode].filter(Boolean).join(' · '))}</p></div><div class="admin-history-card-state"><span>${escapeHtml(historyTypeSummary(item))}</span><b class="admin-badge admin-badge--${pending?'pending':'resolved'}">${pending?'Vyžaduje akci':'Bez čekající akce'}</b><time>${escapeHtml(formatDate(item.submittedAt))}</time></div></summary><div class="admin-history-card-detail"><p class="admin-history-member-email">${escapeHtml(member.email||'E-mail neuveden')}</p>${historyEvidenceGrid(item)}<div class="admin-history-decisions"><section data-history-review="attendance"><div class="admin-history-decision-head"><div><small>DOCHÁZKA</small><b>${escapeHtml(historyComponentLabel(item.attendance?.status))}</b></div><i class="admin-badge admin-badge--${escapeHtml(item.attendance?.status)}">${escapeHtml(historyComponentLabel(item.attendance?.status))}</i></div>${historyReviewControl(item,'attendance')}</section><section data-history-review="sns"><div class="admin-history-decision-head"><div><small>SHOW &amp; SHINE</small><b>${escapeHtml(showShineSummary(item))}</b></div><i class="admin-badge admin-badge--${escapeHtml(item.showShine?.status)}">${escapeHtml(historyComponentLabel(item.showShine?.status))}</i></div>${historyReviewControl(item,'sns')}</section></div></div></details>`;
+  const member=item.member||{},pending=historyNeedsAction(item);return `<details class="admin-history-card${pending?' is-actionable':''}" data-history-id="${escapeHtml(item.id)}"><summary><div><span class="admin-kicker">UNITED ${numeric(item.eventYear)}</span><h3>${canonicalMemberLink(item.memberId||member.id,member.nickname||member.name||member.email||'United member')}</h3><p>${escapeHtml([member.name,member.memberCode].filter(Boolean).join(' · '))}</p><time>${escapeHtml(formatDate(item.submittedAt))}</time></div><div class="admin-history-card-state"><span>${escapeHtml(historyTypeSummary(item))}</span><b class="admin-badge admin-badge--${pending?'pending':'resolved'}">${pending?'Vyžaduje akci':'Bez čekající akce'}</b>${historyComponentStatuses(item)}</div></summary><div class="admin-history-card-detail"><p class="admin-history-member-email">${escapeHtml(member.email||'E-mail neuveden')}</p>${historyEvidenceGrid(item)}<div class="admin-history-decisions"><section data-history-review="attendance"><div class="admin-history-decision-head"><div><small>DOCHÁZKA</small><b>${escapeHtml(historyComponentLabel(item.attendance?.status))}</b></div><i class="admin-badge admin-badge--${escapeHtml(item.attendance?.status)}">${escapeHtml(historyComponentLabel(item.attendance?.status))}</i></div>${historyReviewControl(item,'attendance')}</section><section data-history-review="sns"><div class="admin-history-decision-head"><div><small>SHOW &amp; SHINE</small><b>${escapeHtml(showShineSummary(item))}</b></div><i class="admin-badge admin-badge--${escapeHtml(item.showShine?.status)}">${escapeHtml(historyComponentLabel(item.showShine?.status))}</i></div>${historyReviewControl(item,'sns')}</section></div></div></details>`;
 }
 function renderHistoryTabs(){
   $$('[data-history-filter]').forEach(button=>{const filter=button.dataset.historyFilter,count=filter==='all'?adminState.historyCounts.total:numeric(adminState.historyCounts[filter]),active=filter===adminState.historyFilter;$(`[data-history-filter-count="${filter}"]`,button).textContent=count;button.classList.toggle('is-active',active);button.setAttribute('aria-selected',String(active));button.tabIndex=active?0:-1});
@@ -147,8 +149,7 @@ export function renderHistoryClaims(payload=null){
   if(!items.length){list.innerHTML='<div class="admin-empty">Tomuto filtru neodpovídá žádná historická žádost.</div>';return}list.innerHTML=items.map(historyClaimCard).join('');for(const node of list.querySelectorAll('[data-history-id]'))if(openIds.has(node.dataset.historyId))node.open=true;
   for(const node of list.querySelectorAll('[data-history-id]')){
     const item=items.find(item=>item.id===node.dataset.historyId),summary=node.querySelector('summary');
-    summary.classList.add('compact-member-card');summary.firstElementChild.innerHTML=compactMemberIdentity(item.member)+compactMemberPhoto(item.member)+`<span class="admin-kicker">UNITED ${numeric(item.eventYear)}</span>`;
-    const statuses=document.createElement('p');statuses.textContent='Účast: '+historyComponentLabel(item.attendance?.status)+' · S&S: '+historyComponentLabel(item.showShine?.status);summary.querySelector('.admin-history-card-state').append(statuses);
+    summary.classList.add('compact-member-card');summary.firstElementChild.innerHTML=compactMemberIdentity(item.member)+compactMemberPhoto(item.member)+`<span class="admin-kicker">UNITED ${numeric(item.eventYear)}</span><time>${escapeHtml(formatDate(item.submittedAt))}</time>`;
   }
   historyCardMedia.hydrate(list);
 }

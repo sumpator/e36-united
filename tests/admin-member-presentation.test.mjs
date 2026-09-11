@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {MEMBER_TABS,memberIdentity,memberOverview,memberSection,memberLabel} from '../admin/member-presentation.js';
 import {adminRoute,adminRouteUrl} from '../admin/navigation.js';
 import {memberRefreshTasks} from '../admin/member-detail.js';
-import {adminState} from '../admin/state.js?v=20260911-member-rows-r3';
+import {adminState} from '../admin/state.js?v=20260911-finish-ui-r1';
 import {ADMIN_REFRESH} from '../admin/refresh-policy.js';
 const header={member:{memberId:'m',name:'Testovací člen',nickname:'Řidič',email:'example@example.invalid',memberCode:'EU-TEST',status:'active',role:'member',createdAt:'2026-01-01'},event:{id:'e',title:'United 2026'},reservations:[]};
 
@@ -39,9 +39,16 @@ test('Member Club summary uses server values and no invented progress or rating 
  assert.match(memberSection({...club,context:{tab:'club'}}),/Achievement 4/);
 });
 test('Member history presents separate decisions, Mailing never infers relation and unissued QR has no generator call',()=>{
- const history=memberSection({context:{tab:'history'},items:[{year:2025,attendanceStatus:'approved',snsStatus:'pending',attendanceNote:'Účast ověřena',snsNote:'Výsledek čeká'}]});assert.match(history,/Účast ověřena/);assert.match(history,/Výsledek čeká/);assert.match(history,/Schváleno/);assert.match(history,/Čeká na schválení/);
+ const history=memberSection({context:{tab:'history'},items:[{year:2025,attendanceStatus:'approved',snsStatus:'pending',attendanceNote:'Účast ověřena',snsNote:'Výsledek čeká'}]});assert.match(history,/admin-member-section-grid--history/);assert.match(history,/Účast ověřena/);assert.match(history,/Výsledek čeká/);assert.match(history,/Schváleno/);assert.match(history,/Čeká na schválení/);
  assert.match(memberSection({context:{tab:'mailing'},items:[],contact:null}),/Shoda e-mailu sama o sobě není vazba/);
  assert.match(memberSection({context:{tab:'qr'},payload:null},()=>assert.fail('must not generate')),/Členské QR zatím nebylo vydáno/);
+});
+
+test('Member photos and reservations expose the existing moderation and editor destinations without empty filler copy',()=>{
+ const photos=memberSection({context:{tab:'photos'},items:[{caption:'United',mediaPath:'/api/admin/members/m/media/photos/g',status:'pending',reviewNote:''}]});
+ assert.match(photos,/data-member-photo-moderation/);assert.match(photos,/Čeká na schválení/);assert.doesNotMatch(photos,/>—</);assert.doesNotMatch(photos,/>Otevřít fotografii</);
+ const garage=memberSection({context:{tab:'garage'},items:[{model:'328i',photos:[{mediaPath:'/photo'}]}]});assert.doesNotMatch(garage,/>Otevřít fotografii</);
+ const reservation=memberSection({context:{tab:'reservations'},items:[{id:'r',eventId:'e'}]});assert.match(reservation,/Otevřít detail rezervace/);assert.doesNotMatch(reservation,/Zdroj: uložená rezervace/);
 });
 
 test('Member known technical labels are presentation-only and keep Mailing eligibility distinct from consent',()=>{

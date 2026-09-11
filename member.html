@@ -7,9 +7,9 @@
 <title>Můj United | E36 United Member Portal</title>
 <meta content="noindex,nofollow" name="robots"/>
 <meta content="#090a0c" name="theme-color"/>
-<link href="styles.css?v=20260911-reservation-flow-r1" rel="stylesheet"/>
+<link href="styles.css?v=20260911-finish-ui-r1" rel="stylesheet"/>
 <link href="accommodation-visual.css?v=20260827-accommodation1" rel="stylesheet"/>
-<link href="member.css?v=20260911-reservation-flow-r1" rel="stylesheet"/>
+<link href="member.css?v=20260911-finish-ui-r1" rel="stylesheet"/>
 <link href="member/reliability.css?v=20260907-feedback" rel="stylesheet"/>
 <link href="mobile-feedback.css?v=20260907-mobile" rel="stylesheet"/>
 </head>
@@ -119,7 +119,9 @@
 <p class="planner-handoff-approved" data-planner-handoff-approved="" hidden="">Po odeslání změn bude rezervace znovu čekat na schválení.</p>
 </aside>
 <div class="reservation-workbench" data-reservation-workbench="">
-<article class="reservation-card-large" data-reservation-card=""><div class="reservation-car-hero" data-reservation-car-hero="" hidden=""></div><div class="reservation-card-overlay"></div><div aria-live="polite" class="reservation-state"><small>STAV REZERVACE</small><span class="reservation-state-value"><i data-reservation-state-symbol="">·</i><strong data-reservation-state-label="">NAČÍTÁM STAV</strong></span></div><div class="reservation-large-year" data-reservation-year="">—</div><h3 data-reservation-title="">Příští E36 United</h3><p data-reservation-description="">Ověřuji, zda je registrace otevřená a jestli už máš uloženou rezervaci.</p><div class="reservation-summary" data-reservation-summary=""></div></article>
+<article aria-label="Detail rezervace" class="reservation-unified-card">
+<div class="reservation-card-large" data-reservation-card=""><div class="reservation-car-hero" data-reservation-car-hero="" hidden=""></div><div class="reservation-card-overlay"></div><div aria-live="polite" class="reservation-state"><small>STAV REZERVACE</small><span class="reservation-state-value"><i data-reservation-state-symbol="">·</i><strong data-reservation-state-label="">NAČÍTÁM STAV</strong></span></div><div class="reservation-large-year" data-reservation-year="">—</div><h3 data-reservation-title="">Příští E36 United</h3><p data-reservation-description="">Ověřuji, zda je registrace otevřená a jestli už máš uloženou rezervaci.</p><div class="reservation-summary" data-reservation-summary=""></div></div>
+<div class="reservation-control-stack">
 <form class="reservation-form" data-reservation-form="">
 <div class="form-title"><span data-reservation-form-kicker>DETAILY REZERVACE</span><b data-reservation-form-title>Dokonči rezervaci</b></div>
 <div class="reservation-request-status" data-reservation-request-status hidden></div>
@@ -140,8 +142,10 @@
 <button class="member-primary" data-reservation-submit="" type="submit">Odeslat rezervaci <span>→</span></button>
 <div class="reservation-mail-state" data-reservation-mail-state=""><i></i><span>Po odeslání bude rezervace čekat na schválení.</span></div>
 </form>
-</div>
 <section class="reservation-car-choice" data-reservation-car-choice hidden><div><span class="member-kicker">AUTO REZERVACE</span><strong>Změnit auto bez nového schvalování pobytu</strong><small>Výběr nemění osoby, ubytování, cenu ani stav rezervace.</small></div><label><span>Auto z Garage</span><select data-reservation-car-select></select></label><button class="member-secondary" data-reservation-car-save type="button">Uložit auto</button></section>
+</div>
+</article>
+</div>
 <section aria-live="polite" class="reservation-payment-brief" data-member-payment hidden></section>
 <section aria-live="polite" class="reservation-payment-detail" data-reservation-payment-detail hidden></section>
 </section>
@@ -217,5 +221,5 @@
 <div class="member-gallery-lightbox" data-member-gallery-lightbox="" hidden=""><div class="member-gallery-lightbox-backdrop" data-member-gallery-close=""></div><div aria-label="Náhled fotografie" aria-modal="true" class="member-gallery-lightbox-dialog" role="dialog"><button aria-label="Zavřít náhled" class="member-gallery-lightbox-close" data-member-gallery-close="" type="button">×</button><button aria-label="Předchozí fotografie" class="member-gallery-lightbox-nav member-gallery-lightbox-prev" data-member-gallery-prev="" type="button">←</button><figure><img alt="" data-member-gallery-lightbox-image=""/><figcaption data-member-gallery-lightbox-caption=""></figcaption></figure><button aria-label="Další fotografie" class="member-gallery-lightbox-nav member-gallery-lightbox-next" data-member-gallery-next="" type="button">→</button></div></div>
 <div aria-live="polite" class="member-toast" data-toast="" role="status"></div>
 <script src="showshine-data.js?v=20260824"></script>
-<script src="member.js?v=20260911-readability-r1" type="module"></script>
+<script src="member.js?v=20260911-finish-ui-r1" type="module"></script>
 </body></html>

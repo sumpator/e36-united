@@ -39,8 +39,13 @@ for (const width of [390, 1440]) test(`public readability layout remains usable 
   await expect(page.locator('#experience .section-title')).toHaveText('Pátek. Sobota. Neděle.');
   await page.locator('.weekend-tab[data-day="saturday"]').click();
   await expect(page.locator('[data-copy="saturday"] h3')).toHaveText('Hlavní den. Show & Shine.');
-  await expect(page.locator('.showshine-judging-head')).toContainText('8 věcí, které rozhodují');
-  await expect(page.locator('.showshine-judging-head')).not.toContainText('Porota postupuje podle stejného seznamu');
+  await expect(page.locator('.showshine-disclosure-trigger strong')).toHaveText('Co všechno porota kontroluje?');
+  await expect(page.locator('.showshine-judging-head')).toHaveCount(0);
+  await expect(page.locator('#show-shine')).not.toContainText('8 věcí, které rozhodují');
+  await expect(page.locator('#show-shine')).not.toContainText('SHOW & SHINE / HODNOCENÍ');
+  await page.locator('.showshine-disclosure-trigger').click();
+  await expect(page.locator('.judging-criterion')).toHaveCount(8);
+  if(width===1440){const [criteria,visual]=await Promise.all([page.locator('.judging-criteria').boundingBox(),page.locator('.judging-stage').boundingBox()]);expect(Math.abs(criteria.y-visual.y)).toBeLessThanOrEqual(1);expect(Math.abs(criteria.height-visual.height)).toBeLessThanOrEqual(1);expect(criteria.height).toBeLessThanOrEqual(420);}
   await expect(page.locator('.band-section')).toHaveCount(0);
   await expect(page.locator('.story-preview--community .section-title')).toHaveText(/Šest ročníků\.\s*Jedna komunita\./);
   await expect(page.locator('#planer .section-title')).toHaveText('Poskládej si svůj United.');

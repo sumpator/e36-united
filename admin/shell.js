@@ -1,9 +1,9 @@
-import { allowAdminNavigation } from './editors.js?v=20260911-member-rows-r3';
-import { initPortalNavigation } from '../portal-navigation.js?v=20260911-member-rows-r3';
-import { ADMIN_VIEW_IDS } from '../admin-view-model.js?v=20260911-member-rows-r3';
-import {ADMIN_AREAS,VIEW_LABELS,areaFor} from './destinations.js?v=20260911-member-rows-r3';
-import { adminState } from './state.js?v=20260911-member-rows-r3';
-import { $, $$, rememberSessionChoice } from './ui.js?v=20260911-member-rows-r3';
+import { allowAdminNavigation } from './editors.js?v=20260911-finish-ui-r1';
+import { initPortalNavigation } from '../portal-navigation.js?v=20260911-finish-ui-r1';
+import { ADMIN_VIEW_IDS } from '../admin-view-model.js?v=20260911-finish-ui-r1';
+import {ADMIN_AREAS,VIEW_LABELS,areaFor} from './destinations.js?v=20260911-finish-ui-r1';
+import { adminState } from './state.js?v=20260911-finish-ui-r1';
+import { $, $$, rememberSessionChoice } from './ui.js?v=20260911-finish-ui-r1';
 
 const adminCollapseStorageKey='e36UnitedAdmin.collapsedSections.v1';
 const adminCollapsePreferences=readAdminCollapsePreferences();

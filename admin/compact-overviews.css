@@ -23,11 +23,19 @@
 .admin-page .admin-history-card{padding:0;min-width:0;align-self:start;border-radius:12px}
 .admin-page .admin-history-card>summary{display:block;min-width:0;min-height:342px;height:342px;padding:20px;list-style:none;cursor:pointer}
 .admin-page .admin-history-card[open]>summary{height:auto}
-.admin-page .admin-history-card>summary>div:first-child{display:grid;grid-template-rows:auto 112px auto;gap:12px}
+.admin-page .admin-history-card>summary>div:first-child{display:grid;grid-template-areas:"identity date" "photo photo" "kicker kicker";grid-template-columns:minmax(0,1fr) auto;grid-template-rows:auto 112px auto;gap:12px;align-items:start}
+.admin-page .admin-history-card>summary>div:first-child>.compact-member-identity{grid-area:identity}
+.admin-page .admin-history-card>summary>div:first-child>.compact-member-photo{grid-area:photo}
+.admin-page .admin-history-card>summary>div:first-child>.admin-kicker{grid-area:kicker}
+.admin-page .admin-history-card>summary>div:first-child>time{grid-area:date;padding-top:7px;color:#a8bdcd;font-size:12px;white-space:nowrap}
 .admin-page .admin-history-card>summary::after{content:'Rozbalit detail ↓';display:block;position:relative;margin-top:12px;color:#b4dbfa;font-size:14px}
 .admin-page .admin-history-card[open]>summary::after{content:'Sbalit detail ↑'}
 .admin-page .admin-history-card-state{position:relative;display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
-.admin-page .admin-history-card-state time{flex-basis:100%;white-space:normal}
+.admin-history-component-statuses{flex:1 0 100%;display:flex;flex-wrap:wrap;gap:6px;margin:0!important;overflow:visible!important;white-space:normal!important}
+.admin-history-component-statuses>span{padding:5px 8px;border:1px solid #41566a;border-radius:999px;background:#132332;color:#c4d2dd;font-size:11px;line-height:1.25;white-space:normal}
+.admin-history-component-statuses>span.is-approved,.admin-history-component-statuses>span.is-neutral{border-color:#34745a;background:#12372c;color:#8ee8b7}
+.admin-history-component-statuses>span.is-pending{border-color:#8b6632;background:#392b18;color:#ffd287}
+.admin-history-component-statuses>span.is-rejected{border-color:#82424a;background:#391f24;color:#ff9ca7}
 .admin-page .admin-history-card-detail{padding:16px;min-width:0}
 .admin-page .admin-history-decisions{grid-template-columns:minmax(0,1fr)}
 .admin-page .admin-history-decision-head{flex-wrap:wrap}

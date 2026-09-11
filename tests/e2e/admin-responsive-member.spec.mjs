@@ -76,6 +76,31 @@ test('RESPONSIVE overview partial Club failure and header failure are not empty 
  await page.locator('[data-member-list] [data-member-open="n"]').click();await expect(modal(page)).toContainText('Rezervaci se nepodařilo načíst.');await expect(modal(page)).not.toContainText('Na tento ročník zatím nemá rezervaci.');await expect(modal(page)).not.toContainText('EU-MEMBER');clean(c);c.r.db.close();
 });
 
+test('FINISH Member 360 keeps compact history cards and routes photo status to existing moderation',async({page},info)=>{
+ await page.setViewportSize({width:1600,height:900});const c=await commandFixture(page);
+ const mediaPath='/api/admin/members/m/media/photos/g';
+ c.response=({request,response})=>{
+  const path=new URL(request.url()).pathname;
+  if(path==='/api/admin/members/m/history')return new Response(JSON.stringify({context:{tab:'history',memberId:'m'},items:[
+   {eventId:'e-2026',year:2026,attendanceStatus:'approved',snsStatus:'pending',attendanceNote:'Účast ověřena',snsNote:'Výsledek čeká',category:'Coupé',photos:[{mediaPath,version:'1'}]},
+   {eventId:'e-2025',year:2025,attendanceStatus:'approved',snsStatus:'approved',attendanceNote:'Ověřeno',snsNote:'TOP 3',category:'Sedan',placement:3,photos:[{mediaPath,version:'1'}]},
+   {eventId:'e-2024',year:2024,attendanceStatus:'rejected',snsStatus:'not_claimed',attendanceNote:'Nedoloženo',snsNote:'',photos:[{mediaPath,version:'1'}]},
+  ],pagination:{page:1,total:3,totalPages:1}}),{headers:{'Content-Type':'application/json'}});
+  if(path==='/api/admin/members/m/photos')return new Response(JSON.stringify({context:{tab:'photos',memberId:'m'},items:[{id:'g',caption:'Synthetic',mediaPath,version:'1',status:'pending',reviewNote:''}],pagination:{page:1,total:1,totalPages:1}}),{headers:{'Content-Type':'application/json'}});
+  return response;
+ };
+ await page.goto('/admin.html?section=community&view=members&event=e&member=m');await expect(modal(page)).toBeVisible();
+ await select(page,'history');const cards=modal(page).locator('.admin-member-history-card');await expect(cards).toHaveCount(3);
+ const cardBoxes=await cards.evaluateAll(nodes=>nodes.map(node=>node.getBoundingClientRect()));expect(Math.max(...cardBoxes.map(box=>box.y))-Math.min(...cardBoxes.map(box=>box.y))).toBeLessThanOrEqual(1);expect(cardBoxes[0].width).toBeLessThan((await modal(page).locator('[data-member-tab-content]').boundingBox()).width*.4);
+ await expect(cards.first()).toContainText('Účast');await expect(cards.first()).toContainText('S&S');await expect(cards.first().locator('[data-member-media]')).toHaveAttribute('src',/^blob:/);await cards.first().locator('[data-member-image]').click();await expect(page.locator('[data-member-image-dialog]')).toBeVisible();await page.locator('[data-member-image-close]').click();
+ await shot(page,info,'member-history-three-compact');
+ const historyGrid=modal(page).locator('.admin-member-section-grid--history');await page.setViewportSize({width:1000,height:800});expect(await historyGrid.evaluate(node=>getComputedStyle(node).gridTemplateColumns.split(' ').length)).toBe(2);await page.setViewportSize({width:390,height:844});expect(await historyGrid.evaluate(node=>getComputedStyle(node).gridTemplateColumns.split(' ').length)).toBe(1);await page.setViewportSize({width:1600,height:900});
+ await select(page,'garage');await expect(modal(page)).not.toContainText('Otevřít fotografii');
+ await select(page,'reservations');await expect(modal(page)).not.toContainText('Zdroj: uložená rezervace');await expect(modal(page).getByRole('button',{name:'Otevřít detail rezervace'})).toBeVisible();
+ await select(page,'photos');const status=modal(page).locator('[data-member-photo-moderation]');await expect(status).toHaveText(/Čeká na schválení/);await expect(modal(page).locator('.admin-member-review-note')).toHaveCount(0);await status.click();
+ await expect(page.locator('[data-admin-panel="gallery"]')).toBeVisible();await expect(page.locator('[data-gallery-filter="pending"]')).toHaveAttribute('aria-selected','true');await expect(page.locator('[data-member-queue-notice]')).toBeVisible();expect(c.writes).toEqual([]);clean(c);c.r.db.close();
+});
+
 test('RESPONSIVE overview has only shared summary header and one coalesced Club read with existing cadence',async({page})=>{
  await page.clock.install();const c=await commandFixture(page);await page.goto('/admin.html?event=e');await ready(page);await expect(page.locator('[data-admin-freshness]')).toHaveAttribute('data-state','fresh');c.calls.length=0;
  await page.locator('[data-widget="recent"] [data-member-open="m"]').click();await expect(modal(page)).toContainText('320i');await expect(page.locator('[data-member-freshness]')).not.toContainText('nedostupné');

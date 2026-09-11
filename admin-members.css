@@ -73,6 +73,29 @@ html.admin-member-modal-open{overflow:hidden;scrollbar-gutter:stable}
 .admin-member-photo-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr));gap:12px}
 .admin-member-dialog .admin-member-photo{display:grid;max-width:100%;width:100%;gap:8px;margin:8px 0;text-align:left}
 .admin-member-photo img{display:block;width:100%;height:auto;aspect-ratio:3/2;object-fit:cover;border-radius:6px;background:#122c40}
+.admin-member-status-action{width:100%;margin-top:10px;display:flex;align-items:center;justify-content:space-between;gap:10px;text-align:left}
+.admin-page .admin-member-dialog .admin-member-status-action.is-approved{border-color:#34745a;background:#123d30;color:#8ee8b7}
+.admin-page .admin-member-dialog .admin-member-status-action.is-pending{border-color:#8b6632;background:#3b2c18;color:#ffd287}
+.admin-page .admin-member-dialog .admin-member-status-action.is-rejected{border-color:#82424a;background:#3c2025;color:#ff9ca7}
+.admin-member-review-note{display:block;margin-top:8px;color:#b8cad8}
+.admin-member-section-grid--history{grid-template-columns:repeat(3,minmax(0,1fr));align-items:start}
+.admin-member-history-card{display:grid;align-content:start;gap:11px}
+.admin-member-history-card h3{margin-bottom:2px!important}
+.admin-member-history-summary{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+.admin-member-history-status{min-width:0;padding:9px 10px;border:1px solid #365166;border-radius:9px;background:#102230}
+.admin-member-history-status small,.admin-member-history-status b{display:block}
+.admin-member-history-status small{color:#9eb5c7;font-size:11px!important}
+.admin-member-history-status b{margin-top:4px;font-size:13px;line-height:1.25}
+.admin-member-history-status.is-approved,.admin-member-history-status.is-neutral{border-color:#34745a;background:#12372c;color:#8ee8b7}
+.admin-member-history-status.is-pending{border-color:#8b6632;background:#392b18;color:#ffd287}
+.admin-member-history-status.is-rejected{border-color:#82424a;background:#391f24;color:#ff9ca7}
+.admin-member-history-detail{display:flex;flex-wrap:wrap;gap:6px;color:#b9cddd;font-size:12px}
+.admin-member-history-detail span{padding:4px 7px;border-radius:999px;background:#172d3e}
+.admin-member-history-notes{display:grid;gap:5px;color:#aebfcd;font-size:12px;line-height:1.4}
+.admin-member-history-notes p{margin:0}
+.admin-member-history-card .admin-member-photo-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+.admin-member-history-card .admin-member-photo{margin:0;padding:0;min-height:0;border:0;background:transparent}
+.admin-member-history-card .admin-member-photo img{aspect-ratio:16/10}
 .admin-member-qr{width:min(300px,100%);margin:24px auto;background:white;padding:8px;box-sizing:border-box}
 .admin-member-qr svg{display:block;width:100%;height:auto}
 .admin-member-dialog .admin-member-ledger{display:flex;align-items:center;gap:20px}
@@ -105,8 +128,10 @@ html.admin-member-modal-open{overflow:hidden;scrollbar-gutter:stable}
  .admin-page .admin-member-section-picker select{width:100%;min-width:0;appearance:none;padding-right:36px;background-color:#142d42;background-image:linear-gradient(45deg,transparent 50%,#e0effb 50%),linear-gradient(135deg,#e0effb 50%,transparent 50%);background-position:calc(100% - 20px) center,calc(100% - 14px) center;background-size:6px 6px;background-repeat:no-repeat}
  .admin-member-dialog [data-member-panel]{padding:14px max(14px,env(safe-area-inset-right)) max(20px,env(safe-area-inset-bottom)) max(14px,env(safe-area-inset-left))}
  .admin-member-overview,.admin-member-reservation-columns,.admin-member-history-states,.admin-member-section-grid--media{grid-template-columns:minmax(0,1fr)}
+ .admin-member-section-grid--history{grid-template-columns:minmax(0,1fr)}
  .admin-page .admin-member-dialog .admin-member-card{padding:16px}
  .admin-member-pagination{font-size:13px;gap:4px}
  .admin-member-search{margin:8px 0;padding:12px}
  .admin-member-search input{font-size:16px}
 }
+@media(min-width:761px) and (max-width:1100px){.admin-member-section-grid--history{grid-template-columns:repeat(2,minmax(0,1fr))}}

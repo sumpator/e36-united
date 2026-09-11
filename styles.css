@@ -1484,3 +1484,14 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid rgba(
  .planner-actionbar--v8 .planner-actions .btn{font-size:13px}
  .story-preview--community{background-position:62% center}
 }
+
+/* 2026-09-11: final compact Show & Shine judging layout. */
+.showshine-disclosure .showshine-judging{padding-top:12px}
+.showshine-scorecard{align-items:stretch}
+@media(min-width:1101px){
+ .showshine-scorecard{min-height:410px}
+ .judging-criteria{height:100%;gap:7px;padding:7px}
+ .judging-criterion{min-height:0;padding:10px 12px;align-items:center}
+ .judging-criterion small{margin-top:4px}
+ .judging-stage{height:100%;min-height:410px!important}
+}
