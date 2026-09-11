@@ -1,17 +1,17 @@
-import { canonicalMemberLink } from '../member-detail.js?v=20260911-reservation-flow-r1';
-import {showReservationMedia,clearReservationMedia} from '../reservation-media.js?v=20260911-reservation-flow-r1';
-import {listChanged,renderListPagination} from '../lists.js?v=20260911-reservation-flow-r1';
-import { adminCommand, editorProtected, allowAdminNavigation, forgetAdminEditor } from '../editors.js?v=20260911-reservation-flow-r1';
-import { accommodationVisualMarkup, bindAccommodationVisualFallbacks } from '../../accommodation-visual.js?v=20260911-reservation-flow-r1';
-import { RESERVATION_DETAIL_FILTERS, RESERVATION_PRIMARY_FILTERS, RESERVATION_VIEW_MODES, adminItemPayment, filterAdminPayments, filterAdminReservations, paymentMatchesFilter, reservationMatchesFilter } from '../../admin-view-model.js?v=20260911-reservation-flow-r1';
-import { apiBaseUrl, apiRequest } from '../api.js?v=20260911-reservation-flow-r1';
-import { renderAttentionCounts } from './dashboard-events.js?v=20260911-reservation-flow-r1';
-import { adminState } from '../state.js?v=20260911-reservation-flow-r1';
-import { setDenied } from '../shell.js?v=20260911-reservation-flow-r1';
-import { $, $$, attendanceLabel, attendanceShortLabel, escapeHtml, formatDate, formatMoney, numeric, paymentLabel, paymentQrSvg, recordsLabel, rememberSessionChoice, statusLabel, toast } from '../ui.js?v=20260911-reservation-flow-r1';
+import { canonicalMemberLink } from '../member-detail.js?v=20260911-request-confirm-r2';
+import {showReservationMedia,clearReservationMedia} from '../reservation-media.js?v=20260911-request-confirm-r2';
+import {listChanged,renderListPagination} from '../lists.js?v=20260911-request-confirm-r2';
+import { adminCommand, editorProtected, allowAdminNavigation, forgetAdminEditor } from '../editors.js?v=20260911-request-confirm-r2';
+import { accommodationVisualMarkup, bindAccommodationVisualFallbacks } from '../../accommodation-visual.js?v=20260911-request-confirm-r2';
+import { RESERVATION_DETAIL_FILTERS, RESERVATION_PRIMARY_FILTERS, RESERVATION_VIEW_MODES, adminItemPayment, filterAdminPayments, filterAdminReservations, paymentMatchesFilter, reservationMatchesFilter } from '../../admin-view-model.js?v=20260911-request-confirm-r2';
+import { apiBaseUrl, apiRequest } from '../api.js?v=20260911-request-confirm-r2';
+import { renderAttentionCounts } from './dashboard-events.js?v=20260911-request-confirm-r2';
+import { adminState } from '../state.js?v=20260911-request-confirm-r2';
+import { setDenied } from '../shell.js?v=20260911-request-confirm-r2';
+import { $, $$, attendanceLabel, attendanceShortLabel, escapeHtml, formatDate, formatMoney, numeric, paymentLabel, paymentQrSvg, recordsLabel, rememberSessionChoice, statusLabel, toast } from '../ui.js?v=20260911-request-confirm-r2';
 
 const paymentFilterLabels={attention:'Vyžaduje kontrolu',all:'Vše',unpaid:'K platbě',underpaid:'Doplatek',paid:'Zaplaceno',overpaid:'Přeplatek'};
-import {mergeReservation} from '../confirmed-state.js?v=20260911-reservation-flow-r1';
+import {mergeReservation} from '../confirmed-state.js?v=20260911-request-confirm-r2';
 let reservationDrawerReturnFocus=null;
 let revisionContext='',revisionFloor=new Map();
 function floors(){
@@ -36,6 +36,19 @@ function commandResult(id){
     adminState.reservationItems=adminState.reservationItems.map(item=>item.id===id?acceptReservation(incoming,item):item);
     renderReservationTabs();renderReservationList();renderPaymentTabs();renderPaymentList();
     if(adminState.selectedReservationId===id)renderReservationDrawer();
+  };
+}
+function requestCommandResult(reservationId,requestId,request){
+  const user=adminState.currentUser,generation=adminState.sessionGeneration,eventId=adminState.selectedEventId;
+  return payload=>{
+    const receipt=payload.operation,confirmedRequest=payload.request;
+    if(adminState.currentUser!==user||adminState.sessionGeneration!==generation||adminState.selectedEventId!==eventId||adminState.denied||
+      receipt?.actorId!==user?.uid||receipt?.eventId!==eventId||receipt?.entityId!==reservationId||receipt?.operation!=='reservation-request'||
+      confirmedRequest?.id!==requestId||!['approved','rejected'].includes(confirmedRequest.status)||request?.dataset.reservationRequestId!==requestId||
+      request.closest('article[data-reservation-id]')?.dataset.reservationId!==reservationId)return;
+    const focusTarget=request.closest('[data-reservation-drawer]')?.querySelector('[data-reservation-drawer-close]:not(.admin-reservation-drawer-backdrop)');
+    if(request.contains(document.activeElement))focusTarget?.focus({preventScroll:true});
+    request.remove();
   };
 }
 const reservationById=id=>adminState.reservationDetail?.id===id?adminState.reservationDetail:adminState.reservationItems.find(item=>item.id===id);
@@ -253,7 +266,7 @@ export async function reviewReservationRequest(card,decision){
   const adminComment=$('[data-request-admin-comment]',request)?.value||'';
   request.querySelectorAll('[data-request-decision]').forEach(control=>control.disabled=true);
   try{
-    await adminCommand(`/api/admin/reservations/${encodeURIComponent(reservationId)}/requests/${encodeURIComponent(requestId)}`,{method:'PATCH',body:{decision,adminComment},editor:card,submitted:{':requestAdminComment':adminComment}});
+    await adminCommand(`/api/admin/reservations/${encodeURIComponent(reservationId)}/requests/${encodeURIComponent(requestId)}`,{method:'PATCH',body:{decision,adminComment},editor:card,submitted:{':requestAdminComment':adminComment},onConfirmed:requestCommandResult(reservationId,requestId,request)});
     toast(decision==='approved'?'Žádost byla schválena.':'Žádost byla zamítnuta; původní rezervace zůstala beze změny.');
   }catch(error){if(error.status===403){setDenied();return}toast(error.message||'Rozhodnutí o žádosti se nepodařilo uložit.')}finally{if(button?.isConnected)request.querySelectorAll('[data-request-decision]').forEach(control=>control.disabled=false)}
 }

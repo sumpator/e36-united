@@ -1,5 +1,5 @@
-import { canonicalMemberLink } from '../member-detail.js?v=20260911-reservation-flow-r1';
-import {compactMemberIdentity,compactMemberPhoto,createCardMedia} from '../member-cards.js?v=20260911-reservation-flow-r1';
+import { canonicalMemberLink } from '../member-detail.js?v=20260911-request-confirm-r2';
+import {compactMemberIdentity,compactMemberPhoto,createCardMedia} from '../member-cards.js?v=20260911-request-confirm-r2';
 const historyCardMedia=createCardMedia();
 export function releaseHistoryCardMedia(){historyCardMedia.clear()}
 if(typeof window!=='undefined'){
@@ -7,13 +7,13 @@ if(typeof window!=='undefined'){
  window.addEventListener('admin:accesslost',()=>historyCardMedia.clear());
  window.addEventListener('admin:eventchanged',()=>historyCardMedia.clear());
 }
-import {listChanged,renderListPagination} from '../lists.js?v=20260911-reservation-flow-r1';
-import { adminCommand, editorProtected, forgetAdminEditor } from '../editors.js?v=20260911-reservation-flow-r1';
-import { apiMedia, apiRequest } from '../api.js?v=20260911-reservation-flow-r1';
-import { renderAttentionCounts } from './dashboard-events.js?v=20260911-reservation-flow-r1';
-import { adminState } from '../state.js?v=20260911-reservation-flow-r1';
-import { setDenied } from '../shell.js?v=20260911-reservation-flow-r1';
-import { $, $$, escapeHtml, formatDate, galleryStatusLabel, numeric, photosLabel, recordsLabel, rememberSessionChoice, toast } from '../ui.js?v=20260911-reservation-flow-r1';
+import {listChanged,renderListPagination} from '../lists.js?v=20260911-request-confirm-r2';
+import { adminCommand, editorProtected, forgetAdminEditor } from '../editors.js?v=20260911-request-confirm-r2';
+import { apiMedia, apiRequest } from '../api.js?v=20260911-request-confirm-r2';
+import { renderAttentionCounts } from './dashboard-events.js?v=20260911-request-confirm-r2';
+import { adminState } from '../state.js?v=20260911-request-confirm-r2';
+import { setDenied } from '../shell.js?v=20260911-request-confirm-r2';
+import { $, $$, escapeHtml, formatDate, galleryStatusLabel, numeric, photosLabel, recordsLabel, rememberSessionChoice, toast } from '../ui.js?v=20260911-request-confirm-r2';
 
 const galleryFilterLabels={pending:'Žádosti',approved:'Schválené',rejected:'Zamítnuté',all:'Všechny'};
 const galleryMediaUrls=new Map();

@@ -1,4 +1,4 @@
-import { apiMedia } from './api.js?v=20260911-reservation-flow-r1';
+import { apiMedia } from './api.js?v=20260911-request-confirm-r2';
 let observer = null,
   controller = null,
   objectUrl = null,
