@@ -7,7 +7,7 @@ export function createMemberPoints({getData,renderOverviewPoints,renderFeaturedA
   const memberHelpContent={
     since:{kicker:'UNITED OD',title:'Začátek tvé United stopy',intro:'Nejstarší ročník, který máš ve své ověřené historii účastí.'},
     verified:{kicker:'OVĚŘENÉ UNITED',title:'Potvrzené účasti',intro:'Počítají se jen ročníky ověřené United týmem.'},
-    points:{kicker:'UNITED POINTS',title:'Aktuální zůstatek',intro:'Body získáváš za ověřené United aktivity. Aktivní metr má limit 12 bodů.'},
+    points:{kicker:'UNITED POINTS',title:'Aktuální zůstatek',intro:'Body získáváš za ověřené United aktivity. Samostatný metr ukazuje postup k odměně na hranici 12 bodů.'},
     rating:{kicker:'MEMBER RATING',title:'Tvoje členská úroveň',intro:'Rating roste podle všech bodů, které jsi kdy získal: od 316i až po M POWER.'},
     verification:{kicker:'MOJE STOPA',title:'Proč ověření?',intro:'Účast můžeš přidat hned. Body a související Achievements se započítají až po potvrzení United týmem.'},
     'points-system':{kicker:'UNITED POINTS',title:'Jak fungují body?',intro:'Body odměňují ověřenou účast a přínos komunitě.',sections:[{label:'ODMĚNA',rows:[['12 bodů','United Merch reward','U']]}]},
@@ -74,7 +74,7 @@ export function createMemberPoints({getData,renderOverviewPoints,renderFeaturedA
     const data=getData(),p=points(),threshold=Number(data.club?.rewardThreshold||12),remaining=Math.max(0,threshold-p);
     const rewardState=$('[data-points-reward-state]'),rewardRemaining=$('[data-reward-remaining]');if(rewardState)rewardState.classList.toggle('is-unlocked',p>=threshold);if(rewardRemaining)rewardRemaining.textContent=p>=threshold?'ODMĚNA ODEMČENA':`${formatPoints(remaining)} ${pointsRemainingVerb(remaining)}`;
     const journey=$('[data-points-journey]'),journeyScore=$('[data-points-journey-score]'),journeyCopy=$('[data-points-journey-copy]'),journeyMarker=$('[data-points-journey-marker]'),progress=Math.min(100,p/threshold*100);
-    if(journey){journey.setAttribute('aria-valuemax',String(threshold));journey.setAttribute('aria-valuenow',String(p));journey.setAttribute('aria-label',`United Points: ${p} z ${formatPoints(threshold)}`);journey.style.setProperty('--points-progress',`${progress}%`)}if(journeyScore)journeyScore.textContent=p;if(journeyCopy)journeyCopy.textContent=p>=threshold?'United Merch reward je odemčený.':`Do odměny ${pointsRemainingVerb(remaining)} ${formatPoints(remaining)}.`;if(journeyMarker)journeyMarker.textContent=String(p);
+    if(journey){journey.setAttribute('aria-valuemax',String(threshold));journey.setAttribute('aria-valuenow',String(p));journey.setAttribute('aria-label',`Postup k United Merch reward: ${formatPoints(p)}; hranice odměny ${formatPoints(threshold)}`);journey.style.setProperty('--points-progress',`${progress}%`)}if(journeyScore)journeyScore.textContent=p;if(journeyCopy)journeyCopy.textContent=p>=threshold?'United Merch reward je odemčený.':`Do odměny ${pointsRemainingVerb(remaining)} ${formatPoints(remaining)}.`;if(journeyMarker)journeyMarker.textContent=String(p);
     const earnStrip=$('[data-earn-strip]');if(earnStrip)earnStrip.innerHTML=[
       ['earn-attendance',pictogram('<path d="M5 12.5 9.5 17 19 7.5"/>'),'01','Účast na srazu'],
       ['earn-showshine',pictogram('<path d="M8 4h8v4a4 4 0 0 1-8 0V4Z"/><path d="M12 12v6m-3 2h6"/>'),'02','Umístění v Show & Shine'],

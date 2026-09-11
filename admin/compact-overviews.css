@@ -65,3 +65,32 @@
  .admin-page .admin-accommodation-card>.admin-accommodation-preview{grid-row:1}
  .admin-page .admin-accommodation-photo{grid-template-columns:minmax(0,1fr)}
 }
+
+/* Members can switch between the existing cards and a dense, responsive row view. */
+.admin-member-list-head{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:12px}
+.admin-member-list-head h2{margin:0}
+.admin-member-view-switch{display:inline-flex;padding:3px;border:1px solid #36536a;border-radius:9px;background:#0d1c28}
+.admin-page .admin-member-view-switch button{min-height:36px;padding:7px 13px;border:0;border-radius:6px;background:transparent;color:#9cb2c3;cursor:pointer;font:inherit;font-size:13px;font-weight:750}
+.admin-page .admin-member-view-switch button.is-active{background:#174564;color:#eaf7ff;box-shadow:inset 0 0 0 1px #3b83ad}
+.admin-page .admin-member-view-switch button:focus-visible{outline:2px solid var(--admin-blue);outline-offset:2px}
+.admin-page [data-member-list][data-member-view=rows]{grid-template-columns:minmax(0,1fr)!important;gap:8px}
+.admin-page [data-member-list][data-member-view=rows]>.compact-member-card{grid-template-areas:"photo identity data";grid-template-columns:76px minmax(190px,.72fr) minmax(0,1.8fr);grid-template-rows:auto;align-items:center;gap:12px;min-height:84px;height:auto;padding:10px 12px}
+.admin-page [data-member-list][data-member-view=rows] .compact-member-photo{grid-area:photo;width:76px;height:58px}
+.admin-page [data-member-list][data-member-view=rows] .compact-member-photo span{right:6px;top:6px;font-size:7px}
+.admin-page [data-member-list][data-member-view=rows] .compact-member-identity{grid-area:identity}
+.admin-page [data-member-list][data-member-view=rows] .compact-member-identity>.admin-member-link{min-height:30px;padding:2px 0;font-size:16px;line-height:1.2}
+.admin-page [data-member-list][data-member-view=rows] .compact-member-identity p{margin-top:2px;font-size:13px}
+.admin-page [data-member-list][data-member-view=rows] .compact-member-data{grid-area:data;grid-template-columns:minmax(175px,1fr) minmax(185px,auto) auto;grid-template-rows:auto;align-items:center;gap:8px 14px}
+.admin-page [data-member-list][data-member-view=rows] .compact-member-data>a{min-height:32px;padding-block:5px;font-size:13px}
+.admin-page [data-member-list][data-member-view=rows] .compact-member-facts{margin:0;font-size:13px}
+.admin-page [data-member-list][data-member-view=rows] [data-member-pending]{align-self:center;min-height:36px;margin:0;padding:7px 9px;font-size:12px;white-space:nowrap}
+.admin-page [data-member-list][data-member-view=rows]>.admin-member-pagination{margin-top:12px}
+@media(max-width:700px){
+ .admin-member-list-head{align-items:flex-start;flex-direction:column}
+ .admin-member-view-switch{align-self:stretch}
+ .admin-page .admin-member-view-switch button{flex:1}
+ .admin-page [data-member-list][data-member-view=rows]>.compact-member-card{grid-template-areas:"photo identity" "data data";grid-template-columns:66px minmax(0,1fr);gap:9px 11px;min-height:0;height:auto;padding:11px}
+ .admin-page [data-member-list][data-member-view=rows] .compact-member-photo{width:66px;height:54px}
+ .admin-page [data-member-list][data-member-view=rows] .compact-member-data{grid-template-columns:minmax(0,1fr);gap:3px}
+ .admin-page [data-member-list][data-member-view=rows] [data-member-pending]{justify-self:start;white-space:normal}
+}

@@ -8,14 +8,14 @@
   <title>United Admin | E36 United</title>
   <link href="styles.css?v=20260825-mobile1" rel="stylesheet"/>
   <link href="accommodation-visual.css?v=20260827-accommodation1" rel="stylesheet"/>
-  <link href="admin.css?v=20260911-request-confirm-r2" rel="stylesheet"/>
+  <link href="admin.css?v=20260911-member-rows-r3" rel="stylesheet"/>
   <link href="admin/funnel.css?v=20260907-feedback" rel="stylesheet"/>
   <link rel="stylesheet" href="admin-safety.css?v=20260908-stage1"/>
   <link href="admin-members.css?v=20260909-admin-member-layout-r7" rel="stylesheet"/>
   <link href="admin/dashboard.css?v=20260908-stage3" rel="stylesheet"/>
-  <link href="admin/command-center.css?v=20260911-request-confirm-r2" rel="stylesheet"/>
-  <link href="admin/command-polish.css?v=20260911-request-confirm-r2" rel="stylesheet"/>
-  <link href="admin/compact-overviews.css?v=20260911-request-confirm-r2" rel="stylesheet"/>
+  <link href="admin/command-center.css?v=20260911-member-rows-r3" rel="stylesheet"/>
+  <link href="admin/command-polish.css?v=20260911-member-rows-r3" rel="stylesheet"/>
+  <link href="admin/compact-overviews.css?v=20260911-member-rows-r3" rel="stylesheet"/>
 </head>
 <body class="admin-page">
   <header class="site-header scrolled admin-header">
@@ -220,7 +220,7 @@
             </form></div>
           </section>
 
-          <section class="admin-view-panel" data-admin-panel="members" hidden><h2>Členové</h2><div data-member-list></div></section>
+          <section class="admin-view-panel" data-admin-panel="members" hidden><div class="admin-member-list-head"><h2>Členové</h2><div aria-label="Zobrazení členů" class="admin-member-view-switch" role="group"><button data-member-list-mode="cards" type="button">Karty</button><button data-member-list-mode="rows" type="button">Řádky</button></div></div><div data-member-list></div></section>
           <section class="admin-mailing admin-view-panel" data-admin-panel="mailing" hidden>
             <div class="admin-section-head"><div><span class="admin-kicker">MAILING CENTER</span><h2>Mailing.</h2><p>Kontakty, serverové segmenty, E36 editor a řízené doručení kampaní.</p></div><span class="admin-view-label">MAILING C</span></div>
             <div class="admin-mailing-tabs" aria-label="Sekce Mailing" role="tablist">
@@ -327,6 +327,6 @@
     </aside>
   </div>
   <div aria-live="polite" class="admin-toast" data-toast role="status"></div>
-  <script src="admin.js?v=20260911-request-confirm-r2" type="module"></script>
+  <script src="admin.js?v=20260911-member-rows-r3" type="module"></script>
 </body>
 </html>

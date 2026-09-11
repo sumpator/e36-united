@@ -12,7 +12,7 @@ for(const width of [390,1600])test('COMPACT members, pending priority and histor
  await expect(member.locator('.compact-member-identity>.admin-member-link')).toHaveText('Dlouhá přezdívka United');await expect(member.locator('.compact-member-identity>p')).toHaveText('Alexandr Dlouhý Příjmení Člena');
  expect(await member.evaluate(card=>[...card.children].map(node=>node.className))).toEqual(['compact-member-identity','compact-member-photo','compact-member-data']);
  await expect(member).toContainText('United: 0×');await expect(member.locator('[data-member-pending]')).toHaveText('Čeká: 3 →');
- await expect(member.locator('[data-card-media]')).toHaveJSProperty('complete',true);await expect.poll(()=>member.locator('[data-card-media]').evaluate(n=>n.naturalWidth)).toBeGreaterThan(0);
+ await member.locator('[data-card-media]').scrollIntoViewIfNeeded();await expect(member.locator('[data-card-media]')).toHaveJSProperty('complete',true);await expect.poll(()=>member.locator('[data-card-media]').evaluate(n=>n.naturalWidth)).toBeGreaterThan(0);
  expect(Math.abs((await member.locator('.compact-member-photo').boundingBox()).height-112)).toBeLessThanOrEqual(.5);
  const heights=await page.locator('[data-member-list]>.compact-member-card').evaluateAll(cards=>cards.map(card=>card.getBoundingClientRect().height));expect(Math.max(...heights)-Math.min(...heights)).toBeLessThanOrEqual(.5);
  const memberBox=await member.boundingBox(),pendingBox=await member.locator('[data-member-pending]').boundingBox();expect(pendingBox.y+pendingBox.height).toBeLessThanOrEqual(memberBox.y+memberBox.height);
@@ -22,6 +22,11 @@ for(const width of [390,1600])test('COMPACT members, pending priority and histor
  await expect(page.locator('[data-member-open="a"]').locator('..').locator('..').locator('[data-card-media]')).toHaveCount(0);
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
  await page.screenshot({path:info.outputPath('members-'+width+'.png'),fullPage:true});
+ const cardHeight=(await member.boundingBox()).height,callsBeforeMode=c.calls.filter(q=>q.includes('/members?')).length;
+ await page.locator('[data-member-list-mode="rows"]').click();await expect(page.locator('[data-member-list]')).toHaveAttribute('data-member-view','rows');await expect(page.locator('[data-member-list-mode="rows"]')).toHaveAttribute('aria-pressed','true');
+ expect(c.calls.filter(q=>q.includes('/members?'))).toHaveLength(callsBeforeMode);expect((await member.boundingBox()).height).toBeLessThan(cardHeight);expect(Math.abs((await member.locator('.compact-member-photo').boundingBox()).height-(width===390?54:58))).toBeLessThanOrEqual(.5);expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+ await page.screenshot({path:info.outputPath('members-rows-'+width+'.png'),fullPage:true});
+ await page.reload();await expect(page.locator('[data-member-list]')).toHaveAttribute('data-member-view','rows');await expect(page.locator('[data-member-list-mode="rows"]')).toHaveAttribute('aria-pressed','true');
  await page.evaluate(()=>document.addEventListener('click',event=>{if(event.target.closest('.compact-member-data>a'))event.preventDefault()},{capture:true,once:true}));await member.locator('.compact-member-data>a').click();await expect(page.locator('[data-member-dialog]')).toBeHidden();
  await member.locator('[data-member-open]').click();await expect(page.locator('[data-member-dialog]')).toBeVisible();await page.locator('[data-member-close]').click();await expect(page.locator('[data-member-dialog]')).toBeHidden();
  await member.locator('[data-member-pending]').click();await expect(page).toHaveURL(/queueMember=m/);await expect(page.locator('[data-history-id]')).toHaveCount(1);await expect(page.locator('[data-history-id]')).toContainText('UNITED 2025');

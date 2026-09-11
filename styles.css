@@ -1445,3 +1445,42 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid rgba(
 /* 2026-08-28: accommodation photos stay in the standalone Planner preview. */
 .preview-choice-card[data-preview-card="sleep"] .preview-choice-media img{filter:brightness(.8) saturate(.92) contrast(1.04)}
 .planner-login-link--strong{min-height:48px;padding:12px 16px;border:1px solid rgba(105,175,255,.35);border-radius:10px;background:rgba(77,163,255,.08);color:#b9ddff;font-size:14px;font-weight:900}.planner-action-status{display:block;margin-top:8px;color:#a9c7df;font-size:12px;line-height:1.4}.planner-action-status[hidden]{display:none}.planner-actionbar-cta [data-planner-mail].is-busy{pointer-events:none;opacity:.72}
+
+/* 2026-09-11: public readability pass. */
+.hero-content>h1:first-child{margin-top:0}
+.experience-section .section-head{gap:32px;margin-bottom:0}
+.experience-section .section-head .section-title{max-width:760px;margin-bottom:0}
+.experience-section .weekend-story,.experience-section .weekend-stage{min-height:610px}
+.experience-section .weekend-tab{min-height:116px;padding:17px 20px}
+.experience-section .weekend-tab span{margin-bottom:10px;color:#8fc9fa;font-size:11px;font-weight:900}
+.experience-section .day-program{gap:10px;margin-top:18px}
+.experience-section .day-program>div{min-height:102px;padding:15px 17px}
+.experience-section .day-program span{color:#94ceff;font-size:10px;font-weight:950}
+.experience-section .day-program b{margin-top:7px;color:#f7fafc;font-size:17px}
+.experience-section .day-program small{margin-top:5px;color:#c3ccd5;font-size:13px}
+.showshine-disclosure .showshine-judging{padding-top:14px}
+.showshine-disclosure .showshine-judging-head{display:block;margin-bottom:12px}
+.showshine-disclosure .showshine-judging-head h3{max-width:100%;white-space:normal}
+.planner-topbar{border-color:rgba(232,188,95,.3);background:radial-gradient(circle at 82% 12%,rgba(255,220,145,.13),transparent 24rem),linear-gradient(120deg,rgba(182,128,31,.2),rgba(70,50,18,.16) 55%,rgba(255,255,255,.018));box-shadow:inset 4px 0 #c7953b,inset 0 1px rgba(255,230,170,.09)}
+.planner-intro-v8 .eyebrow{color:#f0c66e}
+.planner-intro-v8 .section-title{color:#fff8e8;text-shadow:0 10px 38px rgba(191,135,34,.22)}
+.planner-controls--v8 .choice-row .choice{font-size:13px}
+.planner-actionbar--v8 .planner-actions .btn{font-size:14px}
+.story-preview--community{isolation:isolate;overflow:hidden;border-block:1px solid rgba(255,255,255,.08);background:linear-gradient(90deg,rgba(5,7,9,.94),rgba(5,7,9,.72) 48%,rgba(5,7,9,.86)),url('assets/images/program/saturday.webp') center 42%/cover no-repeat}
+.story-preview--community::after{content:"E36";position:absolute;z-index:-1;right:-3vw;bottom:-4vw;color:rgba(255,255,255,.035);font-size:24vw;font-weight:950;letter-spacing:-.1em;line-height:.7;pointer-events:none}
+.story-preview--community>.container{position:relative;z-index:1}
+.story-preview--community .year-card{background:rgba(12,15,19,.9);backdrop-filter:blur(12px)}
+@media(min-width:1100px){.planner-intro-v8 .section-title{white-space:nowrap}}
+@media(max-width:680px){
+ .experience-section .section-head .section-title{line-height:1.02}
+ .experience-section .weekend-story,.experience-section .weekend-stage{min-height:0}
+ .experience-section .weekend-tab{min-height:88px;padding:11px 9px}
+ .experience-section .weekend-tab span{margin-bottom:6px;font-size:9px}
+ .experience-section .day-program>div{min-height:0;padding:10px 11px}
+ .experience-section .day-program b{margin-top:0;font-size:14px}
+ .experience-section .day-program small{font-size:11.5px}
+ .planner-intro-v8 .section-title{white-space:normal}
+ .planner-controls--v8 .choice-row .choice{font-size:11px}
+ .planner-actionbar--v8 .planner-actions .btn{font-size:13px}
+ .story-preview--community{background-position:62% center}
+}

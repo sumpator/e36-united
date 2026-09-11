@@ -1,10 +1,10 @@
-import {adminState} from './state.js?v=20260911-request-confirm-r2';
-import {$,escapeHtml as esc} from './ui.js?v=20260911-request-confirm-r2';
-import {apiRequest} from './api.js?v=20260911-request-confirm-r2';
-import {ADMIN_REFRESH} from './refresh-policy.js?v=20260911-request-confirm-r2';
-import qrcode from '../vendor/qrcode-generator.mjs?v=20260911-request-confirm-r2';
-import {MEMBER_TABS,memberIdentity,memberOverview,memberReservation,memberSection,memberEmpty} from './member-presentation.js?v=20260911-request-confirm-r2';
-import {compactMemberDetails,compactMemberIdentity,compactMemberPhoto,createCardMedia} from './member-cards.js?v=20260911-request-confirm-r2';
+import {adminState} from './state.js?v=20260911-member-rows-r3';
+import {$,$$,escapeHtml as esc,rememberSessionChoice} from './ui.js?v=20260911-member-rows-r3';
+import {apiRequest} from './api.js?v=20260911-member-rows-r3';
+import {ADMIN_REFRESH} from './refresh-policy.js?v=20260911-member-rows-r3';
+import qrcode from '../vendor/qrcode-generator.mjs?v=20260911-member-rows-r3';
+import {MEMBER_TABS,memberIdentity,memberOverview,memberReservation,memberSection,memberEmpty} from './member-presentation.js?v=20260911-member-rows-r3';
+import {compactMemberDetails,compactMemberIdentity,compactMemberPhoto,createCardMedia} from './member-cards.js?v=20260911-member-rows-r3';
 const cardsMedia=createCardMedia();
 let memberListMarkup=null;
 function clearCards(){cardsMedia.clear();memberListMarkup=null}
@@ -79,7 +79,16 @@ export function renderMemberHeader(payload){
 export function renderMembers(payload){
  const list=$('[data-member-list]'),markup=rows(payload.members,m=>`<article class="admin-member-card compact-member-card">${compactMemberIdentity(m)}${compactMemberPhoto(m)}${compactMemberDetails(m)}</article>`)+pagination(payload,'list');
  if(markup!==memberListMarkup){clearCards();list.innerHTML=markup;memberListMarkup=markup}
+ renderMemberListMode();
  if(!adminState.memberId&&!adminState.pendingMemberRoute)cardsMedia.hydrate(list);
+}
+function renderMemberListMode(){
+ const list=$('[data-member-list]');if(list)list.dataset.memberView=adminState.memberListMode;
+ $$('[data-member-list-mode]').forEach(button=>{const active=button.dataset.memberListMode===adminState.memberListMode;button.classList.toggle('is-active',active);button.setAttribute('aria-pressed',String(active))});
+}
+function setMemberListMode(mode){
+ if(!['cards','rows'].includes(mode)||mode===adminState.memberListMode)return;
+ adminState.memberListMode=mode;rememberSessionChoice('e36UnitedAdmin.memberListMode',mode);renderMemberListMode();
 }
 export function renderMemberTab(payload){
  ensureProjectionContext();
@@ -172,6 +181,7 @@ export function initializeMembers({openReservation,openHistory}){
  if(initialized)return;initialized=true;adminState.memberTab='overview';adminState.memberPage=1;adminState.membersPage=1;
  const search=document.createElement('form');search.className='admin-member-search';search.dataset.memberSearchForm='';search.setAttribute('role','search');search.innerHTML='<label>Najít člena / vložit členský QR <input data-member-search autocomplete="off" maxlength="100" placeholder="Jméno, e-mail, kód nebo auto (min. 2 znaky)" /></label><button type="submit">Najít</button><div data-member-suggestions aria-live="polite"></div>';$('[data-admin-view]').prepend(search);
  const dialog=document.createElement('dialog');dialog.dataset.memberDialog='';dialog.className='admin-member-dialog';dialog.setAttribute('aria-labelledby','admin-member-heading');dialog.innerHTML='<header data-member-hero><div data-member-hero-media aria-hidden="true"></div><div data-member-identity><h2 id="admin-member-heading">Načítám člena…</h2></div><button type="button" data-member-close aria-label="Zavřít detail člena">Zavřít ×</button><p data-member-freshness role="status"></p></header><p data-member-load-error role="status" hidden></p><div class="admin-member-layout"><nav role="tablist" aria-orientation="vertical" aria-label="Sekce člena">'+Object.entries(MEMBER_TABS).map(([key,label])=>`<button type="button" role="tab" id="member-tab-${key}" aria-controls="admin-member-panel" data-member-tab="${key}">${label}</button>`).join('')+'</nav><label class="admin-member-section-picker" for="member-section-select"><span>Sekce člena</span><select id="member-section-select" data-member-section-select>'+Object.entries(MEMBER_TABS).map(([key,label])=>`<option value="${key}">${label}</option>`).join('')+'</select></label><div id="admin-member-panel" data-member-panel role="tabpanel" tabindex="0"><section data-member-event></section><section data-member-tab-content></section></div></div>';document.body.append(dialog);
+ renderMemberListMode();
  $('[data-member-section-select]').addEventListener('change',event=>selectMemberSection(event.target.value));
  dialog.querySelector('[role="tablist"]').addEventListener('keydown',event=>{
   const tabs=[...dialog.querySelectorAll('[data-member-tab]')],index=tabs.indexOf(document.activeElement);if(index<0)return;
@@ -183,6 +193,7 @@ export function initializeMembers({openReservation,openHistory}){
  image.addEventListener('keydown',event=>{containMemberFocus(event,image);if(event.key==='Escape'){event.preventDefault();event.stopPropagation();image.close()}});
  search.addEventListener('submit',event=>{event.preventDefault();void searchMembers()});$('[data-member-search]').addEventListener('input',()=>{clearTimeout(searchTimer);searchSequence++;searchController?.abort();searchFlight=null;searchTimer=setTimeout(()=>void searchMembers(),ADMIN_REFRESH.searchDebounceMs)});
  document.addEventListener('click',event=>{
+  const listMode=event.target.closest('[data-member-list-mode]');if(listMode){setMemberListMode(listMode.dataset.memberListMode);return}
   const card=event.target.closest('[data-member-list] .compact-member-card');
   if(card&&!event.target.closest('button,a,input,select,textarea')){openMember(card.querySelector('[data-member-open]').dataset.memberOpen,card.querySelector('[data-member-open]'));return;}
   const member=event.target.closest('[data-member-open],[data-member-qr-open]');if(member){event.preventDefault();event.stopImmediatePropagation();$('[data-member-suggestions]').replaceChildren();openMember(member.dataset.memberOpen||member.dataset.memberQrOpen,member,{tab:member.hasAttribute('data-member-qr-open')?'qr':member.dataset.memberOpenTab||(adminState.activeAdminView==='united-club'?'club':'overview')});return}

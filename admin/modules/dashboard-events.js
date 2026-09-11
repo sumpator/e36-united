@@ -1,9 +1,9 @@
-import { adminCommand, editorProtected, changedFields, forgetAdminEditor } from '../editors.js?v=20260911-request-confirm-r2';
-import { adminActionCountState, adminModerationCounts, paymentNeedsAttention, reservationMatchesFilter } from '../../admin-view-model.js?v=20260911-request-confirm-r2';
-import { apiRequest } from '../api.js?v=20260911-request-confirm-r2';
-import { adminState } from '../state.js?v=20260911-request-confirm-r2';
-import { setDenied } from '../shell.js?v=20260911-request-confirm-r2';
-import { $, $$, escapeHtml, formatDate, formatMoney, numeric, toast } from '../ui.js?v=20260911-request-confirm-r2';
+import { adminCommand, editorProtected, changedFields, forgetAdminEditor } from '../editors.js?v=20260911-member-rows-r3';
+import { adminActionCountState, adminModerationCounts, paymentNeedsAttention, reservationMatchesFilter } from '../../admin-view-model.js?v=20260911-member-rows-r3';
+import { apiRequest } from '../api.js?v=20260911-member-rows-r3';
+import { adminState } from '../state.js?v=20260911-member-rows-r3';
+import { setDenied } from '../shell.js?v=20260911-member-rows-r3';
+import { $, $$, escapeHtml, formatDate, formatMoney, numeric, toast } from '../ui.js?v=20260911-member-rows-r3';
 
 
 export function renderEventSelector(){

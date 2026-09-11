@@ -13,6 +13,11 @@ let publicMemberState={status:'loading',authenticated:false,hasWaitingPlan:false
 const publishPublicMemberState=state=>{
 publicMemberState={...publicMemberState,...state};
 qsa('.nav-cta').forEach(cta=>{cta.hidden=!publicMemberState.showJoinCta});
+qsa('.nav-member').forEach(link=>{
+  const authenticated=publicMemberState.authenticated===true;
+  link.textContent=authenticated?'Můj United':'Registrace do Můj United';
+  link.href=authenticated?'member.html':'member.html?mode=register';
+});
 for(const listener of publicMemberStateListeners)listener(publicMemberState);
 };
 const subscribePublicMemberState=listener=>{publicMemberStateListeners.add(listener);listener(publicMemberState);return()=>publicMemberStateListeners.delete(listener)};
@@ -25,19 +30,9 @@ initPublicMemberState({config:firebaseConfig,apiBaseUrl:portalConfig.apiBaseUrl,
 })();
 
 const coreStyles = qs('link[href^="styles.css"]');
-if (coreStyles && !coreStyles.href.includes('v=20260911-reservation-flow-r1')) coreStyles.href = 'styles.css?v=20260911-reservation-flow-r1';
+if (coreStyles && !coreStyles.href.includes('v=20260911-readability-r1')) coreStyles.href = 'styles.css?v=20260911-readability-r1';
 if (!qs('link[href^="accommodation-visual.css"]')) {
 const accommodationStyles=document.createElement('link');accommodationStyles.rel='stylesheet';accommodationStyles.href='accommodation-visual.css?v=20260827-accommodation1';document.head.append(accommodationStyles);
-}
-
-/* Temporary rebuild notice — homepage only. */
-const heroContent = qs('.home-page .hero-content');
-if (heroContent && !qs('.site-wip', heroContent)) {
-const notice = document.createElement('aside');
-notice.className = 'site-wip';
-notice.setAttribute('role', 'status');
-notice.innerHTML = '<span class="site-wip-label"><i></i>WORK IN PROGRESS</span><p>Web právě přestavujeme. Některé funkce ještě nemusí být kompletní.</p>';
-heroContent.prepend(notice);
 }
 
 /* Header + mobile nav */
@@ -296,7 +291,7 @@ if (autoTimer) clearInterval(autoTimer);
 if (!reduceMotion) autoTimer = setInterval(() => {
 const next = order[(order.indexOf(activeDay) + 1) % order.length];
 setDay(next);
-}, 6500);
+}, 13000);
 };
 tabs.forEach(tab => tab.addEventListener('click', () => { setDay(tab.dataset.day); resetAuto(); }));
 weekend.addEventListener('pointerenter', () => { if (autoTimer) clearInterval(autoTimer); });

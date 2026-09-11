@@ -34,8 +34,9 @@ test('Member Card keeps four centered core blocks and uses Czech Points terminol
   const stats = [...overview.matchAll(/class="member-card-stat(?: [^"]*)?" data-member-help="([^"]+)"/g)].map(match => match[1]);
   assert.deepEqual(stats, ['since', 'verified', 'points', 'rating']);
   for (const label of ['UNITED OD', 'OVĚŘENÉ UNITED', 'UNITED POINTS', 'MEMBER RATING']) assert.match(overview, new RegExp(label));
-  assert.match(overview, /data-overview-points="">0<\/b><em>\/ 12 bodů<\/em>/);
-  assert.doesNotMatch(overview, /\/ 12 U/);
+  assert.match(overview, /data-overview-points="">0<\/b><em>bodů<\/em>/);
+  assert.doesNotMatch(overview, /data-overview-points="">0<\/b><em>\/ 12 bodů<\/em>/);
+  assert.match(overview, /Hranice konkrétní odměny: 12 bodů/);
   assert.match(overview, /data-overview-points-fill/);
   assert.match(js, /overviewFill\.style\.width/);
   assert.match(css, /\.member-card-stat\{[^}]*align-items:center[^}]*text-align:center/);
@@ -79,7 +80,9 @@ test('United Club is one vertical Points, Stopa and Achievements page', () => {
 
 test('United Points Command Panel consolidates the meter and Merch reward', () => {
   assert.match(club, /points-command-panel[\s\S]*data-points-journey/);
-  assert.match(club, /<span data-points-journey-score="">0<\/span> <em>\/ 12 bodů<\/em>/);
+  assert.match(club, /<span data-points-journey-score="">0<\/span> <em>bodů<\/em>/);
+  assert.doesNotMatch(club, /<span data-points-journey-score="">0<\/span> <em>\/ 12 bodů<\/em>/);
+  assert.match(club, /12 · HRANICE ODMĚNY/);
   assert.match(club, /12 bodů odemyká United Merch reward/);
   assert.match(club, /data-points-reward-state/);
   assert.doesNotMatch(club, /United Merch unlock|reward-main|data-reward-lock/);
