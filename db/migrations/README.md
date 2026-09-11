@@ -41,6 +41,10 @@ unchanged.
 
 ## Safety and future migration requirements
 
+## Forward migration: reservation requests
+
+`2026-09-11-reservation-requests.sql` adds the request/history boundary for member-initiated reservation changes and cancellations plus a separate member-visible decision-comment store. Internal `reservations.review_note` values remain Admin-only. The migration creates no historical rows and does not alter existing reservations, allocations or payments. Apply it once after `2026-09-08-admin-preferences.sql` and before the Worker release that exposes the new endpoints.
+
 - Do not run any historical file against production merely to make a migration list appear complete.
 - Before any future migration, compare the intended change with `db/schema.sql` and read-only production metadata, then take the separately approved backup required by the deployment procedure.
 - The repository-managed registry records forward-only migration identities from Mailing A onward; it must not invent entries for historical executions that cannot be proven.

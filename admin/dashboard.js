@@ -1,13 +1,13 @@
-import {adminState} from './state.js?v=20260910-admin-card-ux-r1';
-import {adminCommand,bindCurrentEditors,forgetAdminEditor,editorProtected,allowAdminNavigation,adminEditorDirty} from './editors.js?v=20260910-admin-card-ux-r1';
-import {COMPOSITIONS,validatePreferences} from './dashboard-model.js?v=20260910-admin-card-ux-r1';
-import {COMMAND_WIDGETS as WIDGETS,commandDefaults as factoryPreferences,commandLayout,commandBadges} from './command-model.js?v=20260910-admin-card-ux-r1';
-import {commandCard,metricInfo} from './command-cards.js?v=20260910-admin-card-ux-r1';
-import {commandIcon} from './command-icons.js?v=20260910-admin-card-ux-r1';
-import {renderCommandShell} from './command-shell.js?v=20260910-admin-card-ux-r1';
-import {DESTINATIONS,QUICK_LINK_IDS,destination,drillLabel} from './destinations.js?v=20260910-admin-card-ux-r1';
-import {dashboardKpi,chartModel,attentionModel,showValue} from './dashboard-data.js?v=20260910-admin-card-ux-r1';
-import {$,escapeHtml as esc,toast} from './ui.js?v=20260910-admin-card-ux-r1';
+import {adminState} from './state.js?v=20260911-reservation-flow-r1';
+import {adminCommand,bindCurrentEditors,forgetAdminEditor,editorProtected,allowAdminNavigation,adminEditorDirty} from './editors.js?v=20260911-reservation-flow-r1';
+import {COMPOSITIONS,validatePreferences} from './dashboard-model.js?v=20260911-reservation-flow-r1';
+import {COMMAND_WIDGETS as WIDGETS,commandDefaults as factoryPreferences,commandLayout,commandBadges} from './command-model.js?v=20260911-reservation-flow-r1';
+import {commandCard,metricInfo} from './command-cards.js?v=20260911-reservation-flow-r1';
+import {commandIcon} from './command-icons.js?v=20260911-reservation-flow-r1';
+import {renderCommandShell} from './command-shell.js?v=20260911-reservation-flow-r1';
+import {DESTINATIONS,QUICK_LINK_IDS,destination,drillLabel} from './destinations.js?v=20260911-reservation-flow-r1';
+import {dashboardKpi,chartModel,attentionModel,showValue} from './dashboard-data.js?v=20260911-reservation-flow-r1';
+import {$,escapeHtml as esc,toast} from './ui.js?v=20260911-reservation-flow-r1';
 
 let navigate=()=>{},refresh=()=>{},draft=null,pendingPreferences=null,acceptNext=false;
 const clone=value=>JSON.parse(JSON.stringify(value));

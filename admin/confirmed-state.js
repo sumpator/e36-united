@@ -18,7 +18,7 @@ export function confirmedFields(base,live,submitted){
 
 export function commandReceiptMatches(receipt,operation){
   const parts=operation.path.split('/').filter(Boolean).map(decodeURIComponent),domain=parts[2];
-  const type=domain==='reservations'?(parts[4]==='payment'?'payment':'reservation'):domain==='events'?'event':domain==='history'?'history-'+parts[5]:domain==='accommodation'&&!parts[3]?'accommodation-create':domain;
+  const type=domain==='reservations'?(parts[4]==='payment'?'payment':parts[4]==='requests'?'reservation-request':'reservation'):domain==='events'?'event':domain==='history'?'history-'+parts[5]:domain==='accommodation'&&!parts[3]?'accommodation-create':domain;
   const entity=domain==='preferences'?operation.actor:domain==='history'?parts[4]:parts[3];
   return receipt?.state==='confirmed'&&receipt.id===operation.id&&receipt.actorId===operation.actor&&receipt.operation===type&&
     (entity?receipt.entityId===entity:type==='accommodation-create'&&typeof receipt.entityId==='string')&&

@@ -3,6 +3,9 @@ import {prepareE2ePage,expectNoUnexpectedClientErrors} from './fixtures.mjs';
 test.use({viewport:{width:390,height:844}});
 const headers={'Access-Control-Allow-Origin':'*','Content-Type':'application/json'};
 const reply=(route,body,status=200)=>route.fulfill({status,headers,body:JSON.stringify(body)});
+async function clickReady(locator){await locator.scrollIntoViewIfNeeded();await expect(locator).toBeInViewport();await expect(locator).toBeEnabled();await locator.click()}
+const paidReservation={id:'reservation-flow-e2e',eventId:'united-2026',eventYear:2026,title:'E36 United 2026',carId:'car-001',carSnapshot:{id:'car-001',nickname:'Estoril',body:'Coupé',model:'328i'},arrival:'Sobota',crew:2,attendanceType:'saturday_only',accommodation:'Chatka',accommodationUnits:2,accommodationSnapshot:{optionId:'cabin-premium',optionName:'Chatka Premium',kind:'cabin',capacityPerUnit:3,peopleCount:2,unitCount:1,unitPriceCzk:1650,personPriceCzk:0,beddingFeePerPersonCzk:120,cityTaxPerPersonPerNightCzk:25,nights:1,baseTotalCzk:1650,personTotalCzk:0,beddingTotalCzk:240,cityTaxTotalCzk:50,totalCzk:1940},showShine:'Ne',note:'Platná rezervace',status:'approved',amountDueCzk:1940,amountPaidCzk:1940,payment:{amountDueCzk:1940,amountPaidCzk:1940,balanceCzk:0,remainingCzk:0,overpaymentCzk:0,status:'paid',overdue:false,variableSymbol:'2026123456',recipientName:'E36 UNITED TEST',accountDisplay:'123 / 9999',iban:'CZ5099990000000000000123',currency:'CZK',message:'E36 UNITED 2026',deadline:'2026-12-01',testMode:true,configurationReady:true,actionable:false,awaitingApproval:false,spayd:null}};
+const reservationCars=[{id:'car-001',nickname:'Estoril',body:'Coupé',model:'328i',year:1996,color:'Estoril Blau',primary:true,photos:[]},{id:'car-002',nickname:'Touring',body:'Touring',model:'325i',year:1995,color:'Schwarz',primary:false,photos:[]}];
 async function login(page){
   const form=page.locator('[data-auth-form="login"]');
   await expect(form).toBeVisible();await form.locator('[name=email]').fill('eva@example.test');await form.locator('[name=password]').fill('fixture-password');
@@ -65,6 +68,37 @@ test('secondary reservation failure opens shell with unavailable state and manua
   failed=false;await state.getByRole('button',{name:'Zkusit znovu'}).click();await expect(state).toHaveCount(0);
   await expect(page.locator('[data-reservation-section] .member-section-head')).toBeVisible();
   expectNoUnexpectedClientErrors(observations);
+});
+
+test('authenticated Planner opens an existing reservation without creating another handoff',async({page,context})=>{
+  const observations=await prepareE2ePage(page,{authenticated:true,reservation:paidReservation});
+  await page.goto('/#planer');const cta=page.locator('[data-planner-mail]');await expect(cta).toContainText('Otevřít aktuální rezervaci');await expect(page.locator('.planner-actionbar-copy strong')).toContainText('Rezervaci už máš');
+  await clickReady(cta);await expect(page).toHaveURL(/member\.html\?section=reservation$/);await expect(page.locator('[data-member-panel="reservation"]')).toBeVisible();
+  expect(observations.requests.some(item=>item==='POST /api/planner-handoffs')).toBe(false);expect(context.pages()).toHaveLength(1);expectNoUnexpectedClientErrors(observations);
+});
+
+test('authenticated Planner without a reservation transfers one plan and gives processing feedback',async({page,context})=>{
+  const observations=await prepareE2ePage(page,{authenticated:true});
+  await page.goto('/#planer');const cta=page.locator('[data-planner-mail]');await expect(cta).toContainText('Dokončit v Můj United');
+  await clickReady(cta);await expect(page).toHaveURL(/member\.html\?section=reservation&draft=/);await expect(page.locator('[data-planner-handoff]')).toBeVisible();
+  await expect.poll(()=>observations.requests.filter(item=>item==='POST /api/planner-handoffs').length).toBe(1);expect(context.pages()).toHaveLength(1);expectNoUnexpectedClientErrors(observations);
+});
+
+test('approved reservation uses an explicit change request and independent car assignment',async({page})=>{
+  const observations=await prepareE2ePage(page,{authenticated:true,registrationOpen:true,reservation:paidReservation,cars:reservationCars});
+  await page.goto('/member.html?section=reservation');await expect(page.locator('[data-reservation-payment-detail]')).toContainText('Zaplaceno');
+  await page.locator('[data-reservation-car-select]').selectOption('car-002');await clickReady(page.locator('[data-reservation-car-save]'));
+  await expect.poll(()=>observations.reservationCarWrites.length).toBe(1);expect(observations.reservationCarWrites[0]).toEqual({carId:'car-002'});
+  await clickReady(page.locator('[data-request-change]'));await page.locator('[data-reservation-form] [name=crew]').fill('3');await clickReady(page.locator('[data-reservation-submit]'));
+  await expect.poll(()=>observations.reservationRequestWrites.length).toBe(1);expect(observations.reservationRequestWrites[0]).toMatchObject({reservationId:'reservation-flow-e2e',type:'change',crew:3});
+  expect(observations.reservationRequestWrites[0]).not.toHaveProperty('carId');expect(observations.reservationWrites).toEqual([]);await expect(page.locator('[data-reservation-request-status]')).toContainText('čeká na rozhodnutí');expectNoUnexpectedClientErrors(observations);
+});
+
+test('paid reservation cancellation remains a request and keeps payment visible',async({page})=>{
+  const observations=await prepareE2ePage(page,{authenticated:true,reservation:paidReservation});await page.goto('/member.html?section=reservation');
+  await clickReady(page.locator('[data-request-cancel-open]'));await expect(page.locator('[data-cancel-request]')).toBeVisible();await page.locator('[data-cancel-request-note]').fill('Nemohu přijet.');await clickReady(page.locator('[data-request-cancel-submit]'));
+  await expect.poll(()=>observations.reservationRequestWrites.length).toBe(1);expect(observations.reservationRequestWrites[0]).toEqual({reservationId:'reservation-flow-e2e',type:'cancellation',memberNote:'Nemohu přijet.'});
+  expect(observations.reservationWrites).toEqual([]);await expect(page.locator('[data-reservation-request-status]')).toContainText('ŽÁDOST O ZRUŠENÍ');await expect(page.locator('[data-reservation-payment-detail]')).toContainText('Zaplaceno');expectNoUnexpectedClientErrors(observations);
 });
 
 test('storage-restricted handoff survives login and reload through its URL fallback',async({page})=>{

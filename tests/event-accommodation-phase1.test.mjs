@@ -6,6 +6,7 @@ import { DatabaseSync } from 'node:sqlite';
 const migration = readFileSync(new URL('../D1-event-accommodation-v1.sql', import.meta.url), 'utf8');
 const paymentMigration = readFileSync(new URL('../D1-reservation-payments-v1.sql', import.meta.url), 'utf8');
 const plannerMigration = readFileSync(new URL('../D1-member-planner-drafts-v1.sql', import.meta.url), 'utf8');
+const reservationRequestMigration = readFileSync(new URL('../db/migrations/2026-09-11-reservation-requests.sql', import.meta.url), 'utf8');
 const workerModule = {
   ...await import('../worker/domains.js'),
   default: (await import('../cloudflare-worker-media.js')).default,
@@ -44,12 +45,18 @@ function database(events = [{ id: 'event-2026', year: 2026, status: 'open' }]) {
       entity_type TEXT NOT NULL, entity_id TEXT NOT NULL, old_state_json TEXT,
       new_state_json TEXT, note TEXT, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
+    CREATE TABLE admin_resource_versions (
+      resource_type TEXT NOT NULL, resource_id TEXT NOT NULL, revision INTEGER NOT NULL DEFAULT 0,
+      PRIMARY KEY(resource_type,resource_id)
+    );
+    CREATE TABLE schema_migrations (id TEXT PRIMARY KEY,description TEXT NOT NULL,applied_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
   `);
   const insertEvent = db.prepare('INSERT INTO events (id, year, registration_status) VALUES (?, ?, ?)');
   for (const event of events) insertEvent.run(event.id, event.year, event.status || 'closed');
   db.exec(migration);
   db.exec(paymentMigration);
   db.exec(plannerMigration);
+  db.exec(reservationRequestMigration);
   return db;
 }
 
@@ -132,7 +139,10 @@ function d1Binding(db) {
     bind(...bindings) { return new Statement(this.sql, bindings); }
     first() { return db.prepare(this.sql).get(...this.bindings) || null; }
     all() { return { results: db.prepare(this.sql).all(...this.bindings) }; }
-    run() { const result = db.prepare(this.sql).run(...this.bindings); return { meta: { changes: Number(result.changes || 0) } }; }
+    run() {
+      if (/^\s*(SELECT|WITH)/i.test(this.sql)) return { results: db.prepare(this.sql).all(...this.bindings), meta: { changes: 0 } };
+      const result = db.prepare(this.sql).run(...this.bindings); return { meta: { changes: Number(result.changes || 0) } };
+    }
   }
   return {
     prepare(sql) { return new Statement(sql); },
@@ -174,6 +184,21 @@ async function setAdminPaidAmount(db, reservationId, amountPaidCzk) {
     method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ amountPaidCzk }),
   });
   return workerModule.patchAdminReservationPayment(request, { DB: d1Binding(db) }, { uid: 'admin' }, reservationId, 'https://e36united.cz');
+}
+
+async function submitChangeRequest(db,{memberId,reservationId,people,arrival='Pátek',accommodation='Chatka',optionId='cabin-a',accommodationUnits=people}){
+  const request=new Request('https://api.e36united.cz/api/reservations/current/requests',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+    reservationId,type:'change',memberNote:'',arrival,crew:people,accommodation,
+    accommodationOptionId:accommodation==='Bez ubytování'?null:optionId,
+    accommodationUnits:accommodation==='Bez ubytování'?0:accommodationUnits,showShine:'Ne',note:'',
+  })});
+  return workerModule.submitReservationRequest(request,{DB:d1Binding(db)},{uid:memberId},reservationId,'https://e36united.cz');
+}
+
+async function approveChangeRequest(db,reservationId,requestId){
+  db.prepare("INSERT OR IGNORE INTO members(id,name) VALUES('admin','Test Admin')").run();
+  const request=new Request(`https://api.e36united.cz/api/admin/reservations/${reservationId}/requests/${requestId}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({decision:'approved',adminComment:''})});
+  return workerModule.reviewReservationRequest(request,{DB:d1Binding(db)},{uid:'admin'},reservationId,requestId,'https://e36united.cz');
 }
 
 class MemoryMedia {
@@ -569,9 +594,12 @@ test('28. a legacy crew-eight reservation stays readable and unchanged until red
   const unchanged = await submitWorkerReservation(db, { memberId: 'legacy-member', reservationId: 'legacy-eight', people: 8, arrival: 'Jen na otočku' });
   assert.equal(unchanged.status, 400);
   assert.deepEqual({ ...db.prepare("SELECT id,crew,status FROM reservations WHERE id='legacy-eight'").get() }, { id: 'legacy-eight', crew: 8, status: 'approved' });
-  const reduced = await submitWorkerReservation(db, { memberId: 'legacy-member', reservationId: 'legacy-eight', people: 5, arrival: 'Jen na otočku' });
-  assert.equal(reduced.status, 200);
-  assert.deepEqual({ ...db.prepare("SELECT id,crew,status FROM reservations WHERE id='legacy-eight'").get() }, { id: 'legacy-eight', crew: 5, status: 'pending' });
+  const reduced = await submitChangeRequest(db, { memberId: 'legacy-member', reservationId: 'legacy-eight', people: 5, arrival: 'Jen na otočku', accommodation: 'Bez ubytování' });
+  assert.equal(reduced.status, 201);
+  const requestId=(await reduced.json()).request.id;
+  assert.deepEqual({ ...db.prepare("SELECT id,crew,status FROM reservations WHERE id='legacy-eight'").get() }, { id: 'legacy-eight', crew: 8, status: 'approved' });
+  assert.equal((await approveChangeRequest(db,'legacy-eight',requestId)).status,200);
+  assert.deepEqual({ ...db.prepare("SELECT id,crew,status FROM reservations WHERE id='legacy-eight'").get() }, { id: 'legacy-eight', crew: 5, status: 'approved' });
 });
 
 test('29. paid reservations reconcile the four required edit scenarios without changing identity', async t => {
@@ -593,23 +621,22 @@ test('29. paid reservations reconcile the four required edit scenarios without c
     const beforeEdit = db.prepare('SELECT id,payment_vs,amount_paid_czk,paid_at FROM reservations WHERE id=?').get(created.id);
 
     db.prepare("UPDATE event_accommodation_options SET unit_price_czk=? WHERE id='cabin-a'").run(scenario.total / 2);
-    const editResponse = await submitWorkerReservation(db, { memberId: 'm1', reservationId: created.id, people: 3, accommodationUnits: 3 });
-    assert.equal(editResponse.status, 200);
-    const pending = (await editResponse.json()).reservation;
-    assert.equal(pending.id, created.id);
-    assert.equal(pending.status, 'pending');
-    assert.equal(pending.changePending, true);
-    assert.equal(pending.amountDueCzk, scenario.total);
-    assert.equal(pending.amountPaidCzk, scenario.paid);
-    assert.equal(pending.payment.variableSymbol, created.payment_vs);
-    assert.equal(pending.payment.amountPaidCzk, scenario.paid);
-    assert.equal(pending.payment.spayd, null);
-    assert.equal(pending.payment.actionable, false);
-    assert.equal(pending.payment.configurationReady, false);
+    const editResponse = await submitChangeRequest(db, { memberId: 'm1', reservationId: created.id, people: 3, accommodationUnits: 3 });
+    assert.equal(editResponse.status, 201);
+    const requestId=(await editResponse.json()).request.id;
+    const waitingResponse=await workerModule.getCurrentReservation({DB:d1Binding(db)},{uid:'m1'},'https://e36united.cz');
+    const waiting=(await waitingResponse.json()).reservation;
+    assert.equal(waiting.id,created.id);
+    assert.equal(waiting.status,'approved');
+    assert.equal(waiting.amountDueCzk,4800);
+    assert.equal(waiting.amountPaidCzk,scenario.paid);
+    assert.equal(waiting.request.status,'pending');
+    assert.equal(waiting.request.proposed.amountDueCzk,scenario.total);
+    assert.equal(waiting.payment.variableSymbol,created.payment_vs);
     const storedPending = db.prepare('SELECT id,payment_vs,amount_paid_czk,paid_at FROM reservations WHERE id=?').get(created.id);
     assert.deepEqual({ ...storedPending }, { ...beforeEdit });
 
-    assert.equal((await setAdminReservationStatus(db, created.id, 'approved')).status, 200);
+    assert.equal((await approveChangeRequest(db,created.id,requestId)).status,200);
     const approvedResponse = await workerModule.getCurrentReservation({ DB: d1Binding(db) }, { uid: 'm1' }, 'https://e36united.cz');
     assert.equal(approvedResponse.status, 200);
     const approved = (await approvedResponse.json()).reservation;

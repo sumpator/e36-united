@@ -25,7 +25,7 @@ initPublicMemberState({config:firebaseConfig,apiBaseUrl:portalConfig.apiBaseUrl,
 })();
 
 const coreStyles = qs('link[href^="styles.css"]');
-if (coreStyles && !coreStyles.href.includes('v=20260825-mobile1')) coreStyles.href = 'styles.css?v=20260825-mobile1';
+if (coreStyles && !coreStyles.href.includes('v=20260911-reservation-flow-r1')) coreStyles.href = 'styles.css?v=20260911-reservation-flow-r1';
 if (!qs('link[href^="accommodation-visual.css"]')) {
 const accommodationStyles=document.createElement('link');accommodationStyles.rel='stylesheet';accommodationStyles.href='accommodation-visual.css?v=20260827-accommodation1';document.head.append(accommodationStyles);
 }
@@ -610,6 +610,7 @@ let accommodationVisualTools = null;
 let updatePlanner = () => {};
 let setPlannerChoice = () => {};
 let memberPlannerMode = false;
+let memberPlannerHasReservation = false;
 const plannerNights = () => plannerState.arrival === 'Pátek' ? (plannerState.departure === 'Sobota' ? 1 : Number(plannerEventData?.fullWeekendNights ?? 2)) : plannerState.arrival === 'Sobota' ? Number(plannerEventData?.saturdayOnlyNights ?? 1) : 0;
 const plannerNightLabel = count => count === 1 ? '1 noc' : `${count} noci`;
 const plannerStayLabel = () => plannerState.arrival === 'Jen na otočku' ? 'Jen na otočku' : `${plannerState.arrival} → ${plannerState.departure}`;
@@ -830,8 +831,9 @@ if (accommodationOptionStep) accommodationOptionStep.hidden = !needsAccommodatio
 if (accommodationOptionTitle) accommodationOptionTitle.textContent=plannerState.sleep==='Chatka'?'Typ chatky':'Typ stanu';
 if (partialAccommodationInput) partialAccommodationInput.checked=plannerState.partialAccommodation;
 if (unitedMap) unitedMap.classList.toggle('is-day-pass', dayPass);
-if (plannerActionCopy) plannerActionCopy.textContent = memberPlannerMode ? 'Hotovo. Výběr přeneseme do Můj United.' : 'Hotovo. Teď už jen dokončit rezervaci.';
-if (mail) {mail.innerHTML = 'Dokončit v Můj United <span>→</span>';mail.href='member.html?section=reservation'}
+const existingReservation=memberPlannerMode&&memberPlannerHasReservation;
+if (plannerActionCopy) plannerActionCopy.textContent = existingReservation ? 'Rezervaci už máš. Aktuální pobyt otevřeš v Můj United.' : memberPlannerMode ? 'Hotovo. Výběr přeneseme do Můj United.' : 'Hotovo. Teď už jen dokončit rezervaci.';
+if (mail) {mail.innerHTML = existingReservation?'Otevřít aktuální rezervaci <span>→</span>':'Dokončit v Můj United <span>→</span>';mail.href='member.html?section=reservation'}
 if (peopleEl) peopleEl.textContent = plannerState.people;
 if (peopleLabel) peopleLabel.textContent = personLabel(plannerState.people);
 if (accommodationUnitsEl) accommodationUnitsEl.textContent = plannerState.accommodationUnits;
@@ -928,7 +930,7 @@ calendarButton?.setAttribute('aria-expanded','false');
 }
 });
 updatePlanner();
-subscribePublicMemberState(state=>{memberPlannerMode=state.authenticated===true;updatePlanner()});
+subscribePublicMemberState(state=>{memberPlannerMode=state.authenticated===true;memberPlannerHasReservation=state.hasReservation===true;updatePlanner()});
 }
 
 /* Account-first planner completion with a manual e-mail fallback. */
@@ -1007,23 +1009,36 @@ const createPlannerHandoff=()=>{
   return draft;
 };
 let memberHandoffNavigating=false;
+const plannerActionStatus=qs('[data-planner-action-status]');
+const setPlannerNavigationState=(busy,message='')=>{
+  memberHandoffNavigating=busy;
+  inquiryTrigger?.classList.toggle('is-busy',busy);inquiryTrigger?.setAttribute('aria-disabled',String(busy));
+  if(plannerActionStatus){plannerActionStatus.hidden=!message;plannerActionStatus.textContent=message}
+};
+const plannerNavigationFailed=()=>setPlannerNavigationState(false,'Přechod se nepodařil. Zkus to prosím znovu.');
+const openExistingReservation=()=>{
+  if(memberHandoffNavigating)return;setPlannerNavigationState(true,'Otevírám tvoji rezervaci…');
+  try{window.location.assign(new URL('member.html?section=reservation',window.location.href).href)}catch{plannerNavigationFailed()}
+};
 const continueToMember=async mode=>{
-  if(memberHandoffNavigating)return;memberHandoffNavigating=true;
-  const draft=createPlannerHandoff(),destination=new URL('member.html',window.location.href);
-  if(mode)destination.searchParams.set('mode',mode);
-  destination.searchParams.set('section','reservation');
-  destination.searchParams.set('draft',draft.draftId);
-  destination.hash=`handoff=${encodeURIComponent(encodePlannerHandoff(draft))}`;
-  // Start the small helper early enough to use keepalive, but never await analytics to navigate.
-  void plannerTrackingHelper.then(tracking=>tracking?.trackPublicPlannerDraft(draft,{baseUrl:plannerApiBaseUrl||'https://api.e36united.cz'}));
-  closeInquiry();
-  window.location.assign(destination.href);
+  if(memberHandoffNavigating)return;setPlannerNavigationState(true,'Přenáším tvůj plán do Můj United…');
+  try{
+    const draft=createPlannerHandoff(),destination=new URL('member.html',window.location.href);
+    if(mode)destination.searchParams.set('mode',mode);
+    destination.searchParams.set('section','reservation');
+    destination.searchParams.set('draft',draft.draftId);
+    destination.hash=`handoff=${encodeURIComponent(encodePlannerHandoff(draft))}`;
+    // Start the small helper early enough to use keepalive, but never await analytics to navigate.
+    void plannerTrackingHelper.then(tracking=>tracking?.trackPublicPlannerDraft(draft,{baseUrl:plannerApiBaseUrl||'https://api.e36united.cz'}));
+    closeInquiry();window.location.assign(destination.href);
+  }catch{plannerNavigationFailed()}
 };
 
-inquiryTrigger?.addEventListener('click', e => {e.preventDefault();if(memberPlannerMode)continueToMember(null);else openPlannerChoice()});
+inquiryTrigger?.addEventListener('click', e => {e.preventDefault();if(memberPlannerMode&&memberPlannerHasReservation)openExistingReservation();else if(memberPlannerMode)continueToMember(null);else openPlannerChoice()});
 qs('[data-planner-register]')?.addEventListener('click',()=>continueToMember('register'));
 qs('[data-planner-login]')?.addEventListener('click',()=>continueToMember('login'));
 qs('[data-planner-manual]')?.addEventListener('click',openInquiry);
+window.addEventListener('pageshow',()=>{if(memberHandoffNavigating)setPlannerNavigationState(false)});
 qsa('[data-inquiry-close]').forEach(el => el.addEventListener('click', closeInquiry));
 document.addEventListener('keydown', e => {
   if (!inquiryModal || inquiryModal.hidden) return;

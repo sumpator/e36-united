@@ -61,6 +61,7 @@ import {
   reservationPayment,
 } from "./domains/reservations/payments.js";
 import { calculateAccommodationPricing } from "./domains/reservations/pricing.js";
+import { reviewReservationRequest, submitReservationRequest, updateReservationCar } from "./domains/reservations/requests.js";
 import { cors } from "./http/cors.js";
 import { readJsonObject } from "./http/request.js";
 import { json } from "./http/responses.js";
@@ -414,13 +415,14 @@ async function patchAdminReservation(request, env, auth, reservationId, origin) 
     return json({ ok: false, error: "invalid_json", message: "Požadavek nemá platný JSON." }, 400, origin);
   }
 
-  const allowedKeys = new Set(["status", "reviewNote"]);
+  const allowedKeys = new Set(["status", "reviewNote", "memberComment"]);
   if (Object.keys(body).some(key => !allowedKeys.has(key))) {
-    return json({ ok: false, error: "invalid_fields", message: "Lze změnit pouze stav a admin poznámku." }, 400, origin);
+    return json({ ok: false, error: "invalid_fields", message: "Lze změnit pouze stav, interní poznámku a zprávu pro člena." }, 400, origin);
   }
 
   const status = clean(body.status);
   const reviewNote = clean(body.reviewNote).slice(0, 1000);
+  const memberComment = clean(body.memberComment).slice(0, 1000);
   if (!["pending", "approved", "rejected", "cancelled"].includes(status)) {
     return json({ ok: false, error: "invalid_status", message: "Neplatný stav rezervace." }, 400, origin);
   }
@@ -435,12 +437,13 @@ async function patchAdminReservation(request, env, auth, reservationId, origin) 
   if (!reservation) return json({ ok: false, error: "reservation_not_found", message: "Rezervace nebyla nalezena." }, 404, origin);
 
   const currentReviewNote = reservation.review_note || "";
-  if (reservation.status === status && currentReviewNote === reviewNote) {
-    return json({ ok: true, unchanged: true, reservation: { id: reservationId, status, reviewNote } }, 200, origin);
+  const currentMemberComment = (await env.DB.prepare('SELECT member_comment FROM reservation_member_comments WHERE reservation_id=?').bind(reservationId).first())?.member_comment || '';
+  if (reservation.status === status && currentReviewNote === reviewNote && currentMemberComment === memberComment) {
+    return json({ ok: true, unchanged: true, reservation: { id: reservationId, status, reviewNote, memberComment } }, 200, origin);
   }
 
-  const oldState = JSON.stringify({ status: reservation.status, reviewNote: currentReviewNote });
-  const newState = JSON.stringify({ status, reviewNote });
+  const oldState = JSON.stringify({ status: reservation.status, reviewNote: currentReviewNote, memberComment: currentMemberComment });
+  const newState = JSON.stringify({ status, reviewNote, memberComment });
   const actionId = crypto.randomUUID();
   const writeToken = createWriteToken();
   const requiresCapacityCheck = reservation.status !== "approved" && status === "approved";
@@ -467,6 +470,11 @@ async function patchAdminReservation(request, env, auth, reservationId, origin) 
         )
       )
     `).bind(status, reviewNote || null, auth.uid, writeToken, reservationId, requiresCapacityCheck ? 1 : 0),
+    env.DB.prepare(`INSERT INTO reservation_member_comments(reservation_id,member_comment,updated_at,updated_by)
+      SELECT ?,?,?,? FROM reservations WHERE id=? AND updated_at=?
+        AND (?<>'' OR EXISTS(SELECT 1 FROM reservation_member_comments WHERE reservation_id=?))
+      ON CONFLICT(reservation_id) DO UPDATE SET member_comment=excluded.member_comment,updated_at=excluded.updated_at,updated_by=excluded.updated_by`)
+      .bind(reservationId,memberComment,writeToken,auth.uid,reservationId,writeToken,memberComment,reservationId),
     env.DB.prepare(`
       INSERT INTO admin_actions (
         id, admin_member_id, action_type, entity_type, entity_id,
@@ -488,6 +496,7 @@ async function patchAdminReservation(request, env, auth, reservationId, origin) 
       id: reservationId,
       status,
       reviewNote,
+      memberComment,
       reviewedBy: auth.uid,
     },
   }, 200, origin);
@@ -837,10 +846,13 @@ export {
   putCurrentReservation,
   putPlannerDraft,
   replaceCarPhoto,
+  reviewReservationRequest,
   reservationPayment,
   setPrimaryCar,
   submitHistoryClaim,
+  submitReservationRequest,
   updateCar,
+  updateReservationCar,
   uploadCarPhoto,
   uploadGallerySubmission,
   validatePlannerDraft,

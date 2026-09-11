@@ -45,6 +45,20 @@ test('CONFIRMED dashboard empty list + delayed detail + clean focus keeps status
   }finally{b.release();c.r.db.close();}
 });
 
+test('CONFIRMED reservation request compares the proposal and records the public Admin decision',async({page})=>{
+  const c=await commandFixture(page),original={arrival:'Pátek',attendanceType:'full_weekend',crew:2,accommodation:'Chatka',accommodationOptionId:'cab',accommodationUnits:2,showShine:'Ano',note:'',amountDueCzk:1000,amountPaidCzk:200},proposed={arrival:'Sobota',attendanceType:'saturday_only',crew:3,accommodation:'Chatka',accommodationOptionId:'cab',accommodationUnits:3,showShine:'Ne',note:'Změna',amountDueCzk:0};
+  c.r.db.prepare("INSERT INTO reservation_requests(id,reservation_id,member_id,request_type,status,original_json,proposed_json,member_note) VALUES('request-ui','r','m','change','pending',?,?,?)").run(JSON.stringify(original),JSON.stringify(proposed),'Prosím o změnu.');
+  try{
+    await page.goto('/admin.html?section=reservations&event=e');await expect(page.locator('[data-reservation-list]')).toBeVisible();
+    await page.locator('[data-reservation-open="r"]').last().click();const request=page.locator('[data-reservation-request-id="request-ui"]');
+    await expect(request).toBeVisible();await expect(request).toContainText('Platná rezervace');await expect(request).toContainText('Navrhovaná změna');await expect(request).toContainText('Prosím o změnu.');
+    await request.locator('[data-request-admin-comment]').fill('Změna je v pořádku.');await request.locator('[data-request-decision="approved"]').click();
+    await expect.poll(()=>c.r.db.prepare("SELECT status FROM reservation_requests WHERE id='request-ui'").get().status).toBe('approved');
+    expect(c.r.db.prepare("SELECT crew,status,review_note FROM reservations WHERE id='r'").get().crew).toBe(3);
+    await expect(page.locator('[data-reservation-request-id="request-ui"]')).toHaveCount(0);expect(c.writes.map(item=>item.component)).toContain('reservation-request');clean(c);
+  }finally{c.r.db.close()}
+});
+
 function holdResponse(c,predicate){const b=barrier();c.response=async({request,response})=>{if(predicate(request)){b.arrive();await b.gate;}return response};return b;}
 const article=page=>page.locator('[data-reservation-drawer-content] article');
 const approved=page=>page.locator('[data-review-action="approved"]');

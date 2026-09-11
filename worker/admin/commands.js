@@ -4,6 +4,7 @@ import { json } from '../http/responses.js';
 export const COMMAND_RESOURCES = Object.freeze({
   preferences: { table: 'admin_preferences', event: null, version: 'preferences' },
   reservation: { table: 'reservations', event: 'event_id', version: 'reservation' },
+  'reservation-request': { table: 'reservations', event: 'event_id', version: 'reservation' },
   payment: { table: 'reservations', event: 'event_id', version: 'reservation' },
   event: { table: 'events', event: 'id', version: 'event-settings', global: true },
   accommodation: { table: 'event_accommodation_options', event: 'event_id', version: 'accommodation' },

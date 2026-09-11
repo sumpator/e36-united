@@ -1,6 +1,6 @@
-import { commandBadges, BADGE_SCOPE } from './command-model.js?v=20260910-admin-card-ux-r1';
-import { adminState } from './state.js?v=20260910-admin-card-ux-r1';
-import {commandIcon} from './command-icons.js?v=20260910-admin-card-ux-r1';
+import { commandBadges, BADGE_SCOPE } from './command-model.js?v=20260911-reservation-flow-r1';
+import { adminState } from './state.js?v=20260911-reservation-flow-r1';
+import {commandIcon} from './command-icons.js?v=20260911-reservation-flow-r1';
 const navButton = (id, label) => `<button data-portal-target="${id}" type="button"><span class="command-nav-icon" aria-hidden="true">${commandIcon(id)}</span><span>${label}</span>${Object.hasOwn(BADGE_SCOPE, id) ? `<b data-command-badge="${id}" hidden></b>` : ''}</button>`;
 export function initializeCommandShell() {
   for (const nav of document.querySelectorAll('.admin-section-nav,.portal-nav-sheet-list')) {

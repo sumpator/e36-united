@@ -1,11 +1,12 @@
-import {adminState} from './state.js?v=20260910-admin-card-ux-r1';
-import {allowAdminNavigation} from './editors.js?v=20260910-admin-card-ux-r1';
-import {cleanDrill} from './destinations.js?v=20260910-admin-card-ux-r1';
+import {adminState} from './state.js?v=20260911-reservation-flow-r1';
+import {allowAdminNavigation} from './editors.js?v=20260911-reservation-flow-r1';
+import {cleanDrill} from './destinations.js?v=20260911-reservation-flow-r1';
 export function reservationRequestPath(detailId=null){
  const s=adminState,payment=s.activeAdminView==='payments';
  const p=new URLSearchParams({eventId:s.selectedEventId,view:payment?'payments':'reservations',filter:payment?s.paymentFilter:s.reservationFilter,filters:[...s.reservationDetailFilters].join(','),q:payment?s.paymentSearch:s.reservationSearch,page:String(s.reservationPage),pageSize:'50'});
  for(const [key,value] of Object.entries(cleanDrill(s.dashboardDrill)))p.set(key,value);
  if(s.queueMember)p.set('queueMember',s.queueMember);
+ p.set('include','workflow');
  if(detailId){p.set('id',detailId);p.set('page','1');p.set('projection','detail');p.set('presentation','command')}
  return '/api/admin/reservations?'+p;
 }

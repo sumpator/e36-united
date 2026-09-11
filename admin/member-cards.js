@@ -1,6 +1,6 @@
-import {escapeHtml as esc} from './ui.js?v=20260910-admin-card-ux-r1';
-import {apiRequest} from './api.js?v=20260910-admin-card-ux-r1';
-import {adminState} from './state.js?v=20260910-admin-card-ux-r1';
+import {escapeHtml as esc} from './ui.js?v=20260911-reservation-flow-r1';
+import {apiRequest} from './api.js?v=20260911-reservation-flow-r1';
+import {adminState} from './state.js?v=20260911-reservation-flow-r1';
 
 export function pendingSummary(card){
  const p=card?.pending;

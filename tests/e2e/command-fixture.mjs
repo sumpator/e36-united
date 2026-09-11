@@ -6,6 +6,7 @@ import {getAdminEvents,getAdminReservations,getAdminGallery,getAdminHistoryClaim
 import {getAdminMember,listAdminMembers,adminMemberMedia} from '../../worker/admin/members.js';
 import {readFileSync} from 'node:fs';
 import {patchAdminReservation,patchAdminReservationPayment,getAdminAccommodation,patchAdminAccommodation,patchAdminEvent,patchAdminGallery,adminGalleryMedia} from '../../worker/domains.js';
+import {reviewReservationRequest} from '../../worker/domains/reservations/requests.js';
 import {routeAdminMailing} from '../../worker/domains/mailing/index.js';
 import {getAdminOperation} from '../../worker/admin/commands.js';
 import {factoryPreferences} from '../../admin/dashboard-model.js';
@@ -43,6 +44,10 @@ export async function commandFixture(page,{legacy=false}={}){
    const [resource,id]=path.split('/').slice(-2),component=resource==='events'?'event':resource,handler={event:patchAdminEvent,accommodation:patchAdminAccommodation,gallery:patchAdminGallery}[component];
    const request=new Request(q.url(),{method:q.method(),headers:q.headers(),body:q.postData()});writes.push({component,revision:q.headers()['if-match']});
    response=await runAdminCommand(request,env,{uid:'a'},component,id,origin,commandEnv=>handler(request,commandEnv,{uid:'a'},id,origin));
+  }
+  else if(/\/reservations\/[^/]+\/requests\/[^/]+$/.test(path)&&q.method()==='PATCH'){
+   const parts=path.split('/'),id=parts.at(-3),requestId=parts.at(-1),request=new Request(q.url(),{method:q.method(),headers:q.headers(),body:q.postData()});writes.push({component:'reservation-request',revision:q.headers()['if-match']});
+   response=await runAdminCommand(request,env,{uid:'a'},'reservation-request',id,origin,commandEnv=>reviewReservationRequest(request,commandEnv,{uid:'a'},id,requestId,origin));
   }
   else if(/\/reservations\/[^/]+\/payment$/.test(path)&&q.method()==='PATCH'){
    const id=path.split('/').at(-2),request=new Request(q.url(),{method:q.method(),headers:q.headers(),body:q.postData()});writes.push({component:'payment',revision:q.headers()['if-match']});

@@ -182,7 +182,7 @@ test.describe('desktop member portal', () => {
     expectNoUnexpectedClientErrors(observations);
   });
 
-  test('existing reservation prefill keeps update semantics and reservation identity', async ({ page }) => {
+  test('approved reservation prefill creates one change request and keeps reservation identity', async ({ page }) => {
     const observations = await prepareE2ePage(page, { authenticated: true, registrationOpen: true, reservation: approvedReservation });
 
     await page.goto('/member.html');
@@ -196,14 +196,15 @@ test.describe('desktop member portal', () => {
     await expect(form.locator('[name="accommodationOptionId"]')).toHaveValue('cabin-premium');
     await expect(form.locator('[name="showshine"]')).toHaveValue('Ano');
     await expect(form.locator('[name="note"]')).toHaveValue('Příjezd po obědě.');
-    await expect(page.locator('[data-reservation-submit]')).toContainText('Upravit rezervaci');
+    await expect(page.locator('[data-reservation-submit]')).toBeDisabled();
+    await page.locator('[data-request-change]').click();
+    await expect(page.locator('[data-reservation-submit]')).toContainText('Odeslat žádost o změnu');
 
     await form.locator('[name="note"]').fill('Aktualizovaný příjezd.');
     await page.locator('[data-reservation-submit]').click();
-    await expect.poll(() => observations.reservationWrites.length).toBe(1);
-    expect(observations.reservationWrites[0]).toMatchObject({
+    await expect.poll(() => observations.reservationRequestWrites.length).toBe(1);
+    expect(observations.reservationRequestWrites[0]).toMatchObject({
       reservationId: 'reservation-2026-e2e',
-      carId: 'car-001',
       arrival: 'Sobota',
       crew: 3,
       attendanceType: 'saturday_only',
@@ -213,7 +214,10 @@ test.describe('desktop member portal', () => {
       showShine: 'Ano',
       note: 'Aktualizovaný příjezd.',
     });
-    expect(observations.requests).toContain('PUT /api/reservations/current');
+    expect(observations.reservationRequestWrites[0]).not.toHaveProperty('carId');
+    expect(observations.reservationWrites).toEqual([]);
+    expect(observations.requests).toContain('POST /api/reservations/current/requests');
+    await expect(page.locator('[data-reservation-request-status]')).toContainText('čeká na rozhodnutí');
 
     expectNoUnexpectedClientErrors(observations);
   });
@@ -224,6 +228,8 @@ test.describe('desktop member portal', () => {
     await page.goto('/member.html');
     await expectMemberOverview(page);
     await expect(page.locator('[data-member-payment]')).toContainText('Doplatek');
+    await page.locator('.member-sidebar [data-member-section="reservation"]').click();
+    await expect(page.locator('[data-reservation-payment-detail] .member-payment-qr svg')).toBeVisible();
     await page.locator('.member-sidebar [data-member-section="payments"]').click();
 
     const payment = page.locator('[data-payments-list]');

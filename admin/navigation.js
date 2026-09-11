@@ -1,5 +1,5 @@
-import { ADMIN_VIEW_IDS } from '../admin-view-model.js?v=20260910-admin-card-ux-r1';
-import {ADMIN_AREAS,areaFor,cleanDrill} from './destinations.js?v=20260910-admin-card-ux-r1';
+import { ADMIN_VIEW_IDS } from '../admin-view-model.js?v=20260911-reservation-flow-r1';
+import {ADMIN_AREAS,areaFor,cleanDrill} from './destinations.js?v=20260911-reservation-flow-r1';
 
 const id=value=>/^[a-z0-9_-]{1,128}$/i.test(value||'')?value:null;
 export function adminRoute(search,fallback='dashboard'){

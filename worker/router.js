@@ -24,6 +24,7 @@ const PROTECTED_MEMBER_EXACT_ROUTES = new Set([
   "DELETE /api/planner-draft",
   "GET /api/reservations/current",
   "PUT /api/reservations/current",
+  "POST /api/reservations/current/requests",
   "GET /api/cars",
   "POST /api/cars",
   "POST /api/gallery/submissions",
@@ -37,6 +38,7 @@ const PROTECTED_MEMBER_ROUTE_PATTERNS = [
   ["DELETE", /^\/api\/cars\/[^/]+$/],
   ["POST", /^\/api\/cars\/[^/]+\/primary$/],
   ["POST", /^\/api\/cars\/[^/]+\/photos$/],
+  ["PATCH", /^\/api\/reservations\/[^/]+\/car$/],
   ["PUT", /^\/api\/cars\/[^/]+\/photos$/],
   ["GET", /^\/api\/gallery\/mine\/media\/[^/]+$/],
 ];
@@ -159,6 +161,12 @@ export async function routeRequest({ request, env, url, origin }) {
         return runAdminCommand(request, env, auth, 'payment', entityId, origin, commandEnv => domain.patchAdminReservationPayment(request, commandEnv, auth, entityId, origin));
       }
 
+      const adminReservationRequestMatch=url.pathname.match(/^\/api\/admin\/reservations\/([^/]+)\/requests\/([^/]+)$/);
+      if(adminReservationRequestMatch&&request.method==='PATCH'){
+        const reservationId=decodeURIComponent(adminReservationRequestMatch[1]),requestId=decodeURIComponent(adminReservationRequestMatch[2]);
+        return runAdminCommand(request,env,auth,'reservation-request',reservationId,origin,commandEnv=>domain.reviewReservationRequest(request,commandEnv,auth,reservationId,requestId,origin));
+      }
+
       const adminReservationMatch = url.pathname.match(/^\/api\/admin\/reservations\/([^/]+)$/);
       if (adminReservationMatch && request.method === "PATCH") {
         const entityId = decodeURIComponent(adminReservationMatch[1]);
@@ -218,6 +226,12 @@ export async function routeRequest({ request, env, url, origin }) {
 
     if (url.pathname === "/api/reservations/current" && request.method === "GET") return await domain.getCurrentReservation(env, auth, origin);
     if (url.pathname === "/api/reservations/current" && request.method === "PUT") return await domain.putCurrentReservation(request, env, auth, origin);
+    if (url.pathname === "/api/reservations/current/requests" && request.method === "POST") {
+      let body;try{body=await request.clone().json()}catch{return json({ok:false,error:'invalid_json',message:'Požadavek nemá platný JSON.'},400,origin)}
+      return domain.submitReservationRequest(request,env,auth,body?.reservationId,origin);
+    }
+    const reservationCarMatch=url.pathname.match(/^\/api\/reservations\/([^/]+)\/car$/);
+    if(reservationCarMatch&&request.method==='PATCH')return domain.updateReservationCar(request,env,auth,decodeURIComponent(reservationCarMatch[1]),origin);
 
     if (url.pathname === "/api/cars" && request.method === "GET") return await domain.listCars(env, auth, origin);
     if (url.pathname === "/api/cars" && request.method === "POST") return await domain.createCar(request, env, auth, origin);

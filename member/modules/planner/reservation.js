@@ -54,12 +54,14 @@ export function normalizeReservation(source){
     showshine:source.showShine||source.showshine||'Ne',
     note:source.note||'',
     status:source.status||'pending',
-    changePending:source.changePending===true,
+    request:source.request&&typeof source.request==='object'?{...source.request,original:source.request.original||null,proposed:source.request.proposed||null}:null,
+    changePending:source.changePending===true||(source.request?.status==='pending'&&source.request?.type==='change'),
     paymentStatus:source.paymentStatus||'unpaid',
     amountDueCzk:Number(source.amountDueCzk||0),
     amountPaidCzk:Number(source.amountPaidCzk||0),
     payment:normalizePayment(source.payment),
     submittedAt:source.submittedAt||'',
     updatedAt:source.updatedAt||'',
+    memberComment:source.memberComment||'',
   };
 }

@@ -118,10 +118,11 @@ export async function prepareE2ePage(page, {
   memberStatus = 'active',
   registrationOpen = false,
   reservation = null,
+  cars = null,
   clubPayload = null,
   ignoreConsoleError = () => false,
 } = {}) {
-  const observations = { pageErrors: [], consoleErrors: [], unhandledApi: [], requests: [], reservationWrites: [], profileWrites: [] };
+  const observations = { pageErrors: [], consoleErrors: [], unhandledApi: [], requests: [], reservationWrites: [], reservationRequestWrites: [], reservationCarWrites: [], profileWrites: [] };
   let memberProfile = {
     id: memberId,
     memberCode: 'EU036',
@@ -188,7 +189,7 @@ export async function prepareE2ePage(page, {
       return;
     }
     if (url.pathname === '/api/navigation-state') {
-      await jsonResponse(route, { hasWaitingPlan: false, hasReservation: false });
+      await jsonResponse(route, { hasWaitingPlan: false, hasReservation: Boolean(reservation) });
       return;
     }
     if (['/api/onboarding','/api/planner-handoffs','/api/planner-handoffs/claim'].includes(url.pathname)) {
@@ -214,7 +215,7 @@ export async function prepareE2ePage(page, {
         return;
       }
       await jsonResponse(route, {
-        cars: [{
+        cars: cars || [{
           id: 'car-001',
           nickname: 'Estoril',
           body: 'Coupé',
@@ -262,6 +263,13 @@ export async function prepareE2ePage(page, {
         accommodationOptions,
       });
       return;
+    }
+    if (url.pathname === '/api/reservations/current/requests' && request.method() === 'POST') {
+      const body=request.postDataJSON();observations.reservationRequestWrites.push(body);
+      await jsonResponse(route,{ok:true,request:{id:'request-e2e',type:body.type,status:'pending',original:reservation,proposed:body.type==='change'?body:null,memberNote:body.memberNote||'',adminComment:'',createdAt:'2026-09-11T10:00:00Z'},message:body.type==='change'?'Žádost o změnu byla odeslána.':'Žádost o zrušení byla odeslána.'},201);return;
+    }
+    if (/^\/api\/reservations\/[^/]+\/car$/.test(url.pathname) && request.method() === 'PATCH') {
+      const body=request.postDataJSON();observations.reservationCarWrites.push(body);await jsonResponse(route,{ok:true,carId:body.carId,message:'Auto rezervace bylo změněno.'});return;
     }
     if (url.pathname === '/api/planner-draft') {
       await jsonResponse(route, { draft: null });

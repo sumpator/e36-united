@@ -10,6 +10,7 @@ import {
 import { ensureReservationPaymentVs, paymentStatusFor, reservationPayment } from "./payments.js";
 import { calculateAccommodationPricing, mapAccommodationSnapshot } from "./pricing.js";
 import { linkPlannerReservation } from '../planner/funnel.js';
+import { attachAdminReservationContext, attachMemberReservationRequest, requestView } from './requests.js';
 
 const MAX_RESERVATION_CREW = 5;
 
@@ -25,6 +26,8 @@ async function getAdminReservations(env, url, origin) {
   const page = reservationListQuery(url);
   const detailOnly=env.ADMIN_READ && !!url.searchParams.get("id") && url.searchParams.get("projection")==="detail";
   const commandDetail=detailOnly&&url.searchParams.get('presentation')==='command';
+  const workflowProjection=env.ADMIN_READ&&url.searchParams.get('include')==='workflow';
+  const workflowDetail=commandDetail&&workflowProjection;
   const order="CASE r.status WHEN 'pending' THEN 0 WHEN 'rejected' THEN 1 WHEN 'approved' THEN 2 ELSE 3 END, r.submitted_at DESC, r.updated_at DESC, r.id";
   const query = `
     WITH ${env.ADMIN_READ ? `requested AS MATERIALIZED (
@@ -44,7 +47,10 @@ async function getAdminReservations(env, url, origin) {
       r.attendance_type, r.arrival, r.crew, r.accommodation, r.accommodation_units,
       r.show_shine, r.note, r.status, r.payment_status, r.payment_vs, r.paid_at,
       r.amount_due_czk, r.amount_paid_czk,
-      ${env.ADMIN_READ ? "COALESCE((SELECT revision FROM admin_resource_versions WHERE resource_type='reservation' AND resource_id=r.id),0)" : '0'} AS admin_revision,
+      ${workflowProjection?`rr.id AS request_id,rr.request_type,rr.status AS request_status,rr.original_json AS request_original_json,
+      rr.proposed_json AS request_proposed_json,rr.member_note AS request_member_note,rr.admin_comment AS request_admin_comment,
+      rr.created_at AS request_created_at,rr.updated_at AS request_updated_at,rr.decided_at AS request_decided_at,rr.decided_by AS request_decided_by,
+      `:''}${env.ADMIN_READ ? "COALESCE((SELECT revision FROM admin_resource_versions WHERE resource_type='reservation' AND resource_id=r.id),0)" : '0'} AS admin_revision,
       r.submitted_at, r.updated_at, r.reviewed_at, r.review_note,
       ${commandDetail?`EXISTS(SELECT 1 FROM member_qr_identities q WHERE q.member_id=r.member_id) AS qr_issued,
       (SELECT p.id FROM car_photos p JOIN cars c ON c.id=p.car_id WHERE c.id=r.car_id AND c.member_id=r.member_id ORDER BY p.sort_order,p.id LIMIT 1) AS selected_photo_id,
@@ -79,7 +85,7 @@ async function getAdminReservations(env, url, origin) {
     JOIN events e ON e.id = r.event_id
     LEFT JOIN reservation_accommodation ra ON ra.reservation_id = r.id
     LEFT JOIN event_accommodation_options ao ON ao.id = ra.option_id
-    ${env.ADMIN_READ ? '' : 'WHERE r.event_id = ?'}
+    ${workflowProjection?"LEFT JOIN reservation_requests rr ON rr.reservation_id=r.id AND rr.status='pending'\n    ":''}${env.ADMIN_READ ? '' : 'WHERE r.event_id = ?'}
     ORDER BY
       CASE r.status WHEN 'pending' THEN 0 WHEN 'rejected' THEN 1 WHEN 'approved' THEN 2 ELSE 3 END,
       r.submitted_at DESC,
@@ -107,9 +113,16 @@ async function getAdminReservations(env, url, origin) {
 
   for (const reservation of rows.results || []) {
     if (!env.ADMIN_READ && !reservation.payment_vs) reservation.payment_vs = await ensureReservationPaymentVs(env, reservation.id, reservation.event_year);
+    if(workflowProjection&&reservation.request_id)reservation.admin_requests=[requestView({
+      id:reservation.request_id,reservation_id:reservation.id,request_type:reservation.request_type,status:reservation.request_status,
+      original_json:reservation.request_original_json,proposed_json:reservation.request_proposed_json,member_note:reservation.request_member_note,
+      admin_comment:reservation.request_admin_comment,created_at:reservation.request_created_at,updated_at:reservation.request_updated_at,
+      decided_at:reservation.request_decided_at,decided_by:reservation.request_decided_by,
+    })];
   }
   const visualCache = new Map();
   await Promise.all((rows.results || []).map(reservation => hydrateReservationAccommodationVisual(env, reservation, visualCache)));
+  if(workflowDetail)await Promise.all((rows.results||[]).map(reservation=>attachAdminReservationContext(env,reservation)));
 
   return json({
     ok: true,
@@ -151,7 +164,8 @@ function publicAdminReservation(reservation) {
     showShine: reservation.show_shine || "Ne",
     note: reservation.note || "",
     status: reservation.status || "pending",
-    changePending: reservation.status === "pending" && !!reservation.reviewed_at,
+    changePending: reservation.status === "pending" && !!reservation.reviewed_at || reservation.admin_requests?.some(item=>item.status==='pending'&&item.type==='change') || false,
+    cancellationPending: reservation.admin_requests?.some(item=>item.status==='pending'&&item.type==='cancellation')||false,
     paymentStatus: paymentStatusFor(reservation.amount_due_czk, reservation.amount_paid_czk),
     amountDueCzk: Number(reservation.amount_due_czk || 0),
     amountPaidCzk: Number(reservation.amount_paid_czk || 0),
@@ -159,6 +173,9 @@ function publicAdminReservation(reservation) {
     updatedAt: reservation.updated_at || null,
     reviewedAt: reservation.reviewed_at || null,
     reviewNote: reservation.review_note || "",
+    ...(Object.hasOwn(reservation,'member_comment')?{memberComment:reservation.member_comment||''}:{}),
+    requests: reservation.admin_requests || [],
+    history: reservation.admin_history || [],
     payment: reservationPayment(reservation, { admin: true }),
   };
 }
@@ -171,7 +188,7 @@ async function findCurrentReservation(env, memberId, eventId) {
       r.arrival, r.crew, r.accommodation, r.show_shine, r.note, r.status,
       r.attendance_type, r.accommodation_units,
       r.amount_due_czk, r.amount_paid_czk, r.payment_status, r.payment_vs,
-      r.paid_at, r.submitted_at, r.created_at, r.updated_at, r.reviewed_at,
+      r.paid_at, r.submitted_at, r.created_at, r.updated_at, r.reviewed_at, r.review_note,
       e.year AS event_year, e.registration_status AS event_registration_status,
       e.currency AS payment_currency, e.payment_deadline,
       e.payment_recipient_name, e.payment_account_display, e.payment_iban,
@@ -209,7 +226,7 @@ async function findLatestReservation(env, memberId) {
       r.arrival, r.crew, r.accommodation, r.show_shine, r.note, r.status,
       r.attendance_type, r.accommodation_units,
       r.amount_due_czk, r.amount_paid_czk, r.payment_status, r.payment_vs,
-      r.paid_at, r.submitted_at, r.created_at, r.updated_at, r.reviewed_at,
+      r.paid_at, r.submitted_at, r.created_at, r.updated_at, r.reviewed_at, r.review_note,
       e.year AS event_year, e.registration_status AS event_registration_status,
       e.currency AS payment_currency, e.payment_deadline,
       e.payment_recipient_name, e.payment_account_display, e.payment_iban,
@@ -248,7 +265,7 @@ async function getCurrentReservation(env, auth, origin) {
       await ensureReservationPaymentVs(env, reservation.id, reservation.event_year);
       reservation = await findLatestReservation(env, auth.uid);
     }
-    if (reservation) await hydrateReservationAccommodationVisual(env, reservation);
+    if (reservation) { await hydrateReservationAccommodationVisual(env, reservation); await attachMemberReservationRequest(env,reservation); }
     return json({
       ok: true,
       registrationOpen: false,
@@ -264,7 +281,7 @@ async function getCurrentReservation(env, auth, origin) {
     await ensureReservationPaymentVs(env, reservation.id, reservation.event_year);
     reservation = await findCurrentReservation(env, auth.uid, event.id);
   }
-  if (reservation) await hydrateReservationAccommodationVisual(env, reservation);
+  if (reservation) { await hydrateReservationAccommodationVisual(env, reservation); await attachMemberReservationRequest(env,reservation); }
   const options = await listMemberAccommodationOptions(env, event.id, reservation);
   return json({
     ok: true,
@@ -360,6 +377,7 @@ async function putCurrentReservation(request, env, auth, origin) {
   if (requestedReservationId && (!existing || requestedReservationId !== existing.id)) {
     return json({ ok: false, error: "reservation_not_found", message: "Rezervace pro tento účet a event nebyla nalezena." }, 404, origin);
   }
+  if(existing?.status==='approved')return json({ok:false,error:'reservation_change_request_required',message:'Schválenou rezervaci změň přes žádost o změnu.'},409,origin);
   const reservationId = existing?.id || crypto.randomUUID();
   const writeToken = createWriteToken();
   const amountDueCzk = pricing?.totalCzk || 0;
@@ -565,6 +583,8 @@ function publicReservation(reservation) {
     submittedAt: reservation.submitted_at || null,
     createdAt: reservation.created_at || null,
     updatedAt: reservation.updated_at || null,
+    memberComment: reservation.member_comment || "",
+    request: reservation.member_request || null,
   };
 }
 
