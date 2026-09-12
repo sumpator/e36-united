@@ -247,8 +247,9 @@ test.describe('desktop member portal', () => {
 
     await page.goto('/member.html');
     await expectMemberOverview(page);
-    await expect(page.locator('[data-member-payment]')).toContainText('Doplatek');
     await page.locator('.member-sidebar [data-member-section="reservation"]').click();
+    await expect(page.locator('[data-member-payment]')).toHaveCount(0);
+    await expect(page.locator('[data-reservation-payment-detail]')).toContainText('Doplatek');
     await expect(page.locator('[data-reservation-payment-detail] .member-payment-qr svg')).toBeVisible();
     await page.locator('.member-sidebar [data-member-section="payments"]').click();
 

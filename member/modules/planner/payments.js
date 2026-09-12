@@ -14,7 +14,7 @@ function paymentQrSvg(spayd){
   catch(error){console.error('QR payment render failed',error);return ''}
 }
 
-export function createReservationPayments({openSection}){
+export function createReservationPayments(){
   function paymentCard(reservation){
     const payment=reservation?.payment;if(!reservation||!payment)return '';
     const cancelled=reservation.status==='cancelled';
@@ -35,22 +35,10 @@ export function createReservationPayments({openSection}){
     return `<article class="member-payment-card payment-status-${esc(payment.status)}">${payment.testMode?'<div class="payment-test-warning">TESTOVACÍ PLATBA – NEPLAŤTE</div>':''}<div class="payment-item-head"><div><span class="member-kicker">REZERVACE / EVENT</span><h3>${esc(eventLabel)}</h3></div><span class="payment-status-pill">${esc(statusCopy)}</span></div><div class="member-payment-layout"><div class="member-payment-copy"><h4>${esc(paymentTitle)}</h4><dl><div><dt>Cena rezervace</dt><dd>${esc(formatCzk(payment.amountDueCzk))}</dd></div><div><dt>Již zaplaceno</dt><dd>${esc(formatCzk(payment.amountPaidCzk))}</dd></div><div class="member-payment-remaining"><dt>${esc(balanceLabel)}</dt><dd>${esc(balanceValue)}</dd></div>${instructionRows}</dl></div>${qr?`<div class="member-payment-qr"><div>${qr}</div><strong>Naskenuj v bankovní aplikaci</strong><small>QR obsahuje aktuální splatnou částku, stejný VS, zprávu a splatnost.</small></div>`:''}</div></article>`;
   }
   function renderReservationPayment(reservation){
-    const container=$('[data-member-payment]'),detail=$('[data-reservation-payment-detail]'),paymentsList=$('[data-payments-list]');if(!container||!paymentsList)return;
+    const detail=$('[data-reservation-payment-detail]'),paymentsList=$('[data-payments-list]');if(!paymentsList)return;
     const payment=reservation?.payment;
-    if(!reservation||!payment){container.hidden=true;container.innerHTML='';if(detail){detail.hidden=true;detail.innerHTML=''}paymentsList.innerHTML='<article class="portal-empty-state"><span aria-hidden="true">✓</span><div><strong>Aktuálně nemáš žádnou platbu k řešení.</strong><p>Platební údaje se zobrazí pouze u skutečné rezervace.</p></div></article>';return}
+    if(!reservation||!payment){if(detail){detail.hidden=true;detail.innerHTML=''}paymentsList.innerHTML='<article class="portal-empty-state"><span aria-hidden="true">✓</span><div><strong>Aktuálně nemáš žádnou platbu k řešení.</strong><p>Platební údaje se zobrazí pouze u skutečné rezervace.</p></div></article>';return}
     const fullCard=paymentCard(reservation);paymentsList.innerHTML=fullCard;if(detail){detail.hidden=false;detail.innerHTML=`<div class="reservation-payment-detail-head"><span class="member-kicker">PLATBA K REZERVACI</span><h3>Cena, úhrada a QR</h3></div>${fullCard}`}
-    if(reservation.status!=='approved'){
-      if(reservation.status==='cancelled'){container.hidden=false;container.innerHTML=`<div><span class="member-kicker">ZRUŠENÁ REZERVACE</span><strong>Další platba se nepožaduje</strong><small>Evidovaně uhrazeno: ${esc(formatCzk(payment.amountPaidCzk))}</small></div>`;return}
-      const pendingTitle=reservation.changePending?'ZMĚNA ČEKÁ NA SCHVÁLENÍ':'ČEKÁ NA SCHVÁLENÍ';
-      const pendingPriceLabel=reservation.changePending?'Cena po změně':'Cena rezervace';
-      container.hidden=false;container.innerHTML=`<div><span class="member-kicker">${pendingTitle}</span><strong>${pendingPriceLabel}: ${esc(formatCzk(payment.amountDueCzk))}</strong><small>Již zaplaceno: ${esc(formatCzk(payment.amountPaidCzk))} · platební výzva se zpřístupní až po schválení.</small></div>`;
-      return;
-    }
-    container.hidden=false;
-    const statusCopy=`${paymentLabel(payment.status)}${payment.overdue?' · po splatnosti':''}`;
-    const balanceCopy=payment.status==='overpaid'?`Přeplatek ${formatCzk(payment.overpaymentCzk)}`:payment.status==='underpaid'?`Doplatek ${formatCzk(payment.remainingCzk)}`:payment.status==='unpaid'?`K platbě ${formatCzk(payment.remainingCzk)}`:payment.status==='paid'?'Platba je vyrovnaná.':'Bez platby';
-    container.innerHTML=`<div><span class="member-kicker">PLATBA REZERVACE</span><strong>${esc(statusCopy)}</strong><small>${esc(balanceCopy)}</small></div><button class="member-secondary" data-payment-open type="button">Přejít na platbu →</button>`;
-    $('[data-payment-open]',container)?.addEventListener('click',()=>openSection('payments'));
   }
 
   return {renderReservationPayment};

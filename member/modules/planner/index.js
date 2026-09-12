@@ -2,7 +2,7 @@ import { accommodationVisualMarkup, bindAccommodationVisualFallbacks } from '../
 import { accommodationGalleryCue, accommodationPhotos, bindAccommodationGalleryTrigger } from '../../../accommodation-gallery.js?v=20260912-reservation-detail-ux-r1';
 import { MAX_RESERVATION_CREW, newerPlannerDraft, validatePlannerDraft } from '../../../planner-state.js?v=20260827-reservation-limits';
 import { $, esc, setButtonBusy, toast } from '../../ui.js?v=20260902-phase3';
-import { createReservationPayments, formatCzk } from './payments.js?v=20260911-reservation-flow-r1';
+import { createReservationPayments, formatCzk } from './payments.js?v=20260912-member-reservation-panels-r1';
 import { normalizeAccommodationOption, normalizeReservation } from './reservation.js?v=20260911-reservation-flow-r1';
 import { isAuthorizationFailure } from '../../refresh.js?v=20260907-feedback';
 
@@ -40,7 +40,7 @@ export function createMemberPlanner({
   const crewInput=reservationForm?.elements?.crew,accommodationUnitsInput=reservationForm?.elements?.accommodationUnits,sleepSelect=reservationForm?.elements?.sleep;
   const accommodationOptionField=$('[data-accommodation-option-field]'),accommodationOptionLabel=$('[data-accommodation-option-label]'),accommodationOptionSelect=reservationForm?.elements?.accommodationOptionId,accommodationAvailability=$('[data-accommodation-availability]');
   const accommodationPartialField=$('[data-accommodation-partial-field]'),accommodationPartialInput=reservationForm?.elements?.partialAccommodation,accommodationPeopleField=$('[data-accommodation-people-field]'),accommodationPreview=$('[data-accommodation-preview]');
-  const reservationPayments=createReservationPayments({openSection});
+  const reservationPayments=createReservationPayments();
 
   function decodePlannerHandoff(value){
     try{
