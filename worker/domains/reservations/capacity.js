@@ -1,4 +1,4 @@
-import { accommodationMediaMetadata, hydrateAccommodationMedia } from "../accommodation.js";
+import { accommodationMediaMetadata, hydrateAccommodationMedia, listAccommodationGalleryRows } from "../accommodation.js";
 import { json } from "../../http/responses.js";
 import { mapAccommodationSnapshot } from "./pricing.js";
 
@@ -76,8 +76,10 @@ function mapAccommodationOption(row) {
 
 async function hydrateReservationAccommodationVisual(env, reservation, cache = new Map()) {
   if (!reservation?.accommodation_option_id) return reservation;
-  const key = `${reservation.event_id}:${reservation.accommodation_option_id}`;
-  if (!cache.has(key)) cache.set(key, accommodationMediaMetadata(env, reservation.event_id, reservation.accommodation_option_id));
+  const galleryKey = `gallery:${reservation.event_id}`;
+  if (!cache.has(galleryKey)) cache.set(galleryKey, listAccommodationGalleryRows(env, reservation.event_id));
+  const key = `media:${reservation.event_id}:${reservation.accommodation_option_id}`;
+  if (!cache.has(key)) cache.set(key, Promise.resolve(cache.get(galleryKey)).then(rows => accommodationMediaMetadata(env, reservation.event_id, reservation.accommodation_option_id, rows)));
   const media = await cache.get(key);
   reservation.accommodation_visual = media.visual;
   reservation.accommodation_photos = media.photos;

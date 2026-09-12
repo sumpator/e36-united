@@ -8,6 +8,7 @@ import { initPublicMemberState } from '../public-member-state.js';
 const eventMigration=readFileSync(new URL('../D1-event-accommodation-v1.sql',import.meta.url),'utf8');
 const paymentMigration=readFileSync(new URL('../D1-reservation-payments-v1.sql',import.meta.url),'utf8');
 const plannerMigration=readFileSync(new URL('../D1-member-planner-drafts-v1.sql',import.meta.url),'utf8');
+const accommodationGalleryMigration=readFileSync(new URL('../db/migrations/2026-09-12-accommodation-gallery.sql',import.meta.url),'utf8');
 const mainSource=readFileSync(new URL('../main.js',import.meta.url),'utf8');
 const indexSource=readFileSync(new URL('../index.html',import.meta.url),'utf8');
 const memberSource=readFileSync(new URL('../member/modules/planner/index.js',import.meta.url),'utf8');
@@ -39,11 +40,13 @@ function database(){
       UNIQUE(member_id,event_id), FOREIGN KEY(event_id) REFERENCES events(id)
     );
     CREATE TABLE admin_actions (id TEXT PRIMARY KEY, admin_member_id TEXT, action_type TEXT, entity_type TEXT, entity_id TEXT, old_state_json TEXT, new_state_json TEXT, note TEXT, created_at TEXT);
+    CREATE TABLE admin_resource_versions (resource_type TEXT NOT NULL, resource_id TEXT NOT NULL, revision INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(resource_type,resource_id));
+    CREATE TABLE schema_migrations (id TEXT PRIMARY KEY, description TEXT NOT NULL, applied_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
     INSERT INTO events (id,year,registration_status) VALUES ('event-2026',2026,'closed');
     INSERT INTO members (id,name) VALUES ('member-a','A'),('member-b','B');
     INSERT INTO cars (id,member_id,model,body,year) VALUES ('car-a','member-a','328i','Coupé',1996);
   `);
-  db.exec(eventMigration);db.exec(paymentMigration);db.exec(plannerMigration);
+  db.exec(eventMigration);db.exec(paymentMigration);db.exec(plannerMigration);db.exec(accommodationGalleryMigration);
   return db;
 }
 

@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { accommodationFallbackSvg, accommodationImageFallbackSvg, accommodationVisualMarkup, accommodationVisualModel } from '../accommodation-visual.js';
+import { accommodationGalleryCue, accommodationPhotos, bindAccommodationGalleryTrigger } from '../accommodation-gallery.js';
 
 const read=name=>readFileSync(new URL(`../${name}`,import.meta.url),'utf8');
 
@@ -37,15 +38,26 @@ test('authenticated member can bootstrap/load Member Portal successfully with ac
   const member=read('member/modules/planner/index.js'),start=member.indexOf('function renderAccommodationPreview(){'),end=member.indexOf('function syncMemberSleep(',start);
   assert.ok(start>=0&&end>start);
   const renderSource=member.slice(start,end),preview={hidden:true,innerHTML:''},availability={textContent:'',classList:{toggle(){}}};
-  const execute=new Function('accommodationPreview','accommodationAvailability','selectedAccommodationOption','MAX_RESERVATION_CREW','crewInput','accommodationUnitsInput','clampReservationNumber','matchingAccommodationOptions','priceAccommodation','numericValue','$','accommodationVisualMarkup','apiBaseUrl','esc','formatCzk','bindAccommodationVisualFallbacks',`${renderSource};renderAccommodationPreview();`);
+  const execute=new Function('accommodationPreview','accommodationAvailability','selectedAccommodationOption','MAX_RESERVATION_CREW','crewInput','accommodationUnitsInput','clampReservationNumber','matchingAccommodationOptions','priceAccommodation','numericValue','$','accommodationVisualMarkup','apiBaseUrl','esc','formatCzk','bindAccommodationVisualFallbacks','accommodationPhotos','accommodationGalleryCue','bindAccommodationGalleryTrigger',`${renderSource};renderAccommodationPreview();`);
   assert.doesNotThrow(()=>execute(
     preview,availability,()=>option,5,{value:'2'},{value:'2'},(value,min,max,fallback)=>Number.isFinite(Number(value))?Math.max(min,Math.min(max,Number(value))):fallback,
     ()=>[option],()=>({unitCount:1,nights:2,baseTotalCzk:2400,personTotalCzk:0,beddingTotalCzk:0,cityTaxTotalCzk:200,totalCzk:2600}),value=>Number(value||0),()=>null,
-    accommodationVisualMarkup,'https://api.e36united.cz',String,value=>`${value} Kč`,()=>{},
+    accommodationVisualMarkup,'https://api.e36united.cz',String,value=>`${value} Kč`,()=>{},accommodationPhotos,accommodationGalleryCue,bindAccommodationGalleryTrigger,
   ));
   assert.equal(preview.hidden,false);
   assert.match(preview.innerHTML,/data-accommodation-fallback=/);
   assert.match(preview.innerHTML,/Orientačně celkem/);
+});
+
+test('accommodation gallery input is defined for zero, one and multiple photos while the cover remains a fallback',()=>{
+  const cover={...option,visual:{hasCustomPhoto:true,imageUrl:'/api/accommodation/media/cabin-a?v=cover'}};
+  assert.deepEqual(accommodationPhotos(option),[]);
+  assert.deepEqual(accommodationPhotos(cover),[{id:'cover',role:'cover',imageUrl:'/api/accommodation/media/cabin-a?v=cover'}]);
+  assert.deepEqual(accommodationPhotos({...cover,photos:[{id:'cover',role:'cover',imageUrl:'/cover'},{id:'one',imageUrl:'/one'},{id:'two',imageUrl:'/two'}]}),[
+    {id:'cover',role:'cover',imageUrl:'/cover'},
+    {id:'one',role:'additional',imageUrl:'/one'},
+    {id:'two',role:'additional',imageUrl:'/two'},
+  ]);
 });
 
 test('one shared visual module propagates through Planner, Member Portal and Admin contexts',()=>{

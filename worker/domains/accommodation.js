@@ -78,18 +78,12 @@ async function hydrateAccommodationMedia(env, eventId, options) {
   return options;
 }
 
-async function accommodationMediaMetadata(env, eventId, optionId) {
+async function accommodationMediaMetadata(env, eventId, optionId, galleryRows = null) {
   const [cover, rows] = await Promise.all([
     accommodationVisualMetadata(env, eventId, optionId),
-    env.DB.prepare(`
-      SELECT id, option_id, sort_order, created_at, updated_at
-      FROM event_accommodation_photos
-      WHERE option_id = ?
-      ORDER BY sort_order ASC, id ASC
-      LIMIT 5
-    `).bind(optionId).all(),
+    galleryRows ? Promise.resolve(galleryRows) : listAccommodationGalleryRows(env, eventId),
   ]);
-  const additional = (rows.results || []).map(galleryPhotoMetadata);
+  const additional = rows.filter(row => row.option_id === optionId).map(galleryPhotoMetadata);
   return {
     visual: cover.hasCustomPhoto
       ? cover
@@ -265,6 +259,7 @@ export {
   deleteAdminAccommodationGalleryPhoto,
   deleteAdminAccommodationPhoto,
   hydrateAccommodationMedia,
+  listAccommodationGalleryRows,
   patchAdminAccommodationGalleryPhoto,
   postAdminAccommodationGalleryPhoto,
   publicAccommodationGalleryMedia,

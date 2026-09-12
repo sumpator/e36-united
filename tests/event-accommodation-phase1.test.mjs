@@ -135,13 +135,15 @@ function saveIfCapacity(db, { reservationId, memberId, units, people }) {
   return 200;
 }
 
-function d1Binding(db) {
+function d1Binding(db, queryLog = null) {
   class Statement {
     constructor(sql, bindings = []) { this.sql = sql; this.bindings = bindings; }
     bind(...bindings) { return new Statement(this.sql, bindings); }
-    first() { return db.prepare(this.sql).get(...this.bindings) || null; }
-    all() { return { results: db.prepare(this.sql).all(...this.bindings) }; }
+    record() { queryLog?.push({ sql: this.sql, args: this.bindings }); }
+    first() { this.record(); return db.prepare(this.sql).get(...this.bindings) || null; }
+    all() { this.record(); return { results: db.prepare(this.sql).all(...this.bindings) }; }
     run() {
+      this.record();
       if (/^\s*(SELECT|WITH)/i.test(this.sql)) return { results: db.prepare(this.sql).all(...this.bindings), meta: { changes: 0 } };
       const result = db.prepare(this.sql).run(...this.bindings); return { meta: { changes: Number(result.changes || 0) } };
     }
@@ -204,10 +206,10 @@ async function approveChangeRequest(db,reservationId,requestId){
 }
 
 class MemoryMedia {
-  constructor(){this.objects=new Map();this.writes=0}
+  constructor(){this.objects=new Map();this.writes=0;this.reads=0}
   async put(key,body,options={}){const bytes=new Uint8Array(await new Response(body).arrayBuffer()),etag=`etag-${++this.writes}`;this.objects.set(key,{bytes,etag,httpEtag:`"${etag}"`,httpMetadata:options.httpMetadata||{},customMetadata:options.customMetadata||{}})}
   async head(key){const value=this.objects.get(key);return value?{etag:value.etag,httpEtag:value.httpEtag,size:value.bytes.byteLength}:null}
-  async get(key){const value=this.objects.get(key);return value?{body:value.bytes,etag:value.etag,httpEtag:value.httpEtag,writeHttpMetadata(headers){if(value.httpMetadata.contentType)headers.set('Content-Type',value.httpMetadata.contentType)}}:null}
+  async get(key){this.reads++;const value=this.objects.get(key);return value?{body:value.bytes,etag:value.etag,httpEtag:value.httpEtag,writeHttpMetadata(headers){if(value.httpMetadata.contentType)headers.set('Content-Type',value.httpMetadata.contentType)}}:null}
   async delete(key){this.objects.delete(key)}
 }
 
@@ -721,4 +723,18 @@ test('36. accommodation gallery migration is registered and keeps foreign keys v
   assert.equal(db.prepare("SELECT description FROM schema_migrations WHERE id='2026-09-12-accommodation-gallery'").get().description,'Add ordered accommodation gallery metadata without moving existing cover media');
   assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(),[]);
   assert.deepEqual(db.prepare('PRAGMA index_info(idx_event_accommodation_photos_option_order)').all().map(column=>column.name),['option_id','sort_order','id']);
+});
+
+test('37. reservation projections load bounded gallery metadata once per event without binary reads or per-option queries', async () => {
+  const db=database(),queries=[];addOption(db);addOption(db,{id:'tent-b',name:'Stan B',kind:'tent',inventory:'unlimited'});
+  db.prepare("INSERT INTO members(id,name) VALUES('m1','One'),('m2','Two')").run();
+  addAllocation(db,{reservationId:'r1',memberId:'m1',optionId:'cabin-a'});addAllocation(db,{reservationId:'r2',memberId:'m2',optionId:'tent-b'});
+  const MEDIA=new MemoryMedia(),response=await workerModule.getAdminReservations({DB:d1Binding(db,queries),MEDIA,ADMIN_READ:true},new URL('https://api.e36united.cz/api/admin/reservations?eventId=event-2026'),'https://e36united.cz');
+  assert.equal(response.status,200);const reservations=(await response.json()).reservations;
+  assert.deepEqual(reservations.map(row=>row.accommodationSnapshot.visual.hasCustomPhoto),[false,false]);assert.equal(MEDIA.reads,0);
+  const galleryQueries=queries.filter(query=>query.sql.includes('event_accommodation_photos'));
+  assert.equal(galleryQueries.length,1);assert.deepEqual(galleryQueries[0].args,['event-2026']);
+  assert.match(galleryQueries[0].sql,/JOIN event_accommodation_options o ON o\.id = p\.option_id/);
+  assert.match(galleryQueries[0].sql,/WHERE o\.event_id = \?/);assert.match(galleryQueries[0].sql,/photo_rank <= 5/);
+  assert.doesNotMatch(galleryQueries[0].sql,/WHERE option_id = \?/);
 });

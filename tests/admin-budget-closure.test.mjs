@@ -33,8 +33,8 @@ test('budget evidence describes actual current authorized SQL and never prices a
   const {runtime,report}=await captureAdminBudget();
   for(const endpoint of report){
     const recorded=after.report.find(e=>e.name===endpoint.name);assert.ok(recorded);
-    // Keep the accepted historical Stage 2 evidence exact. The separately tested
-    // r5 header addon must be these two scoped lookups, not an unpriced exception.
+    // Keep the accepted Stage 2 evidence plus its explicit gallery amendment exact.
+    // The separately tested r5 header addon must be these two scoped lookups.
     const addon=endpoint.name==='member-header'?[MEMBER_HERO_CAR_SQL,MEMBER_HERO_PHOTO_SQL]:[];
     assert.deepEqual(endpoint.queries.map(q=>sql(q.sql)),[...recorded.queries.map(q=>sql(q.sql)),...addon],endpoint.name);
     if(addon.length)assert.deepEqual(endpoint.queries.slice(-2).map(q=>q.args),[['m'],['c']]);
@@ -72,7 +72,11 @@ test('opt-in source detail drops only unused facets, keeps exact record and neve
   const detail=await get('&id=r&projection=detail');
   assert.deepEqual(detail.reservations,old.reservations);assert.deepEqual(detail.pagination,old.pagination);
   assert.equal(detail.counts,undefined);assert.equal(detail.freshness.consistency,'primary-detail');
-  assert.equal(r.queries.length,2);assert.ok(!r.queries.some(q=>q.sql.includes('COUNT(CASE')));
+  assert.equal(r.queries.length,3);assert.ok(!r.queries.some(q=>q.sql.includes('COUNT(CASE')));
+  const galleryQueries=r.queries.filter(q=>q.sql.includes('event_accommodation_photos'));
+  assert.equal(galleryQueries.length,1);assert.deepEqual(galleryQueries[0].args,['e']);
+  assert.match(galleryQueries[0].sql,/JOIN event_accommodation_options o ON o\.id = p\.option_id/);
+  assert.match(galleryQueries[0].sql,/WHERE o\.event_id = \?/);assert.match(galleryQueries[0].sql,/photo_rank <= 5/);
   assert.equal((await get('&projection=detail')).counts.all,300);
   assert.equal((await get('&id=absent&projection=detail')).pagination.total,0);
   assert.equal((await(await getAdminReservations(env,new URL('/?eventId=missing&id=r&projection=detail',origin),origin)).json()).error,'event_not_found');

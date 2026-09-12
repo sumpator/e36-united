@@ -10,6 +10,7 @@
     "gallery_submissions": 750,
     "reservations": 900,
     "event_accommodation_options": 3,
+    "event_accommodation_photos": 0,
     "reservation_accommodation": 540,
     "admin_actions": 0,
     "attendance": 0,
@@ -976,10 +977,31 @@
           "localVisits": 601,
           "indexProbeAllowance": 301,
           "estimatedRows": 902
+        },
+        {
+          "sql": "\n    WITH ordered AS (\n      SELECT p.id, p.option_id, p.sort_order, p.created_at, p.updated_at,\n             ROW_NUMBER() OVER (PARTITION BY p.option_id ORDER BY p.sort_order ASC, p.id ASC) AS photo_rank\n      FROM event_accommodation_photos p\n      JOIN event_accommodation_options o ON o.id = p.option_id\n      WHERE o.event_id = ?\n    )\n    SELECT id, option_id, sort_order, created_at, updated_at\n    FROM ordered\n    WHERE photo_rank <= 5\n    ORDER BY option_id ASC, sort_order ASC, id ASC\n  ",
+          "args": [
+            "e"
+          ],
+          "plan": [
+            "CO-ROUTINE ordered",
+            "CO-ROUTINE (subquery-3)",
+            "SEARCH o USING INDEX idx_event_accommodation_event_active (event_id=?)",
+            "SEARCH p USING INDEX idx_event_accommodation_photos_option_order (option_id=?)",
+            "USE TEMP B-TREE FOR ORDER BY",
+            "SCAN (subquery-3)",
+            "SCAN ordered",
+            "USE TEMP B-TREE FOR ORDER BY"
+          ],
+          "localVisits": null,
+          "indexProbeAllowance": null,
+          "fastCountAllowance": 0,
+          "estimatedRows": 8,
+          "estimationMethod": "Conservative bounded allowance for the synthetic event: one event-scoped option lookup, at most five returned photo rows and index probes; not measured Cloudflare meta.rows_read."
         }
       ],
-      "estimatedRows": 3483,
-      "localVisits": 2168
+      "estimatedRows": 3491,
+      "localVisits": null
     },
     {
       "name": "reservation-detail",
@@ -1215,10 +1237,31 @@
           "localVisits": 601,
           "indexProbeAllowance": 301,
           "estimatedRows": 902
+        },
+        {
+          "sql": "\n    WITH ordered AS (\n      SELECT p.id, p.option_id, p.sort_order, p.created_at, p.updated_at,\n             ROW_NUMBER() OVER (PARTITION BY p.option_id ORDER BY p.sort_order ASC, p.id ASC) AS photo_rank\n      FROM event_accommodation_photos p\n      JOIN event_accommodation_options o ON o.id = p.option_id\n      WHERE o.event_id = ?\n    )\n    SELECT id, option_id, sort_order, created_at, updated_at\n    FROM ordered\n    WHERE photo_rank <= 5\n    ORDER BY option_id ASC, sort_order ASC, id ASC\n  ",
+          "args": [
+            "e"
+          ],
+          "plan": [
+            "CO-ROUTINE ordered",
+            "CO-ROUTINE (subquery-3)",
+            "SEARCH o USING INDEX idx_event_accommodation_event_active (event_id=?)",
+            "SEARCH p USING INDEX idx_event_accommodation_photos_option_order (option_id=?)",
+            "USE TEMP B-TREE FOR ORDER BY",
+            "SCAN (subquery-3)",
+            "SCAN ordered",
+            "USE TEMP B-TREE FOR ORDER BY"
+          ],
+          "localVisits": null,
+          "indexProbeAllowance": null,
+          "fastCountAllowance": 0,
+          "estimatedRows": 8,
+          "estimationMethod": "Conservative bounded allowance for the synthetic event: one event-scoped option lookup, at most five returned photo rows and index probes; not measured Cloudflare meta.rows_read."
         }
       ],
-      "estimatedRows": 930,
-      "localVisits": 618
+      "estimatedRows": 938,
+      "localVisits": null
     },
     {
       "name": "reservation-pending-detail",
@@ -1454,10 +1497,31 @@
           "localVisits": 601,
           "indexProbeAllowance": 301,
           "estimatedRows": 902
+        },
+        {
+          "sql": "\n    WITH ordered AS (\n      SELECT p.id, p.option_id, p.sort_order, p.created_at, p.updated_at,\n             ROW_NUMBER() OVER (PARTITION BY p.option_id ORDER BY p.sort_order ASC, p.id ASC) AS photo_rank\n      FROM event_accommodation_photos p\n      JOIN event_accommodation_options o ON o.id = p.option_id\n      WHERE o.event_id = ?\n    )\n    SELECT id, option_id, sort_order, created_at, updated_at\n    FROM ordered\n    WHERE photo_rank <= 5\n    ORDER BY option_id ASC, sort_order ASC, id ASC\n  ",
+          "args": [
+            "e"
+          ],
+          "plan": [
+            "CO-ROUTINE ordered",
+            "CO-ROUTINE (subquery-3)",
+            "SEARCH o USING INDEX idx_event_accommodation_event_active (event_id=?)",
+            "SEARCH p USING INDEX idx_event_accommodation_photos_option_order (option_id=?)",
+            "USE TEMP B-TREE FOR ORDER BY",
+            "SCAN (subquery-3)",
+            "SCAN ordered",
+            "USE TEMP B-TREE FOR ORDER BY"
+          ],
+          "localVisits": null,
+          "indexProbeAllowance": null,
+          "fastCountAllowance": 0,
+          "estimatedRows": 8,
+          "estimationMethod": "Conservative bounded allowance for the synthetic event: one event-scoped option lookup, at most five returned photo rows and index probes; not measured Cloudflare meta.rows_read."
         }
       ],
-      "estimatedRows": 1654,
-      "localVisits": 981
+      "estimatedRows": 1662,
+      "localVisits": null
     },
     {
       "name": "reservation-detail-only",
@@ -1628,10 +1692,31 @@
           "localVisits": 10,
           "indexProbeAllowance": 6,
           "estimatedRows": 16
+        },
+        {
+          "sql": "\n    WITH ordered AS (\n      SELECT p.id, p.option_id, p.sort_order, p.created_at, p.updated_at,\n             ROW_NUMBER() OVER (PARTITION BY p.option_id ORDER BY p.sort_order ASC, p.id ASC) AS photo_rank\n      FROM event_accommodation_photos p\n      JOIN event_accommodation_options o ON o.id = p.option_id\n      WHERE o.event_id = ?\n    )\n    SELECT id, option_id, sort_order, created_at, updated_at\n    FROM ordered\n    WHERE photo_rank <= 5\n    ORDER BY option_id ASC, sort_order ASC, id ASC\n  ",
+          "args": [
+            "e"
+          ],
+          "plan": [
+            "CO-ROUTINE ordered",
+            "CO-ROUTINE (subquery-3)",
+            "SEARCH o USING INDEX idx_event_accommodation_event_active (event_id=?)",
+            "SEARCH p USING INDEX idx_event_accommodation_photos_option_order (option_id=?)",
+            "USE TEMP B-TREE FOR ORDER BY",
+            "SCAN (subquery-3)",
+            "SCAN ordered",
+            "USE TEMP B-TREE FOR ORDER BY"
+          ],
+          "localVisits": null,
+          "indexProbeAllowance": null,
+          "fastCountAllowance": 0,
+          "estimatedRows": 8,
+          "estimationMethod": "Conservative bounded allowance for the synthetic event: one event-scoped option lookup, at most five returned photo rows and index probes; not measured Cloudflare meta.rows_read."
         }
       ],
-      "estimatedRows": 24,
-      "localVisits": 14
+      "estimatedRows": 32,
+      "localVisits": null
     },
     {
       "name": "reservation-pending-detail-only",
@@ -1802,10 +1887,31 @@
           "localVisits": 373,
           "indexProbeAllowance": 367,
           "estimatedRows": 740
+        },
+        {
+          "sql": "\n    WITH ordered AS (\n      SELECT p.id, p.option_id, p.sort_order, p.created_at, p.updated_at,\n             ROW_NUMBER() OVER (PARTITION BY p.option_id ORDER BY p.sort_order ASC, p.id ASC) AS photo_rank\n      FROM event_accommodation_photos p\n      JOIN event_accommodation_options o ON o.id = p.option_id\n      WHERE o.event_id = ?\n    )\n    SELECT id, option_id, sort_order, created_at, updated_at\n    FROM ordered\n    WHERE photo_rank <= 5\n    ORDER BY option_id ASC, sort_order ASC, id ASC\n  ",
+          "args": [
+            "e"
+          ],
+          "plan": [
+            "CO-ROUTINE ordered",
+            "CO-ROUTINE (subquery-3)",
+            "SEARCH o USING INDEX idx_event_accommodation_event_active (event_id=?)",
+            "SEARCH p USING INDEX idx_event_accommodation_photos_option_order (option_id=?)",
+            "USE TEMP B-TREE FOR ORDER BY",
+            "SCAN (subquery-3)",
+            "SCAN ordered",
+            "USE TEMP B-TREE FOR ORDER BY"
+          ],
+          "localVisits": null,
+          "indexProbeAllowance": null,
+          "fastCountAllowance": 0,
+          "estimatedRows": 8,
+          "estimationMethod": "Conservative bounded allowance for the synthetic event: one event-scoped option lookup, at most five returned photo rows and index probes; not measured Cloudflare meta.rows_read."
         }
       ],
-      "estimatedRows": 748,
-      "localVisits": 377
+      "estimatedRows": 756,
+      "localVisits": null
     },
     {
       "name": "accommodation",
@@ -1910,10 +2016,31 @@
           "localVisits": 363,
           "indexProbeAllowance": 362,
           "estimatedRows": 725
+        },
+        {
+          "sql": "\n    WITH ordered AS (\n      SELECT p.id, p.option_id, p.sort_order, p.created_at, p.updated_at,\n             ROW_NUMBER() OVER (PARTITION BY p.option_id ORDER BY p.sort_order ASC, p.id ASC) AS photo_rank\n      FROM event_accommodation_photos p\n      JOIN event_accommodation_options o ON o.id = p.option_id\n      WHERE o.event_id = ?\n    )\n    SELECT id, option_id, sort_order, created_at, updated_at\n    FROM ordered\n    WHERE photo_rank <= 5\n    ORDER BY option_id ASC, sort_order ASC, id ASC\n  ",
+          "args": [
+            "e"
+          ],
+          "plan": [
+            "CO-ROUTINE ordered",
+            "CO-ROUTINE (subquery-3)",
+            "SEARCH o USING INDEX idx_event_accommodation_event_active (event_id=?)",
+            "SEARCH p USING INDEX idx_event_accommodation_photos_option_order (option_id=?)",
+            "USE TEMP B-TREE FOR ORDER BY",
+            "SCAN (subquery-3)",
+            "SCAN ordered",
+            "USE TEMP B-TREE FOR ORDER BY"
+          ],
+          "localVisits": null,
+          "indexProbeAllowance": null,
+          "fastCountAllowance": 0,
+          "estimatedRows": 8,
+          "estimationMethod": "Conservative bounded allowance for the synthetic event: one event-scoped option lookup, at most five returned photo rows and index probes; not measured Cloudflare meta.rows_read."
         }
       ],
-      "estimatedRows": 733,
-      "localVisits": 367
+      "estimatedRows": 741,
+      "localVisits": null
     },
     {
       "name": "gallery",
@@ -4496,5 +4623,11 @@
       "estimatedRows": 376457,
       "localVisits": null
     }
-  ]
+  ],
+  "galleryIntegrationAmendment": {
+    "date": "2026-09-12",
+    "scope": "Exactly one bounded gallery metadata query per event-bearing reservation response; no per-option query and no binary media read.",
+    "perEventSyntheticAllowance": 8,
+    "measurement": "Conservative local estimate only; not Cloudflare meta.rows_read."
+  }
 }
