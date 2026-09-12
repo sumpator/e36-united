@@ -65,7 +65,7 @@ import {
   reservationPayment,
 } from "./domains/reservations/payments.js";
 import { calculateAccommodationPricing } from "./domains/reservations/pricing.js";
-import { reviewReservationRequest, submitReservationRequest, updateReservationCar } from "./domains/reservations/requests.js";
+import { acknowledgeReservationRequest, reviewReservationRequest, submitReservationRequest, updateReservationCar } from "./domains/reservations/requests.js";
 import { cors } from "./http/cors.js";
 import { readJsonObject } from "./http/request.js";
 import { json } from "./http/responses.js";
@@ -855,6 +855,7 @@ export {
   putPlannerDraft,
   replaceCarPhoto,
   reviewReservationRequest,
+  acknowledgeReservationRequest,
   reservationPayment,
   setPrimaryCar,
   submitHistoryClaim,

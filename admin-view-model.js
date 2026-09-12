@@ -44,7 +44,7 @@ export function paymentNeedsAttention(item) {
 }
 
 export function reservationNeedsAction(item) {
-  return item?.status === 'pending' || item?.changePending === true || item?.capacityConflict === true || paymentNeedsAttention(item);
+  return item?.status === 'pending' || item?.changePending === true || item?.cancellationPending === true || item?.capacityConflict === true || paymentNeedsAttention(item);
 }
 
 export function matchesAdminSearch(item, query) {

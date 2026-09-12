@@ -8,7 +8,7 @@
 <meta content="noindex,nofollow" name="robots"/>
 <meta content="#090a0c" name="theme-color"/>
 <link href="styles.css?v=20260911-finish-ui-r1" rel="stylesheet"/>
-<link href="accommodation-visual.css?v=20260912-accommodation-gallery-r1" rel="stylesheet"/>
+<link href="accommodation-visual.css?v=20260912-reservation-workflow-r1" rel="stylesheet"/>
 <link href="member.css?v=20260911-reservation-detail-r1" rel="stylesheet"/>
 <link href="member/reliability.css?v=20260907-feedback" rel="stylesheet"/>
 <link href="mobile-feedback.css?v=20260907-mobile" rel="stylesheet"/>
@@ -137,7 +137,7 @@
 <div aria-live="polite" class="reservation-price-preview" data-accommodation-preview="" data-reservation-edit-field hidden=""></div>
 <label data-reservation-edit-field><span>Show &amp; Shine</span><select name="showshine"><option value="Ne">Ne</option><option value="Možná">Možná</option><option value="Ano">Ano</option></select></label>
 <label data-reservation-edit-field><span>Poznámka pro United tým</span><textarea name="note" placeholder="Příjezd později, speciální požadavek…" rows="3"></textarea></label>
-<div aria-live="polite" class="reservation-form-status" data-reservation-form-status hidden role="status"></div>
+<div aria-live="polite" class="reservation-form-status" data-reservation-form-status hidden role="status" tabindex="-1"></div>
 <div class="reservation-edit-actions" data-reservation-edit-field><button class="member-primary" data-reservation-submit="" type="submit">Odeslat rezervaci <span>→</span></button><button class="member-secondary" data-request-change-cancel hidden type="button">Zrušit úpravu</button></div>
 <div class="reservation-member-actions" data-reservation-member-actions hidden><button class="member-primary member-primary--compact" data-request-change type="button">Požádat o změnu</button><button class="member-secondary" data-request-cancel-open type="button">Požádat o zrušení</button></div>
 <div class="reservation-cancel-request" data-cancel-request hidden><label><span>Důvod nebo zpráva pro United tým</span><textarea data-cancel-request-note maxlength="1000" rows="3" placeholder="Volitelná zpráva…"></textarea></label><div><button class="member-danger" data-request-cancel-submit type="button">Odeslat žádost o zrušení</button><button class="member-secondary" data-request-cancel-close type="button">Zpět</button></div></div>
@@ -223,5 +223,5 @@
 <div class="member-gallery-lightbox" data-member-gallery-lightbox="" hidden=""><div class="member-gallery-lightbox-backdrop" data-member-gallery-close=""></div><div aria-label="Náhled fotografie" aria-modal="true" class="member-gallery-lightbox-dialog" role="dialog"><button aria-label="Zavřít náhled" class="member-gallery-lightbox-close" data-member-gallery-close="" type="button">×</button><button aria-label="Předchozí fotografie" class="member-gallery-lightbox-nav member-gallery-lightbox-prev" data-member-gallery-prev="" type="button">←</button><figure><img alt="" data-member-gallery-lightbox-image=""/><figcaption data-member-gallery-lightbox-caption=""></figcaption></figure><button aria-label="Další fotografie" class="member-gallery-lightbox-nav member-gallery-lightbox-next" data-member-gallery-next="" type="button">→</button></div></div>
 <div aria-live="polite" class="member-toast" data-toast="" role="status"></div>
 <script src="showshine-data.js?v=20260824"></script>
-<script src="member.js?v=20260912-accommodation-gallery-r1" type="module"></script>
+<script src="member.js?v=20260912-reservation-workflow-r1" type="module"></script>
 </body></html>

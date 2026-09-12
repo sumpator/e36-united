@@ -56,6 +56,7 @@ export function normalizeReservation(source){
     status:source.status||'pending',
     request:source.request&&typeof source.request==='object'?{...source.request,original:source.request.original||null,proposed:source.request.proposed||null}:null,
     changePending:source.changePending===true||(source.request?.status==='pending'&&source.request?.type==='change'),
+    cancellationPending:source.cancellationPending===true||(source.request?.status==='pending'&&source.request?.type==='cancellation'),
     paymentStatus:source.paymentStatus||'unpaid',
     amountDueCzk:Number(source.amountDueCzk||0),
     amountPaidCzk:Number(source.amountPaidCzk||0),

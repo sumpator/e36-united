@@ -97,10 +97,33 @@ SELECT
 FROM metrics
 `;
 
+// One bounded event query extends the accepted Stage 2 summary without loading a queue.
+// The unique pending-request index prevents duplicate request rows for one reservation.
+export const ADMIN_RESERVATION_APPROVALS_SQL = `
+SELECT
+  COUNT(CASE WHEN r.status='pending' AND pending_request.id IS NULL THEN 1 END) AS approval_new,
+  COUNT(CASE WHEN pending_request.request_type='change' THEN 1 END) AS approval_changes,
+  COUNT(CASE WHEN pending_request.request_type='cancellation' THEN 1 END) AS approval_cancellations,
+  COUNT(CASE WHEN r.status='pending' OR pending_request.id IS NOT NULL THEN 1 END) AS approval_total,
+  COUNT(CASE WHEN r.status='pending' OR pending_request.id IS NOT NULL OR r.amount_paid_czk>r.amount_due_czk OR
+    (r.status='approved' AND r.amount_due_czk>r.amount_paid_czk AND e.payment_deadline IS NOT NULL AND
+      julianday(CASE WHEN length(e.payment_deadline)=10 THEN e.payment_deadline||'T23:59:59Z' ELSE e.payment_deadline END)<julianday(?))
+    THEN 1 END) AS attention_total
+FROM reservations r
+JOIN events e ON e.id=r.event_id
+LEFT JOIN reservation_requests pending_request
+  ON pending_request.reservation_id=r.id AND pending_request.status='pending'
+WHERE r.event_id=COALESCE(NULLIF(?,''),(SELECT id FROM events ORDER BY is_current DESC,year DESC LIMIT 1))
+`;
+
 export async function getAdminSummary(env, url, origin, now = new Date()) {
   const eventId = url.searchParams.get('eventId') || '';
   if (eventId && !/^[a-z0-9_-]{1,128}$/i.test(eventId)) return json({error:'invalid_event'},400,origin);
-  const row = await env.DB.prepare(ADMIN_SUMMARY_SQL).bind(eventId, now.toISOString()).first();
+  const [summaryResult,approvalResult] = await env.DB.batch([
+    env.DB.prepare(ADMIN_SUMMARY_SQL).bind(eventId, now.toISOString()),
+    env.DB.prepare(ADMIN_RESERVATION_APPROVALS_SQL).bind(now.toISOString(),eventId),
+  ]);
+  const row=summaryResult.results?.[0]||{},approval=approvalResult.results?.[0]||{};
   const event = JSON.parse(row.event_json || 'null');
   if (!event && eventId) return json({error:'event_not_found'},404,origin);
   const occupancy = JSON.parse(row.occupancy_json || '[]');
@@ -113,7 +136,7 @@ export async function getAdminSummary(env, url, origin, now = new Date()) {
     amountRemainingCzk:n('remaining'),overpaymentCzk:n('overpayments') };
   return json({ok:true,event:publicAdminEvent(event),
     context:{eventId:event?.id||null,communityScope:'global',financeSource:'reservation'},
-    freshness:{generatedAt:now.toISOString(),businessUpdatedAt:null,consistency:'single-primary-statement'},
+    freshness:{generatedAt:now.toISOString(),businessUpdatedAt:null,consistency:'single-primary-batch'},
     overview:{reservations:n('reservations'),people:n('people'),cars:n('cars'),
       statuses:Object.fromEntries(['pending','approved','rejected','cancelled','draft'].map(status=>[status,n('status_'+status)])),
       attendance:{fullWeekend:n('attendance_full_weekend'),saturdayOnly:n('attendance_saturday_only'),dayVisit:n('attendance_day_visit')},
@@ -124,6 +147,7 @@ export async function getAdminSummary(env, url, origin, now = new Date()) {
         hasUnlimited:occupancy.some(item=>item.unitsTotal===null),options:occupancy},
       payments,gallery,history},
     community:{members:n('members'),activeMembers:n('active_members'),incompleteObserved:n('incomplete')},
-    attention:{reservations:n('reservation_attention'),payments:n('payment_attention'),gallery:gallery.pending,history:history.pending},
+    attention:{reservations:Number(approval.attention_total||0),payments:n('payment_attention'),gallery:gallery.pending,history:history.pending,
+      reservationApprovals:{newReservations:Number(approval.approval_new||0),changes:Number(approval.approval_changes||0),cancellations:Number(approval.approval_cancellations||0),total:Number(approval.approval_total||0)}},
   },200,origin);
 }

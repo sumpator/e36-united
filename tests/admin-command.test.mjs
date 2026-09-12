@@ -32,7 +32,7 @@ test('NEW factory and shared preview spans preserve schema-v1, independent layou
   const saved=factoryPreferences();saved.compositions.preparation.widgets.push({id:'future-widget',size:'wide'});const before=JSON.stringify(saved);commandLayout(saved.compositions.preparation.widgets);assert.equal(JSON.stringify(saved),before);assert.ok(validatePreferences(saved));
 });
 test('NEW badges use unions, global counts, honest unknowns and known zeros rather than page lengths',()=>{
-  const s={overview:{statuses:{pending:5},gallery:{pending:12},history:{pending:3}},attention:{reservations:7,payments:4}};
+  const s={overview:{statuses:{pending:5},gallery:{pending:12},history:{pending:3}},attention:{reservations:7,reservationApprovals:{total:5},payments:4}};
   assert.deepEqual(commandBadges(s),{dashboard:22,reservations:5,payments:4,photos:12,history:3,community:15});
   assert.notEqual(commandBadges(s).dashboard,5+4+15);
   assert.equal(commandBadges({}).dashboard,null);delete s.overview.gallery.pending;assert.equal(commandBadges(s).community,null);

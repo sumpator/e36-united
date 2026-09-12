@@ -13,6 +13,7 @@ import {reservationListQuery} from '../worker/admin/lists.js';
 import {resourceDue,ADMIN_REFRESH} from '../admin/refresh-policy.js';
 import {createAdminRefresh} from '../admin/refresh.js';
 import {MEMBER_HERO_CAR_SQL,MEMBER_HERO_PHOTO_SQL} from '../worker/admin/members.js';
+import {ADMIN_RESERVATION_APPROVALS_SQL} from '../worker/admin/summary.js';
 const read=path=>readFileSync(new URL('../'+path,import.meta.url),'utf8');
 const before=JSON.parse(read('docs/admin-budget-before.json')),after=JSON.parse(read('docs/admin-budget-after.json'));
 const sql=source=>source.replace(/\s+/g,' ').trim();
@@ -35,9 +36,15 @@ test('budget evidence describes actual current authorized SQL and never prices a
     const recorded=after.report.find(e=>e.name===endpoint.name);assert.ok(recorded);
     // Keep the accepted Stage 2 evidence plus its explicit gallery amendment exact.
     // The separately tested r5 header addon must be these two scoped lookups.
-    const addon=endpoint.name==='member-header'?[MEMBER_HERO_CAR_SQL,MEMBER_HERO_PHOTO_SQL]:[];
-    assert.deepEqual(endpoint.queries.map(q=>sql(q.sql)),[...recorded.queries.map(q=>sql(q.sql)),...addon],endpoint.name);
-    if(addon.length)assert.deepEqual(endpoint.queries.slice(-2).map(q=>q.args),[['m'],['c']]);
+    const addon=endpoint.name==='member-header'?[MEMBER_HERO_CAR_SQL,MEMBER_HERO_PHOTO_SQL]:endpoint.name==='summary'?[ADMIN_RESERVATION_APPROVALS_SQL]:[];
+    assert.deepEqual(endpoint.queries.map(q=>sql(q.sql)),[...recorded.queries.map(q=>sql(q.sql)),...addon.map(sql)],endpoint.name);
+    if(endpoint.name==='member-header')assert.deepEqual(endpoint.queries.slice(-2).map(q=>q.args),[['m'],['c']]);
+    if(endpoint.name==='summary'){
+      const approval=endpoint.queries.at(-1);assert.equal(approval.args.length,2);assert.equal(approval.args[1],'e');
+      assert.ok(approval.plan.some(step=>step.includes('idx_reservations_payment (event_id=?)')));
+      assert.ok(approval.plan.some(step=>step.includes('reservation_requests_one_pending (reservation_id=?)')));
+      assert.ok(!approval.plan.some(step=>step==='SCAN pending_request'));
+    }
     assert.match(endpoint.queries[0].sql,/SELECT id, role, status\s+FROM members/);
     assert.ok(recorded.estimatedRows>=2);
     for(const q of recorded.queries)if(q.profileError){assert.equal(q.localVisits,null);assert.ok(q.localVmSteps>0);assert.ok(q.estimatedRows>=q.localVmSteps);}

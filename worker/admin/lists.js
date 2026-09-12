@@ -4,8 +4,10 @@ export const PAYMENT_STATE_SQL="CASE WHEN r.amount_paid_czk>r.amount_due_czk THE
 export const OVERDUE_SQL="(r.status='approved' AND r.amount_due_czk>r.amount_paid_czk AND julianday(CASE WHEN length(e.payment_deadline)=10 THEN e.payment_deadline||'T23:59:59Z' ELSE e.payment_deadline END)<julianday('now'))";
 export function reservationFilterSql(filter,payments=false){
  const pay=PAYMENT_STATE_SQL,attention=`(${OVERDUE_SQL} OR r.amount_paid_czk>r.amount_due_czk)`;
+ const pendingRequest="EXISTS(SELECT 1 FROM reservation_requests pending_request WHERE pending_request.reservation_id=r.id AND pending_request.status='pending')";
  if(filter==='all')return '1';
  if(filter==='action'||filter==='attention')return payments?attention:`(r.status='pending' OR ${attention})`;
+ if(filter==='approvals')return `(r.status='pending' OR ${pendingRequest})`;
  if(filter==='active')return `(r.status='approved' AND (${pay}) IN ('unpaid','underpaid'))`;
  if(filter==='complete')return `(r.status='approved' AND (${pay}) IN ('paid','not_required'))`;
  if(filter==='payment')return `(r.status='approved' AND (${pay})='unpaid')`;
@@ -24,7 +26,7 @@ export function reservationListQuery(url){
    parts.push(`instr(${expression},?)>0`);bindings.push(query);
  }
  const drill=cleanDrill(Object.fromEntries(p)),active="r.status IN ('pending','approved')";
- const scopes={active,pending:"r.status='pending'",approved:"r.status='approved'",rejected:"r.status='rejected'",cancelled:"r.status='cancelled'",draft:"r.status='draft'",
+ const scopes={active,pending:"r.status='pending'",approvals:`(r.status='pending' OR EXISTS(SELECT 1 FROM reservation_requests pending_request WHERE pending_request.reservation_id=r.id AND pending_request.status='pending'))`,approved:"r.status='approved'",rejected:"r.status='rejected'",cancelled:"r.status='cancelled'",draft:"r.status='draft'",
    outstanding:`(${active} AND r.amount_due_czk>r.amount_paid_czk)`,overdue:OVERDUE_SQL,
    awaiting:`(${active} AND r.amount_due_czk>r.amount_paid_czk AND NOT COALESCE(${OVERDUE_SQL},0))`,
    overpaid:'r.amount_paid_czk>r.amount_due_czk',recorded:'r.amount_paid_czk>0',

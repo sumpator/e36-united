@@ -98,17 +98,84 @@ async function getAccommodationUsage(env, optionId) {
   return { approved: Number(row?.approved_units || 0), pending: Number(row?.pending_units || 0) };
 }
 
-function accommodationCapacityConflict(name, origin, message = "") {
+function accommodationCapacityConflict(name, origin, message = "", extra = {}) {
   return json({
     ok: false,
     error: "accommodation_capacity_exceeded",
     message: message || `${name} už bohužel nemá dost volné kapacity pro tvoji posádku. Vyber jinou možnost.`,
+    ...extra,
   }, 409, origin);
+}
+
+async function getReservationChangeCapacity(env, reservationId, eventId, optionId, proposedUnits) {
+  const row = await env.DB.prepare(`
+    WITH current_allocation AS (
+      SELECT option_id, option_name, kind, unit_count
+      FROM reservation_accommodation
+      WHERE reservation_id = ?
+    )
+    SELECT
+      current_allocation.option_id AS current_option_id,
+      current_allocation.option_name AS current_option_name,
+      current_allocation.kind AS current_option_kind,
+      COALESCE(current_allocation.unit_count, 0) AS current_unit_count,
+      target.id AS target_option_id,
+      target.name AS target_option_name,
+      target.kind AS target_option_kind,
+      target.inventory_mode AS target_inventory_mode,
+      target.units_total AS target_units_total,
+      COALESCE((
+        SELECT SUM(allocation.unit_count)
+        FROM reservation_accommodation allocation
+        JOIN reservations approved_reservation ON approved_reservation.id = allocation.reservation_id
+        WHERE allocation.option_id = target.id
+          AND approved_reservation.status = 'approved'
+          AND approved_reservation.id <> ?
+      ), 0) AS approved_other_units
+    FROM (SELECT 1) seed
+    LEFT JOIN current_allocation ON 1 = 1
+    LEFT JOIN event_accommodation_options target ON target.id = ? AND target.event_id = ? AND target.active = 1
+    LIMIT 1
+  `).bind(reservationId, reservationId, optionId || null, eventId).first();
+  const currentUnits = Number(row?.current_unit_count || 0);
+  const sameOption = !!optionId && row?.current_option_id === optionId;
+  const retainedUnits = sameOption ? currentUnits : 0;
+  const requestedUnits = Math.max(0, Number(proposedUnits || 0));
+  const source = row?.current_option_id ? {
+    optionId: row.current_option_id,
+    optionName: row.current_option_name || "Ubytování",
+    kind: row.current_option_kind || "",
+    units: currentUnits,
+    releasedUnits: sameOption ? Math.max(0, currentUnits - requestedUnits) : currentUnits,
+  } : null;
+  if (!optionId) return {
+    optionId: null, optionName: "Bez ubytování", kind: "none", inventoryMode: "unlimited",
+    unitsTotal: null, occupiedUnits: 0, freeUnits: null, currentReservationUnits: 0,
+    proposedUnits: 0, netChangeUnits: -currentUnits, occupiedAfterApproval: 0,
+    freeAfterApproval: null, deficitUnits: 0, available: true, source,
+  };
+  if (!row?.target_option_id) return null;
+  const limited = row.target_inventory_mode === "limited";
+  const total = limited ? Number(row.target_units_total || 0) : null;
+  const otherUnits = Number(row.approved_other_units || 0);
+  const occupied = otherUnits + retainedUnits;
+  const after = otherUnits + requestedUnits;
+  const deficit = limited ? Math.max(0, after - total) : 0;
+  return {
+    optionId: row.target_option_id, optionName: row.target_option_name, kind: row.target_option_kind,
+    inventoryMode: row.target_inventory_mode, unitsTotal: total, occupiedUnits: occupied,
+    freeUnits: limited ? Math.max(0, total - occupied) : null,
+    currentReservationUnits: retainedUnits, proposedUnits: requestedUnits,
+    netChangeUnits: requestedUnits - retainedUnits, occupiedAfterApproval: after,
+    freeAfterApproval: limited ? Math.max(0, total - after) : null,
+    deficitUnits: deficit, available: deficit === 0, source,
+  };
 }
 
 export {
   accommodationCapacityConflict,
   getAccommodationUsage,
+  getReservationChangeCapacity,
   hydrateReservationAccommodationVisual,
   listAccommodationOptions,
   listMemberAccommodationOptions,

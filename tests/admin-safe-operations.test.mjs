@@ -8,6 +8,8 @@ import * as domains from '../worker/domains.js';
 
 const origin='https://e36united.cz';
 const migration=readFileSync(new URL('../db/migrations/2026-09-08-admin-safe-operations.sql',import.meta.url),'utf8');
+const reservationRequestsMigration=readFileSync(new URL('../db/migrations/2026-09-11-reservation-requests.sql',import.meta.url),'utf8');
+const acknowledgementMigration=readFileSync(new URL('../db/migrations/2026-09-12-reservation-request-acknowledgement.sql',import.meta.url),'utf8');
 function runtime(){
   const db=new DatabaseSync(':memory:');
   db.exec(readFileSync(new URL('../db/schema.sql',import.meta.url),'utf8').split('-- Stage 1 only:')[0]+'\nCOMMIT;');
@@ -18,6 +20,8 @@ function runtime(){
     VALUES('r','m','e','approved',1000,'2027000001',2,'full_weekend','Ano');`);
   // Exact forward migration is exercised against populated predecessor schema, not an empty DB.
   if(!db.prepare("SELECT 1 FROM schema_migrations WHERE id='2026-09-08-admin-safe-operations'").get())db.exec(migration);
+  if(!db.prepare("SELECT 1 FROM schema_migrations WHERE id='2026-09-11-reservation-requests'").get())db.exec(reservationRequestsMigration);
+  if(!db.prepare("SELECT 1 FROM schema_migrations WHERE id='2026-09-12-reservation-request-acknowledgement'").get())db.exec(acknowledgementMigration);
   const prepare=(sql,values=[])=>({bind:(...bindings)=>prepare(sql,bindings),
     first:async()=>db.prepare(sql).get(...values)||null,all:async()=>({results:db.prepare(sql).all(...values)}),
     run:async()=>/^\s*(SELECT|WITH)\b/i.test(sql)?{results:db.prepare(sql).all(...values),meta:{changes:0}}:({meta:{changes:Number(db.prepare(sql).run(...values).changes)}})});
@@ -119,7 +123,7 @@ test('canonical summary independently reconciles money, occupancy, claim overlap
   assert.equal(payload.overview.accommodation.confirmedPeople,2);
   assert.equal(payload.overview.accommodation.options.find(o=>o.id==='tent').unitsTotal,null);
   assert.equal(payload.attention.history,1);assert.equal(payload.overview.history.attendancePending,1);assert.equal(payload.overview.history.snsPending,1);
-  assert.equal(payload.context.communityScope,'global');assert.equal(payload.freshness.consistency,'single-primary-statement');db.close();
+  assert.equal(payload.context.communityScope,'global');assert.equal(payload.freshness.consistency,'single-primary-batch');db.close();
 });
 
 test('bounded reservation reads return independent filtered totals and do not allocate legacy VS',async()=>{

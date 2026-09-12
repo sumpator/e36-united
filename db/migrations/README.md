@@ -49,6 +49,8 @@ unchanged.
 
 `2026-09-12-accommodation-gallery.sql` adds only `event_accommodation_photos`, its ordered lookup index and Admin resource-version triggers. It records metadata for additional accommodation photos; existing cover objects remain at their current R2 keys and are neither copied nor backfilled. Apply it once after `2026-09-11-reservation-requests.sql` and before a Worker exposing accommodation `photos[]`. Production application requires separate explicit authorization.
 
+`2026-09-12-reservation-request-acknowledgement.sql` adds the request-specific `member_acknowledged_at` timestamp. Existing requests keep `NULL`, no acknowledgement is inferred, and reservation, allocation, payment and capacity data are untouched. Apply it once after `2026-09-11-reservation-requests.sql` and before releasing the member acknowledgement endpoint. Production application requires separate explicit authorization.
+
 - Do not run any historical file against production merely to make a migration list appear complete.
 - Before any future migration, compare the intended change with `db/schema.sql` and read-only production metadata, then take the separately approved backup required by the deployment procedure.
 - The repository-managed registry records forward-only migration identities from Mailing A onward; it must not invent entries for historical executions that cannot be proven.

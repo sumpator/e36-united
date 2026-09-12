@@ -1,7 +1,7 @@
 import { json } from '../../http/responses.js';
 import { clean } from '../../utils/text.js';
 import { calculateAccommodationPricing } from './pricing.js';
-import { accommodationCapacityConflict } from './capacity.js';
+import { accommodationCapacityConflict, getReservationChangeCapacity } from './capacity.js';
 import { paymentStatusFor } from './payments.js';
 
 const MAX_CREW=5;
@@ -12,6 +12,7 @@ const requestView=row=>row?{
   original:parseJson(row.original_json),proposed:parseJson(row.proposed_json),
   memberNote:row.member_note||'',adminComment:row.admin_comment||'',
   createdAt:row.created_at,updatedAt:row.updated_at,decidedAt:row.decided_at||null,
+  memberAcknowledgedAt:row.member_acknowledged_at||null,
 }:null;
 
 function reservationSnapshot(row){
@@ -134,6 +135,13 @@ async function attachAdminReservationContext(env,reservation){
     env.DB.prepare('SELECT member_comment FROM reservation_member_comments WHERE reservation_id=?').bind(reservation.id),
   ]);
   reservation.admin_requests=(requests.results||[]).map(requestView);
+  const pendingChange=reservation.admin_requests.find(item=>item.status==='pending'&&item.type==='change');
+  if(pendingChange){
+    const proposed=pendingChange.proposed||{};
+    pendingChange.capacity=await getReservationChangeCapacity(env,reservation.id,reservation.event_id,
+      proposed.accommodationSnapshot?.optionId||proposed.accommodationOptionId||null,
+      proposed.accommodationSnapshot?.unitCount??proposed.accommodationUnits??0);
+  }
   reservation.member_comment=comment.results?.[0]?.member_comment||'';
   const history=[{type:'reservation_created',at:reservation.created_at||reservation.submitted_at,actor:'member',label:'Rezervace vytvořena'}];
   for(const item of reservation.admin_requests){
@@ -182,14 +190,22 @@ async function reviewReservationRequest(request,env,auth,reservationId,requestId
   if(!proposed)return json({ok:false,error:'invalid_request_data',message:'Navržené údaje nelze bezpečně načíst.'},409,origin);
   let normalized;try{normalized=await normalizeProposal(env,requestRow,proposed)}catch(error){return json({ok:false,error:error.code||'invalid_request',message:error.message},error.status||409,origin)}
   const snapshot=normalized.accommodationSnapshot,option=snapshot?await env.DB.prepare('SELECT * FROM event_accommodation_options WHERE id=? AND event_id=? AND active=1').bind(snapshot.optionId,requestRow.event_id).first():null;
+  const capacity=await getReservationChangeCapacity(env,reservationId,requestRow.event_id,snapshot?.optionId||null,snapshot?.unitCount||0);
+  if(snapshot&&!capacity)return json({ok:false,error:'accommodation_option_not_found',message:'Vybrané ubytování už není dostupné. Obnov detail žádosti.'},409,origin);
+  if(capacity&&!capacity.available)return accommodationCapacityConflict(capacity.optionName,origin,
+    `Pro schválení chybí ${capacity.deficitUnits} ${capacity.deficitUnits===1?'ubytovací jednotka':'ubytovací jednotky'}. Rezervace zůstala beze změny.`,{capacity});
   const statements=[env.DB.prepare(`UPDATE reservations SET arrival=?,crew=?,accommodation=?,show_shine=?,note=?,attendance_type=?,accommodation_units=?,amount_due_czk=?,
     payment_status=CASE WHEN amount_paid_czk>? THEN 'overpaid' WHEN ?<=0 THEN 'not_required' WHEN amount_paid_czk<=0 THEN 'unpaid' WHEN amount_paid_czk<? THEN 'underpaid' ELSE 'paid' END,
     reviewed_by=?,reviewed_at=CURRENT_TIMESTAMP,updated_at=? WHERE id=? AND status='approved'
     AND EXISTS(SELECT 1 FROM reservation_requests pending_request WHERE pending_request.id=? AND pending_request.reservation_id=? AND pending_request.status='pending')
-    ${option&&option.inventory_mode==='limited'?`AND ? >= ?+(SELECT COALESCE(SUM(ra.unit_count),0) FROM reservation_accommodation ra JOIN reservations r2 ON r2.id=ra.reservation_id WHERE ra.option_id=? AND r2.status='approved' AND r2.id<>?)`:''}`)
+    ${snapshot?`AND EXISTS(SELECT 1 FROM event_accommodation_options current_option
+      WHERE current_option.id=? AND current_option.event_id=? AND current_option.active=1
+      AND (current_option.inventory_mode='unlimited' OR current_option.units_total>=?+
+        (SELECT COALESCE(SUM(ra.unit_count),0) FROM reservation_accommodation ra JOIN reservations r2 ON r2.id=ra.reservation_id
+          WHERE ra.option_id=? AND r2.status='approved' AND r2.id<>?)))`:''}`)
     .bind(normalized.arrival,normalized.crew,normalized.accommodation,normalized.showShine,normalized.note||null,normalized.attendanceType,normalized.accommodationUnits,normalized.amountDueCzk,
       normalized.amountDueCzk,normalized.amountDueCzk,normalized.amountDueCzk,auth.uid,updatedAt,reservationId,requestId,reservationId,
-      ...(option&&option.inventory_mode==='limited'?[Number(option.units_total||0),snapshot.unitCount,option.id,reservationId]:[]))];
+      ...(snapshot?[snapshot.optionId,requestRow.event_id,snapshot.unitCount,snapshot.optionId,reservationId]:[]))];
   if(snapshot)statements.push(env.DB.prepare(`INSERT INTO reservation_accommodation(reservation_id,option_id,option_name,kind,people_count,unit_count,unit_price_czk,person_price_czk,bedding_fee_per_person_czk,city_tax_per_person_per_night_czk,nights,base_total_czk,person_total_czk,bedding_total_czk,city_tax_total_czk,total_czk,updated_at)
     SELECT ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,? WHERE EXISTS(SELECT 1 FROM reservations WHERE id=? AND updated_at=?) AND EXISTS(SELECT 1 FROM reservation_requests WHERE id=? AND status='pending')
     ON CONFLICT(reservation_id) DO UPDATE SET option_id=excluded.option_id,option_name=excluded.option_name,kind=excluded.kind,people_count=excluded.people_count,unit_count=excluded.unit_count,unit_price_czk=excluded.unit_price_czk,person_price_czk=excluded.person_price_czk,bedding_fee_per_person_czk=excluded.bedding_fee_per_person_czk,city_tax_per_person_per_night_czk=excluded.city_tax_per_person_per_night_czk,nights=excluded.nights,base_total_czk=excluded.base_total_czk,person_total_czk=excluded.person_total_czk,bedding_total_czk=excluded.bedding_total_czk,city_tax_total_czk=excluded.city_tax_total_czk,total_czk=excluded.total_czk,updated_at=excluded.updated_at`)
@@ -203,4 +219,18 @@ async function reviewReservationRequest(request,env,auth,reservationId,requestId
   return json({ok:true,request:{id:requestId,status:'approved',adminComment:comment},reservation:{id:reservationId,status:'approved',amountDueCzk:normalized.amountDueCzk,amountPaidCzk:Number(requestRow.amount_paid_czk||0),paymentStatus:paymentStatusFor(normalized.amountDueCzk,requestRow.amount_paid_czk)},message:'Změna byla schválena a cena přepočítána. Evidované platby zůstaly zachovány.'},200,origin);
 }
 
-export {attachAdminReservationContext,attachMemberReservationRequest,requestView,reviewReservationRequest,submitReservationRequest,updateReservationCar};
+async function acknowledgeReservationRequest(env,auth,reservationId,requestId,origin){
+  const result=await env.DB.prepare(`UPDATE reservation_requests
+    SET member_acknowledged_at=CURRENT_TIMESTAMP
+    WHERE id=? AND reservation_id=? AND member_id=? AND request_type='change' AND status='approved'
+      AND member_acknowledged_at IS NULL
+      AND EXISTS(SELECT 1 FROM reservations WHERE id=? AND member_id=?)`).bind(requestId,reservationId,auth.uid,reservationId,auth.uid).run();
+  const row=await env.DB.prepare(`SELECT rr.* FROM reservation_requests rr
+    JOIN reservations r ON r.id=rr.reservation_id
+    WHERE rr.id=? AND rr.reservation_id=? AND rr.member_id=? AND r.member_id=? LIMIT 1`).bind(requestId,reservationId,auth.uid,auth.uid).first();
+  if(!row)return json({ok:false,error:'reservation_request_not_found',message:'Žádost nebyla nalezena.'},404,origin);
+  if(row.request_type!=='change'||row.status!=='approved')return json({ok:false,error:'reservation_request_not_acknowledgeable',message:'Tuto žádost nelze potvrdit.'},409,origin);
+  return json({ok:true,unchanged:!result.meta?.changes,request:requestView(row),message:'Potvrzení bylo uloženo.'},200,origin);
+}
+
+export {acknowledgeReservationRequest,attachAdminReservationContext,attachMemberReservationRequest,requestView,reviewReservationRequest,submitReservationRequest,updateReservationCar};

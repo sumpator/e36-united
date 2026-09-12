@@ -87,7 +87,7 @@ test('graphs and exact drill-down independently reconcile inactive cash, obligat
  assert.equal(r.writes,0);r.db.close();
 });
 test('Attention cannot infer global all-clear from missing, stale or partial data; categories are not unique people',()=>{
- const summary={overview:{statuses:{pending:0},payments:{overdue:0,overpaid:0}},attention:{gallery:0,history:0}},analytics={attention:{awaiting:0}};
+ const summary={overview:{statuses:{pending:0},payments:{overdue:0,overpaid:0}},attention:{reservationApprovals:{total:0},gallery:0,history:0}},analytics={attention:{awaiting:0}};
  assert.equal(attentionModel(summary,analytics,{summaryFresh:true,analyticsFresh:true}).allClear,true);
  for(const [s,a,flags]of [[summary,null,{summaryFresh:true,analyticsFresh:true}],[summary,analytics,{summaryFresh:false,analyticsFresh:true}],[{},analytics,{summaryFresh:true,analyticsFresh:true}]]){
    assert.equal(attentionModel(s,a,flags).allClear,false);

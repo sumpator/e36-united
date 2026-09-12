@@ -1,5 +1,5 @@
 // Frontend-only catalog. The deployed schema-v1 validator and saved unknown IDs stay intact.
-import { WIDGETS as LEGACY } from './dashboard-model.js?v=20260912-accommodation-gallery-r1';
+import { WIDGETS as LEGACY } from './dashboard-model.js?v=20260912-reservation-workflow-r1';
 export const COMMAND_WIDGETS = Object.freeze({
   ...LEGACY,
   approvals: {
@@ -73,7 +73,7 @@ export function commandBadges(summary) {
   const sum = (...values) => values.every(Number.isFinite) ? values.reduce((n, v) => n + v, 0) : null;
   return {
     dashboard: sum(a?.reservations, o?.gallery?.pending, o?.history?.pending),
-    reservations: o?.statuses?.pending,
+    reservations: a?.reservationApprovals?.total,
     payments: a?.payments,
     photos: o?.gallery?.pending,
     history: o?.history?.pending,
@@ -82,7 +82,7 @@ export function commandBadges(summary) {
 }
 export const BADGE_SCOPE = Object.freeze({
   dashboard: 'Vybraný ročník: unikátní rezervace pending / po splatnosti / přeplacené + globální fotky a unikátní historické žádosti',
-  reservations: 'Vybraný ročník: čekající rezervace',
+  reservations: 'Vybraný ročník: nové čekající rezervace a pending žádosti o změnu nebo zrušení',
   payments: 'Vybraný ročník: unikátní případy po splatnosti nebo přeplatku',
   photos: 'Globálně: čekající komunitní fotografie, bez Garage',
   history: 'Globálně: unikátní žádosti s čekající účastí nebo S&S',

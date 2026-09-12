@@ -128,9 +128,11 @@ export async function prepareE2ePage(page, {
   reservation = null,
   cars = null,
   clubPayload = null,
+  accommodations = accommodationOptions,
   ignoreConsoleError = () => false,
 } = {}) {
-  const observations = { pageErrors: [], consoleErrors: [], unhandledApi: [], requests: [], reservationWrites: [], reservationRequestWrites: [], reservationCarWrites: [], profileWrites: [] };
+  let currentReservation=reservation;
+  const observations = { pageErrors: [], consoleErrors: [], unhandledApi: [], requests: [], reservationWrites: [], reservationRequestWrites: [], reservationRequestAcknowledgements: [], reservationCarWrites: [], profileWrites: [], setReservation(value){currentReservation=value} };
   let memberProfile = {
     id: memberId,
     memberCode: 'EU036',
@@ -203,11 +205,11 @@ export async function prepareE2ePage(page, {
       return;
     }
     if (url.pathname === '/api/events/current') {
-      await jsonResponse(route, { event: currentEvent, accommodationOptions });
+      await jsonResponse(route, { event: currentEvent, accommodationOptions:accommodations });
       return;
     }
     if (url.pathname === '/api/navigation-state') {
-      await jsonResponse(route, { hasWaitingPlan: false, hasReservation: Boolean(reservation) });
+      await jsonResponse(route, { hasWaitingPlan: false, hasReservation: Boolean(currentReservation) });
       return;
     }
     if (['/api/onboarding','/api/planner-handoffs','/api/planner-handoffs/claim'].includes(url.pathname)) {
@@ -254,11 +256,11 @@ export async function prepareE2ePage(page, {
           registrationOpen,
           event: currentEvent,
           reservation: {
-            ...(reservation || {}),
-            id: reservation?.id || 'reservation-e2e-created',
-            eventId: reservation?.eventId || currentEvent.id,
-            eventYear: reservation?.eventYear || currentEvent.year,
-            title: reservation?.title || currentEvent.title,
+            ...(currentReservation || {}),
+            id: currentReservation?.id || 'reservation-e2e-created',
+            eventId: currentReservation?.eventId || currentEvent.id,
+            eventYear: currentReservation?.eventYear || currentEvent.year,
+            title: currentReservation?.title || currentEvent.title,
             carId: body.carId,
             arrival: body.arrival,
             crew: body.crew,
@@ -269,22 +271,27 @@ export async function prepareE2ePage(page, {
             note: body.note,
           },
           message: 'Rezervace byla uložena.',
-          accommodationOptions,
+          accommodationOptions:accommodations,
         });
         return;
       }
       await jsonResponse(route, {
         registrationOpen,
         event: currentEvent,
-        reservation,
+        reservation:currentReservation,
         message: 'Registrace zatím není otevřená.',
-        accommodationOptions,
+        accommodationOptions:accommodations,
       });
       return;
     }
     if (url.pathname === '/api/reservations/current/requests' && request.method() === 'POST') {
       const body=request.postDataJSON();observations.reservationRequestWrites.push(body);
-      await jsonResponse(route,{ok:true,request:{id:'request-e2e',type:body.type,status:'pending',original:reservation,proposed:body.type==='change'?body:null,memberNote:body.memberNote||'',adminComment:'',createdAt:'2026-09-11T10:00:00Z'},message:body.type==='change'?'Žádost o změnu byla odeslána.':'Žádost o zrušení byla odeslána.'},201);return;
+      const savedRequest={id:'request-e2e',type:body.type,status:'pending',original:currentReservation,proposed:body.type==='change'?body:null,memberNote:body.memberNote||'',adminComment:'',createdAt:'2026-09-11T10:00:00Z',memberAcknowledgedAt:null};currentReservation={...currentReservation,request:savedRequest,changePending:body.type==='change',cancellationPending:body.type==='cancellation'};
+      await jsonResponse(route,{ok:true,request:savedRequest,message:body.type==='change'?'Žádost o změnu byla odeslána.':'Žádost o zrušení byla odeslána.'},201);return;
+    }
+    if (/^\/api\/reservations\/[^/]+\/requests\/[^/]+\/acknowledge$/.test(url.pathname) && request.method() === 'POST') {
+      observations.reservationRequestAcknowledgements.push(url.pathname);const savedRequest={...currentReservation?.request,memberAcknowledgedAt:'2026-09-12T12:00:00Z'};currentReservation={...currentReservation,request:savedRequest,changePending:false};
+      await jsonResponse(route,{ok:true,unchanged:false,request:savedRequest,message:'Potvrzení bylo uloženo.'});return;
     }
     if (/^\/api\/reservations\/[^/]+\/car$/.test(url.pathname) && request.method() === 'PATCH') {
       const body=request.postDataJSON();observations.reservationCarWrites.push(body);await jsonResponse(route,{ok:true,carId:body.carId,message:'Auto rezervace bylo změněno.'});return;

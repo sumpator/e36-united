@@ -39,6 +39,7 @@ const PROTECTED_MEMBER_ROUTE_PATTERNS = [
   ["POST", /^\/api\/cars\/[^/]+\/primary$/],
   ["POST", /^\/api\/cars\/[^/]+\/photos$/],
   ["PATCH", /^\/api\/reservations\/[^/]+\/car$/],
+  ["POST", /^\/api\/reservations\/[^/]+\/requests\/[^/]+\/acknowledge$/],
   ["PUT", /^\/api\/cars\/[^/]+\/photos$/],
   ["GET", /^\/api\/gallery\/mine\/media\/[^/]+$/],
 ];
@@ -246,6 +247,9 @@ export async function routeRequest({ request, env, url, origin }) {
     }
     const reservationCarMatch=url.pathname.match(/^\/api\/reservations\/([^/]+)\/car$/);
     if(reservationCarMatch&&request.method==='PATCH')return domain.updateReservationCar(request,env,auth,decodeURIComponent(reservationCarMatch[1]),origin);
+    const reservationRequestAcknowledgementMatch=url.pathname.match(/^\/api\/reservations\/([^/]+)\/requests\/([^/]+)\/acknowledge$/);
+    if(reservationRequestAcknowledgementMatch&&request.method==='POST')return domain.acknowledgeReservationRequest(env,auth,
+      decodeURIComponent(reservationRequestAcknowledgementMatch[1]),decodeURIComponent(reservationRequestAcknowledgementMatch[2]),origin);
 
     if (url.pathname === "/api/cars" && request.method === "GET") return await domain.listCars(env, auth, origin);
     if (url.pathname === "/api/cars" && request.method === "POST") return await domain.createCar(request, env, auth, origin);

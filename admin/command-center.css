@@ -1307,6 +1307,12 @@
     grid-column:1/-1
   }
 
+  .admin-page .admin-reservation-drawer-card>.admin-reservation-request {
+    grid-column:1/-1;
+    grid-row:2;
+    margin:0
+  }
+
   .admin-page .admin-reservation-drawer-grid {
     display:contents
   }
@@ -1317,27 +1323,27 @@
 
   .admin-page .admin-reservation-drawer-grid>section:nth-child(1) {
     grid-column:1;
-    grid-row:2
+    grid-row:3
   }
 
   .admin-page .admin-reservation-drawer-grid>section:nth-child(2) {
     grid-column:2;
-    grid-row:2
+    grid-row:3
   }
 
   .admin-page .admin-reservation-drawer-grid>section:nth-child(3) {
     grid-column:1;
-    grid-row:3
+    grid-row:4
   }
 
   .admin-page .admin-reservation-drawer-grid>section:nth-child(4) {
     grid-column:1;
-    grid-row:4
+    grid-row:5
   }
 
   .admin-page .admin-reservation-drawer-grid>section:nth-child(5) {
     grid-column:1;
-    grid-row:5
+    grid-row:6
   }
 
   .admin-page .admin-reservation-drawer-grid>section:nth-child(6) {
@@ -1346,29 +1352,29 @@
 
   .admin-page .admin-reservation-drawer-grid>section:nth-child(7) {
     grid-column:1;
-    grid-row:6
+    grid-row:7
   }
 
   .admin-page .admin-reservation-drawer-grid>section:nth-child(8) {
     grid-column:1;
-    grid-row:7
+    grid-row:8
   }
 
   .admin-page .admin-reservation-drawer-card>.admin-payment-editor {
     grid-column:2;
-    grid-row:3/span 4;
+    grid-row:4/span 4;
     margin:0
   }
 
   .admin-page .admin-reservation-drawer-notes {
     grid-column:2;
-    grid-row:7;
+    grid-row:8;
     margin:0
   }
 
   .admin-page .admin-reservation-drawer-review {
     grid-column:1/-1;
-    grid-row:8;
+    grid-row:9;
     margin:0
   }
 

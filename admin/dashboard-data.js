@@ -37,7 +37,7 @@ export function chartModel(id,summary,analytics,range='all'){
 }
 export function attentionModel(summary,analytics,{summaryFresh=false,analyticsFresh=false}={}){
   const o=summary?.overview,a=summary?.attention;
-  const rows=[row('Čekající rezervace',o?.statuses?.pending,'pending',{scope:'Vybraný ročník',reason:'Ke schválení',oldest:analytics?.attention?.oldestPendingAt}),
+  const rows=[row('Rezervační schvalování',a?.reservationApprovals?.total,'reservationApprovals',{scope:'Vybraný ročník',reason:'Nové rezervace, změny a zrušení',oldest:analytics?.attention?.oldestPendingAt}),
     row('Čeká na úhradu',analytics?.attention?.awaiting,'awaiting',{scope:'Vybraný ročník',reason:'Aktivní nedoplatky, které nejsou po splatnosti'}),
     row('Po splatnosti',o?.payments?.overdue,'overdue',{scope:'Vybraný ročník',reason:'Podle uložené splatnosti schválených rezervací'}),
     row('Přeplatky',o?.payments?.overpaid,'overpaid',{scope:'Vybraný ročník · všechny stavy',reason:'Ke kontrole, bez automatického refundu'}),

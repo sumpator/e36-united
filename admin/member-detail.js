@@ -1,10 +1,10 @@
-import {adminState} from './state.js?v=20260912-accommodation-gallery-r1';
-import {$,$$,escapeHtml as esc,rememberSessionChoice} from './ui.js?v=20260912-accommodation-gallery-r1';
-import {apiRequest} from './api.js?v=20260912-accommodation-gallery-r1';
-import {ADMIN_REFRESH} from './refresh-policy.js?v=20260912-accommodation-gallery-r1';
-import qrcode from '../vendor/qrcode-generator.mjs?v=20260912-accommodation-gallery-r1';
-import {MEMBER_TABS,memberIdentity,memberOverview,memberReservation,memberSection,memberEmpty} from './member-presentation.js?v=20260912-accommodation-gallery-r1';
-import {compactMemberDetails,compactMemberIdentity,compactMemberPhoto,createCardMedia} from './member-cards.js?v=20260912-accommodation-gallery-r1';
+import {adminState} from './state.js?v=20260912-reservation-workflow-r1';
+import {$,$$,escapeHtml as esc,rememberSessionChoice} from './ui.js?v=20260912-reservation-workflow-r1';
+import {apiRequest} from './api.js?v=20260912-reservation-workflow-r1';
+import {ADMIN_REFRESH} from './refresh-policy.js?v=20260912-reservation-workflow-r1';
+import qrcode from '../vendor/qrcode-generator.mjs?v=20260912-reservation-workflow-r1';
+import {MEMBER_TABS,memberIdentity,memberOverview,memberReservation,memberSection,memberEmpty} from './member-presentation.js?v=20260912-reservation-workflow-r1';
+import {compactMemberDetails,compactMemberIdentity,compactMemberPhoto,createCardMedia} from './member-cards.js?v=20260912-reservation-workflow-r1';
 const cardsMedia=createCardMedia();
 let memberListMarkup=null;
 function clearCards(){cardsMedia.clear();memberListMarkup=null}

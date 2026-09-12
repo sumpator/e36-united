@@ -14,6 +14,7 @@ export const DESTINATIONS=Object.freeze({
   reservations:{label:'Všechny rezervace',view:'reservations'},
   active:{label:'Aktivní rezervace · pending + approved',view:'reservations',scope:'active'},
   pending:{label:'Čekající rezervace',view:'reservations',scope:'pending'},
+  reservationApprovals:{label:'Rezervační schvalování',view:'reservations',scope:'approvals'},
   approved:{label:'Schválené rezervace',view:'reservations',scope:'approved'},
   rejected:{label:'Zamítnuté rezervace',view:'reservations',scope:'rejected'},
   cancelled:{label:'Zrušené rezervace',view:'reservations',scope:'cancelled'},
