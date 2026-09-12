@@ -1347,7 +1347,9 @@
   }
 
   .admin-page .admin-reservation-drawer-grid>section:nth-child(6) {
-    display:none
+    display:flex;
+    grid-column:2;
+    grid-row:5
   }
 
   .admin-page .admin-reservation-drawer-grid>section:nth-child(7) {
@@ -1390,6 +1392,31 @@
     margin:0
   }
 
+}
+
+.admin-page .admin-reservation-drawer-grid>section {
+  min-height:0;
+  align-self:stretch
+}
+
+.admin-page .admin-reservation-drawer-card>.admin-reservation-drawer-review {
+  position:static
+}
+
+.admin-page .admin-reservation-drawer-grid .command-selected-car {
+  max-height:158px;
+  object-fit:cover
+}
+
+.admin-page .admin-drawer-accommodation .accommodation-visual--drawer {
+  width:100%;
+  max-width:none;
+  height:158px;
+  aspect-ratio:auto
+}
+
+.admin-page .admin-drawer-accommodation .accommodation-visual--drawer img {
+  object-fit:cover
 }
 
 @media(prefers-reduced-motion:reduce) {
