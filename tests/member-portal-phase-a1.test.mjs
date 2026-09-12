@@ -64,6 +64,7 @@ test('Garage exposes one shared add/edit form and one profile-photo selector', (
 });
 
 test('Payments are driven only by approved reservation payment data', () => {
+  const reservation = panel('reservation', 'garage');
   const payments = panel('payments', 'club');
   assert.match(payments, /Aktuálně nemáš žádnou platbu k řešení/);
   assert.match(js, /if\(reservation\.status!==\'approved\'\)/);
@@ -73,7 +74,14 @@ test('Payments are driven only by approved reservation payment data', () => {
   assert.match(js, /payment\.overdue/);
   assert.match(js, /paymentQrSvg\(payment\.spayd\)/);
   assert.match(js, /!settled&&payment\.status!=='overpaid'/);
-  assert.match(js, /data-payment-open/);
+  assert.doesNotMatch(reservation, /data-member-payment|reservation-payment-brief/);
+  assert.doesNotMatch(js, /data-payment-open/);
+  assert.match(reservation, /data-reservation-payment-detail/);
+  assert.match(js, /PLATBA K REZERVACI/);
+  assert.match(js, /Cena, úhrada a QR/);
+  for (const label of ['Cena rezervace', 'Již zaplaceno', 'Variabilní symbol', 'Splatnost']) assert.match(js, new RegExp(label));
+  assert.match(js, /member-payment-qr/);
+  assert.match(js, /Naskenuj v bankovní aplikaci/);
 });
 
 test('Account renders real profile data, safe existing profile update and relocated logout', () => {
