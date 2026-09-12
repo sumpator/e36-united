@@ -82,6 +82,26 @@ test('CONFIRMED reservation request compares the proposal and records the public
   }finally{b.release();c.r.db.close()}
 });
 
+test('CONFIRMED reservation notes save independently, clear cleanly and keep history last',async({page},info)=>{
+ const c=await commandFixture(page);
+ c.r.db.exec("UPDATE reservations SET status='approved',review_note='Původní interní',arrival='Pátek',crew=2,amount_due_czk=1000,amount_paid_czk=200; INSERT INTO reservation_member_comments(reservation_id,member_comment,updated_by) VALUES('r','Původní zpráva','a');");
+ const add=c.r.db.prepare("INSERT INTO admin_actions(id,admin_member_id,action_type,entity_type,entity_id,note,created_at) VALUES(?, 'a','reservation_status_changed','reservation','r',?,?)");for(let index=0;index<18;index++)add.run(`history-${index}`,`Historie ${index+1}`,`2026-08-${String(index+1).padStart(2,'0')} 12:00:00`);
+ try{
+  await page.goto('/admin.html?section=reservations&event=e');await page.locator('[data-reservation-open="r"]').last().click();const drawer=page.locator('[data-reservation-drawer]'),card=drawer.locator('article[data-reservation-id="r"]'),history=drawer.locator('.admin-reservation-history'),actions=drawer.locator('.admin-reservation-status-actions');
+  await expect(history).toBeVisible();expect(await actions.evaluate((current,last)=>Boolean(current.compareDocumentPosition(last)&Node.DOCUMENT_POSITION_FOLLOWING),await history.elementHandle())).toBe(true);
+  await card.locator('[data-review-note]').fill('Nová interní');await card.locator('[data-reservation-member-comment]').fill('Nová zpráva pro člena');await card.locator('[data-reservation-notes-save]').click();
+  await expect.poll(()=>c.r.db.prepare("SELECT status,review_note FROM reservations WHERE id='r'").get()).toEqual({status:'approved',review_note:'Nová interní'});expect(c.r.db.prepare("SELECT member_comment FROM reservation_member_comments WHERE reservation_id='r'").get().member_comment).toBe('Nová zpráva pro člena');
+  expect(c.r.db.prepare("SELECT action_type FROM admin_actions WHERE entity_id='r' ORDER BY created_at DESC,id DESC LIMIT 1").get().action_type).toBe('reservation_notes_changed');
+  const widths=await card.evaluate(node=>{const card=node.getBoundingClientRect(),history=node.querySelector('.admin-reservation-history').getBoundingClientRect();return{card:card.width,history:history.width}});expect(Math.abs(widths.card-widths.history)).toBeLessThan(60);
+  await drawer.locator('.admin-reservation-drawer-panel').evaluate(panel=>{panel.scrollTop=panel.scrollHeight});await expect(history.locator('li').last()).toBeVisible();
+  await page.screenshot({path:info.outputPath('admin-reservation-long-history.png'),fullPage:true});
+  let unexpectedDialog=false;const noDialog=dialog=>{unexpectedDialog=true;void dialog.dismiss()};page.on('dialog',noDialog);await drawer.locator('[data-reservation-drawer-close]:not(.admin-reservation-drawer-backdrop)').click();await expect(drawer).toBeHidden();page.off('dialog',noDialog);expect(unexpectedDialog).toBe(false);
+  await page.locator('[data-reservation-open="r"]').last().click();await expect(card.locator('[data-reservation-member-comment]')).toHaveValue('Nová zpráva pro člena');await card.locator('[data-review-note]').fill('');await card.locator('[data-reservation-member-comment]').fill('');await card.locator('[data-reservation-notes-save]').click();await expect.poll(()=>c.r.db.prepare("SELECT member_comment FROM reservation_member_comments WHERE reservation_id='r'").get().member_comment).toBe('');
+  await card.locator('[data-review-note]').fill('Neuložený text');const warning=page.waitForEvent('dialog'),closing=drawer.locator('[data-reservation-drawer-close]:not(.admin-reservation-drawer-backdrop)').click();const dialog=await warning;expect(dialog.message()).toContain('Zahodit rozepsané změny');await dialog.dismiss();await closing;await expect(drawer).toBeVisible();
+  expect(c.writes.map(item=>item.component)).toEqual(['reservation','reservation']);clean(c);
+ }finally{c.r.db.close()}
+});
+
 function holdResponse(c,predicate){const b=barrier();c.response=async({request,response})=>{if(predicate(request)){b.arrive();await b.gate;}return response};return b;}
 const article=page=>page.locator('[data-reservation-drawer-content] article');
 const approved=page=>page.locator('[data-review-action="approved"]');

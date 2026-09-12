@@ -1,11 +1,11 @@
-import { refreshStoredMailingDelivery } from './delivery.js?v=20260912-reservation-workflow-r1';
-import { renderMailingCampaigns, campaignPage } from './campaigns.js?v=20260912-reservation-workflow-r1';
-import { apiRequest } from '../../api.js?v=20260912-reservation-workflow-r1';
-import { adminState } from '../../state.js?v=20260912-reservation-workflow-r1';
-import { $, $$, numeric, toast } from '../../ui.js?v=20260912-reservation-workflow-r1';
-import { loadMailingContacts } from './contacts.js?v=20260912-reservation-workflow-r1';
-import { initializeMailingCampaigns, loadMailingCampaigns, resetMailingCampaigns } from './campaigns.js?v=20260912-reservation-workflow-r1';
-import { defaultMailingSegment, previewMailingSegment } from './segments.js?v=20260912-reservation-workflow-r1';
+import { refreshStoredMailingDelivery } from './delivery.js?v=20260912-reservation-detail-ux-r1';
+import { renderMailingCampaigns, campaignPage } from './campaigns.js?v=20260912-reservation-detail-ux-r1';
+import { apiRequest } from '../../api.js?v=20260912-reservation-detail-ux-r1';
+import { adminState } from '../../state.js?v=20260912-reservation-detail-ux-r1';
+import { $, $$, numeric, toast } from '../../ui.js?v=20260912-reservation-detail-ux-r1';
+import { loadMailingContacts } from './contacts.js?v=20260912-reservation-detail-ux-r1';
+import { initializeMailingCampaigns, loadMailingCampaigns, resetMailingCampaigns } from './campaigns.js?v=20260912-reservation-detail-ux-r1';
+import { defaultMailingSegment, previewMailingSegment } from './segments.js?v=20260912-reservation-detail-ux-r1';
 
 let initialized=false,overviewLoaded=false,overviewPromise=null,lastSegment=defaultMailingSegment;
 

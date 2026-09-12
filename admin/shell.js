@@ -1,9 +1,9 @@
-import { allowAdminNavigation } from './editors.js?v=20260912-reservation-workflow-r1';
-import { initPortalNavigation } from '../portal-navigation.js?v=20260912-reservation-workflow-r1';
-import { ADMIN_VIEW_IDS } from '../admin-view-model.js?v=20260912-reservation-workflow-r1';
-import {ADMIN_AREAS,VIEW_LABELS,areaFor} from './destinations.js?v=20260912-reservation-workflow-r1';
-import { adminState } from './state.js?v=20260912-reservation-workflow-r1';
-import { $, $$, rememberSessionChoice } from './ui.js?v=20260912-reservation-workflow-r1';
+import { allowAdminNavigation } from './editors.js?v=20260912-reservation-detail-ux-r1';
+import { initPortalNavigation } from '../portal-navigation.js?v=20260912-reservation-detail-ux-r1';
+import { ADMIN_VIEW_IDS } from '../admin-view-model.js?v=20260912-reservation-detail-ux-r1';
+import {ADMIN_AREAS,VIEW_LABELS,areaFor} from './destinations.js?v=20260912-reservation-detail-ux-r1';
+import { adminState } from './state.js?v=20260912-reservation-detail-ux-r1';
+import { $, $$, rememberSessionChoice } from './ui.js?v=20260912-reservation-detail-ux-r1';
 
 const adminCollapseStorageKey='e36UnitedAdmin.collapsedSections.v1';
 const adminCollapsePreferences=readAdminCollapsePreferences();
@@ -19,7 +19,7 @@ export function setView(name){
   if(name==='admin')requestAnimationFrame(()=>setAdminView(adminState.activeAdminView,{focus:false}));
 }
 
-export function setLoading(active){adminState.loading=active;$('[data-loading]').hidden=!active;$$('[data-refresh], [data-review-action], [data-gallery-action], [data-history-action], [data-accommodation-save], [data-event-settings-form] button').forEach(button=>button.disabled=active);const selector=$('[data-event-select]');if(selector)selector.disabled=active||adminState.events.length<2}
+export function setLoading(active){adminState.loading=active;$('[data-loading]').hidden=!active;$$('[data-refresh], [data-review-action], [data-reservation-notes-save], [data-gallery-action], [data-history-action], [data-accommodation-save], [data-event-settings-form] button').forEach(button=>button.disabled=active);const selector=$('[data-event-select]');if(selector)selector.disabled=active||adminState.events.length<2}
 export function setDenied(){if(!adminState.denied){adminState.denied=true;window.dispatchEvent(new CustomEvent('admin:accesslost'))}closeDeniedOverlays();setView('denied')}
 
 function readAdminCollapsePreferences(){

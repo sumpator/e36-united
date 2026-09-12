@@ -1,4 +1,4 @@
-import qrcode from '../vendor/qrcode-generator.mjs?v=20260912-reservation-workflow-r1';
+import qrcode from '../vendor/qrcode-generator.mjs?v=20260912-reservation-detail-ux-r1';
 
 export const $=(selector,root=document)=>root.querySelector(selector);
 export const $$=(selector,root=document)=>[...root.querySelectorAll(selector)];

@@ -1,5 +1,5 @@
-import { accommodationVisualMarkup, bindAccommodationVisualFallbacks } from '../../../accommodation-visual.js?v=20260912-reservation-workflow-r1';
-import { accommodationGalleryCue, accommodationPhotos, bindAccommodationGalleryTrigger } from '../../../accommodation-gallery.js?v=20260912-reservation-workflow-r1';
+import { accommodationVisualMarkup, bindAccommodationVisualFallbacks } from '../../../accommodation-visual.js?v=20260912-reservation-detail-ux-r1';
+import { accommodationGalleryCue, accommodationPhotos, bindAccommodationGalleryTrigger } from '../../../accommodation-gallery.js?v=20260912-reservation-detail-ux-r1';
 import { MAX_RESERVATION_CREW, newerPlannerDraft, validatePlannerDraft } from '../../../planner-state.js?v=20260827-reservation-limits';
 import { $, esc, setButtonBusy, toast } from '../../ui.js?v=20260902-phase3';
 import { createReservationPayments, formatCzk } from './payments.js?v=20260911-reservation-flow-r1';
@@ -280,7 +280,7 @@ export function createMemberPlanner({
   const reservationStatusSymbols={pending:'!',approved:'✓',rejected:'×',cancelled:'—'};
   function setReservationCardStatus(status){
     const key=reservationStatusNames[status]?status:'none';
-    const elements=[$('.reservation-unified-card'),$('[data-reservation-card]'),$('[data-reservation-overview-card]'),$('.reservation-mini'),$('[data-reservation-nav-status]')].filter(Boolean);
+    const elements=[$('.reservation-status-card'),$('.reservation-unified-card'),$('[data-reservation-card]'),$('[data-reservation-overview-card]'),$('.reservation-mini'),$('[data-reservation-nav-status]')].filter(Boolean);
     for(const element of elements){for(const value of [...Object.keys(reservationStatusNames),'none'])element.classList.remove(`is-status-${value}`);element.classList.add(`is-status-${key}`)}
     const navStatus=$('[data-reservation-nav-status]');if(navStatus)navStatus.title=reservationStatusNames[status]||'Bez rezervace';
   }

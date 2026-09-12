@@ -1,27 +1,27 @@
-import {initializeDashboard,renderDashboard,receiveDashboardPreferences,dashboardWantsPlanner,dashboardWantsMailing,clearDashboard} from './admin/dashboard.js?v=20260912-reservation-workflow-r1';
-import {initializeCommandShell} from './admin/command-shell.js?v=20260912-reservation-workflow-r1';
-import {initializeMembers,openMember,closeMember,clearMemberPrivateState,memberContextKey,memberRefreshTasks,renderMemberReadState} from './admin/member-detail.js?v=20260912-reservation-workflow-r1';
-import {ADMIN_REFRESH,resourceDue} from './admin/refresh-policy.js?v=20260912-reservation-workflow-r1';
-import {reservationRequestPath,galleryRequestPath} from './admin/lists.js?v=20260912-reservation-workflow-r1';
-import { initializeAdminNavigation } from './admin/navigation.js?v=20260912-reservation-workflow-r1';
-import { createAdminRefresh } from './admin/refresh.js?v=20260912-reservation-workflow-r1';
-import { initializeAdminEditors, bindCurrentEditors, forgetAdminEditor, allowAdminNavigation, clearAdminPrivateEdits, adminRenderPending } from './admin/editors.js?v=20260912-reservation-workflow-r1';
-import { firebaseConfig } from './firebase-config.js?v=20260912-reservation-workflow-r1';
+import {initializeDashboard,renderDashboard,receiveDashboardPreferences,dashboardWantsPlanner,dashboardWantsMailing,clearDashboard} from './admin/dashboard.js?v=20260912-reservation-detail-ux-r1';
+import {initializeCommandShell} from './admin/command-shell.js?v=20260912-reservation-detail-ux-r1';
+import {initializeMembers,openMember,closeMember,clearMemberPrivateState,memberContextKey,memberRefreshTasks,renderMemberReadState} from './admin/member-detail.js?v=20260912-reservation-detail-ux-r1';
+import {ADMIN_REFRESH,resourceDue} from './admin/refresh-policy.js?v=20260912-reservation-detail-ux-r1';
+import {reservationRequestPath,galleryRequestPath} from './admin/lists.js?v=20260912-reservation-detail-ux-r1';
+import { initializeAdminNavigation } from './admin/navigation.js?v=20260912-reservation-detail-ux-r1';
+import { createAdminRefresh } from './admin/refresh.js?v=20260912-reservation-detail-ux-r1';
+import { initializeAdminEditors, bindCurrentEditors, forgetAdminEditor, allowAdminNavigation, clearAdminPrivateEdits, adminRenderPending } from './admin/editors.js?v=20260912-reservation-detail-ux-r1';
+import { firebaseConfig } from './firebase-config.js?v=20260912-reservation-detail-ux-r1';
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js';
 import { getAuth, setPersistence, browserLocalPersistence, onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js';
 
-import { apiRequest } from './admin/api.js?v=20260912-reservation-workflow-r1';
-import { adminState, resetAdminDomainState, resetAdminFiltersForEvent, resetAdminFiltersForLogin } from './admin/state.js?v=20260912-reservation-workflow-r1';
-import { initializeAdminShell, setAdminSectionCollapsed, setAdminView, setDenied, setLoading, setView } from './admin/shell.js?v=20260912-reservation-workflow-r1';
-import { $, toast } from './admin/ui.js?v=20260912-reservation-workflow-r1';
-import { renderEventSelector, renderEventSettings, renderOverview, saveEventSettings } from './admin/modules/dashboard-events.js?v=20260912-reservation-workflow-r1';
-import { moveAccommodationGalleryPhoto, previewAccommodationGalleryPhoto, previewAccommodationPhoto, removeAccommodationGalleryPhoto, resetAccommodationMedia, removeAccommodationPhoto, renderAccommodation, saveAccommodation, uploadAccommodationGalleryPhoto, uploadAccommodationPhoto } from './admin/modules/accommodation.js?v=20260912-reservation-workflow-r1';
-import { clearReservationDetailFilters, closeReservationDrawer, openReservationDrawer, renderReservations, renderReservationDetail, reviewReservationRequest, setPaymentFilter, setPaymentSearch, setReservationFilter, setReservationSearch, setReservationViewMode, toggleReservationDetailFilter, toggleReservationFilters, updateReservation, updateReservationPayment } from './admin/modules/reservations-payments.js?v=20260912-reservation-workflow-r1';
-import { changeHistoryPage, clearHistoryFilters, closeGalleryLightbox, closeHistoryEvidence, historyRequestPath, hydrateOpenHistoryCard, openGalleryLightbox, openHistoryEvidence, releaseGalleryMedia, releaseHistoryEvidence, renderGallery, renderHistoryClaims, reviewHistoryClaim, setGalleryFilter, setGalleryMode, setHistoryClaimType, setHistoryFilter, setHistorySearch, setHistoryYear, updateGallery } from './admin/modules/moderation.js?v=20260912-reservation-workflow-r1';
-import { initializeMailingCenter, resetMailingCenter, refreshMailingCenter } from './admin/modules/mailing/index.js?v=20260912-reservation-workflow-r1';
-import { renderAdminFunnel } from './admin/modules/funnel.js?v=20260912-reservation-workflow-r1';
-import {releaseHistoryCardMedia} from './admin/modules/moderation.js?v=20260912-reservation-workflow-r1';
-import { refreshHistoryAttention } from './admin/modules/dashboard-events.js?v=20260912-reservation-workflow-r1';
+import { apiRequest } from './admin/api.js?v=20260912-reservation-detail-ux-r1';
+import { adminState, resetAdminDomainState, resetAdminFiltersForEvent, resetAdminFiltersForLogin } from './admin/state.js?v=20260912-reservation-detail-ux-r1';
+import { initializeAdminShell, setAdminSectionCollapsed, setAdminView, setDenied, setLoading, setView } from './admin/shell.js?v=20260912-reservation-detail-ux-r1';
+import { $, toast } from './admin/ui.js?v=20260912-reservation-detail-ux-r1';
+import { renderEventSelector, renderEventSettings, renderOverview, saveEventSettings } from './admin/modules/dashboard-events.js?v=20260912-reservation-detail-ux-r1';
+import { moveAccommodationGalleryPhoto, previewAccommodationGalleryPhoto, previewAccommodationPhoto, removeAccommodationGalleryPhoto, resetAccommodationMedia, removeAccommodationPhoto, renderAccommodation, saveAccommodation, uploadAccommodationGalleryPhoto, uploadAccommodationPhoto } from './admin/modules/accommodation.js?v=20260912-reservation-detail-ux-r1';
+import { clearReservationDetailFilters, closeReservationDrawer, openReservationDrawer, renderReservations, renderReservationDetail, reviewReservationRequest, saveReservationNotes, setPaymentFilter, setPaymentSearch, setReservationFilter, setReservationSearch, setReservationViewMode, toggleReservationDetailFilter, toggleReservationFilters, updateReservation, updateReservationPayment } from './admin/modules/reservations-payments.js?v=20260912-reservation-detail-ux-r1';
+import { changeHistoryPage, clearHistoryFilters, closeGalleryLightbox, closeHistoryEvidence, historyRequestPath, hydrateOpenHistoryCard, openGalleryLightbox, openHistoryEvidence, releaseGalleryMedia, releaseHistoryEvidence, renderGallery, renderHistoryClaims, reviewHistoryClaim, setGalleryFilter, setGalleryMode, setHistoryClaimType, setHistoryFilter, setHistorySearch, setHistoryYear, updateGallery } from './admin/modules/moderation.js?v=20260912-reservation-detail-ux-r1';
+import { initializeMailingCenter, resetMailingCenter, refreshMailingCenter } from './admin/modules/mailing/index.js?v=20260912-reservation-detail-ux-r1';
+import { renderAdminFunnel } from './admin/modules/funnel.js?v=20260912-reservation-detail-ux-r1';
+import {releaseHistoryCardMedia} from './admin/modules/moderation.js?v=20260912-reservation-detail-ux-r1';
+import { refreshHistoryAttention } from './admin/modules/dashboard-events.js?v=20260912-reservation-detail-ux-r1';
 
 const app=initializeApp(firebaseConfig);
 const auth=getAuth(app);
@@ -269,6 +269,7 @@ document.addEventListener('click',event=>{
   const reservationOpen=event.target.closest('[data-reservation-open]');if(reservationOpen){if(!allowAdminNavigation())return;openReservationDrawer(reservationOpen.dataset.reservationOpen,reservationOpen);return}
   if(event.target.closest('[data-reservation-drawer-close]')){if(!allowAdminNavigation())return;closeReservationDrawer();return}
   const paymentSave=event.target.closest('[data-payment-save]');if(paymentSave){const card=paymentSave.closest('[data-reservation-id]');if(card)updateReservationPayment(card,false,loadEventData);return}
+  const notesSave=event.target.closest('[data-reservation-notes-save]');if(notesSave){const card=notesSave.closest('[data-reservation-id]');if(card)saveReservationNotes(card);return}
   const paymentFull=event.target.closest('[data-payment-full]');if(paymentFull){const card=paymentFull.closest('[data-reservation-id]');if(card)updateReservationPayment(card,true,loadEventData);return}
   const requestDecision=event.target.closest('[data-request-decision]');if(requestDecision){const card=requestDecision.closest('[data-reservation-id]');if(card)reviewReservationRequest(card,requestDecision.dataset.requestDecision);return}
   const preview=event.target.closest('[data-gallery-preview]');if(preview){openGalleryLightbox(preview.dataset.galleryPreview,preview);return}

@@ -150,7 +150,7 @@ async function attachAdminReservationContext(env,reservation){
   }
   for(const action of actions.results||[]){
     if(['reservation_request_rejected','reservation_change_approved','reservation_cancellation_approved'].includes(action.action_type))continue;
-    history.push({type:action.action_type,at:action.created_at,actor:action.admin_member_id===reservation.member_id?'member':'admin',label:action.action_type==='reservation_payment_update'?'Platba upravena':action.action_type==='reservation_car_changed'?'Auto rezervace změněno':'Stav rezervace změněn',comment:action.note||'',oldState:parseJson(action.old_state_json),newState:parseJson(action.new_state_json)});
+    history.push({type:action.action_type,at:action.created_at,actor:action.admin_member_id===reservation.member_id?'member':'admin',label:action.action_type==='reservation_payment_update'?'Platba upravena':action.action_type==='reservation_car_changed'?'Auto rezervace změněno':action.action_type==='reservation_notes_changed'?'Poznámky rezervace upraveny':'Stav rezervace změněn',comment:action.note||'',oldState:parseJson(action.old_state_json),newState:parseJson(action.new_state_json)});
   }
   reservation.admin_history=history.filter(item=>item.at).sort((a,b)=>String(b.at).localeCompare(String(a.at)));
   return reservation;

@@ -580,3 +580,52 @@ body:not(.member-authenticated) [data-app-view]{display:none!important}
  .reservation-form.is-editing .reservation-price-preview{grid-template-columns:1fr;grid-template-areas:"visual" "head" "estimate" "details"}
  .reservation-form.is-editing .reservation-price-preview>.accommodation-gallery-trigger{width:100%}
 }
+
+/* Final reservation-detail overrides intentionally follow the earlier compatibility layers. */
+.member-sr-only{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}
+.reservation-workbench{display:grid;grid-template-columns:minmax(0,1fr);gap:16px}
+.reservation-status-card,.reservation-unified-card{--reservation-status:#69afff;--reservation-status-bg:rgba(77,163,255,.17);--reservation-status-border:rgba(105,175,255,.48)}
+.reservation-status-card.is-status-approved,.reservation-unified-card.is-status-approved{--reservation-status:#66e39d;--reservation-status-bg:rgba(47,190,111,.2);--reservation-status-border:rgba(102,227,157,.58)}
+.reservation-status-card.is-status-rejected,.reservation-unified-card.is-status-rejected{--reservation-status:#ff6472;--reservation-status-bg:rgba(218,47,64,.22);--reservation-status-border:rgba(255,100,114,.62)}
+.reservation-status-card.is-status-pending,.reservation-unified-card.is-status-pending{--reservation-status:#ffc15c;--reservation-status-bg:rgba(232,148,27,.21);--reservation-status-border:rgba(255,193,92,.58)}
+.reservation-status-card.is-status-cancelled,.reservation-unified-card.is-status-cancelled{--reservation-status:#c7858d;--reservation-status-bg:rgba(128,61,70,.22);--reservation-status-border:rgba(199,133,141,.46)}
+.reservation-status-card{overflow:hidden;border:1px solid var(--reservation-status-border);border-radius:20px;background:linear-gradient(110deg,var(--reservation-status-bg),rgba(5,8,12,.84));box-shadow:0 18px 42px rgba(0,0,0,.22),inset 3px 0 var(--reservation-status)}
+.reservation-status-card .reservation-detail-status{border:0;background:transparent}
+.reservation-unified-card{display:block;overflow:hidden}
+.reservation-detail-grid{display:block}
+.reservation-unified-card .reservation-card-large[data-reservation-card]{height:auto;min-height:0;padding:0;border:0;border-bottom:1px solid rgba(105,175,255,.16);border-radius:0;background:#080c11;box-shadow:none}
+.reservation-hero-strip{position:relative;isolation:isolate;height:clamp(170px,17vw,210px);padding:22px 25px;overflow:hidden;background:radial-gradient(circle at 85% 15%,rgba(77,163,255,.18),transparent 20rem),linear-gradient(150deg,#111820,#080b0f)}
+.reservation-hero-strip .reservation-large-year,.reservation-hero-strip h3{position:relative;z-index:3}
+.reservation-unified-card .reservation-hero-strip .reservation-large-year{margin:0;font-size:clamp(62px,7vw,94px);line-height:.75}
+.reservation-unified-card .reservation-hero-strip h3{margin:14px 0 0;font-size:clamp(22px,3vw,31px)}
+.reservation-unified-card .reservation-summary{position:relative;inset:auto;z-index:3;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;margin:0;padding:16px 20px 20px;background:linear-gradient(180deg,#0b1118,#080c11)}
+.reservation-unified-card .reservation-summary>div{grid-column:span 2;min-height:86px;padding:14px 15px;border:1px solid rgba(105,175,255,.19);border-radius:13px;background:linear-gradient(145deg,rgba(77,163,255,.09),rgba(255,255,255,.025));display:grid;align-content:center;gap:8px;box-shadow:inset 3px 0 rgba(105,175,255,.45)}
+.reservation-unified-card .reservation-summary>div:nth-child(n+4){grid-column:span 3}
+.reservation-unified-card .reservation-summary small{color:#788b9d;font-size:8px;letter-spacing:.1em}
+.reservation-unified-card .reservation-summary b{display:block;color:#eef7ff;font-size:clamp(14px,1.45vw,18px);line-height:1.25;white-space:normal;overflow-wrap:anywhere}
+.reservation-control-stack{border-top:1px solid rgba(105,175,255,.1)}
+.reservation-control-stack .reservation-form,.reservation-control-stack .reservation-form.is-editing{min-height:0;padding:22px 24px;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;background:linear-gradient(155deg,rgba(16,25,35,.98),rgba(8,12,17,.98))}
+.reservation-control-stack .reservation-form>:is(.form-title,.reservation-member-actions,.reservation-cancel-request,.reservation-saved-price,.reservation-car-required-inline,.reservation-price-preview,.reservation-form-status,.reservation-edit-actions,.reservation-mail-state,.reservation-form-row),.reservation-control-stack .reservation-form>label:has(textarea){grid-column:1/-1}
+.reservation-form-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;align-items:start}
+.reservation-form-row>label,.reservation-partial-stack{min-width:0}
+.reservation-form-row>label{display:grid;grid-template-rows:minmax(20px,auto) 46px auto;align-content:start;gap:7px}
+.reservation-form-row>label>span,.reservation-partial-stack>label:not(.reservation-partial-toggle)>span{min-height:20px;display:flex;align-items:end}
+.reservation-form-row input:not([type=checkbox]),.reservation-form-row select{height:46px;min-height:46px}
+.reservation-form-row--choices{align-items:stretch}
+.reservation-partial-stack{display:grid;align-content:start;gap:10px}
+.reservation-partial-stack:not(:has(>label:not([hidden]))){visibility:hidden}
+.reservation-partial-stack>label:not(.reservation-partial-toggle){display:grid;gap:7px}
+.reservation-form-row--choices>label{height:100%}
+.reservation-partial-toggle{min-height:46px;margin-top:27px}
+.reservation-control-stack .reservation-car-choice{margin:0;padding:18px 24px 22px;grid-template-columns:minmax(150px,.45fr) minmax(220px,1fr) auto;align-items:end;border:0;border-top:1px solid rgba(105,175,255,.14);border-radius:0;background:rgba(77,163,255,.025)}
+.reservation-control-stack .reservation-car-choice h3{margin:0 0 10px;color:#eef7ff;font-size:19px}
+.reservation-control-stack .reservation-car-choice label{display:block}
+.reservation-unified-card:has(.reservation-form.is-editing) .reservation-detail-grid{display:block}
+.reservation-unified-card:has(.reservation-form.is-editing) .reservation-card-large[data-reservation-card]{min-height:0;max-height:none;padding:0;overflow:visible}
+.reservation-unified-card:has(.reservation-form.is-editing) .reservation-summary{display:grid}
+.reservation-unified-card:has(.reservation-form.is-editing) .reservation-hero-strip{height:clamp(160px,15vw,190px)}
+.reservation-unified-card:has(.reservation-form.is-editing) .reservation-hero-strip .reservation-large-year{font-size:clamp(52px,6vw,76px)}
+.reservation-unified-card:has(.reservation-form.is-editing) .reservation-hero-strip h3{margin-top:11px;font-size:22px}
+.reservation-unified-card:has(.reservation-form.is-editing) .reservation-card-overlay{background:linear-gradient(90deg,rgba(7,11,15,.88),rgba(7,11,15,.38))}
+@media(min-width:1380px){.reservation-unified-card .reservation-summary{grid-template-columns:repeat(5,minmax(0,1fr))}.reservation-unified-card .reservation-summary>div,.reservation-unified-card .reservation-summary>div:nth-child(n+4){grid-column:span 1}}
+@media(max-width:700px){.reservation-workbench{gap:12px}.reservation-status-card{border-radius:17px}.reservation-detail-status{padding:16px}.reservation-unified-card .reservation-card-large[data-reservation-card]{min-height:0;padding:0}.reservation-hero-strip,.reservation-unified-card:has(.reservation-form.is-editing) .reservation-hero-strip{height:170px;padding:18px}.reservation-unified-card .reservation-hero-strip .reservation-large-year,.reservation-unified-card:has(.reservation-form.is-editing) .reservation-hero-strip .reservation-large-year{font-size:56px}.reservation-unified-card .reservation-hero-strip h3,.reservation-unified-card:has(.reservation-form.is-editing) .reservation-hero-strip h3{margin-top:11px;font-size:20px}.reservation-unified-card .reservation-summary{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;padding:14px}.reservation-unified-card .reservation-summary>div,.reservation-unified-card .reservation-summary>div:nth-child(n+4){grid-column:span 1;min-height:82px;padding:12px}.reservation-unified-card .reservation-summary>.member-summary-accommodation{grid-column:1/-1}.reservation-unified-card .reservation-summary b{font-size:14px}.reservation-control-stack .reservation-form,.reservation-control-stack .reservation-form.is-editing{grid-template-columns:1fr;padding:18px}.reservation-form-row{grid-template-columns:1fr;gap:12px}.reservation-partial-stack:not(:has(>label:not([hidden]))){display:none}.reservation-partial-toggle{margin-top:0}.reservation-control-stack .reservation-car-choice{grid-template-columns:1fr;margin:0;padding:16px 18px 18px}.reservation-control-stack .reservation-car-choice h3{margin-bottom:0}}

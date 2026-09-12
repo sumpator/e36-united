@@ -1,7 +1,7 @@
-import { canonicalMemberLink } from '../../member-detail.js?v=20260912-reservation-workflow-r1';
-import {renderListPagination} from '../../lists.js?v=20260912-reservation-workflow-r1';
-import { apiRequest } from '../../api.js?v=20260912-reservation-workflow-r1';
-import { $, escapeHtml, numeric } from '../../ui.js?v=20260912-reservation-workflow-r1';
+import { canonicalMemberLink } from '../../member-detail.js?v=20260912-reservation-detail-ux-r1';
+import {renderListPagination} from '../../lists.js?v=20260912-reservation-detail-ux-r1';
+import { apiRequest } from '../../api.js?v=20260912-reservation-detail-ux-r1';
+import { $, escapeHtml, numeric } from '../../ui.js?v=20260912-reservation-detail-ux-r1';
 
 let contactPage=1,contactSequence=0;
 const eligibilityLabels={eligible:'Způsobilý',ineligible:'Bez souhlasu',review_required:'Nutná kontrola',suppressed:'Potlačený'};

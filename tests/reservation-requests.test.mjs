@@ -71,6 +71,18 @@ test('reservation decision keeps the internal Admin note out of the member respo
   const stored=r.db.prepare("SELECT review_note FROM reservations WHERE id='r'").get();assert.equal(stored.review_note,'Interní důvod pro pořadatele.');r.db.close();
 });
 
+test('Admin notes command preserves reservation state and can clear the member message through the existing revision guard',async()=>{
+  const r=prepare();r.db.exec("UPDATE reservations SET review_note='Původní interní'; INSERT INTO reservation_member_comments(reservation_id,member_comment,updated_by) VALUES('r','Původní zpráva','a')");
+  const before={...r.db.prepare("SELECT status,arrival,crew,amount_due_czk,amount_paid_czk,payment_status,reviewed_by,reviewed_at FROM reservations WHERE id='r'").get()};
+  const save=async(reviewNote,memberComment)=>{const base=await resourceRevision(r.env,'reservation','r'),req=request('/api/admin/reservations/r','PATCH',{reviewNote,memberComment},{'Idempotency-Key':crypto.randomUUID(),'If-Match':String(base)});return runAdminCommand(req,r.env,{uid:'a'},'reservation','r',origin,env=>patchAdminReservation(req,env,{uid:'a'},'r',origin))};
+  let response=await save('Nová interní','Nová zpráva pro člena');assert.equal(response.status,200);
+  assert.deepEqual({...r.db.prepare("SELECT status,arrival,crew,amount_due_czk,amount_paid_czk,payment_status,reviewed_by,reviewed_at FROM reservations WHERE id='r'").get()},before);
+  let member=(await (await getCurrentReservation(r.env,auth,origin)).json()).reservation;assert.equal(member.memberComment,'Nová zpráva pro člena');assert.equal('reviewNote' in member,false);
+  assert.equal(r.db.prepare("SELECT action_type FROM admin_actions WHERE entity_id='r' ORDER BY created_at DESC,id DESC LIMIT 1").get().action_type,'reservation_notes_changed');
+  response=await save('', '');assert.equal(response.status,200);assert.equal(r.db.prepare("SELECT review_note FROM reservations WHERE id='r'").get().review_note,null);assert.equal(r.db.prepare("SELECT member_comment FROM reservation_member_comments WHERE reservation_id='r'").get().member_comment,'');
+  member=(await (await getCurrentReservation(r.env,auth,origin)).json()).reservation;assert.equal(member.memberComment,'');r.db.close();
+});
+
 test('approved cancellation releases capacity without deleting allocation or recorded payment',async()=>{
   const r=prepare();r.db.exec("UPDATE reservations SET amount_paid_czk=1200,payment_status='paid',paid_at='2026-09-01' WHERE id='r'");
   const created=await (await submit(r,{reservationId:'r',type:'cancellation',memberNote:'Nemohu přijet.'})).json();

@@ -8,8 +8,8 @@
 <meta content="noindex,nofollow" name="robots"/>
 <meta content="#090a0c" name="theme-color"/>
 <link href="styles.css?v=20260911-finish-ui-r1" rel="stylesheet"/>
-<link href="accommodation-visual.css?v=20260912-reservation-workflow-r1" rel="stylesheet"/>
-<link href="member.css?v=20260911-reservation-detail-r1" rel="stylesheet"/>
+<link href="accommodation-visual.css?v=20260912-reservation-detail-ux-r1" rel="stylesheet"/>
+<link href="member.css?v=20260912-reservation-detail-ux-r1" rel="stylesheet"/>
 <link href="member/reliability.css?v=20260907-feedback" rel="stylesheet"/>
 <link href="mobile-feedback.css?v=20260907-mobile" rel="stylesheet"/>
 </head>
@@ -119,23 +119,22 @@
 <p class="planner-handoff-approved" data-planner-handoff-approved="" hidden="">Po odeslání změn bude rezervace znovu čekat na schválení.</p>
 </aside>
 <div class="reservation-workbench" data-reservation-workbench="">
-<article aria-label="Detail rezervace" class="reservation-unified-card">
+<section aria-label="Stav rezervace" class="reservation-status-card">
 <header class="reservation-detail-status"><div aria-live="polite" class="reservation-state"><small>STAV REZERVACE</small><span class="reservation-state-value"><i data-reservation-state-symbol="">·</i><strong data-reservation-state-label="">NAČÍTÁM STAV</strong></span></div><p data-reservation-description="">Ověřuji, zda je registrace otevřená a jestli už máš uloženou rezervaci.</p><div class="reservation-member-comment" data-reservation-member-comment hidden></div><div class="reservation-request-status" data-reservation-request-status hidden></div></header>
+</section>
+<article aria-label="Detail rezervace" class="reservation-unified-card">
 <div class="reservation-detail-grid">
-<div class="reservation-card-large" data-reservation-card=""><div class="reservation-car-hero" data-reservation-car-hero="" hidden=""></div><div class="reservation-card-overlay"></div><div class="reservation-large-year" data-reservation-year="">—</div><h3 data-reservation-title="">Příští E36 United</h3><div class="reservation-summary" data-reservation-summary=""></div></div>
+<div class="reservation-card-large" data-reservation-card=""><div class="reservation-hero-strip"><div class="reservation-car-hero" data-reservation-car-hero="" hidden=""></div><div class="reservation-card-overlay"></div><div class="reservation-large-year" data-reservation-year="">—</div><h3 data-reservation-title="">Příští E36 United</h3></div><div class="reservation-summary" data-reservation-summary=""></div></div>
 <div class="reservation-control-stack">
 <form class="reservation-form" data-reservation-form="">
 <div class="form-title"><span data-reservation-form-kicker>DETAILY REZERVACE</span><b data-reservation-form-title>Dokonči rezervaci</b></div>
 <div class="reservation-saved-price" data-reservation-saved-price="" hidden=""></div>
 <label data-reservation-edit-field data-reservation-form-car><span>Auto z garáže</span><select data-car-select="" name="carId"></select></label>
 <div aria-live="polite" class="reservation-car-required-inline" data-reservation-car-error="" hidden=""><strong>Nejdřív přidej auto.</strong><p>Potřebujeme vědět, se kterým E36 přijedeš. Fotku můžeš doplnit později.</p><button class="member-primary member-primary--compact" data-reservation-add-car="" type="button">+ Přidat auto</button></div>
-<div class="form-grid-two" data-reservation-edit-field><label><span>Příjezd</span><select data-member-arrival="" name="arrival"><option>Pátek</option><option>Sobota</option><option>Jen na otočku</option></select></label><label><span>Posádka</span><input max="5" min="1" name="crew" type="number" value="2"/><small class="reservation-field-note">Maximálně 5 osob.</small><small class="reservation-field-note reservation-field-warning" data-legacy-crew-warning="" hidden></small></label></div>
-<label data-member-sleep-field="" data-reservation-edit-field><span>Ubytování</span><select name="sleep"><option>Chatka</option><option>Stan</option><option>Bez ubytování</option></select></label>
-<label data-accommodation-option-field="" data-reservation-edit-field hidden=""><span data-accommodation-option-label="">Typ ubytování</span><select name="accommodationOptionId"></select><small class="reservation-availability" data-accommodation-availability=""></small></label>
-<label class="reservation-partial-toggle" data-accommodation-partial-field="" data-reservation-edit-field hidden=""><input name="partialAccommodation" type="checkbox"/><span>Ubytování potřebuje jen část posádky</span></label>
-<label data-accommodation-people-field="" data-reservation-edit-field hidden=""><span>Počet ubytovaných osob</span><input max="5" min="1" name="accommodationUnits" required="" type="number" value="2"/><small class="reservation-field-note">Maximálně podle velikosti posádky.</small></label>
+<div class="reservation-form-row" data-reservation-edit-field><label><span>Příjezd</span><select data-member-arrival="" name="arrival"><option>Pátek</option><option>Sobota</option><option>Jen na otočku</option></select></label><label><span>Posádka</span><input max="5" min="1" name="crew" type="number" value="2"/><small class="reservation-field-note">Maximálně 5 osob.</small><small class="reservation-field-note reservation-field-warning" data-legacy-crew-warning="" hidden></small></label></div>
+<div class="reservation-form-row" data-reservation-edit-field><label data-member-sleep-field=""><span>Ubytování</span><select name="sleep"><option>Chatka</option><option>Stan</option><option>Bez ubytování</option></select></label><label data-accommodation-option-field="" hidden=""><span data-accommodation-option-label="">Typ ubytování</span><select name="accommodationOptionId"></select><small class="reservation-availability" data-accommodation-availability=""></small></label></div>
+<div class="reservation-form-row reservation-form-row--choices" data-reservation-edit-field><div class="reservation-partial-stack"><label class="reservation-partial-toggle" data-accommodation-partial-field="" hidden=""><input name="partialAccommodation" type="checkbox"/><span>Ubytování potřebuje jen část posádky</span></label><label data-accommodation-people-field="" hidden=""><span>Počet ubytovaných osob</span><input max="5" min="1" name="accommodationUnits" required="" type="number" value="2"/><small class="reservation-field-note">Maximálně podle velikosti posádky.</small></label></div><label><span>Show &amp; Shine</span><select name="showshine"><option value="Ne">Ne</option><option value="Možná">Možná</option><option value="Ano">Ano</option></select></label></div>
 <div aria-live="polite" class="reservation-price-preview" data-accommodation-preview="" data-reservation-edit-field hidden=""></div>
-<label data-reservation-edit-field><span>Show &amp; Shine</span><select name="showshine"><option value="Ne">Ne</option><option value="Možná">Možná</option><option value="Ano">Ano</option></select></label>
 <label data-reservation-edit-field><span>Poznámka pro United tým</span><textarea name="note" placeholder="Příjezd později, speciální požadavek…" rows="3"></textarea></label>
 <div aria-live="polite" class="reservation-form-status" data-reservation-form-status hidden role="status" tabindex="-1"></div>
 <div class="reservation-edit-actions" data-reservation-edit-field><button class="member-primary" data-reservation-submit="" type="submit">Odeslat rezervaci <span>→</span></button><button class="member-secondary" data-request-change-cancel hidden type="button">Zrušit úpravu</button></div>
@@ -143,7 +142,7 @@
 <div class="reservation-cancel-request" data-cancel-request hidden><label><span>Důvod nebo zpráva pro United tým</span><textarea data-cancel-request-note maxlength="1000" rows="3" placeholder="Volitelná zpráva…"></textarea></label><div><button class="member-danger" data-request-cancel-submit type="button">Odeslat žádost o zrušení</button><button class="member-secondary" data-request-cancel-close type="button">Zpět</button></div></div>
 <div class="reservation-mail-state" data-reservation-mail-state=""><i></i><span>Po odeslání bude rezervace čekat na schválení.</span></div>
 </form>
-<section class="reservation-car-choice" data-reservation-car-choice hidden><div><span class="member-kicker">AUTO REZERVACE</span><strong>Změnit auto bez nového schvalování pobytu</strong><small>Výběr nemění osoby, ubytování, cenu ani stav rezervace.</small></div><label><span>Auto z Garage</span><select data-reservation-car-select></select></label><button class="member-secondary" data-reservation-car-save type="button">Uložit auto</button></section>
+<section class="reservation-car-choice" data-reservation-car-choice hidden><h3>Změnit auto</h3><label><span class="member-sr-only">Auto rezervace</span><select aria-label="Auto rezervace" data-reservation-car-select></select></label><button class="member-secondary" data-reservation-car-save type="button">Uložit auto</button></section>
 </div>
 </div>
 </article>
@@ -223,5 +222,5 @@
 <div class="member-gallery-lightbox" data-member-gallery-lightbox="" hidden=""><div class="member-gallery-lightbox-backdrop" data-member-gallery-close=""></div><div aria-label="Náhled fotografie" aria-modal="true" class="member-gallery-lightbox-dialog" role="dialog"><button aria-label="Zavřít náhled" class="member-gallery-lightbox-close" data-member-gallery-close="" type="button">×</button><button aria-label="Předchozí fotografie" class="member-gallery-lightbox-nav member-gallery-lightbox-prev" data-member-gallery-prev="" type="button">←</button><figure><img alt="" data-member-gallery-lightbox-image=""/><figcaption data-member-gallery-lightbox-caption=""></figcaption></figure><button aria-label="Další fotografie" class="member-gallery-lightbox-nav member-gallery-lightbox-next" data-member-gallery-next="" type="button">→</button></div></div>
 <div aria-live="polite" class="member-toast" data-toast="" role="status"></div>
 <script src="showshine-data.js?v=20260824"></script>
-<script src="member.js?v=20260912-reservation-workflow-r1" type="module"></script>
+<script src="member.js?v=20260912-reservation-detail-ux-r1" type="module"></script>
 </body></html>

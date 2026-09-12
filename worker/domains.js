@@ -424,10 +424,12 @@ async function patchAdminReservation(request, env, auth, reservationId, origin) 
     return json({ ok: false, error: "invalid_fields", message: "Lze změnit pouze stav, interní poznámku a zprávu pro člena." }, 400, origin);
   }
 
-  const status = clean(body.status);
-  const reviewNote = clean(body.reviewNote).slice(0, 1000);
-  const memberComment = clean(body.memberComment).slice(0, 1000);
-  if (!["pending", "approved", "rejected", "cancelled"].includes(status)) {
+  const changesStatus = Object.hasOwn(body, "status");
+  if (!changesStatus && !Object.hasOwn(body, "reviewNote") && !Object.hasOwn(body, "memberComment")) {
+    return json({ ok: false, error: "invalid_fields", message: "Vyplň interní poznámku nebo zprávu pro člena." }, 400, origin);
+  }
+  const requestedStatus = changesStatus ? clean(body.status) : null;
+  if (changesStatus && !["pending", "approved", "rejected", "cancelled"].includes(requestedStatus)) {
     return json({ ok: false, error: "invalid_status", message: "Neplatný stav rezervace." }, 400, origin);
   }
 
@@ -442,6 +444,9 @@ async function patchAdminReservation(request, env, auth, reservationId, origin) 
 
   const currentReviewNote = reservation.review_note || "";
   const currentMemberComment = (await env.DB.prepare('SELECT member_comment FROM reservation_member_comments WHERE reservation_id=?').bind(reservationId).first())?.member_comment || '';
+  const status = changesStatus ? requestedStatus : reservation.status;
+  const reviewNote = (Object.hasOwn(body, "reviewNote") ? clean(body.reviewNote) : currentReviewNote).slice(0, 1000);
+  const memberComment = (Object.hasOwn(body, "memberComment") ? clean(body.memberComment) : currentMemberComment).slice(0, 1000);
   if (reservation.status === status && currentReviewNote === reviewNote && currentMemberComment === memberComment) {
     return json({ ok: true, unchanged: true, reservation: { id: reservationId, status, reviewNote, memberComment } }, 200, origin);
   }
@@ -450,10 +455,8 @@ async function patchAdminReservation(request, env, auth, reservationId, origin) 
   const newState = JSON.stringify({ status, reviewNote, memberComment });
   const actionId = crypto.randomUUID();
   const writeToken = createWriteToken();
-  const requiresCapacityCheck = reservation.status !== "approved" && status === "approved";
-
-  const results = await env.DB.batch([
-    env.DB.prepare(`
+  const requiresCapacityCheck = changesStatus && reservation.status !== "approved" && status === "approved";
+  const updateReservation = changesStatus ? env.DB.prepare(`
       UPDATE reservations
       SET status = ?, review_note = ?, reviewed_by = ?, reviewed_at = CURRENT_TIMESTAMP, updated_at = ?
       WHERE id = ? AND (
@@ -473,7 +476,12 @@ async function patchAdminReservation(request, env, auth, reservationId, origin) 
             )
         )
       )
-    `).bind(status, reviewNote || null, auth.uid, writeToken, reservationId, requiresCapacityCheck ? 1 : 0),
+    `).bind(status, reviewNote || null, auth.uid, writeToken, reservationId, requiresCapacityCheck ? 1 : 0)
+    : env.DB.prepare('UPDATE reservations SET review_note = ?, updated_at = ? WHERE id = ?')
+      .bind(reviewNote || null, writeToken, reservationId);
+
+  const results = await env.DB.batch([
+    updateReservation,
     env.DB.prepare(`INSERT INTO reservation_member_comments(reservation_id,member_comment,updated_at,updated_by)
       SELECT ?,?,?,? FROM reservations WHERE id=? AND updated_at=?
         AND (?<>'' OR EXISTS(SELECT 1 FROM reservation_member_comments WHERE reservation_id=?))
@@ -484,9 +492,9 @@ async function patchAdminReservation(request, env, auth, reservationId, origin) 
         id, admin_member_id, action_type, entity_type, entity_id,
         old_state_json, new_state_json, note, created_at
       )
-      SELECT ?, ?, 'reservation_status_changed', 'reservation', ?, ?, ?, ?, CURRENT_TIMESTAMP
+      SELECT ?, ?, ?, 'reservation', ?, ?, ?, ?, CURRENT_TIMESTAMP
       FROM reservations WHERE id = ? AND updated_at = ?
-    `).bind(actionId, auth.uid, reservationId, oldState, newState, reviewNote || null, reservationId, writeToken),
+    `).bind(actionId, auth.uid, changesStatus ? 'reservation_status_changed' : 'reservation_notes_changed', reservationId, oldState, newState, reviewNote || null, reservationId, writeToken),
   ]);
 
   if (!results[0]?.meta?.changes) {

@@ -1,17 +1,17 @@
-import { canonicalMemberLink } from '../member-detail.js?v=20260912-reservation-workflow-r1';
-import {showReservationMedia,clearReservationMedia} from '../reservation-media.js?v=20260912-reservation-workflow-r1';
-import {listChanged,renderListPagination} from '../lists.js?v=20260912-reservation-workflow-r1';
-import { adminCommand, editorProtected, allowAdminNavigation, forgetAdminEditor } from '../editors.js?v=20260912-reservation-workflow-r1';
-import { accommodationVisualMarkup, bindAccommodationVisualFallbacks } from '../../accommodation-visual.js?v=20260912-reservation-workflow-r1';
-import { RESERVATION_DETAIL_FILTERS, RESERVATION_PRIMARY_FILTERS, RESERVATION_VIEW_MODES, adminItemPayment, filterAdminPayments, filterAdminReservations, paymentMatchesFilter, reservationMatchesFilter } from '../../admin-view-model.js?v=20260912-reservation-workflow-r1';
-import { apiBaseUrl, apiRequest } from '../api.js?v=20260912-reservation-workflow-r1';
-import { renderAttentionCounts } from './dashboard-events.js?v=20260912-reservation-workflow-r1';
-import { adminState } from '../state.js?v=20260912-reservation-workflow-r1';
-import { setDenied } from '../shell.js?v=20260912-reservation-workflow-r1';
-import { $, $$, attendanceLabel, attendanceShortLabel, escapeHtml, formatDate, formatMoney, numeric, paymentLabel, paymentQrSvg, recordsLabel, rememberSessionChoice, statusLabel, toast } from '../ui.js?v=20260912-reservation-workflow-r1';
+import { canonicalMemberLink } from '../member-detail.js?v=20260912-reservation-detail-ux-r1';
+import {showReservationMedia,clearReservationMedia} from '../reservation-media.js?v=20260912-reservation-detail-ux-r1';
+import {listChanged,renderListPagination} from '../lists.js?v=20260912-reservation-detail-ux-r1';
+import { adminCommand, editorProtected, allowAdminNavigation, forgetAdminEditor } from '../editors.js?v=20260912-reservation-detail-ux-r1';
+import { accommodationVisualMarkup, bindAccommodationVisualFallbacks } from '../../accommodation-visual.js?v=20260912-reservation-detail-ux-r1';
+import { RESERVATION_DETAIL_FILTERS, RESERVATION_PRIMARY_FILTERS, RESERVATION_VIEW_MODES, adminItemPayment, filterAdminPayments, filterAdminReservations, paymentMatchesFilter, reservationMatchesFilter } from '../../admin-view-model.js?v=20260912-reservation-detail-ux-r1';
+import { apiBaseUrl, apiRequest } from '../api.js?v=20260912-reservation-detail-ux-r1';
+import { renderAttentionCounts } from './dashboard-events.js?v=20260912-reservation-detail-ux-r1';
+import { adminState } from '../state.js?v=20260912-reservation-detail-ux-r1';
+import { setDenied } from '../shell.js?v=20260912-reservation-detail-ux-r1';
+import { $, $$, attendanceLabel, attendanceShortLabel, escapeHtml, formatDate, formatMoney, numeric, paymentLabel, paymentQrSvg, recordsLabel, rememberSessionChoice, statusLabel, toast } from '../ui.js?v=20260912-reservation-detail-ux-r1';
 
 const paymentFilterLabels={attention:'Vyžaduje kontrolu',all:'Vše',unpaid:'K platbě',underpaid:'Doplatek',paid:'Zaplaceno',overpaid:'Přeplatek'};
-import {mergeReservation} from '../confirmed-state.js?v=20260912-reservation-workflow-r1';
+import {mergeReservation} from '../confirmed-state.js?v=20260912-reservation-detail-ux-r1';
 let reservationDrawerReturnFocus=null;
 let revisionContext='',revisionFloor=new Map();
 function floors(){
@@ -168,9 +168,11 @@ function renderReservationDrawer(){
     <h3 class="admin-drawer-section-title">Finance</h3>
     <section class="admin-payment-editor">${payment.testMode?'<div class="payment-test-warning">TESTOVACÍ PLATBA – NEPLAŤTE</div>':''}<div class="admin-payment-editor-grid"><div><span class="admin-kicker">Finance</span><h3>${escapeHtml(payment.overdue&&payment.remainingCzk>0?'Platba po splatnosti':reservationDifference(item))}</h3><dl><div><dt>Cena rezervace</dt><dd>${escapeHtml(formatMoney(payment.amountDueCzk))}</dd></div><div><dt>Evidovaně uhrazeno</dt><dd>${escapeHtml(formatMoney(payment.amountPaidCzk))}</dd></div><div><dt>${payment.status==='overpaid'?'Přeplatek':payment.status==='underpaid'?'Doplatek':'Bilance'}</dt><dd>${escapeHtml(payment.status==='overpaid'?formatMoney(payment.overpaymentCzk):formatMoney(payment.remainingCzk))}</dd></div><div><dt>VS</dt><dd>${escapeHtml(payment.variableSymbol||'—')}</dd></div><div><dt>Účet</dt><dd>${escapeHtml(payment.accountDisplay||'—')}</dd></div><div><dt>Splatnost</dt><dd>${escapeHtml(formatDate(payment.deadline,false))}</dd></div></dl><label><span>SKUTEČNĚ UHRAZENO (KČ)</span><input data-payment-amount max="10000000" min="0" step="1" type="number" value="${numeric(payment.amountPaidCzk)}"/></label><div class="admin-payment-actions"><button class="admin-button admin-button--primary" data-payment-save type="button">Uložit platbu <span>→</span></button><button class="admin-button" data-payment-full type="button">Označit plně uhrazeno</button></div></div>${qr?`<div class="admin-payment-qr"><div>${qr}</div><small>${escapeHtml(payment.message||'')}</small></div>`:''}</div></section>
     <div class="admin-reservation-drawer-notes"><div><small>POZNÁMKA ČLENA</small><p>${escapeHtml(item.note||'Bez poznámky člena.')}</p></div></div>
-    ${reservationHistoryMarkup(item)}
+    <h3 class="admin-drawer-section-title">Poznámky</h3>
+    <div class="admin-review admin-reservation-drawer-review"><label><span>Interní poznámka</span><input maxlength="1000" data-review-note placeholder="Vidí pouze Admin" value="${escapeHtml(item.reviewNote||'')}"/></label><label><span>Zpráva pro člena</span><textarea maxlength="1000" rows="3" data-reservation-member-comment placeholder="Zobrazí se členovi u rezervace">${escapeHtml(item.memberComment||'')}</textarea></label><div class="admin-notes-actions"><button class="admin-button admin-button--primary" data-reservation-notes-save type="button">Uložit poznámky</button></div></div>
     <h3 class="admin-drawer-section-title">Admin akce</h3>
-    <div class="admin-review admin-reservation-drawer-review"><label><span>Interní poznámka</span><input maxlength="1000" data-review-note placeholder="Vidí pouze Admin" value="${escapeHtml(item.reviewNote||'')}"/></label><label><span>Zpráva pro člena</span><textarea maxlength="1000" rows="3" data-reservation-member-comment placeholder="Zobrazí se členovi u rezervace">${escapeHtml(item.memberComment||'')}</textarea></label><div class="admin-review-actions">${reservationActions(item)}</div></div>
+    <div class="admin-review-actions admin-reservation-status-actions">${reservationActions(item)}</div>
+    ${reservationHistoryMarkup(item)}
   </article>`;
   if(protectedEditor){
     // Patch only read-only regions. Inputs, their selection/focus, the article and
@@ -188,9 +190,9 @@ function renderReservationDrawer(){
         live.replaceChildren(...fresh.childNodes,...notices);
       }
     }
-    const actions=editor.querySelector('.admin-review-actions');
+    const actions=editor.querySelector('.admin-reservation-status-actions');
     for(const button of actions.querySelectorAll('[data-review-action]'))if(button.dataset.reviewAction===item.status)button.remove();
-    for(const button of next.querySelectorAll('.admin-review-actions button'))if(!actions.querySelector('[data-review-action="'+button.dataset.reviewAction+'"]'))actions.append(button);
+    for(const button of next.querySelectorAll('.admin-reservation-status-actions [data-review-action]'))if(!actions.querySelector('[data-review-action="'+button.dataset.reviewAction+'"]'))actions.append(button);
     if(['saving','outcome_unknown','conflict'].includes(editor.dataset.operationState))actions.querySelectorAll('button').forEach(button=>button.disabled=true);
     const photo=editor.querySelector('[data-reservation-car-photo]');
     if(photo){showReservationMedia(photo,item.reviewContext?.selectedCarPhoto);photo.dataset.mediaKey=JSON.stringify(item.reviewContext?.selectedCarPhoto)}
@@ -271,6 +273,15 @@ export async function updateReservation(card,status,reloadEventData){
     // Do not abort/restart that authoritative refresh with a second context load.
   }
   catch(error){if(error.status===403){setDenied();return}toast(error.message||'Rezervaci se nepodařilo změnit.')}finally{if(button)button.disabled=false}
+}
+
+export async function saveReservationNotes(card){
+  const button=card.querySelector('[data-reservation-notes-save]'),reviewNote=$('[data-review-note]',card)?.value||'',memberComment=$('[data-reservation-member-comment]',card)?.value||'',reservationId=card.dataset.reservationId;
+  if(button)button.disabled=true;
+  try{
+    await adminCommand(`/api/admin/reservations/${encodeURIComponent(reservationId)}`,{method:'PATCH',body:{reviewNote,memberComment},editor:card,submitted:{':reviewNote':reviewNote,':reservationMemberComment':memberComment},onConfirmed:commandResult(reservationId)});
+    toast('Poznámky byly uloženy.');
+  }catch(error){if(error.status===403){setDenied();return}toast(error.message||'Poznámky se nepodařilo uložit.')}finally{if(button?.isConnected)button.disabled=false}
 }
 
 export async function reviewReservationRequest(card,decision){
