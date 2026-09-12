@@ -15,9 +15,9 @@ async function login(page){
 test('finished public Show and Shine keeps eight compact criteria aligned with its visual',async({page})=>{
  const observations=await prepareE2ePage(page);
  for(const width of [1440,390]){
-  await page.setViewportSize({width,height:900});await page.goto('/#show-shine');
+  await page.setViewportSize({width,height:900});await page.goto('/');await page.evaluate(()=>history.replaceState(null,'','#show-shine'));
   await expect(page.locator('.showshine-disclosure-trigger strong')).toHaveText('Co všechno porota kontroluje?');await expect(page.locator('.showshine-judging-head')).toHaveCount(0);
-  const disclosure=page.locator('.showshine-disclosure');await disclosure.evaluate(element=>{element.open=false});await expect(disclosure).not.toHaveAttribute('open','');await page.locator('.showshine-disclosure-trigger').click();await expect(disclosure).toHaveAttribute('open','');await expect(page.locator('.judging-criterion')).toHaveCount(8);
+  const disclosure=page.locator('.showshine-disclosure'),trigger=page.locator('.showshine-disclosure-trigger');await disclosure.evaluate(element=>{element.open=false});await trigger.evaluate(element=>element.scrollIntoView({behavior:'instant',block:'center'}));await expect(trigger).toBeInViewport();await expect(disclosure).not.toHaveAttribute('open','');await trigger.click();await expect(disclosure).toHaveAttribute('open','');await expect(page.locator('.judging-criterion')).toHaveCount(8);
   await disclosure.evaluate(async element=>{const panel=element.querySelector('.showshine-judging'),animations=panel.getAnimations().filter(animation=>animation.playState==='running'||animation.playState==='pending');await Promise.all(animations.map(animation=>animation.finished))});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   if(width===1440){const {criteria,visual}=await page.evaluate(()=>{const criteriaRect=document.querySelector('.judging-criteria')?.getBoundingClientRect(),visualRect=document.querySelector('.judging-stage')?.getBoundingClientRect();if(!criteriaRect||!visualRect)throw new Error('Show & Shine geometry is unavailable');return{criteria:{y:criteriaRect.y,height:criteriaRect.height},visual:{y:visualRect.y,height:visualRect.height}}});expect(Math.abs(criteria.y-visual.y)).toBeLessThanOrEqual(1);expect(Math.abs(criteria.height-visual.height)).toBeLessThanOrEqual(1);expect(criteria.height).toBeLessThanOrEqual(420);}
  }
@@ -26,8 +26,8 @@ test('finished public Show and Shine keeps eight compact criteria aligned with i
 
 test('ACCOMMODATION GALLERY loads extras lazily, restores focus and supports mobile swipe',async({page})=>{
  const observations=await prepareE2ePage(page);await page.setViewportSize({width:1440,height:900});await page.goto('/#planer');
- await page.locator('[data-accommodation-option-id="cabin-standard"]').click();
  const trigger=page.locator('[data-context-preview="sleep"]'),cue=trigger.locator('[data-context-accommodation-gallery-cue]');
+ await expect(trigger).toHaveAttribute('data-accommodation-gallery-bound','true');await page.locator('[data-accommodation-option-id="cabin-standard"]').click();
  await expect(cue).toBeVisible();await expect(cue).toContainText('5');
  expect(observations.requests.filter(value=>value.includes('/accommodation/')&&value.includes('/gallery/'))).toHaveLength(0);
  await trigger.click();const dialog=page.locator('.accommodation-gallery-dialog');await expect(dialog).toBeVisible();await expect(dialog.locator('figcaption>span')).toHaveText('1 / 5');
