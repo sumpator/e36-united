@@ -48,16 +48,36 @@ test('CONFIRMED dashboard empty list + delayed detail + clean focus keeps status
 test('CONFIRMED reservation request compares the proposal and records the public Admin decision',async({page})=>{
   const c=await commandFixture(page),original={arrival:'Pátek',attendanceType:'full_weekend',crew:2,accommodation:'Chatka',accommodationOptionId:'cab',accommodationUnits:2,showShine:'Ano',note:'',amountDueCzk:1000,amountPaidCzk:200},proposed={arrival:'Sobota',attendanceType:'saturday_only',crew:3,accommodation:'Chatka',accommodationOptionId:'cab',accommodationUnits:3,showShine:'Ne',note:'Změna',amountDueCzk:0};
   let hold=false;const b=holdResponse(c,request=>hold&&request.method()==='GET'&&new URL(request.url()).pathname.startsWith('/api/admin/'));
+  c.r.db.exec("UPDATE reservations SET arrival='Pátek',crew=2,accommodation='Chatka',show_shine='Ano',note=NULL,attendance_type='full_weekend',accommodation_units=2,amount_due_czk=1000,amount_paid_czk=200,status='approved' WHERE id='r'");
   c.r.db.prepare("INSERT INTO reservation_requests(id,reservation_id,member_id,request_type,status,original_json,proposed_json,member_note) VALUES('request-ui','r','m','change','pending',?,?,?)").run(JSON.stringify(original),JSON.stringify(proposed),'Prosím o změnu.');
   try{
     await page.goto('/admin.html?section=reservations&event=e');await expect(page.locator('[data-reservation-list]')).toBeVisible();
-    await page.locator('[data-reservation-open="r"]').last().click();const request=page.locator('[data-reservation-request-id="request-ui"]');
-    await expect(request).toBeVisible();await expect(request).toContainText('Platná rezervace');await expect(request).toContainText('Navrhovaná změna');await expect(request).toContainText('Prosím o změnu.');
+    await page.locator('[data-reservation-open="r"]').last().click();
+    const drawer=page.locator('[data-reservation-drawer]'),request=drawer.locator('[data-reservation-request-id="request-ui"]');
+    await expect(request).toBeVisible();await expect(request.locator('.admin-kicker').first()).toContainText('AKTUÁLNÍ ŽÁDOST');await expect(request).toContainText('Prosím o změnu.');
+    const changes=await request.locator('tbody tr').evaluateAll(rows=>rows.map(row=>[...row.cells].map(cell=>(cell.textContent||'').trim().replace(/\s+/g,' '))));
+    expect(changes).toEqual([
+      ['Příjezd','Pátek','Sobota'],
+      ['Posádka','2','3'],
+      ['Ubytované osoby','2','3'],
+      ['Show & Shine','Ano','Ne'],
+      ['Poznámka','—','Změna'],
+      ['Cena','1 000 Kč','0 Kč'],
+    ]);
+    const capacity=request.locator('[data-request-capacity]');await expect(capacity).toBeVisible();await expect(capacity).toContainText('KAPACITA PŘI SCHVÁLENÍ');
+    const capacityValues=await capacity.locator('dl > div').evaluateAll(rows=>rows.map(row=>[(row.querySelector('dt')?.textContent||'').trim(),(row.querySelector('dd')?.textContent||'').trim().replace(/\s+/g,' ')]));
+    expect(capacityValues).toEqual([['Celkem','8'],['Aktuálně obsazeno','1'],['Aktuálně volno','7'],['Tato rezervace','1'],['Návrh','3'],['Čistý rozdíl','+2'],['Po schválení','3 obsazeno · 5 volno']]);
+    const validReservation=drawer.locator('.admin-reservation-drawer-grid');
+    await expect(validReservation).toBeVisible();expect(await request.evaluate((panel,details)=>Boolean(panel.compareDocumentPosition(details)&Node.DOCUMENT_POSITION_FOLLOWING),await validReservation.elementHandle())).toBe(true);
+    const currentStay=await validReservation.locator('.command-stay').evaluate(section=>Object.fromEntries([...section.querySelectorAll('dl > div')].map(row=>[row.querySelector('dt')?.textContent.trim(),row.querySelector('dd')?.textContent.trim()])));
+    expect(currentStay).toMatchObject({Příjezd:'Pátek','Počet osob':'2'});await expect(validReservation.locator('.admin-drawer-accommodation')).toContainText('2 osob · 1× Chatka');
     await request.locator('[data-request-admin-comment]').fill('Změna je v pořádku.');hold=true;await request.locator('[data-request-decision="approved"]').click();await b.arrived;
     await expect.poll(()=>c.r.db.prepare("SELECT status FROM reservation_requests WHERE id='request-ui'").get().status).toBe('approved');
-    expect(c.r.db.prepare("SELECT crew,status,review_note FROM reservations WHERE id='r'").get().crew).toBe(3);
-    await expect(page.locator('[data-reservation-request-id="request-ui"]')).toHaveCount(0);
-    b.release();await expect(page.locator('.admin-reservation-history')).toContainText('Žádost schválena');await expect(page.locator('.admin-reservation-history')).toContainText('Změna je v pořádku.');
+    expect(c.r.db.prepare("SELECT arrival,crew,show_shine,note,amount_due_czk FROM reservations WHERE id='r'").get()).toEqual({arrival:'Sobota',crew:3,show_shine:'Ne',note:'Změna',amount_due_czk:0});
+    await expect(request).toHaveCount(0);
+    b.release();const history=drawer.locator('.admin-reservation-history');await expect(history).toContainText('Žádost schválena');await expect(history).toContainText('Změna je v pořádku.');
+    const updatedStay=await drawer.locator('.command-stay').evaluate(section=>Object.fromEntries([...section.querySelectorAll('dl > div')].map(row=>[row.querySelector('dt')?.textContent.trim(),row.querySelector('dd')?.textContent.trim()])));
+    expect(updatedStay).toMatchObject({Příjezd:'Sobota','Počet osob':'3'});await expect(drawer.locator('.admin-drawer-accommodation')).toContainText('3 osob · 1× Chatka');await expect(drawer.locator('.admin-reservation-drawer-notes p')).toHaveText('Změna');
     expect(c.writes.map(item=>item.component)).toContain('reservation-request');clean(c);
   }finally{b.release();c.r.db.close()}
 });
