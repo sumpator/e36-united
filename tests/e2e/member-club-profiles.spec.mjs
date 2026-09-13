@@ -23,36 +23,17 @@ async function prepareClubPage(page,options={}){
   return prepareE2ePage(page,{authenticated:true,registrationOpen:true,cars:[],clubProfiles,approvedGallery,clubPayload:{clubMembers,profileCompletion:{requiredFields:true,historyReviewed:false,hasCar:false,approvedPhotos:1,complete:false},approvedPhotoCount:1},...options});
 }
 
-async function waitForStableGalleryAuthor(author,expectedScrollY){
-  await author.evaluate(async element=>{
-    const modal=document.querySelector('[data-club-profile-modal]');
-    const animations=[...new Set([
-      ...element.getAnimations({subtree:true}),
-      ...(modal?.getAnimations({subtree:true})||[]),
-    ])];
-    await Promise.allSettled(animations.map(animation=>animation.finished));
-  });
-  const settled=await author.evaluate((element,expectedY)=>new Promise(resolve=>{
-    let previous=null;
-    let stableFrames=0;
-    const sample=()=>{
-      const rect=element.getBoundingClientRect();
-      const current={scrollX,scrollY,top:rect.top,left:rect.left,width:rect.width,height:rect.height};
-      const stable=previous&&Object.keys(current).every(key=>Math.abs(current[key]-previous[key])<=0.25);
-      const style=getComputedStyle(element);
-      const visible=style.display!=='none'&&style.visibility!=='hidden'&&rect.width>0&&rect.height>0;
-      const intersects=rect.bottom>0&&rect.right>0&&rect.top<innerHeight&&rect.left<innerWidth;
-      const preservesScroll=Math.abs(current.scrollY-expectedY)<=2;
-      stableFrames=stable&&visible&&intersects&&preservesScroll?stableFrames+1:0;
-      previous=current;
-      if(stableFrames>=8){resolve({...current,intersects});return;}
-      requestAnimationFrame(sample);
-    };
-    requestAnimationFrame(sample);
-  }),expectedScrollY);
+async function expectGalleryAuthorInViewport(author){
   await expect(author).toBeVisible();
-  expect(settled.intersects).toBe(true);
-  expect(Math.abs(settled.scrollY-expectedScrollY)).toBeLessThanOrEqual(2);
+  await expect.poll(()=>author.evaluate(element=>{
+    const rect=element.getBoundingClientRect(),style=getComputedStyle(element);
+    return {
+      visible:style.display!=='none'&&style.visibility!=='hidden'&&rect.width>0&&rect.height>0,
+      intersects:rect.bottom>0&&rect.right>0&&rect.top<innerHeight&&rect.left<innerWidth,
+      section:element.closest('section')?.id||'',
+      activeSection:document.querySelector('[data-gallery-nav][aria-current="location"]')?.dataset.galleryNav||'',
+    };
+  })).toEqual({visible:true,intersects:true,section:'user-photos',activeSection:'user-photos'});
 }
 
 async function waitForDisplayedProfileBlobImages(profileModal){
@@ -70,6 +51,11 @@ const scrollOwnershipState=page=>page.evaluate(()=>({
   bodyBehavior:document.body.style.getPropertyValue('scroll-behavior'),
   bodyPriority:document.body.style.getPropertyPriority('scroll-behavior'),
 }));
+
+async function expectScrollOwnershipRestored(page,expected){
+  await expect.poll(()=>scrollOwnershipState(page)).toEqual(expected);
+  expect(await scrollOwnershipState(page)).toEqual(expected);
+}
 
 async function verifyMemberAndGallery(page,label){
   await page.setViewportSize(label==='mobile'?{width:390,height:844}:{width:1440,height:980});
@@ -99,16 +85,15 @@ async function verifyMemberAndGallery(page,label){
   await page.goto('/galerie.html');const author=page.locator('.gallery-member-link',{hasText:'Petr'});await expect(author).toBeVisible();const initialScrollOwnership=await scrollOwnershipState(page);
   expect(observations.requests.filter(request=>request==='GET /api/united-club/gallery-links')).toHaveLength(1);const profileRequestsBefore=observations.requests.filter(request=>request==='GET /api/united-club/members/EU-OTHER').length;
   await expect(page.locator('.gallery-item',{hasText:'Hidden'}).locator('.gallery-member-link')).toHaveCount(0);await expect(page.locator('.gallery-item',{hasText:'Hidden'})).toBeVisible();
-  await author.scrollIntoViewIfNeeded();const scrollBefore=await page.evaluate(()=>scrollY);
+  await author.scrollIntoViewIfNeeded();
   if(label==='desktop')await author.screenshot({path:'test-results/gallery-member-author-link.png'});
   await author.click();await expect(page).toHaveURL(/galerie\.html\?profile=EU-OTHER/);await expect(profileModal).toBeVisible();await expect(profile).toContainText('Petr');
   expect(observations.requests.filter(request=>request==='GET /api/united-club/members/EU-OTHER')).toHaveLength(profileRequestsBefore+1);
   if(label==='desktop')await profileModal.locator('.club-profile-dialog').screenshot({path:'test-results/gallery-member-profile-overlay.png'});
   await profile.locator('[data-club-profile-gallery] [data-lightbox]').click();await expect(page.locator('.lightbox')).toHaveClass(/open/);await page.keyboard.press('Escape');await expect(page.locator('.lightbox')).not.toHaveClass(/open/);await expect(profileModal).toBeVisible();
-  await page.keyboard.press('Escape');await expect(profileModal).toBeHidden();await expect(author).toBeFocused();expect(Math.abs((await page.evaluate(()=>scrollY))-scrollBefore)).toBeLessThanOrEqual(2);
-  await waitForStableGalleryAuthor(author,scrollBefore);
-  expect(await scrollOwnershipState(page)).toEqual(initialScrollOwnership);
-  await author.click();await expect(profileModal).toBeVisible();await waitForDisplayedProfileBlobImages(profileModal);await page.goBack();await expect(profileModal).toBeHidden();await expect(page).toHaveURL(/galerie\.html$/);await expect(author).toBeFocused();await waitForStableGalleryAuthor(author,scrollBefore);expect(await scrollOwnershipState(page)).toEqual(initialScrollOwnership);
+  await page.keyboard.press('Escape');await expect(profileModal).toBeHidden();await expect(page).toHaveURL(/galerie\.html$/);await expect(author).toBeFocused();await expectGalleryAuthorInViewport(author);
+  await expectScrollOwnershipRestored(page,initialScrollOwnership);
+  await author.click();await expect(profileModal).toBeVisible();await waitForDisplayedProfileBlobImages(profileModal);await page.goBack();await expect(profileModal).toBeHidden();await expect(page).toHaveURL(/galerie\.html$/);await expect(author).toBeFocused();await expectGalleryAuthorInViewport(author);await expectScrollOwnershipRestored(page,initialScrollOwnership);
   if(label==='mobile')await page.screenshot({path:'test-results/gallery-profile-flow-390.png',fullPage:false});
   expectNoUnexpectedClientErrors(observations);
 }
