@@ -3,6 +3,8 @@ import { expect } from '@playwright/test';
 import { createMailingStarterDraft, renderMailingTemplate } from '../../worker/domains/mailing/template.js';
 
 export const MEMBER_SESSION_KEY = 'e36UnitedE2eAuthenticated';
+const MEMBER_IDENTITY_KEY = 'e36UnitedE2eMemberIdentity';
+const MEMBER_IDENTITY_SEED_KEY = 'e36UnitedE2eMemberIdentitySeed';
 const API_BASE = 'https://api.e36united.cz';
 const memberId = 'e2e-member-001';
 const imageSvg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 9"><rect width="16" height="9" fill="#17334d"/></svg>';
@@ -79,7 +81,7 @@ export function initializeApp(config) { const app = { config, name: '[DEFAULT]' 
 
 const firebaseAuthModule = `
 const sessionKey = ${JSON.stringify(MEMBER_SESSION_KEY)};
-const identityKey = 'e36UnitedE2eMemberIdentity';
+const identityKey = ${JSON.stringify(MEMBER_IDENTITY_KEY)};
 const listeners = new Set();
 const auth = { currentUser: null };
 const identity = () => { try { return JSON.parse(localStorage.getItem(identityKey) || '{}'); } catch { return {}; } };
@@ -140,7 +142,7 @@ export async function prepareE2ePage(page, {
   let currentCars=cars??[{
     id:'car-001',nickname:'Estoril',body:'Coupé',model:'328i',year:1996,color:'Estoril Blau',primary:true,photos:[],
   }];
-  const observations = { pageErrors: [], consoleErrors: [], unhandledApi: [], requests: [], carWrites: [], reservationWrites: [], reservationRequestWrites: [], reservationRequestAcknowledgements: [], reservationCarWrites: [], profileWrites: [], setReservation(value){currentReservation=value}, async switchMember(value){memberProfile={...memberProfile,...value};await page.evaluate(profile=>localStorage.setItem('e36UnitedE2eMemberIdentity',JSON.stringify(profile)),memberProfile)} };
+  const observations = { pageErrors: [], consoleErrors: [], unhandledApi: [], requests: [], carWrites: [], reservationWrites: [], reservationRequestWrites: [], reservationRequestAcknowledgements: [], reservationCarWrites: [], profileWrites: [], setReservation(value){currentReservation=value}, async switchMember(value){memberProfile={...memberProfile,...value};await page.evaluate(({identityKey,seedKey,profile})=>{const encoded=JSON.stringify(profile);sessionStorage.setItem(seedKey,encoded);localStorage.setItem(identityKey,encoded)},{identityKey:MEMBER_IDENTITY_KEY,seedKey:MEMBER_IDENTITY_SEED_KEY,profile:memberProfile})} };
   let memberProfile = {
     id: memberId,
     memberCode: 'EU036',
@@ -167,9 +169,13 @@ export async function prepareE2ePage(page, {
       if (localStorage.getItem(key) === null) localStorage.setItem(key, initialValue);
     } catch {}
   }, { key: MEMBER_SESSION_KEY, initialValue: authenticated ? 'true' : 'false' });
-  await page.addInitScript(profile => {
-    try { if (localStorage.getItem('e36UnitedE2eMemberIdentity') === null) localStorage.setItem('e36UnitedE2eMemberIdentity', JSON.stringify(profile)); } catch {}
-  }, memberProfile);
+  await page.addInitScript(({identityKey,seedKey,profile}) => {
+    try {
+      const encoded=JSON.stringify(profile);
+      if(sessionStorage.getItem(seedKey)===null)sessionStorage.setItem(seedKey,encoded);
+      localStorage.setItem(identityKey,sessionStorage.getItem(seedKey)||encoded);
+    } catch {}
+  }, {identityKey:MEMBER_IDENTITY_KEY,seedKey:MEMBER_IDENTITY_SEED_KEY,profile:memberProfile});
 
   await page.route('https://static.wixstatic.com/**', route => route.fulfill({
     status: 200,
@@ -413,14 +419,17 @@ export async function prepareAdminE2ePage(page,{authUid=memberId}={}) {
     observations.consoleErrors.push({ text: message.text(), url: message.location().url || '' });
   });
 
-  await page.addInitScript(({ key }) => {
-    try { localStorage.setItem(key, 'true'); } catch {}
-  }, { key: MEMBER_SESSION_KEY });
+  await page.addInitScript(({key,identityKey,seedKey,profile}) => {
+    try {
+      const encoded=JSON.stringify(profile);
+      localStorage.setItem(key,'true');sessionStorage.setItem(seedKey,encoded);localStorage.setItem(identityKey,encoded);
+    } catch {}
+  }, {key:MEMBER_SESSION_KEY,identityKey:MEMBER_IDENTITY_KEY,seedKey:MEMBER_IDENTITY_SEED_KEY,profile:{id:authUid,email:'eva@example.test',name:'Eva Nováková'}});
 
   await page.route('https://static.wixstatic.com/**', route => route.fulfill({ status: 200, contentType: 'image/svg+xml', body: imageSvg }));
   await page.route('https://e36united.cz/united-logo-blue-silver-transparent.png', route => route.fulfill({ status: 200, contentType: 'image/svg+xml', body: imageSvg }));
   await page.route('https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js', route => route.fulfill({ status: 200, contentType: 'text/javascript; charset=utf-8', body: firebaseAppModule }));
-  await page.route('https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js', route => route.fulfill({ status: 200, contentType: 'text/javascript; charset=utf-8', body: firebaseAuthModule.replace('uid: '+JSON.stringify(memberId),'uid: '+JSON.stringify(authUid)) }));
+  await page.route('https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js', route => route.fulfill({ status: 200, contentType: 'text/javascript; charset=utf-8', body: firebaseAuthModule.replace(JSON.stringify(memberId),JSON.stringify(authUid)) }));
 
   await page.route(`${API_BASE}/**`, async route => {
     const request = route.request();
