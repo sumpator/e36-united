@@ -1,15 +1,17 @@
-import {adminState} from './state.js?v=20260912-reservation-detail-ux-r1';
-import {adminCommand,bindCurrentEditors,forgetAdminEditor,editorProtected,allowAdminNavigation,adminEditorDirty} from './editors.js?v=20260912-reservation-detail-ux-r1';
-import {COMPOSITIONS,validatePreferences} from './dashboard-model.js?v=20260912-reservation-detail-ux-r1';
-import {COMMAND_WIDGETS as WIDGETS,commandDefaults as factoryPreferences,commandLayout,commandBadges} from './command-model.js?v=20260912-reservation-detail-ux-r1';
-import {commandCard,metricInfo} from './command-cards.js?v=20260912-reservation-detail-ux-r1';
-import {commandIcon} from './command-icons.js?v=20260912-reservation-detail-ux-r1';
-import {renderCommandShell} from './command-shell.js?v=20260912-reservation-detail-ux-r1';
-import {DESTINATIONS,QUICK_LINK_IDS,destination,drillLabel} from './destinations.js?v=20260912-reservation-detail-ux-r1';
-import {dashboardKpi,chartModel,attentionModel,showValue} from './dashboard-data.js?v=20260912-reservation-detail-ux-r1';
-import {$,escapeHtml as esc,toast} from './ui.js?v=20260912-reservation-detail-ux-r1';
+import {adminState} from './state.js?v=20260913-approval-previews-r1';
+import {adminCommand,bindCurrentEditors,forgetAdminEditor,editorProtected,allowAdminNavigation,adminEditorDirty} from './editors.js?v=20260913-approval-previews-r1';
+import {COMPOSITIONS,validatePreferences} from './dashboard-model.js?v=20260913-approval-previews-r1';
+import {COMMAND_WIDGETS as WIDGETS,commandDefaults as factoryPreferences,commandLayout,commandBadges} from './command-model.js?v=20260913-approval-previews-r1';
+import {commandCard,metricInfo} from './command-cards.js?v=20260913-approval-previews-r1';
+import {commandIcon} from './command-icons.js?v=20260913-approval-previews-r1';
+import {renderCommandShell} from './command-shell.js?v=20260913-approval-previews-r1';
+import {DESTINATIONS,QUICK_LINK_IDS,destination,drillLabel} from './destinations.js?v=20260913-approval-previews-r1';
+import {dashboardKpi,chartModel,attentionModel,showValue} from './dashboard-data.js?v=20260913-approval-previews-r1';
+import {$,escapeHtml as esc,toast} from './ui.js?v=20260913-approval-previews-r1';
+import {createCardMedia} from './member-cards.js?v=20260913-approval-previews-r1';
 
 let navigate=()=>{},refresh=()=>{},draft=null,pendingPreferences=null,acceptNext=false;
+const approvalMedia=createCardMedia();
 const clone=value=>JSON.parse(JSON.stringify(value));
 const form=()=> $('[data-dashboard-preferences]');
 const composition=()=>adminState.dashboardComposition;
@@ -33,7 +35,7 @@ export function receiveDashboardPreferences(payload){
     if(dashboardWantsPlanner()||dashboardWantsMailing())window.dispatchEvent(new CustomEvent('admin:dashboardready'));
   }else if(payload.revision!==adminState.dashboardPreferenceRevision){pendingPreferences=payload;editorProtected(root,payload.revision);}
 }
-export function clearDashboard(){draft=null;pendingPreferences=null;acceptNext=false;form().closest('dialog')?.close();form().hidden=true;form().inert=true;forgetAdminEditor(form());$('[data-dashboard-grid]').replaceChildren();$('[data-dashboard-attention]').replaceChildren();$('[data-dashboard-quick-links]').replaceChildren();$('[data-dashboard-preference-notice]').replaceChildren();}
+export function clearDashboard(){approvalMedia.clear();draft=null;pendingPreferences=null;acceptNext=false;form().closest('dialog')?.close();form().hidden=true;form().inert=true;forgetAdminEditor(form());$('[data-dashboard-grid]').replaceChildren();$('[data-dashboard-attention]').replaceChildren();$('[data-dashboard-quick-links]').replaceChildren();$('[data-dashboard-preference-notice]').replaceChildren();}
 
 function chartMarkup(model){
   if(!model)return '<p>Data zatím nejsou dostupná.</p>';
@@ -51,7 +53,7 @@ function paintCard(card,widget){
   card.dataset.model=key;
   card.className=`dashboard-card dashboard-${meta.kind} dashboard-size-${widget.size}`;
   card.style.setProperty('--widget-span',widget.span||4);
-  if(meta.kind==='command'){card.innerHTML=`<h3><span class="command-heading-icon">${commandIcon(widget.id)}</span>${esc(meta.label)}</h3>${commandCard(widget.id,adminState,button,chartMarkup)}`;restoreDetails();return;}
+  if(meta.kind==='command'){if(widget.id==='approvals')approvalMedia.clear();card.innerHTML=`<h3><span class="command-heading-icon">${commandIcon(widget.id)}</span>${esc(meta.label)}</h3>${commandCard(widget.id,adminState,button,chartMarkup)}`;restoreDetails();if(widget.id==='approvals')approvalMedia.hydrate(card);return;}
   card.innerHTML=`<h3><span class="command-heading-icon">${commandIcon(widget.id)}</span>${esc(meta.label)}</h3>${meta.kind==='kpi'?`<p class="dashboard-kpi-value" data-kpi-${widget.id}>${Number.isFinite(model)?button(meta.destination,showValue(model,moneyIds.has(widget.id)?'Kč':null)):'—'}</p><p class="dashboard-definition">${esc(meta.definition)}</p>`:meta.kind==='detail'?'<p>Volitelný diagnostický panel níže. Neúplné historické sledování není úplný census.</p>':`${widget.id==='trend'?`<label>Období <select data-dashboard-range aria-label="Rozsah vývoje rezervací"><option value="7">7 dní</option><option value="30">30 dní</option><option value="all">Celé období</option></select></label>`:''}${chartMarkup(model)}`}`;
   restoreDetails();
   if(card.querySelector('[data-dashboard-range]'))card.querySelector('[data-dashboard-range]').value=adminState.dashboardRange;
@@ -130,6 +132,7 @@ export function initializeDashboard({onNavigate,onRefresh}){
   });
   document.addEventListener('click',event=>{
     const target=event.target.closest('button');if(!target)return;
+    if(target.hasAttribute('data-dashboard-preview')){try{const raw=JSON.parse(target.dataset.dashboardPreview),base=destination(raw.destination);if(base)navigate({...base,queueMember:raw.queueMember,reservationId:raw.reservationId,historyYear:raw.historyYear,historyClaimType:raw.historyClaimType});}catch{}return;}
     if(target.hasAttribute('data-dashboard-destination')){const next=destination(target.dataset.dashboardDestination,JSON.parse(target.dataset.dashboardDrill||'{}'));if(next)navigate(next);}
     if(target.hasAttribute('data-dashboard-revalidate'))void refresh('manual');
     if(target.hasAttribute('data-dashboard-clear'))navigate(destination(adminState.activeAdminView==='payments'?'recorded':'reservations'),{clear:true});

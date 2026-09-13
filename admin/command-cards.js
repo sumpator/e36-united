@@ -1,8 +1,8 @@
-import { escapeHtml as esc } from './ui.js?v=20260912-reservation-detail-ux-r1';
-import { showValue } from './dashboard-data.js?v=20260912-reservation-detail-ux-r1';
-import { canonicalMemberLink } from './member-detail.js?v=20260912-reservation-detail-ux-r1';
-import { commandIcon } from './command-icons.js?v=20260912-reservation-detail-ux-r1';
-import { formatDate } from './ui.js?v=20260912-reservation-detail-ux-r1';
+import { escapeHtml as esc } from './ui.js?v=20260913-approval-previews-r1';
+import { showValue } from './dashboard-data.js?v=20260913-approval-previews-r1';
+import { canonicalMemberLink } from './member-detail.js?v=20260913-approval-previews-r1';
+import { commandIcon } from './command-icons.js?v=20260913-approval-previews-r1';
+import { formatDate } from './ui.js?v=20260913-approval-previews-r1';
 export const metricInfo = text => `<details class="command-info"><summary>O údajích</summary><p>${esc(text)}</p></details>`;
 export function recentPaymentLabel(row) {
   const due=row.amountDueCzk, paid=row.amountPaidCzk;
@@ -19,11 +19,24 @@ const labels = {
   cancelled: 'Zrušeno',
   draft: 'Koncept'
 };
+const previewIdentity=item=>item.memberNickname||item.memberName||'United member';
+const reservationPreviewType=item=>item.type==='change'?'Žádost o změnu':item.type==='cancellation'?'Žádost o zrušení':'Nová rezervace';
+const historyPreviewType=item=>item.attendanceStatus==='pending'&&item.showShineStatus==='pending'?'Historie + Show & Shine':item.showShineStatus==='pending'?'Show & Shine':'Historie / účast';
+function approvalPreviews(kind,items){
+  if(!Array.isArray(items)||!items.length)return '<p class="command-approval-empty">Žádná čekající položka.</p>';
+  return `<div class="command-approval-previews">${items.slice(0,2).map(item=>{
+    const target={destination:kind==='reservations'?'reservationApprovals':kind==='photos'?'photos':'history',queueMember:item.memberId};
+    if(kind==='reservations')target.reservationId=item.id;
+    if(kind==='history'){target.historyYear=String(item.year);target.historyClaimType=item.attendanceStatus==='pending'&&item.showShineStatus!=='pending'?'attendance':item.showShineStatus==='pending'&&item.attendanceStatus!=='pending'?'sns':'all';}
+    const identity=previewIdentity(item),meta=kind==='photos'?'Fotografie ke schválení':`${kind==='reservations'?reservationPreviewType(item):historyPreviewType(item)} · United ${item.year}`;
+    return `<button type="button" class="command-approval-preview" data-dashboard-preview="${esc(JSON.stringify(target))}">${kind==='photos'?`<span class="command-approval-thumb"><img alt="Fotografie od ${esc(identity)}" data-card-media="/api/admin/gallery/media/${encodeURIComponent(item.id)}"/></span>`:`<span class="command-approval-mark" aria-hidden="true">${kind==='reservations'?'R':'U'}</span>`}<span><b>${esc(identity)}</b><small>${esc(meta)}</small></span><span aria-hidden="true">→</span></button>`;
+  }).join('')}</div>`;
+}
 export function commandCard(id, state, button, chartMarkup) {
   const o = state.summary?.overview,
     p = o?.payments,
     approval = state.summary?.attention?.reservationApprovals;
-  if (id === 'approvals') return `<div class="command-approvals">${[['reservationApprovals','Rezervace',approval?.total,'čeká na rozhodnutí',approval?`Nové ${number(approval.newReservations)} · změny ${number(approval.changes)} · zrušení ${number(approval.cancellations)}`:'Vybraný ročník','reservations'],['photos','Fotky',o?.gallery?.pending,'ke schválení','Fotky do galerie · všechny ročníky','photos'],['history','Historie United / S&S',o?.history?.pending,'ke kontrole','Všechny ročníky','history']].map(([target,label,value,action,scope,icon])=>`<section><span class="command-card-icon">${commandIcon(icon)}</span><h4>${label}</h4><strong>${number(value)}</strong><span class="command-action-caption">${action}</span><small>${scope}</small>${button(target,'Zobrazit →')}</section>`).join('')}</div><p data-command-clear role="status"></p>`;
+  if (id === 'approvals') {const previews=state.summary?.attention?.previews||{};return `<div class="command-approvals">${[['reservationApprovals','Rezervace',approval?.total,'čeká na rozhodnutí',approval?`Nové ${number(approval.newReservations)} · změny ${number(approval.changes)} · zrušení ${number(approval.cancellations)}`:'Vybraný ročník','reservations','reservations'],['photos','Fotky',o?.gallery?.pending,'ke schválení','Fotky do galerie · všechny ročníky','photos','photos'],['history','Historie United / S&S',o?.history?.pending,'ke kontrole','Všechny ročníky','history','history']].map(([target,label,value,action,scope,icon,kind])=>`<section><span class="command-card-icon">${commandIcon(icon)}</span><h4>${label}</h4><strong>${number(value)}</strong><span class="command-action-caption">${action}</span><small>${scope}</small>${approvalPreviews(kind,previews[kind])}<span class="command-approval-footer">${button(target,'Zobrazit vše →')}</span></section>`).join('')}</div><p data-command-clear role="status"></p>`;}
   if (id === 'reservation-summary') return `<div class="command-stats"><div><strong data-kpi-reservations>${number(o?.reservations)}</strong><small>aktivních rezervací</small></div><div><strong data-kpi-people>${number(o?.people)}</strong><small>plánovaných osob</small></div></div>${(o?.accommodation?.options||[]).map(v=>`<div class="command-capacity"><span>${esc(v.name)}</span><b>${number(v.confirmedUnits)} / ${v.inventoryMode==='unlimited'?'bez limitu':number(v.unitsTotal)}</b>${v.inventoryMode!=='unlimited'&&v.unitsTotal>0?`<meter min="0" max="${v.unitsTotal}" value="${v.confirmedUnits}">${number(v.confirmedUnits)}</meter>`:''}<small>Čeká na potvrzení: ${number(v.pendingUnits)} jednotek</small></div>`).join('')}<p class="command-no-accommodation">Bez ubytování: ${reservationCount(o?.accommodation?.none)}</p>${button('accommodation','Detail ubytování →')}${metricInfo('Aktivní rezervace zahrnují čekající a schválené. Kapacita ukazuje potvrzené ubytovací jednotky; čekající poptávka je uvedena zvlášť. Ubytování bez limitu nemá procento obsazenosti.')}`;
   if (id === 'payment-summary') return `<div class="command-payments">${[['recorded','Evidovaně uhrazeno',p?.amountPaidCzk,'Všechny evidované platby','green'],['outstanding','Zbývá uhradit',p?.amountRemainingCzk,'Aktivní rezervace','amber'],['overdue','Po splatnosti',p?.overdue,'Vybraný ročník','red'],['overpaid','Přeplatky',p?.overpaymentCzk,reservationCount(p?.overpaid),'blue']].map(([target,label,value,scope,color])=>`<section data-money-kind="${target}" class="command-money ${!Number.isFinite(value)?'unknown':value===0?'neutral':color}"><small>${label}</small><strong ${target==='recorded'?'data-kpi-recorded':''}>${target==='overdue'?reservationCount(value):money(value)}</strong><small>${scope}</small>${button(target,'Zobrazit →')}</section>`).join('')}</div>${metricInfo('Vybraný ročník. Evidované úhrady a přeplatky zahrnují všechny stavy rezervací; zbývající částky aktivní závazky. Po splatnosti je počet rezervací, ne částka. Schválení rezervace nepotvrzuje její zaplacení.')}`;
   if (id === 'recent') {

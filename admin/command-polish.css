@@ -93,3 +93,15 @@
   .admin-page .admin-reservation-drawer-review .admin-review-actions { flex-wrap:wrap; }
   .admin-page .command-approvals small { min-height:0; }
 }
+.admin-page .command-approval-previews { grid-column:1/-1; display:grid; gap:6px; min-width:0; }
+.admin-page .command-approval-preview { display:grid; grid-template-columns:34px minmax(0,1fr) auto; align-items:center; gap:8px; width:100%; min-height:48px; margin:0; padding:6px!important; border:1px solid #29475d; border-radius:8px; background:#102538; color:#e8f3fb; text-align:left; }
+.admin-page .command-approval-preview:hover,.admin-page .command-approval-preview:focus-visible { border-color:#159ee6; background:#12304a; }
+.admin-page .command-approval-preview>span:nth-child(2) { min-width:0; }
+.admin-page .command-approval-preview b,.admin-page .command-approval-preview small { display:block; min-height:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.admin-page .command-approval-preview b { font-size:13px; }
+.admin-page .command-approval-preview small { margin-top:2px; font-size:11px; color:#a9bfd2; }
+.admin-page .command-approval-thumb,.admin-page .command-approval-mark { display:grid; place-items:center; width:34px; height:34px; border-radius:7px; overflow:hidden; background:#073557; color:#36b9ff; font-weight:800; }
+.admin-page .command-approval-thumb img { width:100%; height:100%; object-fit:cover; }
+.admin-page .command-approval-empty { grid-column:1/-1; margin:0; min-height:48px; display:flex; align-items:center; color:#8199ad; font-size:12px; }
+.admin-page .command-approval-footer { grid-column:1/-1; display:block; }
+.admin-page .command-approval-footer>button { width:100%; }

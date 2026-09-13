@@ -99,6 +99,21 @@ for(const width of [1440,1280,390])test('NEW dashboard real layout, draft previe
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBe(true);
   expect(c.writes).toEqual([]);expect(c.r.writes).toBe(0);c.r.db.close();
 });
+test('APPROVAL PREVIEWS stay compact and open the exact existing filtered queues',async({page},info)=>{
+ const c=await commandFixture(page);c.r.db.exec("UPDATE gallery_submissions SET status='pending',created_at='2026-09-08' WHERE id='g'; UPDATE united_history_claims SET attendance_status='pending',submitted_at='2026-09-08' WHERE id='h'");
+ await page.setViewportSize({width:1440,height:900});await open(page);
+ const widget=page.locator('[data-widget="approvals"]');await expect(widget.locator('[data-dashboard-preview]')).toHaveCount(3);
+ const photo=widget.locator('[data-dashboard-preview]').filter({hasText:'Fotografie ke schválení'});await expect.poll(()=>photo.locator('img').evaluate(n=>n.complete&&n.naturalWidth>0)).toBe(true);
+ await page.screenshot({path:info.outputPath('approval-previews-desktop.png'),fullPage:true});
+ await widget.locator('[data-dashboard-preview]').filter({hasText:'Nová rezervace'}).click();await expect(page.locator('[data-reservation-drawer]')).toBeVisible();await expect(page).toHaveURL(/queueMember=n.*reservation=pending|reservation=pending.*queueMember=n/);
+ await page.goto('/admin.html?section=dashboard&event=e');await expect(page.locator('[data-dashboard-edit]')).toBeEnabled();
+ await page.locator('[data-widget="approvals"] [data-dashboard-preview]').filter({hasText:'Fotografie ke schválení'}).click();await expect(page.locator('[data-gallery-community]')).toBeVisible();await expect.poll(()=>c.calls.some(call=>call.includes('/gallery?')&&call.includes('queueMember=m'))).toBe(true);
+ await page.goto('/admin.html?section=dashboard&event=e');await expect(page.locator('[data-dashboard-edit]')).toBeEnabled();
+ await page.locator('[data-widget="approvals"] [data-dashboard-preview]').filter({hasText:'Historie / účast'}).click();await expect(page.locator('[data-gallery-history]')).toBeVisible();await expect.poll(()=>c.calls.some(call=>call.includes('/history/claims?')&&call.includes('queueMember=m')&&call.includes('year=2025')&&call.includes('type=attendance'))).toBe(true);
+ await page.goto('/admin.html?section=dashboard&event=e');await expect(page.locator('[data-dashboard-edit]')).toBeEnabled();await page.setViewportSize({width:390,height:844});
+ await expect(page.locator('[data-widget="approvals"] [data-dashboard-preview]')).toHaveCount(3);expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBe(true);await page.screenshot({path:info.outputPath('approval-previews-390.png'),fullPage:true});
+ expect(c.writes).toEqual([]);expect(c.r.writes).toBe(0);clean(c);c.r.db.close();
+});
 
 test('POLISH pending reservation approval uses one existing command and converges unique badges',async({page},info)=>{
  await page.setViewportSize({width:1440,height:900});const c=await commandFixture(page);
@@ -120,6 +135,7 @@ test('POLISH pending reservation approval uses one existing command and converge
  await expect(badge('reservations')).toHaveText('1');await expect(badge('dashboard')).toHaveText('4');await expect(badge('photos')).toHaveText('1');await expect(badge('history')).toHaveText('1');
  await expect(page.locator('[data-admin-freshness]')).toHaveAttribute('data-state','fresh');
  expect(c.calls.filter(p=>p.includes('/summary')).length).toBe(before+1);
+ await expect.poll(()=>page.locator('[data-widget="approvals"] [data-dashboard-preview]').evaluateAll(nodes=>nodes.filter(node=>JSON.parse(node.dataset.dashboardPreview).reservationId==='r').length)).toBe(0);
  expect(c.writes.map(w=>w.component)).toEqual(['reservation']);await expect(drawer.locator('[data-review-action="approved"]')).toHaveCount(0);
  await page.screenshot({path:info.outputPath('POLISH-approved-detail.png')});await page.keyboard.press('Escape');await expect(drawer).toBeHidden();
  await expect(page.locator('[data-widget="payment-summary"] details')).toHaveAttribute('open','');

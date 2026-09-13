@@ -1,5 +1,5 @@
 // Frontend-only catalog. The deployed schema-v1 validator and saved unknown IDs stay intact.
-import { WIDGETS as LEGACY } from './dashboard-model.js?v=20260912-reservation-detail-ux-r1';
+import { WIDGETS as LEGACY } from './dashboard-model.js?v=20260913-approval-previews-r1';
 export const COMMAND_WIDGETS = Object.freeze({
   ...LEGACY,
   approvals: {

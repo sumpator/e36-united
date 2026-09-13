@@ -1,5 +1,5 @@
-import { apiRequest } from '../../api.js?v=20260912-reservation-detail-ux-r1';
-import { $, escapeHtml, numeric } from '../../ui.js?v=20260912-reservation-detail-ux-r1';
+import { apiRequest } from '../../api.js?v=20260913-approval-previews-r1';
+import { $, escapeHtml, numeric } from '../../ui.js?v=20260913-approval-previews-r1';
 
 export const defaultMailingSegment=Object.freeze({match:'all',rules:[{type:'mailing_eligible'}],exclusions:[]});
 const recipientsLabel=count=>`${count} ${count===1?'příjemce':count>1&&count<5?'příjemci':'příjemců'}`;

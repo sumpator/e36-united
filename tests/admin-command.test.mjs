@@ -50,6 +50,27 @@ test('canonical summary counts a dual-pending history claim once, independent of
   for(let i=0;i<4;i++)r.db.prepare("INSERT INTO united_history_evidence(id,claim_id,member_id,r2_key,mime_type,size_bytes) VALUES(?,'h','m',?,'image/jpeg',100)").run('extra'+i,'synthetic/'+i);
   const s=await (await getAdminSummary(r.env,url(''),origin)).json();assert.equal(commandBadges(s).history,1);assert.equal(commandBadges(s).photos,1);assert.equal(commandBadges(s).community,2);assert.equal(r.writes,0);r.db.close();
 });
+test('approval previews are bounded, ordered, actionable and disappear from the canonical summary after decisions',async()=>{
+ const r=memberRuntime();
+ r.db.exec(`
+  UPDATE reservations SET status='approved',created_at='2026-09-01' WHERE id='r';
+  INSERT INTO reservation_requests(id,reservation_id,member_id,request_type,status,original_json,proposed_json,created_at) VALUES('rr','r','m','change','pending','{}','{}','2026-09-12');
+  INSERT INTO reservations(id,member_id,event_id,status,created_at,submitted_at) VALUES('r2','n','e','pending','2026-09-11','2026-09-11'),('r3','a','e','pending','2026-09-10','2026-09-10');
+  UPDATE gallery_submissions SET status='pending',created_at='2026-09-01' WHERE id='g';
+  INSERT INTO gallery_submissions(id,member_id,r2_key,status,created_at) VALUES('g2','n','private/n/g2','pending','2026-09-02'),('g3','a','private/a/g3','pending','2026-09-03');
+  UPDATE united_history_claims SET attendance_status='pending',sns_status='pending',submitted_at='2026-09-01' WHERE id='h';
+  INSERT INTO united_history_claims(id,member_id,event_id,attendance_status,sns_status,submitted_at) VALUES('h2','n','e','pending','not_claimed','2026-09-03'),('h3','a','e','approved','pending','2026-09-02');`);
+ const beforeQueries=r.queries.length,s=await(await getAdminSummary(r.env,url(''),origin)).json();
+ assert.equal(r.queries.length-beforeQueries,2);
+ assert.deepEqual(s.attention.previews.reservations.map(item=>[item.id,item.type,item.year]),[['r','change',2026],['r2','new',2026]]);
+ assert.deepEqual(s.attention.previews.photos.map(item=>item.id),['g3','g2']);
+ assert.deepEqual(s.attention.previews.history.map(item=>[item.id,item.attendanceStatus,item.showShineStatus,item.year]),[['h2','pending','not_claimed',2026],['h3','approved','pending',2026]]);
+ const markup=commandCard('approvals',{summary:s},()=>'<button>Vše</button>',()=> '');
+ assert.equal((markup.match(/data-dashboard-preview=/g)||[]).length,6);assert.match(markup,/\/api\/admin\/gallery\/media\/g3/);assert.match(markup,/Žádost o změnu · United 2026/);
+ r.db.exec("UPDATE reservations SET status='approved'; UPDATE reservation_requests SET status='approved'; UPDATE gallery_submissions SET status='approved'; UPDATE united_history_claims SET attendance_status='approved',sns_status='approved'");
+ const empty=await(await getAdminSummary(r.env,url(''),origin)).json();assert.deepEqual(empty.attention.previews,{reservations:[],history:[],photos:[]});
+ assert.equal((commandCard('approvals',{summary:empty},()=>'',()=> '').match(/Žádná čekající položka\./g)||[]).length,3);assert.equal(r.writes,0);r.db.close();
+});
 test('bounded recent preview uses latest created_at across statuses, not pending/submitted ordering',async()=>{
   const r=memberRuntime();r.db.exec("UPDATE reservations SET created_at='2026-09-08',submitted_at='2020-01-01'; INSERT INTO reservations(id,member_id,event_id,status,created_at,submitted_at) VALUES('pending','n','e','pending','2020-01-01','2030-01-01'),('cancelled','a','e','cancelled','2026-09-09','2026-09-09')");
   const newer=await (await getAdminDashboard(r.env,url('presentation=command'),origin)).json();assert.deepEqual(newer.recent.map(r=>r.id),['cancelled','r','pending']);assert.equal(newer.presentation,'command-v1');

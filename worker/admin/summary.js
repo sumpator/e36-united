@@ -100,6 +100,34 @@ FROM metrics
 // One bounded event query extends the accepted Stage 2 summary without loading a queue.
 // The unique pending-request index prevents duplicate request rows for one reservation.
 export const ADMIN_RESERVATION_APPROVALS_SQL = `
+WITH runtime AS (
+  SELECT ? AS generated_at, ? AS requested_event
+), selected_event AS (
+  SELECT id,year,payment_deadline FROM events
+  WHERE id=COALESCE(NULLIF((SELECT requested_event FROM runtime),''),(SELECT id FROM events ORDER BY is_current DESC,year DESC LIMIT 1))
+), reservation_preview AS (
+  SELECT r.id,r.member_id,m.name,m.nickname,e.year,
+    CASE WHEN pending_request.request_type='change' THEN 'change' WHEN pending_request.request_type='cancellation' THEN 'cancellation' ELSE 'new' END AS request_type,
+    COALESCE(pending_request.created_at,r.submitted_at,r.updated_at,r.created_at) AS activity_at
+  FROM reservations r
+  JOIN selected_event e ON e.id=r.event_id
+  JOIN members m ON m.id=r.member_id
+  LEFT JOIN reservation_requests pending_request ON pending_request.reservation_id=r.id AND pending_request.status='pending'
+  WHERE r.status='pending' OR pending_request.id IS NOT NULL
+  ORDER BY activity_at DESC,r.id DESC LIMIT 2
+), history_preview AS (
+  SELECT c.id,c.member_id,m.name,m.nickname,e.year,c.attendance_status,c.sns_status,c.submitted_at
+  FROM united_history_claims c
+  JOIN events e ON e.id=c.event_id
+  JOIN members m ON m.id=c.member_id
+  WHERE c.attendance_status='pending' OR c.sns_status='pending'
+  ORDER BY c.submitted_at DESC,c.id DESC LIMIT 2
+), photo_preview AS (
+  SELECT g.id,g.member_id,m.name,m.nickname,g.created_at
+  FROM gallery_submissions g JOIN members m ON m.id=g.member_id
+  WHERE g.status='pending'
+  ORDER BY g.created_at DESC,g.id DESC LIMIT 2
+)
 SELECT
   COUNT(CASE WHEN r.status='pending' AND pending_request.id IS NULL THEN 1 END) AS approval_new,
   COUNT(CASE WHEN pending_request.request_type='change' THEN 1 END) AS approval_changes,
@@ -107,13 +135,15 @@ SELECT
   COUNT(CASE WHEN r.status='pending' OR pending_request.id IS NOT NULL THEN 1 END) AS approval_total,
   COUNT(CASE WHEN r.status='pending' OR pending_request.id IS NOT NULL OR r.amount_paid_czk>r.amount_due_czk OR
     (r.status='approved' AND r.amount_due_czk>r.amount_paid_czk AND e.payment_deadline IS NOT NULL AND
-      julianday(CASE WHEN length(e.payment_deadline)=10 THEN e.payment_deadline||'T23:59:59Z' ELSE e.payment_deadline END)<julianday(?))
-    THEN 1 END) AS attention_total
+      julianday(CASE WHEN length(e.payment_deadline)=10 THEN e.payment_deadline||'T23:59:59Z' ELSE e.payment_deadline END)<julianday((SELECT generated_at FROM runtime)))
+    THEN 1 END) AS attention_total,
+  (SELECT json_group_array(json_object('id',id,'memberId',member_id,'memberName',name,'memberNickname',nickname,'year',year,'type',request_type,'activityAt',activity_at)) FROM reservation_preview) AS reservation_previews_json,
+  (SELECT json_group_array(json_object('id',id,'memberId',member_id,'memberName',name,'memberNickname',nickname,'year',year,'attendanceStatus',attendance_status,'showShineStatus',sns_status,'activityAt',submitted_at)) FROM history_preview) AS history_previews_json,
+  (SELECT json_group_array(json_object('id',id,'memberId',member_id,'memberName',name,'memberNickname',nickname,'activityAt',created_at)) FROM photo_preview) AS photo_previews_json
 FROM reservations r
-JOIN events e ON e.id=r.event_id
+JOIN selected_event e ON e.id=r.event_id
 LEFT JOIN reservation_requests pending_request
   ON pending_request.reservation_id=r.id AND pending_request.status='pending'
-WHERE r.event_id=COALESCE(NULLIF(?,''),(SELECT id FROM events ORDER BY is_current DESC,year DESC LIMIT 1))
 `;
 
 export async function getAdminSummary(env, url, origin, now = new Date()) {
@@ -128,6 +158,7 @@ export async function getAdminSummary(env, url, origin, now = new Date()) {
   if (!event && eventId) return json({error:'event_not_found'},404,origin);
   const occupancy = JSON.parse(row.occupancy_json || '[]');
   const gallery = JSON.parse(row.gallery_json), history = JSON.parse(row.history_json);
+  const preview = key => { try { const value=JSON.parse(approval[key]||'[]');return Array.isArray(value)?value:[]; } catch { return []; } };
   const n = key => Number(row[key] || 0);
   const sum = (key, kind) => occupancy.filter(item=>!kind||item.kind===kind).reduce((total,item)=>total+item[key],0);
   const payments = { paid:n('pay_paid'),unpaid:n('pay_unpaid'),underpaid:n('pay_underpaid'),overpaid:n('pay_overpaid'),
@@ -148,6 +179,7 @@ export async function getAdminSummary(env, url, origin, now = new Date()) {
       payments,gallery,history},
     community:{members:n('members'),activeMembers:n('active_members'),incompleteObserved:n('incomplete')},
     attention:{reservations:Number(approval.attention_total||0),payments:n('payment_attention'),gallery:gallery.pending,history:history.pending,
-      reservationApprovals:{newReservations:Number(approval.approval_new||0),changes:Number(approval.approval_changes||0),cancellations:Number(approval.approval_cancellations||0),total:Number(approval.approval_total||0)}},
+      reservationApprovals:{newReservations:Number(approval.approval_new||0),changes:Number(approval.approval_changes||0),cancellations:Number(approval.approval_cancellations||0),total:Number(approval.approval_total||0)},
+      previews:{reservations:preview('reservation_previews_json'),history:preview('history_previews_json'),photos:preview('photo_previews_json')}},
   },200,origin);
 }

@@ -1,4 +1,4 @@
-import { ADMIN_REFRESH } from './refresh-policy.js?v=20260912-reservation-detail-ux-r1';
+import { ADMIN_REFRESH } from './refresh-policy.js?v=20260913-approval-previews-r1';
 // One timer, one active context, one in-flight refresh. Dependencies are injected for race tests.
 export function createAdminRefresh({readContext,refresh,onState=()=>{},intervalMs=ADMIN_REFRESH.operationalMs,
   setTimer=setTimeout,clearTimer=clearTimeout,now=Date.now}){

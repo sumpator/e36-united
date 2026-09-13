@@ -1,6 +1,6 @@
-import { apiRequest } from '../api.js?v=20260912-reservation-detail-ux-r1';
-import { adminState } from '../state.js?v=20260912-reservation-detail-ux-r1';
-import { $, escapeHtml as esc, formatDate, numeric } from '../ui.js?v=20260912-reservation-detail-ux-r1';
+import { apiRequest } from '../api.js?v=20260913-approval-previews-r1';
+import { adminState } from '../state.js?v=20260913-approval-previews-r1';
+import { $, escapeHtml as esc, formatDate, numeric } from '../ui.js?v=20260913-approval-previews-r1';
 
 let sequence=0;
 function planSummary(row){

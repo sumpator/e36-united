@@ -1,10 +1,10 @@
-import { adminCommand, editorProtected, adminEditorDirty } from '../editors.js?v=20260912-reservation-detail-ux-r1';
-import { accommodationVisualMarkup, bindAccommodationVisualFallbacks } from '../../accommodation-visual.js?v=20260912-reservation-detail-ux-r1';
-import { selectImageFiles } from '../../image-upload.js?v=20260912-reservation-detail-ux-r1';
-import { apiBaseUrl, apiRequest, apiUpload } from '../api.js?v=20260912-reservation-detail-ux-r1';
-import { adminState } from '../state.js?v=20260912-reservation-detail-ux-r1';
-import { setDenied } from '../shell.js?v=20260912-reservation-detail-ux-r1';
-import { $, escapeHtml, formatMoney, numeric, toast } from '../ui.js?v=20260912-reservation-detail-ux-r1';
+import { adminCommand, editorProtected, adminEditorDirty } from '../editors.js?v=20260913-approval-previews-r1';
+import { accommodationVisualMarkup, bindAccommodationVisualFallbacks } from '../../accommodation-visual.js?v=20260913-approval-previews-r1';
+import { selectImageFiles } from '../../image-upload.js?v=20260913-approval-previews-r1';
+import { apiBaseUrl, apiRequest, apiUpload } from '../api.js?v=20260913-approval-previews-r1';
+import { adminState } from '../state.js?v=20260913-approval-previews-r1';
+import { setDenied } from '../shell.js?v=20260913-approval-previews-r1';
+import { $, escapeHtml, formatMoney, numeric, toast } from '../ui.js?v=20260913-approval-previews-r1';
 
 const accommodationPhotoSelections=new Map();
 const accommodationGallerySelections=new Map();
