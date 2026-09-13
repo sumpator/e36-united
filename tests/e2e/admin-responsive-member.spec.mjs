@@ -145,7 +145,7 @@ test('RESPONSIVE existing read-only sections keep pagination independent history
  await page.goto('/admin.html?section=community&view=members&event=e&member=m&tab=club');await expect(modal(page)).toContainText('Dostupné body');
  await modal(page).locator('[data-member-close]').click();await expect(modal(page)).toBeHidden();await page.locator('[data-member-list] [data-member-open="m"]').click();await expect(modal(page).locator('[data-member-overview]')).toBeVisible();
  await select(page,'reservations');await expect(modal(page).locator('[data-member-tab-content] [data-member-reservation="r"]')).toBeVisible();await expect(modal(page)).toContainText('Evidovaně uhrazeno');
- await select(page,'photos');await expect(modal(page)).toContainText('Synthetic');await expect(modal(page).locator('[data-member-media]').first()).toHaveAttribute('src',/^blob:/);
+ await select(page,'photos');await expect(modal(page)).toContainText('Synthetic');const photo=modal(page).locator('[data-member-media]').first();await expect(photo).toHaveAttribute('src',/^blob:/);await expect.poll(()=>photo.evaluate(node=>node.complete&&node.naturalWidth>0)).toBe(true);
  // Existing router replaces the current Member tab, not one history entry per tab.
  await page.goBack();await expect(modal(page)).toBeHidden();await expect(page).not.toHaveURL(/member=/);await expect(page.locator('[data-member-list] [data-member-open="m"]')).toHaveText('First');
  await page.goForward();await expect(page).toHaveURL(/tab=photos/);await expect(modal(page)).toContainText('Synthetic');
