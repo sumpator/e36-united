@@ -3,6 +3,7 @@ import { clean } from "../../utils/text.js";
 import { deriveMemberRating, deriveUnitedAchievements } from "./achievements.js";
 import { attachHistoryEvidence } from "./history.js";
 import { profilePointStatement } from "./points.js";
+import { listClubMembers } from './members.js';
 
 const UNITED_REWARD_THRESHOLD = 12;
 
@@ -58,6 +59,7 @@ async function getUnitedClub(env, auth, origin) {
     hasCar: Number(carRow?.count || 0) > 0,
     approvedPhotos: approvedPhotoCount,
   };
+  const clubMembers = await listClubMembers(env, auth);
   return json({
     ok: true,
     points: { available, lifetime },
@@ -70,6 +72,7 @@ async function getUnitedClub(env, auth, origin) {
     profileCompletion: { ...profileCriteria, complete: profileCriteria.requiredFields && profileCriteria.historyReviewed && profileCriteria.hasCar && approvedPhotoCount >= 5 },
     achievements: derived.achievements,
     featuredAchievements: derived.featured,
+    clubMembers,
   }, 200, origin);
 }
 

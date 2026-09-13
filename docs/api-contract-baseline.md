@@ -17,7 +17,7 @@ Phase 1B updates only the authorization layer from verified checkpoint `fb2c9562
 - Uncaught handler errors become `500 { ok: false, error: "Internal server error" }`.
 - Unknown Admin routes return `404`. An authenticated unknown non-Admin `/api/*` route currently falls through to `200 { ok: true, service: "E36 United API" }`. Non-API unknown paths use the same `200` response.
 
-There are 45 explicit method/path contracts below, plus shared `OPTIONS` handling.
+The inventory below started with 45 explicit method/path contracts and is extended append-only as new bounded contracts are introduced. Shared `OPTIONS` handling is unchanged.
 
 ## Public endpoints
 
@@ -35,7 +35,7 @@ These two routes have the shared Firebase token and UID ownership checks. `/api/
 
 | Method and path | Access | Inputs | Important response/status | D1/R2 side effects and checks |
 | --- | --- | --- | --- | --- |
-| `POST /api/bootstrap` | Firebase-authenticated onboarding; missing or active member only | JSON `name`, optional `nickname`, `phone`; Firebase email/name may supply defaults | `200` member/profile payload; `400` for missing email or invalid lengths; `403 active_member_required` for an existing non-active member | D1 upserts the UID-owned member, syncs identity/login fields, and attempts idempotent profile-completion Points. Existing role/status are not overwritten. |
+| `POST /api/bootstrap` | Firebase-authenticated onboarding; missing or active member only | JSON `name`, optional `nickname`, `phone`, `hideOnClub`; Firebase email/name may supply defaults | `200` member/profile payload; `400` for missing email or invalid lengths; `403 active_member_required` for an existing non-active member | D1 upserts the UID-owned member, syncs identity/login fields and the owner-controlled club visibility flag, and attempts idempotent profile-completion Points. Existing role/status are not overwritten. |
 | `GET /api/me` | Firebase-authenticated status | none | `200` with Firebase identity and `profileExists: false`, or public member fields including current status | D1 read. If Firebase email/verification changed, this GET updates those D1 fields. No active-status rejection. |
 
 ## Protected active-member endpoints
@@ -45,7 +45,11 @@ Every route in this section requires both the shared Firebase identity check and
 | Method and path | Access | Inputs | Important response/status | D1/R2 side effects and checks |
 | --- | --- | --- | --- | --- |
 | `GET /api/navigation-state` | active member | none | `200`: `hasWaitingPlan`, `hasReservation` | D1 reads current-event reservation and any unexpired UID-owned Planner draft. |
-| `GET /api/united-club` | active member | none | `200`: available/lifetime Points, reward threshold, rating, history/evidence URLs, profile completion, achievements; `404 member_not_found` | D1-only reads across member, events/claims, evidence metadata, ledger, cars, and approved gallery count. |
+| `GET /api/united-club` | active member | none | `200`: available/lifetime Points, reward threshold, rating, history/evidence URLs, profile completion, achievements, and bounded `clubMembers`; `404 member_not_found` | Existing D1-only reads plus exactly one bounded club-member list statement. The list excludes non-active/hidden members and returns safe presentation fields only; no per-member query. |
+| `GET /api/united-club/members/:profileRef` | active member | stable opaque profile reference | `200`: safe club profile (display identity, member-since, confirmed history, public garage presentation, Points/rating/achievements, approved gallery); `404 club_profile_not_found` | Active/visible target lookup followed by one four-statement bounded batch. Hidden profiles are available only to their owner. No contact, reservation, payment, private note, Firebase UID or internal row ID is returned. |
+| `GET /api/united-club/members/:profileRef/media/cars/:photoId` | active member | profile reference and car-photo ID | `200` private car image; `404 club_media_not_found`/`media_not_found` | One joined D1 ownership/visibility check, then R2 read with private/no-store headers. Hidden target media is owner-only. |
+| `GET /api/united-club/gallery-links` | active member | comma-separated approved gallery IDs, bounded to 72 | `200`: `profiles` map for linkable authors | One bounded D1 statement after the shared guard. Only approved photos owned by active, non-hidden members are mapped; the public gallery payload is not expanded with private identifiers. |
+| `POST /api/reservations/:reservationId/requests/:requestId/acknowledge` | active member | path IDs; empty body | `200`: authoritative acknowledged request; `404 reservation_request_not_found`; `409 reservation_request_not_decided` | Conditional owner-scoped D1 update plus authoritative readback. Both approved and rejected decisions can be acknowledged; reservation state and Admin decision/comment are unchanged. |
 | `POST /api/history/claims` | active member | multipart: `eventId`, 1–4 `files`; optional `snsCompeted`, `snsCategory`, `snsPlacement`, `snsBestOfBest`, `snsBestExhaust` | `201` new or `200` amended claim; `400` invalid form/evidence/S&S; `409` event not concluded or locked/pending claim | Validates concluded event and UID ownership. R2 uploads private evidence; D1 inserts/updates claim and evidence. Rejected resubmission replaces old evidence; cleanup deletes old/new R2 objects as appropriate. |
 | `POST /api/history/completed` | active member | body ignored | `200`; `404 member_not_found` | D1 sets `history_completed_at` once and attempts idempotent profile-completion Points. |
 | `GET /api/history/evidence/:evidenceId` | active member | path evidence ID | `200` private image; `404 evidence_not_found`/`media_not_found` | D1 requires `evidence.member_id = auth.uid`; R2 read; private/no-store. |

@@ -184,6 +184,17 @@ test('approved change remains request-specific until the member acknowledges it 
   assert.ok(member.request.memberAcknowledgedAt);assert.equal(r.db.prepare('SELECT COUNT(*) n FROM reservation_requests WHERE id=?').get(created.request.id).n,1);r.db.close();
 });
 
+test('rejected change can be acknowledged only by its owner without changing the approved reservation',async()=>{
+  const r=prepare(),before={...r.db.prepare("SELECT status,arrival,crew,amount_due_czk,amount_paid_czk FROM reservations WHERE id='r'").get()},created=await (await submit(r)).json();
+  assert.equal((await decide(r,created.request.id,'rejected','Původní rezervace platí.')).status,200);
+  let member=(await (await getCurrentReservation(r.env,auth,origin)).json()).reservation;
+  assert.equal(member.status,'approved');assert.equal(member.request.status,'rejected');assert.equal(member.request.memberAcknowledgedAt,null);assert.equal(member.request.adminComment,'Původní rezervace platí.');
+  let response=await acknowledgeReservationRequest(r.env,{uid:'n'},'r',created.request.id,origin);assert.equal(response.status,404);
+  response=await acknowledgeReservationRequest(r.env,auth,'r',created.request.id,origin);assert.equal(response.status,200);const acknowledgement=await response.json();assert.equal(acknowledgement.unchanged,false);assert.ok(acknowledgement.request.memberAcknowledgedAt);
+  assert.deepEqual({...r.db.prepare("SELECT status,arrival,crew,amount_due_czk,amount_paid_czk FROM reservations WHERE id='r'").get()},before);
+  member=(await (await getCurrentReservation(r.env,auth,origin)).json()).reservation;assert.ok(member.request.memberAcknowledgedAt);assert.equal(r.db.prepare("SELECT COUNT(*) n FROM reservation_requests WHERE id=? AND status='rejected'").get(created.request.id).n,1);r.db.close();
+});
+
 test('approved reservation returns first-load payment QR source without an Admin payment mutation',async()=>{
   const r=prepare();r.db.exec("UPDATE events SET payment_recipient_name='E36 United',payment_account_display='123/0100',payment_iban='CZ6508000000192000145399',payment_message_prefix='United',payment_deadline='2026-10-01' WHERE id='e'; UPDATE reservations SET payment_vs='20260001' WHERE id='r'");
   const writes=r.writes,payload=await (await getCurrentReservation(r.env,auth,origin)).json(),payment=payload.reservation.payment;

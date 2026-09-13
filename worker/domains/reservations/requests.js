@@ -222,14 +222,14 @@ async function reviewReservationRequest(request,env,auth,reservationId,requestId
 async function acknowledgeReservationRequest(env,auth,reservationId,requestId,origin){
   const result=await env.DB.prepare(`UPDATE reservation_requests
     SET member_acknowledged_at=CURRENT_TIMESTAMP
-    WHERE id=? AND reservation_id=? AND member_id=? AND request_type='change' AND status='approved'
+    WHERE id=? AND reservation_id=? AND member_id=? AND request_type='change' AND status IN ('approved','rejected')
       AND member_acknowledged_at IS NULL
       AND EXISTS(SELECT 1 FROM reservations WHERE id=? AND member_id=?)`).bind(requestId,reservationId,auth.uid,reservationId,auth.uid).run();
   const row=await env.DB.prepare(`SELECT rr.* FROM reservation_requests rr
     JOIN reservations r ON r.id=rr.reservation_id
     WHERE rr.id=? AND rr.reservation_id=? AND rr.member_id=? AND r.member_id=? LIMIT 1`).bind(requestId,reservationId,auth.uid,auth.uid).first();
   if(!row)return json({ok:false,error:'reservation_request_not_found',message:'Žádost nebyla nalezena.'},404,origin);
-  if(row.request_type!=='change'||row.status!=='approved')return json({ok:false,error:'reservation_request_not_acknowledgeable',message:'Tuto žádost nelze potvrdit.'},409,origin);
+  if(row.request_type!=='change'||!['approved','rejected'].includes(row.status))return json({ok:false,error:'reservation_request_not_acknowledgeable',message:'Tuto žádost nelze potvrdit.'},409,origin);
   return json({ok:true,unchanged:!result.meta?.changes,request:requestView(row),message:'Potvrzení bylo uloženo.'},200,origin);
 }
 

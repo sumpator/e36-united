@@ -26,10 +26,11 @@ function database(){
     CREATE TABLE members (
       id TEXT PRIMARY KEY, member_code TEXT NOT NULL UNIQUE, email TEXT NOT NULL, name TEXT NOT NULL, nickname TEXT, phone TEXT,
       role TEXT NOT NULL DEFAULT 'member', status TEXT NOT NULL DEFAULT 'active', email_verified INTEGER NOT NULL DEFAULT 1,
-      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      hide_on_club INTEGER NOT NULL DEFAULT 0
     );
     CREATE TABLE cars (id TEXT PRIMARY KEY, member_id TEXT NOT NULL, nickname TEXT, model TEXT, body TEXT, year INTEGER, color TEXT, is_primary INTEGER NOT NULL DEFAULT 0, created_at TEXT DEFAULT CURRENT_TIMESTAMP, updated_at TEXT DEFAULT CURRENT_TIMESTAMP);
-    CREATE TABLE car_photos (id TEXT PRIMARY KEY, car_id TEXT NOT NULL, member_id TEXT NOT NULL, r2_key TEXT NOT NULL);
+    CREATE TABLE car_photos (id TEXT PRIMARY KEY, car_id TEXT NOT NULL, member_id TEXT NOT NULL, r2_key TEXT NOT NULL, mime_type TEXT, sort_order INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
     CREATE TABLE gallery_submissions (
       id TEXT PRIMARY KEY, member_id TEXT NOT NULL, r2_key TEXT NOT NULL UNIQUE, caption TEXT, status TEXT NOT NULL DEFAULT 'pending',
       created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, reviewed_at TEXT, review_note TEXT

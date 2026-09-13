@@ -41,6 +41,24 @@ export function createMemberOverview({
     const view=deriveOverviewState({reservation,registrationOpen,plannerWaiting,plannerUnavailable,eventYear:event?eventYear:null,formatAmount});if(card){card.hidden=!view.active;card.dataset.jump=view.target||'reservation'}if(empty)empty.hidden=view.active;if(emptyCopy)emptyCopy.textContent=view.emptyCopy;
     if(eventElement)eventElement.textContent=`UNITED ${eventYear}`;
     if(label)label.textContent=view.label;if(copy)copy.textContent=view.copy;if(action)action.innerHTML=view.action?`${view.action} <b>→</b>`:'';
+    renderOnboarding({reservation,registrationOpen});
+  }
+
+  function setStep(button, state, complete, disabled=false){
+    if(!button)return;
+    button.classList.toggle('is-complete',complete);button.disabled=disabled;
+    const copy=button.querySelector('em');if(copy)copy.textContent=state;
+  }
+  function renderOnboarding({reservation,registrationOpen}){
+    const data=getData(),profileReady=data.club?.profileCompletion?.requiredFields!==false&&!!data.profile?.name;
+    setStep($('[data-onboarding-profile]'),profileReady?'Profil je založený ✓':'Dokončit profil →',profileReady);
+    setStep($('[data-onboarding-reservation]'),reservation?'Rezervace je připravená ✓':registrationOpen?'Otevřít registraci →':'Registrace je teď uzavřená',!!reservation,!reservation&&!registrationOpen);
+    const states=new Map([
+      ['garage',data.cars.some(car=>car.photos?.length)],
+      ['club',(data.club?.history||[]).some(item=>item.attendance?.status==='approved')],
+      ['photos',Number(data.club?.approvedPhotoCount||0)>0],
+    ]);
+    document.querySelectorAll('.united-onboarding-club [data-jump]').forEach(button=>button.classList.toggle('is-complete',states.get(button.dataset.jump)===true));
   }
 
   return {renderActionCenter,renderFeaturedAchievements,renderMemberCard,renderPoints};

@@ -128,6 +128,8 @@ export async function prepareE2ePage(page, {
   reservation = null,
   cars = null,
   clubPayload = null,
+  clubProfiles = null,
+  approvedGallery = null,
   accommodations = accommodationOptions,
   ignoreConsoleError = () => false,
 } = {}) {
@@ -143,6 +145,7 @@ export async function prepareE2ePage(page, {
     role: 'member',
     status: memberStatus,
     emailVerified: true,
+    hideOnClub: false,
     createdAt: '2021-06-01T00:00:00.000Z',
   };
   page.on('pageerror', error => observations.pageErrors.push(error.stack || error.message));
@@ -203,6 +206,12 @@ export async function prepareE2ePage(page, {
     if (/\/api\/events\/united-2026\/accommodation\/[^/]+\/(?:photo|gallery\/[^/]+)$/.test(url.pathname)) {
       await route.fulfill({ status: 200, contentType: 'image/svg+xml', body: imageSvg });
       return;
+    }
+    if (/^\/api\/united-club\/members\/[^/]+\/media\/cars\/[^/]+$/.test(url.pathname) || /^\/api\/gallery\/media\/[^/]+$/.test(url.pathname)) {
+      await route.fulfill({ status: 200, contentType: 'image/svg+xml', body: imageSvg });return;
+    }
+    if (url.pathname === '/api/gallery/approved') {
+      await jsonResponse(route,{ok:true,photos:approvedGallery||[]});return;
     }
     if (url.pathname === '/api/events/current') {
       await jsonResponse(route, { event: currentEvent, accommodationOptions:accommodations });
@@ -313,10 +322,18 @@ export async function prepareE2ePage(page, {
         profileCompletion: {},
         achievements: [],
         featuredAchievements: [],
+        clubMembers:{members:[],pagination:{limit:24,offset:0,nextOffset:0,hasMore:false}},
         ...(clubPayload || {}),
       });
       return;
     }
+    if (url.pathname === '/api/united-club/gallery-links') {
+      const photos=approvedGallery||[],profiles=clubProfiles||{};const links={};
+      for(const photo of photos){const profile=profiles[photo.profileRef];if(profile&&!profile.hidden)links[photo.id]=photo.profileRef}
+      await jsonResponse(route,{ok:true,links});return;
+    }
+    const clubProfileMatch=url.pathname.match(/^\/api\/united-club\/members\/([^/]+)$/);
+    if(clubProfileMatch){const ref=decodeURIComponent(clubProfileMatch[1]),profile=(clubProfiles||{})[ref];if(!profile||profile.hidden){await jsonResponse(route,{ok:false,error:'club_profile_not_found'},404);return}await jsonResponse(route,{ok:true,profile});return}
     if (url.pathname === '/api/gallery/mine') {
       await jsonResponse(route, { submissions: [], pagination: { hasMore: false } });
       return;

@@ -3,17 +3,17 @@ import { performMemberLogout } from './member-logout.js?v=20260826-predeploy-fix
 import { createMemberApiClient } from './member/api.js?v=20260907-feedback';
 import { loadMemberSessionSnapshot } from './member/refresh.js?v=20260907-feedback';
 import { apiError, authError, authOrApiError, createMemberSession } from './member/session.js?v=20260907-feedback';
-import { createMemberData as defaultData, normalizeMember as normalizeMemberState } from './member/state.js?v=20260902-phase3';
+import { createMemberData as defaultData, normalizeMember as normalizeMemberState } from './member/state.js?v=20260913-club-profiles-r1';
 import { $, $$, setButtonBusy, toast } from './member/ui.js?v=20260902-phase3';
-import { createMemberShell } from './member/shell.js?v=20260907-mobile';
-import { createMemberOverview } from './member/modules/overview.js?v=20260903-phase4a';
+import { createMemberShell } from './member/shell.js?v=20260913-club-profiles-r1';
+import { createMemberOverview } from './member/modules/overview.js?v=20260913-club-profiles-r1';
 import { createMemberGarage } from './member/modules/garage.js?v=20260907-feedback';
 import { createMemberPhotos } from './member/modules/photos.js?v=20260907-feedback';
-import { createMemberPlanner } from './member/modules/planner/index.js?v=20260912-member-reservation-panels-r1';
+import { createMemberPlanner } from './member/modules/planner/index.js?v=20260913-club-profiles-r1';
 import { formatCzk } from './member/modules/planner/payments.js?v=20260912-member-reservation-panels-r1';
-import { createMemberClub } from './member/modules/club/index.js?v=20260911-readability-r1';
+import { createMemberClub } from './member/modules/club/index.js?v=20260913-club-profiles-r1';
 import { achievementIcon, pictogram } from './member/modules/club/points.js?v=20260911-readability-r1';
-import { createMemberAccount } from './member/modules/account.js?v=20260903-phase4d';
+import { createMemberAccount } from './member/modules/account.js?v=20260913-club-profiles-r1';
 import { requestedMemberSection } from './member/deep-links.js?v=20260907-feedback';
 import { renderMemberAvailability } from './member/availability.js?v=20260907-feedback';
 import { isAuthorizationFailure } from './member/refresh.js?v=20260907-feedback';
@@ -24,7 +24,7 @@ const {request:apiRequest,requestForm:apiRequestForm,requestBlob:apiRequestBlob}
 const memberUrlParams=new URLSearchParams(window.location.search);
 
 let data=defaultData();
-let memberPlanner=null;
+let memberPlanner=null,memberShell=null;
 let startupErrors={},lastPlannerDraftResult=null;
 const trackOnboarding=stage=>apiRequest('/api/onboarding',{method:'POST',body:{stage}}).catch(error=>console.warn('Onboarding tracking unavailable',error));
 function resetMemberState(){startupErrors={};lastPlannerDraftResult=null;resetGarage();resetMemberPhotos();memberClub.reset();memberPlanner.reset();data=defaultData();renderAll()}
@@ -232,6 +232,7 @@ const {bind:bindMemberPhotos,handleLoadError:handleMemberGalleryLoadError,loadMe
 
 let memberOverview=null;
 const memberClub=createMemberClub({
+  apiBaseUrl,
   apiRequest,
   apiRequestForm,
   apiRequestBlob,
@@ -243,6 +244,7 @@ const memberClub=createMemberClub({
   renderFeaturedAchievements:()=>memberOverview.renderFeaturedAchievements(),
   renderAll:()=>renderAll(),
   formatApiError:apiError,
+  openSection:id=>memberShell?.openSection(id),
 });
 
 memberOverview=createMemberOverview({
@@ -253,7 +255,7 @@ memberOverview=createMemberOverview({
   formatAmount:formatCzk,
   renderAchievementIcon:achievement=>achievementIcon(achievement.type),
 });
-const memberShell=createMemberShell({
+memberShell=createMemberShell({
   renderApp:()=>renderAll(),
   getData:()=>data,
   getMemberSince:()=>memberClub.getMemberSince(),
@@ -294,7 +296,7 @@ const memberAccount=createMemberAccount({
   formatApiError:apiError,
 });
 
-function renderAll(){renderProfile();memberClub.renderPoints();memberClub.renderAchievements();renderGarage();memberClub.renderHistory();memberPlanner.renderReservation();memberClub.renderRewards();renderMemberGallery();memberAccount.render();renderMemberAvailability(startupErrors,retryMemberDomain,{hasHandoff:memberPlanner.hasActiveHandoff()})}
+function renderAll(){renderProfile();memberClub.renderPoints();memberClub.renderAchievements();memberClub.renderMembers();renderGarage();memberClub.renderHistory();memberPlanner.renderReservation();memberClub.renderRewards();renderMemberGallery();memberAccount.render();renderMemberAvailability(startupErrors,retryMemberDomain,{hasHandoff:memberPlanner.hasActiveHandoff()})}
 function renderProfile(){memberOverview.renderMemberCard();renderMemberHero()}
 
 memberAccount.bind();

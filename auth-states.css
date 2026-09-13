@@ -5,3 +5,4 @@
 @keyframes publicAuthPulse{50%{opacity:.4;transform:scale(.82)}}
 @media(max-width:700px){.member-benefit-loading{grid-template-columns:auto minmax(0,1fr)}.member-benefit-loading .btn{grid-column:1/-1;width:100%}}
 @media(prefers-reduced-motion:reduce){.member-merch-callout[data-benefit-state="loading"] .gallery-auth-dot,.gallery-auth-state.is-loading .gallery-auth-dot{animation:none}}
+.gallery-item--user figcaption{z-index:3}.gallery-member-link{position:relative;display:inline-flex;align-items:center;gap:6px;color:inherit;text-decoration:none;pointer-events:auto}.gallery-member-link:hover,.gallery-member-link:focus-visible{color:#69afff;text-decoration:underline}.gallery-member-link span{color:#69afff}

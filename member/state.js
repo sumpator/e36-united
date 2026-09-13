@@ -1,9 +1,9 @@
 export function createMemberData() {
   return {
-    profile: { id: '', memberCode: '', name: 'United Member', nickname: 'Driver', email: '', phone: '', role: 'member', status: 'active', emailVerified: false, createdAt: '' },
+    profile: { id: '', memberCode: '', name: 'United Member', nickname: 'Driver', email: '', phone: '', role: 'member', status: 'active', emailVerified: false, hideOnClub: false, createdAt: '' },
     cars: [],
     reservation: null,
-    club: { points: { available: 0, lifetime: 0 }, rewardThreshold: 12, rating: { key: '316i', name: '316i', minPoints: 0 }, memberSince: null, historyCompletedAt: null, history: [], approvedPhotoCount: 0, profileCompletion: {}, achievements: [], featuredAchievements: [] },
+    club: { points: { available: 0, lifetime: 0 }, rewardThreshold: 12, rating: { key: '316i', name: '316i', minPoints: 0 }, memberSince: null, historyCompletedAt: null, history: [], approvedPhotoCount: 0, profileCompletion: {}, achievements: [], featuredAchievements: [], clubMembers: { members: [], pagination: { hasMore: false } } },
   };
 }
 
@@ -19,6 +19,7 @@ export function normalizeMember(payload, user = null) {
     role: source.role || 'member',
     status: source.status || 'active',
     emailVerified: typeof source.emailVerified === 'boolean' ? source.emailVerified : Boolean(source.email_verified ?? user?.emailVerified),
+    hideOnClub: Boolean(source.hideOnClub ?? source.hide_on_club),
     createdAt: source.createdAt || source.created_at || '',
     updatedAt: source.updatedAt || source.updated_at || '',
   };

@@ -75,6 +75,7 @@ function createRuntime(member = null) {
       updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
       last_login_at TEXT,
       history_completed_at TEXT
+      ,hide_on_club INTEGER NOT NULL DEFAULT 0
     );
     CREATE TABLE events (id TEXT PRIMARY KEY);
     CREATE TABLE cars (
@@ -183,6 +184,9 @@ test('route classification covers every explicit protected Member contract and e
     ['POST', '/api/planner-handoffs/claim'],
     ['GET', '/api/navigation-state'],
     ['GET', '/api/united-club'],
+    ['GET', '/api/united-club/gallery-links'],
+    ['GET', '/api/united-club/members/EU-OTHER'],
+    ['GET', '/api/united-club/members/EU-OTHER/media/cars/photo-1'],
     ['POST', '/api/history/claims'],
     ['POST', '/api/history/completed'],
     ['GET', '/api/history/evidence/evidence-1'],

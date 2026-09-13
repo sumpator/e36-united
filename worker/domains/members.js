@@ -11,6 +11,8 @@ async function bootstrapMember(request, env, auth, origin) {
   const name = clean(body.name || auth.name || auth.email.split("@")[0]);
   const nickname = clean(body.nickname || "");
   const phone = clean(body.phone || "");
+  const hideOnClubProvided = Object.prototype.hasOwnProperty.call(body, 'hideOnClub');
+  const hideOnClub = body.hideOnClub === true ? 1 : 0;
   if (name.length < 2 || name.length > 80) return json({ ok: false, error: "Invalid name" }, 400, origin);
   if (nickname.length > 40) return json({ ok: false, error: "Invalid nickname" }, 400, origin);
   if (phone.length > 30) return json({ ok: false, error: "Invalid phone" }, 400, origin);
@@ -22,17 +24,18 @@ async function bootstrapMember(request, env, auth, origin) {
 
   await env.DB.batch([
     env.DB.prepare(`
-      INSERT INTO members (id, member_code, email, name, nickname, phone, role, status, email_verified, last_login_at)
-      VALUES (?, ?, ?, ?, ?, ?, 'member', 'active', ?, CURRENT_TIMESTAMP)
+      INSERT INTO members (id, member_code, email, name, nickname, phone, role, status, email_verified, hide_on_club, last_login_at)
+      VALUES (?, ?, ?, ?, ?, ?, 'member', 'active', ?, ?, CURRENT_TIMESTAMP)
       ON CONFLICT(id) DO UPDATE SET
         email = excluded.email,
         name = excluded.name,
         nickname = excluded.nickname,
         phone = excluded.phone,
         email_verified = excluded.email_verified,
+        hide_on_club = CASE WHEN ? THEN excluded.hide_on_club ELSE members.hide_on_club END,
         updated_at = CURRENT_TIMESTAMP,
         last_login_at = CURRENT_TIMESTAMP
-    `).bind(auth.uid, memberCode, auth.email.toLowerCase(), name, nickname || null, phone || null, auth.emailVerified ? 1 : 0),
+    `).bind(auth.uid, memberCode, auth.email.toLowerCase(), name, nickname || null, phone || null, auth.emailVerified ? 1 : 0, hideOnClub, hideOnClubProvided ? 1 : 0),
     ...(!existing ? [memberQrInsert(env, auth.uid)] : []),
     profilePointStatement(env, auth.uid),
   ]);
@@ -43,7 +46,7 @@ async function bootstrapMember(request, env, auth, origin) {
 
 async function getMember(env, auth, origin) {
   const member = await env.DB.prepare(`
-    SELECT id, member_code, email, name, nickname, phone, role, status, email_verified, created_at, updated_at
+    SELECT id, member_code, email, name, nickname, phone, role, status, email_verified, hide_on_club, created_at, updated_at
     FROM members WHERE id = ? LIMIT 1
   `).bind(auth.uid).first();
 
@@ -80,6 +83,7 @@ function publicMember(member) {
     role: member.role,
     status: member.status,
     emailVerified: !!member.email_verified,
+    hideOnClub: !!member.hide_on_club,
     createdAt: member.created_at,
     updatedAt: member.updated_at,
   };

@@ -6,6 +6,7 @@ import { initScrollAffordance } from './scroll-affordance.js?v=20260907-mobile';
 const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
 const apiBase=(portalConfig.apiBaseUrl||'https://api.e36united.cz').replace(/\/$/,'');
 let auth=null,currentUser=null,member=null,authController=null;
+let approvedGalleryPhotos=[],galleryProfileLinks={};
 
 function initGalleryNavigation(){
   const videoSection=$('.gallery-video-section'),hero=$('.gallery-hero');
@@ -107,19 +108,32 @@ function renderFilePreview(){
   else if(selection.truncated)setUploadStatus('Najednou můžeš nahrát maximálně 8 fotek.','info');
 }
 
-async function loadApprovedGallery(){
+function renderApprovedGallery(){
   const grid=$('[data-user-gallery-grid]');if(!grid)return;
-  try{
-    const response=await fetch(`${apiBase}/api/gallery/approved?limit=72`,{cache:'no-store'});
-    if(!response.ok)throw new Error(`gallery ${response.status}`);
-    const payload=await response.json(),photos=Array.isArray(payload?.photos)?payload.photos:[];
+  const photos=approvedGalleryPhotos;
     const empty=$('[data-user-gallery-empty]',grid);
     if(!photos.length){if(empty)empty.hidden=false;return}
     grid.innerHTML=photos.map(photo=>{
       const url=`${apiBase}${photo.imageUrl}`;
       const title=[photo.author,photo.caption].filter(Boolean).join(' · ')||'E36 United community';
-      return `<figure class="gallery-item gallery-item--user reveal is-visible" data-lightbox data-full="${escapeHtml(url)}" data-caption="${escapeHtml(title)}"><img alt="${escapeHtml(title)}" loading="lazy" src="${escapeHtml(url)}" onerror="this.closest('figure').remove()"><figcaption><b>${escapeHtml(photo.author||'United member')}</b>${photo.caption?`<span>${escapeHtml(photo.caption)}</span>`:''}</figcaption></figure>`;
+      const ref=galleryProfileLinks[photo.id],author=ref?`<a class="gallery-member-link" href="member.html?section=club&amp;profile=${encodeURIComponent(ref)}">${escapeHtml(photo.author||'United member')} <span aria-hidden="true">→</span></a>`:`<b>${escapeHtml(photo.author||'United member')}</b>`;
+      return `<figure class="gallery-item gallery-item--user reveal is-visible" data-lightbox data-full="${escapeHtml(url)}" data-caption="${escapeHtml(title)}"><img alt="${escapeHtml(title)}" loading="lazy" src="${escapeHtml(url)}" onerror="this.closest('figure').remove()"><figcaption>${author}${photo.caption?`<span>${escapeHtml(photo.caption)}</span>`:''}</figcaption></figure>`;
     }).join('');
+    $$('.gallery-member-link',grid).forEach(link=>link.addEventListener('click',event=>event.stopPropagation()));
+}
+async function loadGalleryProfileLinks(){
+  if(!currentUser||member?.status!=='active'||!approvedGalleryPhotos.length){galleryProfileLinks={};renderApprovedGallery();return}
+  try{const ids=approvedGalleryPhotos.map(photo=>photo.id).filter(Boolean).slice(0,72).join(',');const payload=await authorizedFetch(`/api/united-club/gallery-links?ids=${encodeURIComponent(ids)}`);galleryProfileLinks=payload?.links||{};renderApprovedGallery()}
+  catch(error){galleryProfileLinks={};renderApprovedGallery();console.warn('Club profile links unavailable',error)}
+}
+async function loadApprovedGallery(){
+  const grid=$('[data-user-gallery-grid]');if(!grid)return;
+  try{
+    const response=await fetch(`${apiBase}/api/gallery/approved?limit=72`,{cache:'no-store'});
+    if(!response.ok)throw new Error(`gallery ${response.status}`);
+    const payload=await response.json();approvedGalleryPhotos=Array.isArray(payload?.photos)?payload.photos:[];
+    renderApprovedGallery();
+    if(currentUser)await loadGalleryProfileLinks();
   }catch(error){console.warn('Approved gallery could not be loaded',error);}
 }
 
@@ -135,6 +149,7 @@ async function initAuth(){
       try{const payload=await authorizedFetch('/api/me');if(currentUser!==observedUser)return;member=payload?.member||null}
       catch(error){console.warn('Member profile unavailable on gallery page',error)}
     }
+    await loadGalleryProfileLinks();
     if(state.status==='authenticated'&&currentUser!==state.user)return;
     setAuthState(state.status);
   }});

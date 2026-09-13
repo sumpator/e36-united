@@ -117,3 +117,9 @@ The current status model has `active` as its sole enabled value. Existing fronte
 - Points reversal/correction, Rewards/Merch, refund/credit, and automated payment workflows;
 - unknown-route behavior cleanup;
 - business-rule, authorization-policy, payload, status-code, schema, D1 or R2 changes.
+
+## 2026-09-13 Member Club profiles
+
+`worker/domains/club/members.js` owns the active-member-only community profile boundary: a bounded list, a safe profile projection, authenticated author-link resolution and owner/visibility-checked private car media. It deliberately excludes contact, reservation, payment, note, Firebase UID and internal row-ID fields. Hidden profiles fail closed for other members while self and existing Admin projections remain unchanged. Public approved-gallery and media contracts remain public and contain no new profile reference; the frontend resolves links only after active authentication.
+
+The existing United Club response composes one bounded member-list query without polling or per-member requests. Full profile/history/garage/approved-gallery data remains lazy until an explicit profile open, and car bytes remain lazy/private until their image consumer loads. `member/modules/club/members.js` owns modal history/focus cleanup and object-URL lifetime; it does not introduce a second session coordinator.

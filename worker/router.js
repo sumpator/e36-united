@@ -17,6 +17,7 @@ const PROTECTED_MEMBER_EXACT_ROUTES = new Set([
   "GET /api/navigation-state",
   "POST /api/planner-handoffs/claim",
   "GET /api/united-club",
+  "GET /api/united-club/gallery-links",
   "POST /api/history/claims",
   "POST /api/history/completed",
   "GET /api/planner-draft",
@@ -42,6 +43,8 @@ const PROTECTED_MEMBER_ROUTE_PATTERNS = [
   ["POST", /^\/api\/reservations\/[^/]+\/requests\/[^/]+\/acknowledge$/],
   ["PUT", /^\/api\/cars\/[^/]+\/photos$/],
   ["GET", /^\/api\/gallery\/mine\/media\/[^/]+$/],
+  ["GET", /^\/api\/united-club\/members\/[^/]+$/],
+  ["GET", /^\/api\/united-club\/members\/[^/]+\/media\/cars\/[^/]+$/],
 ];
 
 export function isProtectedMemberRoute(method, pathname) {
@@ -229,6 +232,12 @@ export async function routeRequest({ request, env, url, origin }) {
     if (url.pathname === "/api/navigation-state" && request.method === "GET") return await domain.getMemberNavigationState(env, auth, origin);
     if (url.pathname === '/api/planner-handoffs/claim' && request.method === 'POST') return trackPlannerHandoff(request,env,auth,origin);
     if (url.pathname === "/api/united-club" && request.method === "GET") return await domain.getUnitedClub(env, auth, origin);
+    if (url.pathname === '/api/united-club/gallery-links' && request.method === 'GET') return await domain.getClubGalleryLinks(env, url, origin);
+    const clubMemberMediaMatch = url.pathname.match(/^\/api\/united-club\/members\/([^/]+)\/media\/cars\/([^/]+)$/);
+    if (clubMemberMediaMatch && request.method === 'GET') return await domain.clubMemberCarMedia(env, auth,
+      decodeURIComponent(clubMemberMediaMatch[1]), decodeURIComponent(clubMemberMediaMatch[2]), origin);
+    const clubMemberProfileMatch = url.pathname.match(/^\/api\/united-club\/members\/([^/]+)$/);
+    if (clubMemberProfileMatch && request.method === 'GET') return await domain.getClubMemberProfile(env, auth, decodeURIComponent(clubMemberProfileMatch[1]), origin);
     if (url.pathname === "/api/history/claims" && request.method === "POST") return await domain.submitHistoryClaim(request, env, auth, origin);
     if (url.pathname === "/api/history/completed" && request.method === "POST") return await domain.completeMemberHistory(env, auth, origin);
     const memberHistoryEvidenceMatch = url.pathname.match(/^\/api\/history\/evidence\/([^/]+)$/);
