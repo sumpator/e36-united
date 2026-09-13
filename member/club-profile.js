@@ -18,10 +18,63 @@ export function createClubProfileViewer({ apiBaseUrl, apiRequest, apiRequestBlob
   let activeRef = '';
   let restoreFocus = null;
   let restoreScroll = null;
+  let scrollOwner = null;
+  let scrollReleaseToken = 0;
   let bound = false;
 
   const modal = () => document.querySelector(modalSelector);
   const content = () => modal()?.querySelector('[data-club-profile-content]');
+
+  const inlineScrollBehavior = element => element ? {
+    value: element.style.getPropertyValue('scroll-behavior'),
+    priority: element.style.getPropertyPriority('scroll-behavior'),
+  } : null;
+
+  function restoreInlineScrollBehavior(element, saved) {
+    if (!element || !saved) return;
+    if (saved.value) element.style.setProperty('scroll-behavior', saved.value, saved.priority);
+    else element.style.removeProperty('scroll-behavior');
+  }
+
+  function acquireScrollOwnership() {
+    const position = { x: window.scrollX, y: window.scrollY };
+    scrollReleaseToken += 1;
+    if (!scrollOwner) {
+      scrollOwner = {
+        restoration: 'scrollRestoration' in history ? history.scrollRestoration : null,
+        documentBehavior: inlineScrollBehavior(document.documentElement),
+        bodyBehavior: inlineScrollBehavior(document.body),
+      };
+      if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+      document.documentElement.style.setProperty('scroll-behavior', 'auto', 'important');
+      document.body?.style.setProperty('scroll-behavior', 'auto', 'important');
+    }
+    window.scrollTo({ left: position.x, top: position.y, behavior: 'auto' });
+    return position;
+  }
+
+  function restoreScrollOwnershipNow(owner) {
+    if (!owner || scrollOwner !== owner) return;
+    restoreInlineScrollBehavior(document.documentElement, owner.documentBehavior);
+    restoreInlineScrollBehavior(document.body, owner.bodyBehavior);
+    if (owner.restoration && 'scrollRestoration' in history) history.scrollRestoration = owner.restoration;
+    scrollOwner = null;
+  }
+
+  function releaseScrollOwnership({ restore = true, focus = null, position = null, defer = true } = {}) {
+    const owner = scrollOwner;
+    if (!owner) return;
+    const token = ++scrollReleaseToken;
+    if (restore) {
+      if (focus?.isConnected) focus.focus({ preventScroll: true });
+      if (position) window.scrollTo({ left: position.x, top: position.y, behavior: 'auto' });
+    }
+    const finish = () => {
+      if (token === scrollReleaseToken) restoreScrollOwnershipNow(owner);
+    };
+    if (!defer) { finish(); return; }
+    requestAnimationFrame(() => requestAnimationFrame(finish));
+  }
 
   function releaseMedia() {
     generation += 1;
@@ -125,22 +178,24 @@ export function createClubProfileViewer({ apiBaseUrl, apiRequest, apiRequestBlob
   function hideModal({ restore = true } = {}) {
     const root = modal();
     if (!root || root.hidden) return;
+    const focus = restoreFocus;
+    const position = restoreScroll;
     releaseMedia();
     root.hidden = true;
     activeRef = '';
     document.body.classList.remove('club-profile-open');
-    if (restore && restoreFocus?.isConnected) restoreFocus.focus({ preventScroll: true });
-    if (restore && restoreScroll) window.scrollTo({ left: restoreScroll.x, top: restoreScroll.y, behavior: 'instant' });
     restoreFocus = null;
     restoreScroll = null;
+    releaseScrollOwnership({ restore, focus, position, defer: restore });
   }
 
   async function openProfile(ref, { push = true, trigger = null } = {}) {
     if (!ref || activeRef === ref) return;
     beforeOpen();
+    const position = acquireScrollOwnership();
     activeRef = ref;
     restoreFocus = trigger || document.activeElement;
-    restoreScroll = { x: window.scrollX, y: window.scrollY };
+    restoreScroll = position;
     const root = content();
     if (root) root.innerHTML = '<div class="club-profile-loading"><span></span><b>Načítám klubový profil…</b></div>';
     showModal();
@@ -164,7 +219,7 @@ export function createClubProfileViewer({ apiBaseUrl, apiRequest, apiRequestBlob
     if (url.searchParams.has('profile') && history.state?.clubProfileRef === activeRef) { history.back(); return; }
     url.searchParams.delete('profile');
     history.replaceState(history.state, '', url);
-    hideModal();
+    syncFromHistory();
   }
 
   function syncFromHistory() {
@@ -196,6 +251,10 @@ export function createClubProfileViewer({ apiBaseUrl, apiRequest, apiRequestBlob
       }
     }, true);
     window.addEventListener('popstate', syncFromHistory);
+    window.addEventListener('pagehide', () => {
+      scrollReleaseToken += 1;
+      restoreScrollOwnershipNow(scrollOwner);
+    });
   }
 
   function reset() { hideModal({ restore: false }); }

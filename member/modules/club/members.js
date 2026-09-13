@@ -1,4 +1,4 @@
-import { createClubProfileViewer } from '../../club-profile.js?v=20260913-club-profile-ux-r1';
+import { createClubProfileViewer } from '../../club-profile.js?v=20260913-club-profile-scroll-r1';
 import { $, esc } from '../../ui.js?v=20260902-phase3';
 
 const fallbackLogo = 'united-logo-blue-silver-transparent.png';
