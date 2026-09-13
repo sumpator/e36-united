@@ -123,7 +123,8 @@ test('initial auth markup is loading, not anonymous', () => {
 
 test('all public member-aware pages use the shared auth bootstrap', () => {
   for (const source of [memberSessionJs, merchJs, galleryJs]) assert.match(source, /initUnitedAuth/);
-  for (const source of [merchHtml, galleryHtml]) assert.match(source, /auth-states\.css\?v=20260825-phase-a1/);
+  assert.match(merchHtml, /auth-states\.css\?v=20260825-phase-a1/);
+  assert.match(galleryHtml, /auth-states\.css\?v=20260913-club-profiles-r1/);
   assert.match(authStatesCss, /gallery-auth-state/);
   assert.match(authStatesCss, /member-benefit-loading\[hidden\].*display:none!important/);
   assert.match(authStatesCss, /data-benefit-retry\]\[hidden\].*display:none!important/);
