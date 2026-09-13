@@ -67,9 +67,12 @@ export function createMemberShell({
     $$('[data-member-panel]').forEach(panel=>panel.classList.toggle('is-active',panel.dataset.memberPanel===id));
     memberPortalNavigation?.sync(id);if(innerWidth<700)window.scrollTo({top:82,behavior:'smooth'});
   }
+  function focusReservationForm(){
+    requestAnimationFrame(()=>requestAnimationFrame(()=>{const anchor=$('[data-reservation-form-anchor]');if(!anchor)return;anchor.scrollIntoView({behavior:'smooth',block:'start'});anchor.focus({preventScroll:true})}));
+  }
 
   $$('.member-nav-item[data-member-section]').forEach(button=>button.addEventListener('click',()=>openSection(button.dataset.memberSection)));
-  $$('[data-jump]').forEach(button=>button.addEventListener('click',()=>openSection(button.dataset.jump)));
+  $$('[data-jump]').forEach(button=>button.addEventListener('click',()=>{openSection(button.dataset.jump);if(button.hasAttribute('data-reservation-form-jump'))focusReservationForm()}));
   const memberPortalNavigation=initPortalNavigation({root:$('[data-portal-nav="member"]'),onSelect:openSection});
   $('[data-member-hero-cta]')?.addEventListener('click',()=>{openSection('garage');onGarageHeroAction()});
 

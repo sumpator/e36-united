@@ -27,17 +27,19 @@ test('hero: primary car and its private photo win over other cars', () => {
   assert.equal(hero.cta, '');
 });
 
-test('overview: closed registration without reservation has no false action', () => {
+test('overview: closed registration without reservation offers preparation without claiming submission', () => {
   const view = deriveOverviewState({ registrationOpen: false, eventYear: 2026 });
-  assert.equal(view.active, false);
-  assert.equal(view.action, '');
-  assert.match(view.emptyCopy, /United 2026/);
+  assert.equal(view.active, true);
+  assert.equal(view.label, 'Registrace na sraz je nyní uzavřená');
+  assert.equal(view.copy, 'Rezervaci si můžeš připravit. Odeslat ji půjde po otevření registrace.');
+  assert.equal(view.action, 'Připravit rezervaci');
 });
 
 test('overview: open registration without reservation exposes the event CTA', () => {
   const view = deriveOverviewState({ registrationOpen: true, eventYear: 2027 });
   assert.equal(view.active, true);
-  assert.equal(view.label, 'JEŠTĚ NEMÁŠ REZERVACI');
+  assert.equal(view.label, 'Zaregistruj se na sraz');
+  assert.equal(view.copy, 'Vyber příjezd, posádku, Show & Shine a případné ubytování.');
   assert.equal(view.action, 'Vytvořit rezervaci');
 });
 

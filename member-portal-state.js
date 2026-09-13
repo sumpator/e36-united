@@ -20,14 +20,13 @@ export function deriveMemberHeroState({ cars = [], memberSince = null } = {}) {
 }
 
 export function deriveOverviewState({ reservation = null, registrationOpen = false, plannerWaiting = false, plannerUnavailable = false, eventYear = null, formatAmount = value => String(value) } = {}) {
-  const active = Boolean(reservation || registrationOpen || plannerWaiting || plannerUnavailable);
   if (!reservation) {
     return {
-      active,
-      label: plannerWaiting ? 'TVŮJ PLÁN JE PŘIPRAVENÝ' : plannerUnavailable ? 'PLÁN TEĎ NELZE OVĚŘIT' : registrationOpen ? 'JEŠTĚ NEMÁŠ REZERVACI' : 'REGISTRACE JE UZAVŘENÁ',
-      copy: plannerWaiting ? 'Výběr z Weekend Planneru jsme uložili. Dokončíš ho tady, jakmile spustíme rezervace.' : plannerUnavailable ? 'Spojení se serverem se nezdařilo. Nevyhodnocujeme to jako stav bez plánu; zkus načtení zopakovat.' : registrationOpen ? 'Registrace je otevřená. Vytvoř si rezervaci pro aktuální United.' : 'Aktuálně nemáš rezervaci a registrace je už uzavřená.',
-      action: plannerWaiting ? 'Dokončit rezervaci' : plannerUnavailable ? '' : registrationOpen ? 'Vytvořit rezervaci' : '',
-      emptyCopy: eventYear ? `United ${eventYear}: registrace je uzavřená a nemáš žádnou aktivní rezervaci.` : 'Aktuálně tu není nic, co potřebuje tvoji akci.',
+      active: true,
+      label: plannerWaiting ? 'TVŮJ PLÁN JE PŘIPRAVENÝ' : plannerUnavailable ? 'PLÁN TEĎ NELZE OVĚŘIT' : registrationOpen ? 'Zaregistruj se na sraz' : 'Registrace na sraz je nyní uzavřená',
+      copy: plannerWaiting ? 'Výběr z Weekend Planneru jsme uložili. Dokončíš ho tady, jakmile spustíme rezervace.' : plannerUnavailable ? 'Spojení se serverem se nezdařilo. Nevyhodnocujeme to jako stav bez plánu; zkus načtení zopakovat.' : registrationOpen ? 'Vyber příjezd, posádku, Show & Shine a případné ubytování.' : 'Rezervaci si můžeš připravit. Odeslat ji půjde po otevření registrace.',
+      action: plannerWaiting ? 'Dokončit rezervaci' : plannerUnavailable ? '' : registrationOpen ? 'Vytvořit rezervaci' : 'Připravit rezervaci',
+      emptyCopy: eventYear ? `United ${eventYear}: rezervaci zatím nemáš.` : 'Aktuálně tu není nic, co potřebuje tvoji akci.',
     };
   }
   const labels = { approved: 'REZERVACE SCHVÁLENA', pending: reservation.changePending ? 'ZMĚNA REZERVACE ČEKÁ NA SCHVÁLENÍ' : 'ČEKÁ NA SCHVÁLENÍ', rejected: 'REZERVACE ZAMÍTNUTA', cancelled: 'REZERVACE ZRUŠENA' };

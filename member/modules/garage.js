@@ -96,6 +96,7 @@ export function createMemberGarage({
 
   function bind(){
     if(bound)return;bound=true;carPhotoPreview=createImagePreviewController($('[data-car-photo-preview]'));
+    const uploadField=carPhotoInput?.closest('.image-upload-field');if(uploadField&&!uploadField.querySelector('.image-upload-recommendation')){const recommendation=document.createElement('small');recommendation.className='image-upload-recommendation';recommendation.textContent='Fotografie není povinná, ale doporučujeme ji nahrát.';uploadField.querySelector(':scope > span')?.after(recommendation)}
     $('[data-open-car]')?.addEventListener('click',openCarModal);
     $('[data-planner-handoff-add-car]')?.addEventListener('click',openCarForReservation);
     $('[data-reservation-add-car]')?.addEventListener('click',openCarForReservation);

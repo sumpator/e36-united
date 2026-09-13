@@ -79,15 +79,17 @@ export function initializeApp(config) { const app = { config, name: '[DEFAULT]' 
 
 const firebaseAuthModule = `
 const sessionKey = ${JSON.stringify(MEMBER_SESSION_KEY)};
+const identityKey = 'e36UnitedE2eMemberIdentity';
 const listeners = new Set();
 const auth = { currentUser: null };
-const createUser = () => ({
-  uid: ${JSON.stringify(memberId)},
-  email: 'eva@example.test',
-  displayName: 'Eva Nováková',
+const identity = () => { try { return JSON.parse(localStorage.getItem(identityKey) || '{}'); } catch { return {}; } };
+const createUser = () => { const current = identity(); return ({
+  uid: current.id || ${JSON.stringify(memberId)},
+  email: current.email || 'eva@example.test',
+  displayName: current.name || 'Eva Nováková',
   emailVerified: true,
   getIdToken: async () => 'e2e-member-token'
-});
+}); };
 const sessionUser = () => localStorage.getItem(sessionKey) === 'true' ? createUser() : null;
 const publish = user => { auth.currentUser = user; for (const listener of listeners) listener(user); };
 export const browserLocalPersistence = { type: 'LOCAL' };
@@ -135,7 +137,10 @@ export async function prepareE2ePage(page, {
   ignoreConsoleError = () => false,
 } = {}) {
   let currentReservation=reservation;
-  const observations = { pageErrors: [], consoleErrors: [], unhandledApi: [], requests: [], reservationWrites: [], reservationRequestWrites: [], reservationRequestAcknowledgements: [], reservationCarWrites: [], profileWrites: [], setReservation(value){currentReservation=value} };
+  let currentCars=cars??[{
+    id:'car-001',nickname:'Estoril',body:'Coupé',model:'328i',year:1996,color:'Estoril Blau',primary:true,photos:[],
+  }];
+  const observations = { pageErrors: [], consoleErrors: [], unhandledApi: [], requests: [], carWrites: [], reservationWrites: [], reservationRequestWrites: [], reservationRequestAcknowledgements: [], reservationCarWrites: [], profileWrites: [], setReservation(value){currentReservation=value}, async switchMember(value){memberProfile={...memberProfile,...value};await page.evaluate(profile=>localStorage.setItem('e36UnitedE2eMemberIdentity',JSON.stringify(profile)),memberProfile)} };
   let memberProfile = {
     id: memberId,
     memberCode: 'EU036',
@@ -162,6 +167,9 @@ export async function prepareE2ePage(page, {
       if (localStorage.getItem(key) === null) localStorage.setItem(key, initialValue);
     } catch {}
   }, { key: MEMBER_SESSION_KEY, initialValue: authenticated ? 'true' : 'false' });
+  await page.addInitScript(profile => {
+    try { if (localStorage.getItem('e36UnitedE2eMemberIdentity') === null) localStorage.setItem('e36UnitedE2eMemberIdentity', JSON.stringify(profile)); } catch {}
+  }, memberProfile);
 
   await page.route('https://static.wixstatic.com/**', route => route.fulfill({
     status: 200,
@@ -248,18 +256,10 @@ export async function prepareE2ePage(page, {
         await jsonResponse(route, { message: 'garage_fixture_unavailable' }, 503);
         return;
       }
-      await jsonResponse(route, {
-        cars: cars || [{
-          id: 'car-001',
-          nickname: 'Estoril',
-          body: 'Coupé',
-          model: '328i',
-          year: 1996,
-          color: 'Estoril Blau',
-          primary: true,
-          photos: [],
-        }],
-      });
+      if(request.method()==='POST'){
+        const body=request.postDataJSON(),created={id:`car-e2e-${currentCars.length+1}`,...body,photos:[]};observations.carWrites.push(body);currentCars=[...currentCars,created];await jsonResponse(route,{ok:true,car:created},201);return;
+      }
+      await jsonResponse(route, { cars: currentCars });
       return;
     }
     if (url.pathname === '/api/reservations/current') {

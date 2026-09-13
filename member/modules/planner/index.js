@@ -80,7 +80,10 @@ export function createMemberPlanner({
     plannerHandoffMemory=valid;return valid;
   }
 
-  function reset(){reservationState={registrationOpen:false,event:null,message:'',accommodationOptions:[]};plannerDraftSyncState='idle';activePlannerHandoff=null;legacyPlannerDraftApplied=false;approvedChangeMode=false;setReservationFormStatus()}
+  function reset(){
+    reservationState={registrationOpen:false,event:null,message:'',accommodationOptions:[]};plannerDraftSyncState='idle';activePlannerHandoff=null;legacyPlannerDraftApplied=false;approvedChangeMode=false;
+    reservationForm?.reset();if(reservationForm?.elements?.note)reservationForm.elements.note.value='';const cancelNote=$('[data-cancel-request-note]');if(cancelNote)cancelNote.value='';setReservationCarError(false);setReservationFormStatus();
+  }
 
   async function loadCurrentReservation(){
     const payload=await apiRequest('/api/reservations/current');
@@ -198,7 +201,7 @@ export function createMemberPlanner({
   }
   function setReservationCarError(visible){const panel=$('[data-reservation-car-error]');if(panel)panel.hidden=!visible}
   function reservationFormIsEditable(reservation=getData().reservation){
-    return !reservation?reservationState.registrationOpen:reservation.status==='approved'?approvedChangeMode&&reservation.request?.status!=='pending':reservationState.registrationOpen;
+    return !reservation?true:reservation.status==='approved'?approvedChangeMode&&reservation.request?.status!=='pending':reservationState.registrationOpen;
   }
   function setReservationFormStatus(type='',message=''){
     const panel=$('[data-reservation-form-status]');if(!panel)return;
@@ -361,14 +364,14 @@ export function createMemberPlanner({
     if(reservationForm){reservationForm.classList.toggle('is-editing',editable);reservationForm.classList.toggle('is-view-mode',!!r&&!editable);for(const field of reservationForm.elements){if(field.closest('[data-reservation-member-actions],[data-cancel-request]'))continue;field.disabled=!editable}renderAccommodationOptionChoices(r?.accommodationSnapshot?.optionId||accommodationOptionSelect?.value||'');syncMemberSleep()}
     if(changeCancel)changeCancel.hidden=!approvedChangeMode;
     const buttonLabels={pending:'Uložit změny',approved:'Odeslat žádost o změnu',rejected:'Upravit a znovu odeslat',cancelled:'Obnovit rezervaci'},rejectedClosed=r?.status==='rejected'&&!editable;
-    const buttonLabel=rejectedClosed?'Rezervace byla zamítnuta':!editable?(r?.status==='approved'?'REZERVACE JE SCHVÁLENÁ':'REGISTRACE JE UZAVŘENÁ'):r?(buttonLabels[r.status]||'Uložit změny'):'Odeslat rezervaci';
+    const buttonLabel=rejectedClosed?'Rezervace byla zamítnuta':!editable?(r?.status==='approved'?'REZERVACE JE SCHVÁLENÁ':'REGISTRACE JE UZAVŘENÁ'):!r&&!reservationState.registrationOpen?'Odeslat po otevření registrace':r?(buttonLabels[r.status]||'Uložit změny'):'Odeslat rezervaci';
     if(submit){submit.disabled=!editable;submit.classList.toggle('is-rejected-closed',rejectedClosed);submit.innerHTML=rejectedClosed?buttonLabel:`${buttonLabel} <span>→</span>`}
     setReservationCardStatus(r?.status);renderActionCenter({reservation:r,registrationOpen:reservationState.registrationOpen,plannerWaiting:isPlannerWaitingState(),plannerUnavailable:plannerDraftSyncState==='error',event:reservationState.event,plannerEventYear:activePlannerHandoff?.eventYear});renderReservationCarPhoto(r);renderSavedReservationPrice(r);reservationPayments.renderReservationPayment(r);renderReservationFormCopy(r);renderReservationRequest(r);renderReservationCarChoice(r);renderPlannerHandoff();
     if(!r){
       const open=reservationState.registrationOpen,waiting=isPlannerWaitingState(),eventYear=reservationState.event?.year||waiting&&activePlannerHandoff.eventYear||'NEXT';
       if(miniStatus)miniStatus.textContent=waiting?'Plán připravený':open?'Bez rezervace':'Registrace zavřená';if(year)year.textContent=eventYear;if(title)title.textContent=waiting?'Tvůj plán je připravený':`United ${eventYear}`;if(car)car.textContent=waiting?'Dokončíš ho tady, jakmile spustíme rezervace.':open?'Vyber auto z garáže a odešli rezervaci.':'Aktuálně není otevřená registrace.';
       const stateKicker=$('.reservation-state>small');if(stateKicker)stateKicker.textContent='REGISTRACE';
-      $('[data-reservation-state-symbol]').textContent=open?'+':'—';$('[data-reservation-state-label]').textContent=open?'JEŠTĚ NEMÁŠ REZERVACI':'UZAVŘENÁ';$('[data-reservation-year]').textContent=eventYear;$('[data-reservation-title]').textContent=`E36 United ${eventYear}`;$('[data-reservation-description]').textContent=waiting?'Tvůj plán je připravený. Dokončíš ho po otevření rezervací.':open?'Vyber auto, zkontroluj údaje a odešli rezervaci.':'Výběr si můžeš projít už teď. Odeslat ho půjde po otevření registrace.';$('[data-reservation-summary]').innerHTML='';
+      $('[data-reservation-state-symbol]').textContent=open?'+':'—';$('[data-reservation-state-label]').textContent=open?'REGISTRACE JE OTEVŘENÁ':'REGISTRACE JE UZAVŘENÁ';$('[data-reservation-year]').textContent=eventYear;$('[data-reservation-title]').textContent=`E36 United ${eventYear}`;$('[data-reservation-description]').textContent=waiting?'Tvůj plán je připravený. Dokončíš ho po otevření rezervací.':open?'Vyber příjezd, posádku, Show & Shine a případné ubytování.':'Rezervaci si můžeš připravit. Odeslat ji půjde po otevření registrace.';$('[data-reservation-summary]').innerHTML='';
       if(mailState){mailState.classList.remove('is-confirmed');mailState.querySelector('span').textContent=open?'Po odeslání bude rezervace čekat na schválení.':'Odeslání zpřístupníme po otevření registrace.'}
       return;
     }
@@ -390,7 +393,7 @@ export function createMemberPlanner({
     if(!getCurrentUser())return toast('Nejdřív se přihlas.');
     const data=getData();
     setReservationFormStatus();
-    if(!reservationState.registrationOpen&&data.reservation?.status!=='approved'){const message='Registrace na žádný event aktuálně není otevřená.';setReservationFormStatus('error',message);return toast(message)}
+    if(!reservationState.registrationOpen&&data.reservation?.status!=='approved'){const message='Rezervaci si můžeš připravit. Odeslat ji půjde po otevření registrace.';setReservationFormStatus('error',message);return toast(message)}
     syncMemberSleep();const car=ensureSelectedReservationCar();
     if(!data.cars.length||!car){const message='Nejdřív přidej auto do garáže.';setReservationCarError(true);setReservationFormStatus('error',message);toast(message);return}
     setReservationCarError(false);const fd=new FormData(event.currentTarget);

@@ -22,8 +22,9 @@ const authStatesCss = read('auth-states.css');
 
 test('main navigation contains exactly seven internal panels in target order', () => {
   const sidebar = memberHtml.slice(memberHtml.indexOf('<aside class="member-sidebar"'), memberHtml.indexOf('</aside>'));
-  const labels = [...sidebar.matchAll(/data-member-section="[^"]+"[^>]*>[\s\S]*?<b>([^<]+)<\/b>/g)].map(match => match[1].replace('&amp;', '&'));
-  assert.deepEqual(labels, ['Přehled', 'Sraz & Ubytování', 'Garáž', 'Platby', 'United Club', 'Moje fotky', 'Účet']);
+  const labels = [...sidebar.matchAll(/data-member-section="([^"]+)"/g)].map(match => match[1]);
+  assert.deepEqual(labels, ['overview', 'reservation', 'garage', 'payments', 'club', 'photos', 'account']);
+  assert.match(sidebar, /data-member-section="reservation"[\s\S]*?<strong>Rezervace<\/strong><small>Sraz &amp; ubytování<\/small>/);
   for (const panel of ['overview', 'reservation', 'garage', 'payments', 'club', 'photos', 'account']) assert.match(memberHtml, new RegExp(`data-member-panel="${panel}"`));
 });
 
@@ -39,7 +40,7 @@ test('authenticated main mobile menu contains all Member Portal sections', () =>
   const start = memberHtml.indexOf('data-member-main-mobile-nav');
   const mobile = memberHtml.slice(start, memberHtml.indexOf('</div>', start));
   const labels = [...mobile.matchAll(/data-main-member-section="[^"]+"[^>]*>([^<]+)<\/button>/g)].map(match => match[1].replace('&amp;', '&'));
-  assert.deepEqual(labels, ['Přehled', 'Sraz & Ubytování', 'Garáž', 'Platby', 'United Club', 'Moje fotky', 'Účet']);
+  assert.deepEqual(labels, ['Přehled', 'Rezervace', 'Garáž', 'Platby', 'United Club', 'Moje fotky', 'Účet']);
   assert.match(memberHtml, /data-member-main-mobile-nav="" hidden=""/);
   assert.match(memberShellJs, /setMainMobileMemberNavigation\(true\)/);
   assert.match(memberShellJs, /setMainMobileMemberNavigation\(false\)/);
@@ -148,6 +149,17 @@ test('overview is an action center with no static Merch or Club promo cards', ()
   assert.match(overview, /data-reservation-overview-card="" hidden/);
   assert.doesNotMatch(overview, /United Merch|badges-preview|points-card/);
   assert.match(memberOverviewJs, /deriveOverviewState/);
+});
+
+test('new-member reservation entry and private note cleanup are explicit', () => {
+  assert.match(memberHtml, /data-reservation-form-anchor tabindex="-1"/);
+  assert.match(memberShellJs, /data-reservation-form-jump/);
+  assert.match(memberShellJs, /scrollIntoView\(\{behavior:'smooth',block:'start'\}\)/);
+  assert.match(memberPlannerJs, /reservationForm\?\.reset\(\)/);
+  assert.match(memberPlannerJs, /reservationForm\.elements\.note\.value=''/);
+  assert.match(memberPlannerJs, /return !reservation\?true:/);
+  assert.match(memberJs, /data\.profile\?\.id&&data\.profile\.id!==user\.uid/);
+  assert.match(memberGarageJs, /Fotografie není povinná, ale doporučujeme ji nahrát\./);
 });
 
 test('hero follows primary car and the authorized private-photo path', () => {
