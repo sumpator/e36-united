@@ -5,13 +5,13 @@ import { loadMemberSessionSnapshot } from './member/refresh.js?v=20260907-feedba
 import { apiError, authError, authOrApiError, createMemberSession } from './member/session.js?v=20260907-feedback';
 import { createMemberData as defaultData, normalizeMember as normalizeMemberState } from './member/state.js?v=20260913-club-profiles-r1';
 import { $, $$, setButtonBusy, toast } from './member/ui.js?v=20260902-phase3';
-import { createMemberShell } from './member/shell.js?v=20260913-club-profiles-r1';
-import { createMemberOverview } from './member/modules/overview.js?v=20260913-club-profiles-r1';
+import { createMemberShell } from './member/shell.js?v=20260913-club-profile-ux-r1';
+import { createMemberOverview } from './member/modules/overview.js?v=20260913-club-profile-ux-r1';
 import { createMemberGarage } from './member/modules/garage.js?v=20260907-feedback';
 import { createMemberPhotos } from './member/modules/photos.js?v=20260907-feedback';
 import { createMemberPlanner } from './member/modules/planner/index.js?v=20260913-club-profiles-r1';
 import { formatCzk } from './member/modules/planner/payments.js?v=20260912-member-reservation-panels-r1';
-import { createMemberClub } from './member/modules/club/index.js?v=20260913-club-profiles-r1';
+import { createMemberClub } from './member/modules/club/index.js?v=20260913-club-profile-ux-r1';
 import { achievementIcon, pictogram } from './member/modules/club/points.js?v=20260911-readability-r1';
 import { createMemberAccount } from './member/modules/account.js?v=20260913-club-profiles-r1';
 import { requestedMemberSection } from './member/deep-links.js?v=20260907-feedback';
@@ -27,7 +27,7 @@ let data=defaultData();
 let memberPlanner=null,memberShell=null;
 let startupErrors={},lastPlannerDraftResult=null;
 const trackOnboarding=stage=>apiRequest('/api/onboarding',{method:'POST',body:{stage}}).catch(error=>console.warn('Onboarding tracking unavailable',error));
-function resetMemberState(){startupErrors={};lastPlannerDraftResult=null;resetGarage();resetMemberPhotos();memberClub.reset();memberPlanner.reset();data=defaultData();renderAll()}
+function resetMemberState(){startupErrors={};lastPlannerDraftResult=null;resetGarage();resetMemberPhotos();memberClub.reset();memberPlanner.reset();memberOverview?.resetOnboarding();data=defaultData();renderAll()}
 function normalizeMember(payload,user=memberSession.currentUser){return normalizeMemberState(payload,user)}
 
 async function ensureMemberProfile(user){
@@ -254,6 +254,8 @@ memberOverview=createMemberOverview({
   getPoints:()=>memberClub.getPoints(),
   formatAmount:formatCzk,
   renderAchievementIcon:achievement=>achievementIcon(achievement.type),
+  getMemberIdentity:()=>data.profile?.id||data.profile?.memberCode||'',
+  openSection:id=>memberShell?.openSection(id),
 });
 memberShell=createMemberShell({
   renderApp:()=>renderAll(),
@@ -297,7 +299,7 @@ const memberAccount=createMemberAccount({
 });
 
 function renderAll(){renderProfile();memberClub.renderPoints();memberClub.renderAchievements();memberClub.renderMembers();renderGarage();memberClub.renderHistory();memberPlanner.renderReservation();memberClub.renderRewards();renderMemberGallery();memberAccount.render();renderMemberAvailability(startupErrors,retryMemberDomain,{hasHandoff:memberPlanner.hasActiveHandoff()})}
-function renderProfile(){memberOverview.renderMemberCard();renderMemberHero()}
+function renderProfile(){memberOverview.renderMemberCard();renderMemberHero();memberOverview.refreshOnboarding()}
 
 memberAccount.bind();
 memberClub.bind();

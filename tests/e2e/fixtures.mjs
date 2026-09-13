@@ -130,6 +130,7 @@ export async function prepareE2ePage(page, {
   clubPayload = null,
   clubProfiles = null,
   approvedGallery = null,
+  member = null,
   accommodations = accommodationOptions,
   ignoreConsoleError = () => false,
 } = {}) {
@@ -147,6 +148,7 @@ export async function prepareE2ePage(page, {
     emailVerified: true,
     hideOnClub: false,
     createdAt: '2021-06-01T00:00:00.000Z',
+    ...(member || {}),
   };
   page.on('pageerror', error => observations.pageErrors.push(error.stack || error.message));
   page.on('console', message => {
@@ -184,7 +186,10 @@ export async function prepareE2ePage(page, {
   await page.route('https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js', route => route.fulfill({
     status: 200,
     contentType: 'text/javascript; charset=utf-8',
-    body: firebaseAuthModule,
+    body: firebaseAuthModule
+      .replace(JSON.stringify(memberId), JSON.stringify(memberProfile.id))
+      .replace("'eva@example.test'", JSON.stringify(memberProfile.email))
+      .replace("'Eva Nováková'", JSON.stringify(memberProfile.name)),
   }));
 
   await page.route(`${API_BASE}/**`, async route => {

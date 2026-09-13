@@ -8,7 +8,13 @@ export function createMemberOverview({
   getPoints,
   formatAmount,
   renderAchievementIcon,
+  getMemberIdentity,
+  openSection,
 }) {
+  let onboardingContext={reservation:null,registrationOpen:false};
+  let onboardingModalIdentity='';
+  let onboardingModalRestoreFocus=null;
+  let onboardingBound=false;
   function renderMemberCard(){
     const data=getData(),p=data.profile||{},nickname=p.nickname||p.name?.split(' ')[0]||'Driver';
     const nameEl=$('[data-card-name]');if(nameEl)nameEl.textContent=(p.name||'United Member').toUpperCase();const summaryName=$('[data-summary-name]');if(summaryName)summaryName.textContent=p.name||'United Member';
@@ -41,7 +47,7 @@ export function createMemberOverview({
     const view=deriveOverviewState({reservation,registrationOpen,plannerWaiting,plannerUnavailable,eventYear:event?eventYear:null,formatAmount});if(card){card.hidden=!view.active;card.dataset.jump=view.target||'reservation'}if(empty)empty.hidden=view.active;if(emptyCopy)emptyCopy.textContent=view.emptyCopy;
     if(eventElement)eventElement.textContent=`UNITED ${eventYear}`;
     if(label)label.textContent=view.label;if(copy)copy.textContent=view.copy;if(action)action.innerHTML=view.action?`${view.action} <b>→</b>`:'';
-    renderOnboarding({reservation,registrationOpen});
+    onboardingContext={reservation,registrationOpen};renderOnboarding();
   }
 
   function setStep(button, state, complete, disabled=false){
@@ -49,17 +55,53 @@ export function createMemberOverview({
     button.classList.toggle('is-complete',complete);button.disabled=disabled;
     const copy=button.querySelector('em');if(copy)copy.textContent=state;
   }
-  function renderOnboarding({reservation,registrationOpen}){
-    const data=getData(),profileReady=data.club?.profileCompletion?.requiredFields!==false&&!!data.profile?.name;
-    setStep($('[data-onboarding-profile]'),profileReady?'Profil je založený ✓':'Dokončit profil →',profileReady);
-    setStep($('[data-onboarding-reservation]'),reservation?'Rezervace je připravená ✓':registrationOpen?'Otevřít registraci →':'Registrace je teď uzavřená',!!reservation,!reservation&&!registrationOpen);
+  function onboardingState(){
+    const data=getData(),{reservation,registrationOpen}=onboardingContext;
+    const profileReady=data.club?.profileCompletion?.requiredFields!==false&&!!data.profile?.name;
+    const hasCar=Array.isArray(data.cars)&&data.cars.length>0;
+    return {data,reservation,registrationOpen,profileReady,hasCar,complete:profileReady&&hasCar&&(!registrationOpen||!!reservation)};
+  }
+  function renderOnboardingCard(root,state){
+    if(!root)return;
+    const {data,reservation,registrationOpen,profileReady,complete}=state;
+    root.classList.toggle('is-complete',complete);
+    const kicker=root.querySelector('header span'),title=root.querySelector('header h2');
+    if(kicker)kicker.textContent=complete?'Děkujeme, že jsi UNITED':'TVŮJ UNITED ZAČÍNÁ TADY';
+    if(title)title.innerHTML=complete?'Profil máš kompletní.':'Vstup do komunity.<br><em>Doplň svou stopu.</em>';
+    setStep(root.querySelector('[data-onboarding-profile]'),profileReady?'Profil je založený ✓':'Dokončit profil →',profileReady);
+    setStep(root.querySelector('[data-onboarding-reservation]'),reservation?'Rezervace je připravená ✓':registrationOpen?'Otevřít registraci →':'Registrace je teď uzavřená',!!reservation,!reservation&&!registrationOpen);
     const states=new Map([
-      ['garage',data.cars.some(car=>car.photos?.length)],
+      ['garage',data.cars.length>0],
       ['club',(data.club?.history||[]).some(item=>item.attendance?.status==='approved')],
       ['photos',Number(data.club?.approvedPhotoCount||0)>0],
     ]);
-    document.querySelectorAll('.united-onboarding-club [data-jump]').forEach(button=>button.classList.toggle('is-complete',states.get(button.dataset.jump)===true));
+    root.querySelectorAll('.united-onboarding-club [data-jump]').forEach(button=>button.classList.toggle('is-complete',states.get(button.dataset.jump)===true));
+  }
+  function onboardingStorageKey(identity){return `e36UnitedOnboardingIntroV1:${identity}`}
+  function introWasSeen(identity){try{return localStorage.getItem(onboardingStorageKey(identity))==='closed'}catch{return false}}
+  function markIntroSeen(identity){if(!identity)return;try{localStorage.setItem(onboardingStorageKey(identity),'closed')}catch{}}
+  function closeOnboardingIntro({remember=true}={}){
+    const modal=$('[data-onboarding-intro-modal]');if(!modal||modal.hidden)return;
+    if(remember)markIntroSeen(onboardingModalIdentity);modal.hidden=true;document.body.classList.remove('onboarding-intro-open');
+    if(onboardingModalRestoreFocus?.isConnected)onboardingModalRestoreFocus.focus();onboardingModalRestoreFocus=null;onboardingModalIdentity='';
+  }
+  function showOnboardingIntro(state){
+    const identity=String(getMemberIdentity?.()||'');const modal=$('[data-onboarding-intro-modal]'),content=$('[data-onboarding-intro-content]');
+    if(!identity||state.complete||introWasSeen(identity)||!modal||!content||!modal.hidden)return;
+    const card=$('[data-united-onboarding]').cloneNode(true);card.removeAttribute('data-united-onboarding');card.dataset.onboardingIntroCard='';
+    onboardingModalIdentity=identity;onboardingModalRestoreFocus=document.activeElement;content.replaceChildren(card);
+    modal.hidden=false;document.body.classList.add('onboarding-intro-open');modal.querySelector('[data-onboarding-intro-close]')?.focus();
+  }
+  function bindOnboarding(){
+    if(onboardingBound)return;onboardingBound=true;const modal=$('[data-onboarding-intro-modal]');
+    modal?.addEventListener('click',event=>{const jump=event.target.closest('[data-jump]');if(jump){closeOnboardingIntro();openSection?.(jump.dataset.jump);return}if(event.target.closest('[data-onboarding-intro-close]'))closeOnboardingIntro()});
+    document.addEventListener('keydown',event=>{if(!modal||modal.hidden)return;if(event.key==='Escape'){event.preventDefault();closeOnboardingIntro();return}if(event.key!=='Tab')return;const focusable=[...modal.querySelectorAll('button:not([disabled]),a[href],[tabindex]:not([tabindex="-1"])')].filter(item=>item.getClientRects().length);if(!focusable.length)return;const first=focusable[0],last=focusable.at(-1);if(event.shiftKey&&document.activeElement===first){event.preventDefault();last.focus()}else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first.focus()}});
+  }
+  function renderOnboarding(){
+    bindOnboarding();const state=onboardingState(),root=$('[data-united-onboarding]');renderOnboardingCard(root,state);
+    const modal=$('[data-onboarding-intro-modal]'),content=$('[data-onboarding-intro-content]');if(modal&&!modal.hidden&&content){const card=root.cloneNode(true);card.removeAttribute('data-united-onboarding');card.dataset.onboardingIntroCard='';content.replaceChildren(card);if(state.complete)closeOnboardingIntro()}
+    queueMicrotask(()=>showOnboardingIntro(state));
   }
 
-  return {renderActionCenter,renderFeaturedAchievements,renderMemberCard,renderPoints};
+  return {refreshOnboarding:renderOnboarding,renderActionCenter,renderFeaturedAchievements,renderMemberCard,renderPoints,resetOnboarding:()=>closeOnboardingIntro({remember:false})};
 }

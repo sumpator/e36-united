@@ -60,7 +60,7 @@ export function createMemberShell({
   function openSection(id){
     id=memberSection(id);
     const url=new URL(window.location.href);url.searchParams.set('section',id);url.searchParams.delete('panel');
-    if(id!=='club')url.searchParams.delete('profile');
+    if(id!=='club'){url.searchParams.delete('profile');url.searchParams.delete('members')}
     window.history.replaceState(null,'',url);
     $$('.member-nav-item[data-member-section]').forEach(button=>button.classList.toggle('is-active',button.dataset.memberSection===id));
     $$('[data-main-member-section]').forEach(button=>button.classList.toggle('is-active',button.dataset.mainMemberSection===id));

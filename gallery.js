@@ -2,6 +2,7 @@ import { firebaseConfig, portalConfig } from './firebase-config.js?v=20260823-au
 import { initUnitedAuth } from './united-auth.js?v=20260825-phase-a1';
 import { createImagePreviewController, selectImageFiles } from './image-upload.js?v=20260827-garage-photos';
 import { initScrollAffordance } from './scroll-affordance.js?v=20260907-mobile';
+import { createClubProfileViewer } from './member/club-profile.js?v=20260913-club-profile-ux-r1';
 
 const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
 const apiBase=(portalConfig.apiBaseUrl||'https://api.e36united.cz').replace(/\/$/,'');
@@ -81,6 +82,15 @@ async function authorizedFetch(path,options={},retry=true){
   if(!response.ok){const error=new Error(payload?.error||payload?.message||`API ${response.status}`);error.status=response.status;throw error}
   return payload;
 }
+async function authorizedFetchBlob(path,retry=true){
+  if(!currentUser)throw new Error('auth_required');
+  const token=await currentUser.getIdToken(!retry),headers=new Headers({Authorization:`Bearer ${token}`});
+  const response=await fetch(`${apiBase}${path}`,{headers,cache:'no-store'});
+  if(response.status===401&&retry){await currentUser.getIdToken(true);return authorizedFetchBlob(path,false)}
+  if(!response.ok){const error=new Error(`API ${response.status}`);error.status=response.status;throw error}
+  return response.blob();
+}
+const galleryProfileViewer=createClubProfileViewer({apiBaseUrl:apiBase,apiRequest:authorizedFetch,apiRequestBlob:authorizedFetchBlob});
 
 async function compressImage(file,max=1800,quality=.82){
   if(!['image/jpeg','image/png','image/webp'].includes(file.type))throw new Error('type');
@@ -116,10 +126,11 @@ function renderApprovedGallery(){
     grid.innerHTML=photos.map(photo=>{
       const url=`${apiBase}${photo.imageUrl}`;
       const title=[photo.author,photo.caption].filter(Boolean).join(' · ')||'E36 United community';
-      const ref=galleryProfileLinks[photo.id],author=ref?`<a class="gallery-member-link" href="member.html?section=club&amp;profile=${encodeURIComponent(ref)}">${escapeHtml(photo.author||'United member')} <span aria-hidden="true">→</span></a>`:`<b>${escapeHtml(photo.author||'United member')}</b>`;
+      const ref=galleryProfileLinks[photo.id],name=photo.author||'United member',initial=String(name).trim().charAt(0).toUpperCase()||'U';
+      const author=ref?`<button aria-label="Zobrazit profil člena ${escapeHtml(name)}" class="gallery-member-link" data-gallery-profile="${escapeHtml(ref)}" type="button"><i aria-hidden="true">${escapeHtml(initial)}</i><span><b>${escapeHtml(name)}</b><small>Zobrazit profil člena</small></span><em aria-hidden="true">→</em></button>`:`<span class="gallery-member-author"><i aria-hidden="true">${escapeHtml(initial)}</i><b>${escapeHtml(name)}</b></span>`;
       return `<figure class="gallery-item gallery-item--user reveal is-visible" data-lightbox data-full="${escapeHtml(url)}" data-caption="${escapeHtml(title)}"><img alt="${escapeHtml(title)}" loading="lazy" src="${escapeHtml(url)}" onerror="this.closest('figure').remove()"><figcaption>${author}${photo.caption?`<span>${escapeHtml(photo.caption)}</span>`:''}</figcaption></figure>`;
     }).join('');
-    $$('.gallery-member-link',grid).forEach(link=>link.addEventListener('click',event=>event.stopPropagation()));
+    $$('.gallery-member-link',grid).forEach(button=>button.addEventListener('click',event=>{event.stopPropagation();void galleryProfileViewer.openProfile(button.dataset.galleryProfile,{trigger:button})}));
 }
 async function loadGalleryProfileLinks(){
   if(!currentUser||member?.status!=='active'||!approvedGalleryPhotos.length){galleryProfileLinks={};renderApprovedGallery();return}
@@ -143,7 +154,7 @@ async function initAuth(){
     if(state.context)auth=state.context.auth;
     if(state.status==='loading'){setAuthState('loading');return}
     if(state.status==='error'){console.error('Gallery auth init failed',state.error);setAuthState('error');return}
-    currentUser=state.user;member=null;
+    currentUser=state.user;member=null;if(state.status!=='authenticated')galleryProfileViewer.reset();
     if(state.status==='authenticated'){
       const observedUser=state.user;
       try{const payload=await authorizedFetch('/api/me');if(currentUser!==observedUser)return;member=payload?.member||null}
@@ -187,5 +198,6 @@ form?.addEventListener('submit',async event=>{
 });
 
 loadApprovedGallery();
+galleryProfileViewer.bind();
 initAuth();
 initGalleryNavigation();
