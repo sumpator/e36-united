@@ -124,7 +124,7 @@ test.describe('desktop member portal', () => {
     await form.locator('[name="phone"]').fill('+420 777 111 222');
     await form.locator('button[type="submit"]').click();
     await expect.poll(() => observations.profileWrites.length).toBe(1);
-    expect(observations.profileWrites[0]).toEqual({ name: 'Eva United', nickname: 'Evi', phone: '+420 777 111 222' });
+    expect(observations.profileWrites[0]).toEqual({ name: 'Eva United', nickname: 'Evi', phone: '+420 777 111 222', hideOnClub: false });
     await expect(form.locator('[name="name"]')).toHaveValue('Eva United');
     await expect(form.locator('[name="nickname"]')).toHaveValue('Evi');
     await expect(page.locator('[data-summary-name]')).toHaveText('Eva United');
@@ -307,6 +307,14 @@ test.describe('desktop member portal', () => {
 
     await page.goto('/member.html');
     await expectMemberOverview(page);
+    const onboarding = page.locator('[data-onboarding-intro-modal]');
+    await expect(onboarding).toBeVisible();
+    const closeOnboarding = onboarding.getByRole('button', { name: 'Zavřít úvod' });
+    await expect(closeOnboarding).toBeVisible();
+    await expect(closeOnboarding).toBeEnabled();
+    await closeOnboarding.click();
+    await expect(onboarding).toBeHidden();
+    await expect(onboarding).toHaveAttribute('hidden', '');
     await page.locator('.member-sidebar [data-member-section="garage"]').click();
     await expect(page.locator('[data-member-panel="garage"]')).toHaveClass(/is-active/);
     await expect(page.locator('[data-member-panel="garage"] [data-domain-retry-state]')).toBeVisible();
