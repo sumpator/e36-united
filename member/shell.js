@@ -12,6 +12,7 @@ export function createMemberShell({
   getPrivateCarPhotoUrl,
   isAuthenticated,
   onGarageHeroAction,
+  beforePortalAction,
 }) {
   const menuBtn=$('.menu-btn'),nav=$('.nav-links');
   let memberHeroPhotoId='';
@@ -58,6 +59,7 @@ export function createMemberShell({
     activateAuthTab('login');
   }
   function openSection(id){
+    if(beforePortalAction?.()===false)return false;
     id=memberSection(id);
     const url=new URL(window.location.href);url.searchParams.set('section',id);url.searchParams.delete('panel');
     if(id!=='club'){url.searchParams.delete('profile');url.searchParams.delete('members')}
@@ -65,14 +67,15 @@ export function createMemberShell({
     $$('.member-nav-item[data-member-section]').forEach(button=>button.classList.toggle('is-active',button.dataset.memberSection===id));
     $$('[data-main-member-section]').forEach(button=>button.classList.toggle('is-active',button.dataset.mainMemberSection===id));
     $$('[data-member-panel]').forEach(panel=>panel.classList.toggle('is-active',panel.dataset.memberPanel===id));
-    memberPortalNavigation?.sync(id);if(innerWidth<700)window.scrollTo({top:82,behavior:'smooth'});
+    memberPortalNavigation?.sync(id);if(innerWidth<700)window.scrollTo({top:82,behavior:'smooth'});return true;
   }
-  function focusReservationForm(){
-    requestAnimationFrame(()=>requestAnimationFrame(()=>{const anchor=$('[data-reservation-form-anchor]');if(!anchor)return;anchor.scrollIntoView({behavior:'smooth',block:'start'});anchor.focus({preventScroll:true})}));
+  function focusReservationEntry(){
+    requestAnimationFrame(()=>requestAnimationFrame(()=>{const modalTitle=$('[data-member-planner-modal]:not([hidden]) [data-member-planner-title]'),target=modalTitle||$('[data-reservation-section-entry]');if(!target)return;if(!modalTitle)target.scrollIntoView({behavior:'smooth',block:'start'});target.focus({preventScroll:true})}));
   }
 
   $$('.member-nav-item[data-member-section]').forEach(button=>button.addEventListener('click',()=>openSection(button.dataset.memberSection)));
-  $$('[data-jump]').forEach(button=>button.addEventListener('click',()=>{openSection(button.dataset.jump);if(button.hasAttribute('data-reservation-form-jump'))focusReservationForm()}));
+  $$('[data-jump]').forEach(button=>button.addEventListener('click',()=>{if(openSection(button.dataset.jump)!==false&&button.hasAttribute('data-reservation-form-jump'))focusReservationEntry()}));
+  $('.member-nav-shop')?.addEventListener('click',event=>{if(beforePortalAction?.()===false)event.preventDefault()});
   const memberPortalNavigation=initPortalNavigation({root:$('[data-portal-nav="member"]'),onSelect:openSection});
   $('[data-member-hero-cta]')?.addEventListener('click',()=>{openSection('garage');onGarageHeroAction()});
 
@@ -92,7 +95,7 @@ export function createMemberShell({
   }
 
   function bindMainNavigation(){
-    if(menuBtn&&nav)menuBtn.addEventListener('click',()=>{const open=document.body.classList.toggle('menu-open');menuBtn.setAttribute('aria-expanded',String(open));nav.classList.toggle('open',open)});
+    if(menuBtn&&nav)menuBtn.addEventListener('click',()=>{if(beforePortalAction?.()===false)return;const open=document.body.classList.toggle('menu-open');menuBtn.setAttribute('aria-expanded',String(open));nav.classList.toggle('open',open)});
     $('[data-member-entry]')?.addEventListener('click',event=>{if(!isAuthenticated())return;event.preventDefault();openSection('overview');closeMainMenu()});
     $$('[data-main-member-section]').forEach(button=>button.addEventListener('click',()=>{openSection(button.dataset.mainMemberSection);closeMainMenu()}));
   }

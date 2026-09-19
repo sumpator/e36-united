@@ -129,6 +129,7 @@ export async function prepareE2ePage(page, {
   carsFailure = false,
   memberStatus = 'active',
   registrationOpen = false,
+  preliminaryEnabled = false,
   reservation = null,
   cars = null,
   clubPayload = null,
@@ -139,10 +140,11 @@ export async function prepareE2ePage(page, {
   ignoreConsoleError = () => false,
 } = {}) {
   let currentReservation=reservation;
+  let currentPreliminary=null;
   let currentCars=cars??[{
     id:'car-001',nickname:'Estoril',body:'Coupé',model:'328i',year:1996,color:'Estoril Blau',primary:true,photos:[],
   }];
-  const observations = { pageErrors: [], consoleErrors: [], unhandledApi: [], requests: [], carWrites: [], reservationWrites: [], reservationRequestWrites: [], reservationRequestAcknowledgements: [], reservationCarWrites: [], profileWrites: [], setReservation(value){currentReservation=value}, async switchMember(value){memberProfile={...memberProfile,...value};await page.evaluate(({identityKey,seedKey,profile})=>{const encoded=JSON.stringify(profile);sessionStorage.setItem(seedKey,encoded);localStorage.setItem(identityKey,encoded)},{identityKey:MEMBER_IDENTITY_KEY,seedKey:MEMBER_IDENTITY_SEED_KEY,profile:memberProfile})} };
+  const observations = { pageErrors: [], consoleErrors: [], unhandledApi: [], requests: [], carWrites: [], reservationWrites: [], preliminaryWrites: [], reservationRequestWrites: [], reservationRequestAcknowledgements: [], reservationCarWrites: [], profileWrites: [], setReservation(value){currentReservation=value}, async switchMember(value){memberProfile={...memberProfile,...value};currentPreliminary=null;await page.evaluate(({identityKey,seedKey,profile})=>{const encoded=JSON.stringify(profile);sessionStorage.setItem(seedKey,encoded);localStorage.setItem(identityKey,encoded)},{identityKey:MEMBER_IDENTITY_KEY,seedKey:MEMBER_IDENTITY_SEED_KEY,profile:memberProfile})} };
   let memberProfile = {
     id: memberId,
     memberCode: 'EU036',
@@ -269,7 +271,10 @@ export async function prepareE2ePage(page, {
       return;
     }
     if(url.pathname==='/api/preliminary-reservations/current'){
-      await jsonResponse(route,{ok:true,event:currentEvent,enabled:false,registrationOpen,preliminary:null});return;
+      if(request.method()==='PUT'){
+        const body=request.postDataJSON();observations.preliminaryWrites.push(body);currentPreliminary={id:'preliminary-e2e',eventId:currentEvent.id,status:'active',revision:(currentPreliminary?.revision||0)+1,...body};
+      }else if(request.method()==='DELETE')currentPreliminary={...currentPreliminary,status:'cancelled'};
+      await jsonResponse(route,{ok:true,event:currentEvent,enabled:preliminaryEnabled,registrationOpen,preliminary:currentPreliminary});return;
     }
     if (url.pathname === '/api/reservations/current') {
       if (request.method() === 'PUT') {

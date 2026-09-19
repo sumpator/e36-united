@@ -636,6 +636,8 @@ body:not(.member-authenticated) [data-app-view]{display:none!important}
 
 /* Approved reservation changes reuse the existing Planner form inside one modal. */
 html.reservation-change-planner-open,body.reservation-change-planner-open{overflow:hidden}
+.reservation-change-planner-open .member-portal-nav{z-index:780}
+@media(max-width:980px){.reservation-change-planner-open .member-header{z-index:780}}
 .reservation-change-planner-modal{z-index:760;padding:24px}
 .reservation-change-planner-dialog{width:min(1080px,calc(100vw - 48px));max-height:calc(100svh - 48px);padding:0;overflow:auto;overscroll-behavior:contain;border-color:rgba(105,175,255,.32);background:radial-gradient(circle at 88% 6%,rgba(77,163,255,.14),transparent 28rem),linear-gradient(145deg,#101821,#080c11)}
 .reservation-change-planner-head{padding:30px 76px 20px 30px;border-bottom:1px solid rgba(105,175,255,.15)}

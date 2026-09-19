@@ -5,11 +5,11 @@ import { loadMemberSessionSnapshot } from './member/refresh.js?v=20260907-feedba
 import { apiError, authError, authOrApiError, createMemberSession } from './member/session.js?v=20260907-feedback';
 import { createMemberData as defaultData, normalizeMember as normalizeMemberState } from './member/state.js?v=20260913-club-profiles-r1';
 import { $, $$, setButtonBusy, toast } from './member/ui.js?v=20260902-phase3';
-import { createMemberShell } from './member/shell.js?v=20260919-member-plan-r1';
+import { createMemberShell } from './member/shell.js?v=20260920-planner-lifecycle-r1';
 import { createMemberOverview } from './member/modules/overview.js?v=20260919-member-plan-r1';
 import { createMemberGarage } from './member/modules/garage.js?v=20260913-new-member-r1';
 import { createMemberPhotos } from './member/modules/photos.js?v=20260907-feedback';
-import { createMemberPlanner } from './member/modules/planner/index.js?v=20260919-member-plan-r1';
+import { createMemberPlanner } from './member/modules/planner/index.js?v=20260920-planner-lifecycle-r1';
 import { formatCzk } from './member/modules/planner/payments.js?v=20260912-member-reservation-panels-r1';
 import { createMemberClub } from './member/modules/club/index.js?v=20260913-club-profile-scroll-r1';
 import { achievementIcon, pictogram } from './member/modules/club/points.js?v=20260911-readability-r1';
@@ -197,6 +197,7 @@ $('[data-auth-retry]')?.addEventListener('click',async()=>{
 
 async function logoutMember(){
   if(memberSession.authFlowActive)return false;
+  if(memberPlanner?.requestClose({restoreFocus:false,restoreScroll:false})===false)return false;
   memberSession.authFlowActive=true;
   const signedOut=await performMemberLogout({
     signOut:()=>{const firebase=memberSession.firebase;if(!firebase)throw new Error('firebase_unavailable');return firebase.signOut(firebase.auth)},
@@ -266,6 +267,7 @@ memberShell=createMemberShell({
   getPrivateCarPhotoUrl,
   isAuthenticated:()=>Boolean(memberSession.currentUser),
   onGarageHeroAction:()=>{if(!data.cars.length){openCarModal();return}requestAnimationFrame(()=>$('[data-primary-car-card]')?.scrollIntoView({behavior:'smooth',block:'center'}))},
+  beforePortalAction:()=>memberPlanner?.requestClose({restoreFocus:false,restoreScroll:false})??true,
 });
 const {activateAuthTab,bindMainNavigation,closeMainMenu,memberPortalNavigation,openSection,renderMemberHero,resetAuthForms,setMode,showApp,showAuth,showAuthStatus}=memberShell;
 

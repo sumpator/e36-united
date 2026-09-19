@@ -217,11 +217,12 @@ export function createMemberPlanner({
       const availability=option.inventoryMode==='unlimited'?'bez omezení':option.soldOut?'VYPRODÁNO':`k dispozici: ${numericValue(option.freeUnits)}`,capacity=numericValue(option.capacityPerUnit),peopleWord=capacity===1?'osoba':capacity<=4?'osoby':'osob';
       const place=option.kind==='tent'?'jeden stan':'jednu chatku';
       const retainedCurrent=approvedChangeMode&&option.id===current?.id&&!approvedCurrentOptionReleased;
-      const disabled=(!option.active||option.soldOut)&&!retainedCurrent;
-      const stateCopy=option.configurationMissing?'PŮVODNÍ SCHVÁLENÁ VARIANTA':!option.active?'NYNÍ VYPNUTO · MŮŽEŠ PONECHAT':option.soldOut&&retainedCurrent?'AKTUÁLNÍ SCHVÁLENÁ VOLBA':availability;
+      const requestableSoldOut=option.active&&option.soldOut&&(approvedChangeMode||preliminaryMode());
+      const disabled=!retainedCurrent&&(!option.active||(option.soldOut&&!requestableSoldOut));
+      const stateCopy=option.configurationMissing?'PŮVODNÍ SCHVÁLENÁ VARIANTA':!option.active?'NYNÍ VYPNUTO · MŮŽEŠ PONECHAT':option.soldOut&&retainedCurrent?'AKTUÁLNÍ SCHVÁLENÁ VOLBA':requestableSoldOut?'VYPRODÁNO — LZE POŽÁDAT INDIVIDUÁLNĚ':availability;
       return `<option value="${esc(option.id)}" ${disabled?'disabled':''}>${esc(option.name)} · max. ${capacity} ${peopleWord} na ${place} · ${stateCopy}</option>`;
     }).join('');
-    const preferred=options.find(option=>option.id===previous&&(!option.soldOut||preliminaryMode()||(plannerModalMode==='plan'&&option.id===current?.id)||(approvedChangeMode&&option.id===current?.id&&!approvedCurrentOptionReleased)));
+    const preferred=options.find(option=>option.id===previous&&(!option.soldOut||(option.active&&(approvedChangeMode||preliminaryMode()))||(plannerModalMode==='plan'&&option.id===current?.id)||(approvedChangeMode&&option.id===current?.id&&!approvedCurrentOptionReleased)));
     if(preferred)accommodationOptionSelect.value=preferred.id;
     else if(options.length===1&&(!options[0].soldOut||preliminaryMode()))accommodationOptionSelect.value=options[0].id;
     else accommodationOptionSelect.value='';
@@ -325,16 +326,17 @@ export function createMemberPlanner({
   }
   function changePlannerDirty(){return !!plannerModalMode&&changePlannerFingerprint()!==changeModalBaseline}
   function restoreReservationFormHome(){if(reservationForm&&reservationFormHome.parentNode)reservationFormHome.parentNode.insertBefore(reservationForm,reservationFormHome.nextSibling)}
-  function closeChangePlanner({force=false,render=true}={}){
+  function closeChangePlanner({force=false,render=true,restoreFocus=true,restoreScroll=true}={}){
     if(!changeModal||changeModal.hidden)return true;
     if(!force&&changePlannerDirty()&&!window.confirm(plannerModalMode==='change'?'Zahodit neodeslaný návrh změny?':'Zahodit neuložené změny plánu?'))return false;
     changeModal.hidden=true;document.documentElement.classList.remove('reservation-change-planner-open');document.body.classList.remove('reservation-change-planner-open');
     restoreReservationFormHome();approvedChangeMode=false;plannerModalMode='';delete changeModal.dataset.plannerMode;approvedCurrentOptionReleased=false;setReservationFormStatus();
     if(render)renderReservation();
-    const {x,y}=changeModalScroll;requestAnimationFrame(()=>window.scrollTo({left:x,top:y,behavior:'auto'}));
-    const target=changeModalRestoreFocus;changeModalRestoreFocus=null;if(target?.isConnected)requestAnimationFrame(()=>target.focus({preventScroll:true}));
+    const {x,y}=changeModalScroll;if(restoreScroll)requestAnimationFrame(()=>window.scrollTo({left:x,top:y,behavior:'auto'}));
+    const target=changeModalRestoreFocus;changeModalRestoreFocus=null;if(restoreFocus&&target?.isConnected)requestAnimationFrame(()=>target.focus({preventScroll:true}));
     return true;
   }
+  function focusPlannerModalStart(){requestAnimationFrame(()=>changeModal?.querySelector('[data-member-planner-title]')?.focus({preventScroll:true}))}
   function configurePlannerModal(mode){
     plannerModalMode=mode;approvedChangeMode=mode==='change';changeModal.dataset.plannerMode=mode;
     const kicker=$('[data-member-planner-kicker]'),title=$('[data-member-planner-title]'),copy=$('[data-member-planner-copy]'),label=$('[data-member-planner-recap-label]'),close=changeModal.querySelector('.member-modal-close');if(close)close.setAttribute('aria-label',mode==='change'?'Zavřít návrh změny':'Zavřít Weekend Planner');
@@ -349,7 +351,7 @@ export function createMemberPlanner({
     const reservation=getData().reservation;if(!changeModal||!changeHost||!reservationForm||reservation?.status!=='approved'||reservation.request?.status==='pending')return;
     changeModalRestoreFocus=trigger||document.activeElement;changeModalScroll={x:window.scrollX,y:window.scrollY};approvedCurrentOptionReleased=false;configurePlannerModal('change');setReservationFormStatus();
     prefillApprovedReservation(reservation);renderReservation();changeHost.append(reservationForm);changeModal.hidden=false;document.documentElement.classList.add('reservation-change-planner-open');document.body.classList.add('reservation-change-planner-open');
-    renderChangePlannerRecap();changeModalBaseline=changePlannerFingerprint();requestAnimationFrame(()=>changeModal.querySelector('button[data-reservation-change-close]')?.focus({preventScroll:true}));
+    renderChangePlannerRecap();changeModalBaseline=changePlannerFingerprint();focusPlannerModalStart();
   }
   function openPlanPlanner(trigger,{useHandoff=false}={}){
     if(!changeModal||!changeHost||!reservationForm||getData().reservation)return;
@@ -357,7 +359,7 @@ export function createMemberPlanner({
     changeModalRestoreFocus=trigger?.closest?.('[data-reservation-section]')?trigger:planOpen||trigger||document.activeElement;changeModalScroll={x:window.scrollX,y:window.scrollY};approvedCurrentOptionReleased=false;configurePlannerModal('plan');setReservationFormStatus();
     if(useHandoff)applyPlannerHandoffToForm({navigate:false,replacePreliminary:true});else if(preliminary?.status==='active'){preliminaryApplied=false;applyPreliminary()}
     renderReservation();changeHost.append(reservationForm);reservationForm.hidden=false;changeModal.hidden=false;document.documentElement.classList.add('reservation-change-planner-open');document.body.classList.add('reservation-change-planner-open');
-    renderChangePlannerRecap();changeModalBaseline=changePlannerFingerprint();requestAnimationFrame(()=>changeModal.querySelector('button[data-reservation-change-close]')?.focus({preventScroll:true}));
+    renderChangePlannerRecap();changeModalBaseline=changePlannerFingerprint();focusPlannerModalStart();
   }
   function trapChangePlannerFocus(event){
     if(changeModal?.hidden||event.key!=='Tab')return;
@@ -683,5 +685,5 @@ export function createMemberPlanner({
     reservationForm?.addEventListener('submit',submitReservation);
   }
 
-  return {hasActiveHandoff:()=>Boolean(activePlannerHandoff),applyPlannerDraft,bind,handleGarageCarSaved,hydratePlannerHandoffFromUrl,loadCurrentReservation,loadServerPlannerDraft,renderCarSelect,renderReservation,renderReservationCarPhoto,reset,setReservationCarError};
+  return {hasActiveHandoff:()=>Boolean(activePlannerHandoff),applyPlannerDraft,bind,handleGarageCarSaved,hydratePlannerHandoffFromUrl,loadCurrentReservation,loadServerPlannerDraft,renderCarSelect,renderReservation,renderReservationCarPhoto,requestClose:options=>closeChangePlanner(options),reset,setReservationCarError};
 }
