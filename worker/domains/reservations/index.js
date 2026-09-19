@@ -364,6 +364,11 @@ async function putCurrentReservation(request, env, auth, origin) {
   }
 
   const existing = await env.DB.prepare("SELECT id, status FROM reservations WHERE member_id = ? AND event_id = ? LIMIT 1").bind(auth.uid, event.id).first();
+  if(body.preliminaryId){
+    const interest=await env.DB.prepare("SELECT id FROM preliminary_reservations WHERE id=? AND member_id=? AND event_id=? AND status='active' AND revision=?")
+      .bind(String(body.preliminaryId),auth.uid,event.id,Number(body.preliminaryRevision)||0).first();
+    if(!interest||existing)return json({ok:false,error:'preliminary_conflict',message:'Předběžný zájem se změnil nebo už existuje rezervace. Obnov stránku.'},409,origin);
+  }
   if (existing && !requestedReservationId) {
     const active = ["pending", "approved"].includes(existing.status);
     return json({
@@ -395,6 +400,7 @@ async function putCurrentReservation(request, env, auth, origin) {
     WHERE events.id = ?
       AND (events.is_current = 1 OR NOT EXISTS (SELECT 1 FROM events current_event WHERE current_event.is_current = 1))
       AND events.registration_status = 'open'
+      ${body.preliminaryId ? "AND EXISTS(SELECT 1 FROM preliminary_reservations p WHERE p.id=? AND p.member_id=? AND p.event_id=events.id AND p.status='active' AND p.revision=?) AND NOT EXISTS(SELECT 1 FROM reservations r WHERE r.member_id=? AND r.event_id=events.id)" : ''}
       ${option ? `AND selected_option.event_id = events.id AND selected_option.active = 1
         AND selected_option.name = ?
         AND selected_option.kind = ?
@@ -453,7 +459,8 @@ async function putCurrentReservation(request, env, auth, origin) {
     Number(option.bedding_fee_per_person_czk || 0), Number(option.city_tax_per_person_per_night_czk || 0),
     pricing.unitCount, auth.uid,
   ] : [];
-  const statements = [reservationStatement.bind(...baseBindings, ...optionBindings, event.id, ...conditionBindings)];
+  const preliminaryBindings=body.preliminaryId?[String(body.preliminaryId),auth.uid,Number(body.preliminaryRevision)||0,auth.uid]:[];
+  const statements = [reservationStatement.bind(...baseBindings, ...optionBindings, event.id, ...preliminaryBindings, ...conditionBindings)];
   if (option) {
     statements.push(env.DB.prepare(`
       INSERT INTO reservation_accommodation (
@@ -518,6 +525,10 @@ async function putCurrentReservation(request, env, auth, origin) {
       conversionDraft=row?JSON.parse(row.payload_json):null;
     }catch{console.warn('planner_conversion_draft_unavailable')}
   }
+  if(body.preliminaryId)statements.push(env.DB.prepare(`UPDATE preliminary_reservations SET status='converted',revision=revision+1,updated_at=CURRENT_TIMESTAMP
+    WHERE id=? AND member_id=? AND event_id=? AND status='active' AND revision=?
+    AND EXISTS(SELECT 1 FROM reservations WHERE id=? AND member_id=? AND event_id=? AND updated_at=?)`)
+    .bind(String(body.preliminaryId),auth.uid,event.id,Number(body.preliminaryRevision)||0,reservationId,auth.uid,event.id,writeToken));
   const results = await env.DB.batch(statements);
   if (!results[0]?.meta?.changes) {
     const conflicting = await env.DB.prepare("SELECT id, status FROM reservations WHERE member_id = ? AND event_id = ? LIMIT 1").bind(auth.uid, event.id).first();

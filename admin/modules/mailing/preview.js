@@ -1,5 +1,5 @@
-import { apiRequest } from '../../api.js?v=20260913-approval-previews-r1';
-import { $, $$ } from '../../ui.js?v=20260913-approval-previews-r1';
+import { apiRequest } from '../../api.js?v=20260919-preliminary-r1';
+import { $, $$ } from '../../ui.js?v=20260919-preliminary-r1';
 
 let previewTimer=null,previewSequence=0;
 

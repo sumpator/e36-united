@@ -12,8 +12,12 @@ import { routeAdminMailing } from "./domains/mailing/index.js";
 import { getAdminFunnel, trackOnboarding, trackPlannerHandoff } from './domains/planner/funnel.js';
 import { getAdminHistoryCounts } from './domains/club/history.js';
 import { handleSmtp2goWebhook } from './domains/mailing/tracking.js';
+import { getPreliminaryReservation, putPreliminaryReservation, cancelPreliminaryReservation, listAdminPreliminaryReservations, savePreliminarySettings } from './domains/reservations/preliminary.js';
 
 const PROTECTED_MEMBER_EXACT_ROUTES = new Set([
+  'GET /api/preliminary-reservations/current',
+  'PUT /api/preliminary-reservations/current',
+  'DELETE /api/preliminary-reservations/current',
   "GET /api/navigation-state",
   "POST /api/planner-handoffs/claim",
   "GET /api/united-club",
@@ -98,6 +102,9 @@ export async function routeRequest({ request, env, url, origin }) {
       }
 
       if(url.pathname==='/api/admin/dashboard'&&request.method==='GET')return getAdminDashboard(env,url,origin);
+      if(url.pathname==='/api/admin/preliminary-reservations'&&request.method==='GET')return listAdminPreliminaryReservations(env,url,origin);
+      const preliminarySettings=url.pathname.match(/^\/api\/admin\/events\/([^/]+)\/preliminary-settings$/);
+      if(preliminarySettings&&request.method==='PUT')return savePreliminarySettings(request,env,auth,decodeURIComponent(preliminarySettings[1]),origin);
       if(url.pathname==='/api/admin/preferences'&&request.method==='GET')return getAdminPreferences(env,auth,origin);
       if(url.pathname==='/api/admin/preferences'&&request.method==='PUT')return saveAdminPreferences(request,env,auth,origin);
       if(url.pathname==='/api/admin/members'&&request.method==='GET')return listAdminMembers(env,url,origin);
@@ -229,6 +236,11 @@ export async function routeRequest({ request, env, url, origin }) {
       auth.member = member;
     }
 
+    if(url.pathname==='/api/preliminary-reservations/current'){
+      if(request.method==='GET')return getPreliminaryReservation(env,auth,origin);
+      if(request.method==='PUT')return putPreliminaryReservation(request,env,auth,origin);
+      if(request.method==='DELETE')return cancelPreliminaryReservation(request,env,auth,origin);
+    }
     if (url.pathname === "/api/navigation-state" && request.method === "GET") return await domain.getMemberNavigationState(env, auth, origin);
     if (url.pathname === '/api/planner-handoffs/claim' && request.method === 'POST') return trackPlannerHandoff(request,env,auth,origin);
     if (url.pathname === "/api/united-club" && request.method === "GET") return await domain.getUnitedClub(env, auth, origin);

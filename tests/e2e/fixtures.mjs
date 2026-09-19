@@ -268,6 +268,9 @@ export async function prepareE2ePage(page, {
       await jsonResponse(route, { cars: currentCars });
       return;
     }
+    if(url.pathname==='/api/preliminary-reservations/current'){
+      await jsonResponse(route,{ok:true,event:currentEvent,enabled:false,registrationOpen,preliminary:null});return;
+    }
     if (url.pathname === '/api/reservations/current') {
       if (request.method() === 'PUT') {
         const body = request.postDataJSON();

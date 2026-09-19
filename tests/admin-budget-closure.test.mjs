@@ -112,14 +112,16 @@ test('actual coordinator task selection reproduces the 12h workload without poll
   const source=read('admin.js'),start=source.indexOf('  beginEventContext(context.eventId);',source.indexOf('async function refreshResources'));
   const body=source.slice(start,source.indexOf('  const settled=',start));assert.ok(body.includes('memberRefreshTasks()'));
   const memberTasks=read('admin/member-detail.js').match(/export function memberRefreshTasks\(\)\{[\s\S]*?\n\}/)[0].replace('export ','');
+  const preliminaryTasks=read('admin/modules/preliminary.js').match(/export function preliminaryTasks\(\)\{[\s\S]*?\n\}/)[0].replace('export ','');
+  const taskFunctions=memberTasks+'\n'+preliminaryTasks;
   const noop=()=>{},state={selectedEventId:'e',memberPage:1,historyPagination:{page:1},galleryMode:'community'};
-  const mocks={adminState:state,ADMIN_REFRESH,beginEventContext:noop,renderMemberHeader:noop,renderMemberTab:noop,renderMembers:noop,
+  const mocks={adminState:state,ADMIN_REFRESH,page:1,$:()=>({open:false}),renderPreliminary:noop,beginEventContext:noop,renderMemberHeader:noop,renderMemberTab:noop,renderMembers:noop,
     dashboardWantsPlanner:()=>false,dashboardWantsMailing:()=>false,resourceFreshness:new Map(),resourceDue:()=>true,renderAdminFunnel:noop,receiveDashboardPreferences:noop,
     renderReservations:noop,renderAccommodation:noop,renderGallery:noop,renderHistoryClaims:noop,renderReservationDetail:noop,
     reservationRequestPath:id=>'/reservations'+(id?'?id='+id:''),galleryRequestPath:()=>'/gallery',historyRequestPath:()=>'/history',scopedPath:p=>p};
   let now=0;const counts={},fresh=new Map();let context={key:'e',eventId:'e',authenticated:true,visible:true,online:true};
   const coordinator=createAdminRefresh({readContext:()=>context,now:()=>now,setTimer:(_fn,ms)=>{assert.equal(ms,60000);return 1},clearTimer:noop,
-    refresh:async()=>{const tasks=runInNewContext(memberTasks+'\n(function(){'+body+'return tasks;})()',{...mocks,context,reason:'poll'});
+    refresh:async()=>{const tasks=runInNewContext(taskFunctions+'\n(function(){'+body+'return tasks;})()',{...mocks,context,reason:'poll'});
       assert.ok(tasks.length<=3);
       for(const[name,path,_render,interval=name==='summary'?300000:60000]of tasks){if(!resourceDue(fresh.get(path),path,interval,'poll',now))continue;
         counts[name]=(counts[name]||0)+1;fresh.set(path,{state:'fresh',context:path,lastSuccess:now});
@@ -136,5 +138,9 @@ test('actual coordinator task selection reproduces the 12h workload without poll
   const previous={...counts};for(const condition of [{visible:false},{online:false},{denied:true},{authenticated:false}]){context={...context,visible:true,online:true,denied:false,authenticated:true,...condition};await coordinator.trigger('poll');}
   assert.deepEqual(counts,previous);coordinator.dispose();
   Object.assign(state,{activeAdminView:'mailing',memberId:null,selectedReservationId:null});
-  assert.equal(runInNewContext(memberTasks+'\n(function(){'+body+'return tasks.length;})()',{...mocks,context:{view:'mailing',eventId:'e'},reason:'poll'}),1); // Shared badge summary, no hidden domain.
+  assert.equal(runInNewContext(taskFunctions+'\n(function(){'+body+'return tasks.length;})()',{...mocks,context:{view:'mailing',eventId:'e'},reason:'poll'}),1); // Shared badge summary, no hidden domain.
+  const interest=()=>runInNewContext(preliminaryTasks+'\npreliminaryTasks()',{...mocks,$:()=>({open:true})});
+  assert.equal(interest().length,0,'Mailing does not poll preliminary reservations');
+  state.activeAdminView='reservations';assert.equal(interest().length,1);assert.equal(interest()[0][3],ADMIN_REFRESH.heavyListMs);
+  state.memberId='m';assert.equal(interest().length,0,'Member 360 suspends the background preliminary list');
 });

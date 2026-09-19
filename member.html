@@ -138,6 +138,7 @@
 <div class="reservation-card-large" data-reservation-card=""><div class="reservation-hero-strip"><div class="reservation-car-hero" data-reservation-car-hero="" hidden=""></div><div class="reservation-card-overlay"></div><div class="reservation-large-year" data-reservation-year="">—</div><h3 data-reservation-title="">Příští E36 United</h3></div><div class="reservation-summary" data-reservation-summary=""></div></div>
 <div class="reservation-control-stack">
 <form class="reservation-form" data-reservation-form="">
+<section data-preliminary-notice hidden aria-live="polite"><h3>Předběžná rezervace</h3><p data-preliminary-copy></p><button type="button" class="member-secondary" data-preliminary-cancel hidden>Zrušit předběžný zájem</button></section>
 <div class="form-title" data-reservation-form-anchor tabindex="-1"><span data-reservation-form-kicker>DETAILY REZERVACE</span><b data-reservation-form-title>Dokonči rezervaci</b></div>
 <div class="reservation-saved-price" data-reservation-saved-price="" hidden=""></div>
 <label data-reservation-edit-field data-reservation-form-car><span>Auto z garáže</span><select data-car-select="" name="carId"></select></label>
@@ -147,6 +148,7 @@
 <div class="reservation-form-row reservation-form-row--choices" data-reservation-edit-field><div class="reservation-partial-stack"><label class="reservation-partial-toggle" data-accommodation-partial-field="" hidden=""><input name="partialAccommodation" type="checkbox"/><span>Ubytování potřebuje jen část posádky</span></label><label data-accommodation-people-field="" hidden=""><span>Počet ubytovaných osob</span><input max="5" min="1" name="accommodationUnits" required="" type="number" value="2"/><small class="reservation-field-note">Maximálně podle velikosti posádky.</small></label></div><label><span>Show &amp; Shine</span><select name="showshine"><option value="Ne">Ne</option><option value="Možná">Možná</option><option value="Ano">Ano</option></select></label></div>
 <div aria-live="polite" class="reservation-price-preview" data-accommodation-preview="" data-reservation-edit-field hidden=""></div>
 <label data-reservation-edit-field><span>Poznámka pro United tým</span><textarea name="note" placeholder="Příjezd později, speciální požadavek…" rows="3"></textarea></label>
+<label data-preliminary-crew hidden><span>Údaje posádky (volitelné, jeden člověk na řádek)</span><textarea name="preliminaryCrewDetails" rows="2" maxlength="504"></textarea></label>
 <div aria-live="polite" class="reservation-form-status" data-reservation-form-status hidden role="status" tabindex="-1"></div>
 <div class="reservation-edit-actions" data-reservation-edit-field><button class="member-primary" data-reservation-submit="" type="submit">Odeslat rezervaci <span>→</span></button><button class="member-secondary" data-request-change-cancel hidden type="button">Zrušit úpravu</button></div>
 <div class="reservation-member-actions" data-reservation-member-actions hidden><button class="member-primary member-primary--compact" data-request-change type="button">Požádat o změnu</button><button class="member-secondary" data-request-cancel-open type="button">Požádat o zrušení</button></div>
@@ -235,5 +237,5 @@
 <div class="member-gallery-lightbox" data-member-gallery-lightbox="" hidden=""><div class="member-gallery-lightbox-backdrop" data-member-gallery-close=""></div><div aria-label="Náhled fotografie" aria-modal="true" class="member-gallery-lightbox-dialog" role="dialog"><button aria-label="Zavřít náhled" class="member-gallery-lightbox-close" data-member-gallery-close="" type="button">×</button><button aria-label="Předchozí fotografie" class="member-gallery-lightbox-nav member-gallery-lightbox-prev" data-member-gallery-prev="" type="button">←</button><figure><img alt="" data-member-gallery-lightbox-image=""/><figcaption data-member-gallery-lightbox-caption=""></figcaption></figure><button aria-label="Další fotografie" class="member-gallery-lightbox-nav member-gallery-lightbox-next" data-member-gallery-next="" type="button">→</button></div></div>
 <div aria-live="polite" class="member-toast" data-toast="" role="status"></div>
 <script src="showshine-data.js?v=20260824"></script>
-<script src="member.js?v=20260913-new-member-r1" type="module"></script>
+<script src="member.js?v=20260919-preliminary-r1" type="module"></script>
 </body></html>
