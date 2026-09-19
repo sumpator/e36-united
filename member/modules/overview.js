@@ -1,4 +1,4 @@
-import { deriveOverviewState } from '../../member-portal-state.js?v=20260913-new-member-r1';
+import { deriveOverviewState } from '../../member-portal-state.js?v=20260919-member-plan-r1';
 import { $, esc } from '../ui.js?v=20260902-phase3';
 
 export function createMemberOverview({
@@ -41,10 +41,10 @@ export function createMemberOverview({
     if(featured)featured.innerHTML=featuredItems.length?featuredItems.map(achievement=>{const tierClass=achievementTierClass(achievement);return `<button aria-expanded="false" class="featured-achievement ${tierClass}" data-achievement-id="${esc(achievement.id)}" type="button"><i>${renderAchievementIcon(achievement)}</i><span><b>${esc(achievement.name)}</b>${tierClass?`<small class="featured-achievement-tier">${esc(achievement.tier)}</small>`:''}</span></button>`}).join(''):'<span class="featured-achievement-empty">První Achievement čeká na odemčení.</span>';
   }
 
-  function renderActionCenter({reservation,registrationOpen,plannerWaiting,plannerUnavailable,event,plannerEventYear}){
+  function renderActionCenter({reservation,registrationOpen,plan,planEnabled,plannerWaiting,plannerUnavailable,event,plannerEventYear}){
     const eventYear=reservation?.year&&reservation.year!=='NEXT'?reservation.year:(event?.year||plannerWaiting&&plannerEventYear||new Date().getFullYear());
     const card=$('[data-reservation-overview-card]'),empty=$('[data-action-center-empty]'),emptyCopy=$('[data-action-center-empty-copy]'),eventElement=$('[data-reservation-overview-event]'),label=$('[data-reservation-overview-label]'),copy=$('[data-reservation-overview-copy]'),action=$('[data-reservation-overview-action]');
-    const view=deriveOverviewState({reservation,registrationOpen,plannerWaiting,plannerUnavailable,eventYear:event?eventYear:null,formatAmount});if(card){card.hidden=!view.active;card.dataset.jump=view.target||'reservation';card.toggleAttribute('data-reservation-form-jump',!reservation&&!plannerUnavailable)}if(empty)empty.hidden=view.active;if(emptyCopy)emptyCopy.textContent=view.emptyCopy;
+    const view=deriveOverviewState({reservation,registrationOpen,plan,planEnabled,plannerWaiting,plannerUnavailable,eventYear:event?eventYear:null,formatAmount});if(card){card.hidden=!view.active;card.dataset.jump=view.target||'reservation';card.toggleAttribute('data-reservation-form-jump',!reservation&&!plannerUnavailable)}if(empty)empty.hidden=view.active;if(emptyCopy)emptyCopy.textContent=view.emptyCopy;
     if(eventElement)eventElement.textContent=`UNITED ${eventYear}`;
     if(label)label.textContent=view.label;if(copy)copy.textContent=view.copy;if(action)action.innerHTML=view.action?`${view.action} <b>→</b>`:'';
     onboardingContext={reservation,registrationOpen};renderOnboarding();

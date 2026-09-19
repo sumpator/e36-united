@@ -19,13 +19,14 @@ export function deriveMemberHeroState({ cars = [], memberSince = null } = {}) {
   };
 }
 
-export function deriveOverviewState({ reservation = null, registrationOpen = false, plannerWaiting = false, plannerUnavailable = false, eventYear = null, formatAmount = value => String(value) } = {}) {
+export function deriveOverviewState({ reservation = null, registrationOpen = false, plan = null, planEnabled = false, plannerWaiting = false, plannerUnavailable = false, eventYear = null, formatAmount = value => String(value) } = {}) {
   if (!reservation) {
+    const activePlan=plan?.status==='active';
     return {
       active: true,
-      label: plannerWaiting ? 'TVŮJ PLÁN JE PŘIPRAVENÝ' : plannerUnavailable ? 'PLÁN TEĎ NELZE OVĚŘIT' : registrationOpen ? 'Zaregistruj se na sraz' : 'Registrace na sraz je nyní uzavřená',
-      copy: plannerWaiting ? 'Výběr z Weekend Planneru jsme uložili. Dokončíš ho tady, jakmile spustíme rezervace.' : plannerUnavailable ? 'Spojení se serverem se nezdařilo. Nevyhodnocujeme to jako stav bez plánu; zkus načtení zopakovat.' : registrationOpen ? 'Vyber příjezd, posádku, Show & Shine a případné ubytování.' : 'Rezervaci si můžeš připravit. Odeslat ji půjde po otevření registrace.',
-      action: plannerWaiting ? 'Dokončit rezervaci' : plannerUnavailable ? '' : registrationOpen ? 'Vytvořit rezervaci' : 'Připravit rezervaci',
+      label: activePlan&&registrationOpen?'REZERVACE JSOU OTEVŘENÉ':activePlan?'TVŮJ PLÁN MÁME':plannerUnavailable?'PLÁN TEĎ NELZE OVĚŘIT':plannerWaiting?'DRAFT ČEKÁ NA ULOŽENÍ':registrationOpen?'Zaregistruj se na sraz':planEnabled?'Připrav si svůj United':'Registrace na sraz je nyní uzavřená',
+      copy: activePlan&&registrationOpen?'Rezervace jsou otevřené. Zkontroluj svůj plán a odešli ho ke schválení.':activePlan?'Tvůj plán máme. Jakmile spustíme rezervace, dáme ti vědět.':plannerUnavailable?'Spojení se serverem se nezdařilo. Nevyhodnocujeme to jako stav bez plánu; zkus načtení zopakovat.':plannerWaiting?'Výběr z Weekend Planneru zůstává draftem. Tento event teď nepovoluje jeho uložení jako nezávazný plán.':registrationOpen?'Vyber příjezd, posádku, Show & Shine a případné ubytování.':planEnabled?'Ulož nezávazný plán bez rezervace kapacity.':'Registrace ani ukládání plánů teď nejsou otevřené.',
+      action: activePlan&&registrationOpen?'Zkontrolovat a odeslat':activePlan?'Upravit plán':plannerUnavailable||plannerWaiting?'':registrationOpen?'Vytvořit rezervaci':planEnabled?'Připravit plán':'',
       emptyCopy: eventYear ? `United ${eventYear}: rezervaci zatím nemáš.` : 'Aktuálně tu není nic, co potřebuje tvoji akci.',
     };
   }

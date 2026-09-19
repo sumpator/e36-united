@@ -27,12 +27,21 @@ test('hero: primary car and its private photo win over other cars', () => {
   assert.equal(hero.cta, '');
 });
 
-test('overview: closed registration without reservation offers preparation without claiming submission', () => {
+test('overview: closed registration without enabled plans does not claim a persisted plan', () => {
   const view = deriveOverviewState({ registrationOpen: false, eventYear: 2026 });
   assert.equal(view.active, true);
   assert.equal(view.label, 'Registrace na sraz je nyní uzavřená');
-  assert.equal(view.copy, 'Rezervaci si můžeš připravit. Odeslat ji půjde po otevření registrace.');
-  assert.equal(view.action, 'Připravit rezervaci');
+  assert.equal(view.copy, 'Registrace ani ukládání plánů teď nejsou otevřené.');
+  assert.equal(view.action, '');
+});
+
+test('overview: enabled and saved plans have explicit closed/open actions',()=>{
+  const enabled=deriveOverviewState({registrationOpen:false,planEnabled:true,eventYear:2026});
+  assert.equal(enabled.action,'Připravit plán');assert.match(enabled.copy,/nezávazný plán/i);
+  const saved=deriveOverviewState({registrationOpen:false,plan:{status:'active'},eventYear:2026});
+  assert.equal(saved.label,'TVŮJ PLÁN MÁME');assert.equal(saved.action,'Upravit plán');assert.match(saved.copy,/Tvůj plán máme/);
+  const open=deriveOverviewState({registrationOpen:true,plan:{status:'active'},eventYear:2026});
+  assert.equal(open.label,'REZERVACE JSOU OTEVŘENÉ');assert.equal(open.action,'Zkontrolovat a odeslat');assert.match(open.copy,/odešli ho ke schválení/);
 });
 
 test('overview: open registration without reservation exposes the event CTA', () => {

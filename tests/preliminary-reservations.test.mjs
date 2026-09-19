@@ -54,6 +54,14 @@ test('preferences validate owned car, event option, crew, note and forbid financ
  assert.equal((await save(r,{...preference,note:'x'.repeat(9000)})).status,413);
  r.db.exec("UPDATE event_accommodation_options SET units_total=0 WHERE id='cab'");assert.equal((await save(r)).status,200,'Sold-out preference does not reserve capacity');r.db.close();
 });
+test('non-binding plan allows no car while real reservation still requires one',async()=>{
+ const r=setup();assert.equal((await save(r,{...preference,carId:null})).status,200);
+ let p=(await(await get(r)).json()).preliminary;assert.equal(p.preferences.carId,null);
+ r.db.exec("UPDATE events SET registration_status='open' WHERE id='e'");
+ const response=await putCurrentReservation(req({...p.preferences,preliminaryId:p.id,preliminaryRevision:p.revision}),r.env,auth,origin);
+ assert.equal(response.status,400);assert.equal((await response.json()).error,'car_required');p=(await(await get(r)).json()).preliminary;
+ assert.equal(p.status,'active');assert.equal(r.db.prepare('SELECT COUNT(*) n FROM reservations').get().n,0);r.db.close();
+});
 test('day visit stores no accommodation and cancellation remains possible after registrations open',async()=>{
  const r=setup();assert.equal((await save(r,{...preference,arrival:'Jen na otočku'})).status,200);
  const p=(await (await get(r)).json()).preliminary;assert.equal(p.preferences.accommodation,'Bez ubytování');assert.equal(p.preferences.accommodationUnits,0);assert.equal(p.preferences.accommodationOptionId,null);

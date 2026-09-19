@@ -1,4 +1,4 @@
-import { deriveMemberHeroState } from '../member-portal-state.js?v=20260828-member-club';
+import { deriveMemberHeroState } from '../member-portal-state.js?v=20260919-member-plan-r1';
 import { initPortalNavigation } from '../portal-navigation.js?v=20260825-mobile1';
 import { $, $$ } from './ui.js?v=20260902-phase3';
 import { memberSection } from './deep-links.js?v=20260907-feedback';

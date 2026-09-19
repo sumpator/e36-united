@@ -803,7 +803,9 @@ async function getMemberNavigationState(env, auth, origin) {
     event
       ? env.DB.prepare("SELECT 1 AS found FROM reservations WHERE member_id = ? AND event_id = ? LIMIT 1").bind(auth.uid, event.id).first()
       : Promise.resolve(null),
-    env.DB.prepare("SELECT 1 AS found FROM member_planner_drafts WHERE member_id = ? AND expires_at > ? LIMIT 1").bind(auth.uid, now).first(),
+    env.DB.prepare(`SELECT 1 AS found FROM member_planner_drafts WHERE member_id = ? AND expires_at > ?
+      UNION ALL SELECT 1 AS found FROM preliminary_reservations WHERE member_id = ? AND event_id = ? AND status = 'active' LIMIT 1`)
+      .bind(auth.uid, now, auth.uid, event?.id || '').first(),
   ]);
   return json({ ok: true, hasWaitingPlan: !!planner, hasReservation: !!reservation }, 200, origin);
 }

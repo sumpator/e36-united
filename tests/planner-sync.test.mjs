@@ -9,6 +9,7 @@ const eventMigration=readFileSync(new URL('../D1-event-accommodation-v1.sql',imp
 const paymentMigration=readFileSync(new URL('../D1-reservation-payments-v1.sql',import.meta.url),'utf8');
 const plannerMigration=readFileSync(new URL('../D1-member-planner-drafts-v1.sql',import.meta.url),'utf8');
 const accommodationGalleryMigration=readFileSync(new URL('../db/migrations/2026-09-12-accommodation-gallery.sql',import.meta.url),'utf8');
+const preliminaryMigration=readFileSync(new URL('../db/migrations/2026-09-19-preliminary-reservations.sql',import.meta.url),'utf8');
 const mainSource=readFileSync(new URL('../main.js',import.meta.url),'utf8');
 const indexSource=readFileSync(new URL('../index.html',import.meta.url),'utf8');
 const memberSource=readFileSync(new URL('../member/modules/planner/index.js',import.meta.url),'utf8');
@@ -46,7 +47,7 @@ function database(){
     INSERT INTO members (id,name) VALUES ('member-a','A'),('member-b','B');
     INSERT INTO cars (id,member_id,model,body,year) VALUES ('car-a','member-a','328i','Coupé',1996);
   `);
-  db.exec(eventMigration);db.exec(paymentMigration);db.exec(plannerMigration);db.exec(accommodationGalleryMigration);
+  db.exec(eventMigration);db.exec(paymentMigration);db.exec(plannerMigration);db.exec(accommodationGalleryMigration);db.exec(preliminaryMigration);
   return db;
 }
 
@@ -209,6 +210,13 @@ test('navigation reservation state is scoped to the current event, not the accou
   db.prepare("INSERT INTO reservations (id,member_id,event_id,status) VALUES ('current-reservation','member-a','event-2026','pending')").run();
   const current=await jsonOf(await worker.getMemberNavigationState({DB},auth,'https://e36united.cz'));
   assert.equal(current.payload.hasReservation,true);
+});
+
+test('navigation treats an active current-event preliminary reservation as the saved plan',async()=>{
+  const db=database(),DB=d1(db),auth={uid:'member-a'};
+  db.prepare("INSERT INTO preliminary_reservations(id,event_id,member_id,status,preferences_json) VALUES('plan','event-2026','member-a','active','{}')").run();
+  const navigation=await jsonOf(await worker.getMemberNavigationState({DB},auth,'https://e36united.cz'));
+  assert.deepEqual({hasWaitingPlan:navigation.payload.hasWaitingPlan,hasReservation:navigation.payload.hasReservation},{hasWaitingPlan:true,hasReservation:false});
 });
 
 test('public auth bootstrap fetches only the boolean navigation summary',async()=>{
