@@ -134,22 +134,42 @@ test('capacity projection excludes the current reservation and a pending request
   assert.equal(r.db.prepare("SELECT COALESCE(SUM(unit_count),0) n FROM reservation_accommodation WHERE option_id='cab'").get().n,2,'pending proposal does not allocate a third unit');r.db.close();
 });
 
-test('sold-out change stays pending until capacity is increased and approval rechecks atomically',async()=>{
+test('sold-out change is rejected on submit and succeeds only after capacity is increased',async()=>{
   const r=prepare();r.db.exec(`UPDATE event_accommodation_options SET units_total=1 WHERE id='cab-premium';
     INSERT INTO reservations(id,member_id,event_id,status,amount_due_czk,amount_paid_czk,crew) VALUES('r-premium','n','e','approved',0,0,1);
     INSERT INTO reservation_accommodation(reservation_id,option_id,option_name,kind,people_count,unit_count,unit_price_czk,person_price_czk,bedding_fee_per_person_czk,city_tax_per_person_per_night_czk,nights,base_total_czk,person_total_czk,bedding_total_czk,city_tax_total_czk,total_czk)
     VALUES('r-premium','cab-premium','Chatka Premium','cabin',1,1,700,0,50,25,2,1400,0,50,50,1500);`);
-  const created=await (await submit(r,{...change,accommodationOptionId:'cab-premium'})).json();
-  const before={...r.db.prepare("SELECT arrival,accommodation,amount_due_czk FROM reservations WHERE id='r'").get()};
-  let response=await decide(r,created.request.id,'approved');assert.equal(response.status,409);
+  let response=await submit(r,{...change,accommodationOptionId:'cab-premium'});assert.equal(response.status,409);
   const conflict=await response.json();assert.equal(conflict.error,'accommodation_capacity_exceeded');assert.equal(conflict.capacity.deficitUnits,1);
+  const before={...r.db.prepare("SELECT arrival,accommodation,amount_due_czk FROM reservations WHERE id='r'").get()};
   assert.deepEqual({...r.db.prepare("SELECT arrival,accommodation,amount_due_czk FROM reservations WHERE id='r'").get()},before);
-  assert.equal(r.db.prepare('SELECT status FROM reservation_requests WHERE id=?').get(created.request.id).status,'pending');
+  assert.equal(r.db.prepare("SELECT COUNT(*) n FROM reservation_requests WHERE reservation_id='r'").get().n,0);
   assert.equal(r.db.prepare("SELECT COUNT(*) n FROM admin_actions WHERE entity_id='r' AND action_type='reservation_change_approved'").get().n,0);
   r.db.exec("UPDATE event_accommodation_options SET units_total=2 WHERE id='cab-premium'");
+  const created=await (await submit(r,{...change,accommodationOptionId:'cab-premium'})).json();
   response=await decide(r,created.request.id,'approved');assert.equal(response.status,200);
   assert.equal(r.db.prepare("SELECT option_id FROM reservation_accommodation WHERE reservation_id='r'").get().option_id,'cab-premium');
   assert.equal(r.db.prepare('SELECT status FROM reservation_requests WHERE id=?').get(created.request.id).status,'approved');r.db.close();
+});
+
+test('disabled approved accommodation may be retained but cannot be newly selected',async()=>{
+  const r=prepare();r.db.exec("UPDATE event_accommodation_options SET active=0 WHERE id IN ('cab','cab-premium')");
+  const current=await (await getCurrentReservation(r.env,auth,origin)).json();assert.deepEqual(current.accommodationOptions.map(option=>[option.id,option.active]),[['cab',false]]);
+  let response=await submit(r,{...change,note:'Jen poznámka'});assert.equal(response.status,201);
+  const created=await response.json();assert.equal(created.request.proposed.accommodationSnapshot.retainedApprovedOption,true);
+  assert.equal((await decide(r,created.request.id,'approved')).status,200);
+  assert.equal(r.db.prepare("SELECT option_id FROM reservation_accommodation WHERE reservation_id='r'").get().option_id,'cab');
+  response=await submit(r,{...change,accommodationOptionId:'cab-premium'});assert.equal(response.status,409);
+  assert.equal((await response.json()).error,'accommodation_option_not_found');r.db.close();
+});
+
+test('missing approved accommodation uses its stored snapshot only for a safe unchanged stay',async()=>{
+  const r=prepare();r.db.exec('PRAGMA foreign_keys=OFF');r.db.exec("UPDATE reservation_accommodation SET option_id='removed-cab' WHERE reservation_id='r'; DELETE FROM event_accommodation_options WHERE id='cab'");r.db.exec('PRAGMA foreign_keys=ON');
+  let response=await submit(r,{...change,arrival:'Pátek',accommodationUnits:2,accommodationOptionId:'removed-cab',note:'Bez změny pobytu'});assert.equal(response.status,201);
+  const created=await response.json();assert.equal(created.request.proposed.accommodationSnapshot.configurationMissing,true);assert.equal(created.request.proposed.amountDueCzk,1200);
+  assert.equal((await decide(r,created.request.id,'approved')).status,200);
+  response=await submit(r,{...change,accommodationUnits:2,accommodationOptionId:'removed-cab',arrival:'Sobota'});assert.equal(response.status,409);
+  assert.equal((await response.json()).error,'retained_accommodation_change_unsupported');r.db.close();
 });
 
 test('capacity changed after the detail check still blocks the atomic approval without a partial write',async()=>{

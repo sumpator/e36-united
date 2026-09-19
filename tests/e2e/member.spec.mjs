@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { MEMBER_SESSION_KEY, expectNoUnexpectedClientErrors, prepareE2ePage } from './fixtures.mjs';
+import { MEMBER_SESSION_KEY, accommodationOptions, expectNoUnexpectedClientErrors, prepareE2ePage } from './fixtures.mjs';
 
 const approvedReservation = {
   id: 'reservation-2026-e2e',
@@ -207,11 +207,16 @@ test.describe('desktop member portal', () => {
     await expect(form.locator('[name="note"]')).toHaveValue('Příjezd po obědě.');
     await expect(page.locator('[data-reservation-submit]')).toBeDisabled();
     await page.locator('[data-request-change]').click();
+    const modal=page.locator('[data-reservation-change-modal]');
+    await expect(modal).toBeVisible();
+    await expect(modal).toContainText('Současná schválená rezervace zůstává platná');
+    await expect(modal.locator('[data-reservation-change-recap]')).toContainText('Chatka Premium');
     await expect(form).toHaveClass(/is-editing/);
     await expect(form.locator('[name="accommodationOptionId"]')).toBeEnabled();
     await expect(page.locator('[data-reservation-submit]')).toContainText('Odeslat žádost o změnu');
 
     await form.locator('[name="accommodationOptionId"]').selectOption('cabin-standard');
+    await expect(modal.locator('[data-reservation-change-price]')).toContainText('1 490');
     await form.locator('[name="note"]').fill('Aktualizovaný příjezd.');
     await page.locator('[data-reservation-submit]').click();
     const feedback=page.locator('[data-reservation-form-status]');
@@ -236,10 +241,47 @@ test.describe('desktop member portal', () => {
     expect(observations.requests).toContain('POST /api/reservations/current/requests');
     await expect(page.locator('[data-reservation-request-status]')).toContainText('čeká na rozhodnutí');
     await expect(feedback).toHaveAttribute('data-state','success');await expect(feedback).toContainText('Žádost o změnu byla odeslána ke schválení');
+    await expect(modal).toBeHidden();
     await expect(form).toHaveClass(/is-view-mode/);await expect(page.locator('.reservation-unified-card .member-saved-accommodation-visual')).toHaveCount(1);
     await page.setViewportSize({width:390,height:844});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
 
     expectNoUnexpectedClientErrors(observations);
+  });
+
+  test('change Planner modal keeps a disabled approved option once, confirms dirty close and restores focus', async ({ page }) => {
+    const disabledPremium={...accommodationOptions[1],active:false,photos:[]};
+    const observations=await prepareE2ePage(page,{authenticated:true,registrationOpen:true,reservation:approvedReservation,accommodations:[accommodationOptions[0],disabledPremium]});
+    await page.goto('/member.html?section=reservation');
+    const trigger=page.locator('[data-request-change]');await trigger.scrollIntoViewIfNeeded();await expect(trigger).toBeVisible();
+    const initialScroll=await page.evaluate(()=>scrollY);await trigger.click();
+    const modal=page.locator('[data-reservation-change-modal]'),form=modal.locator('[data-reservation-form]'),select=form.locator('[name="accommodationOptionId"]');
+    await expect(modal).toBeVisible();await expect(select).toHaveValue('cabin-premium');
+    await expect(modal.getByRole('button',{name:'Zavřít návrh změny'})).toBeFocused();await page.keyboard.press('Shift+Tab');
+    expect(await modal.evaluate(node=>node.contains(document.activeElement))).toBe(true);
+    await expect(form.locator('.reservation-current-option-note')).toContainText('nyní vypnutá');
+    await select.selectOption('cabin-standard');
+    await expect(select.locator('option[value="cabin-premium"]')).toHaveAttribute('disabled','');
+    await modal.getByRole('button',{name:'Zavřít návrh změny'}).focus();
+    page.once('dialog',dialog=>{expect(dialog.message()).toContain('Zahodit neodeslaný návrh');void dialog.accept()});
+    await page.keyboard.press('Escape');
+    await expect(modal).toBeHidden();await expect(trigger).toBeFocused();
+    await expect.poll(()=>page.evaluate(()=>scrollY)).toBe(initialScroll);
+    expect(observations.reservationRequestWrites).toEqual([]);expectNoUnexpectedClientErrors(observations);
+  });
+
+  test('change Planner modal safely labels a missing approved option and becomes full-screen on mobile', async ({ page }) => {
+    await page.setViewportSize({width:390,height:844});
+    const observations=await prepareE2ePage(page,{authenticated:true,registrationOpen:true,reservation:approvedReservation,accommodations:[accommodationOptions[0]]});
+    await page.goto('/member.html?section=reservation');await page.locator('[data-request-change]').click();
+    const modal=page.locator('[data-reservation-change-modal]'),dialog=modal.locator('.reservation-change-planner-dialog'),select=modal.locator('[name="accommodationOptionId"]');
+    await expect(modal).toBeVisible();await expect(select).toHaveValue('cabin-premium');
+    await expect(select.locator('option[value="cabin-premium"]')).toContainText('PŮVODNÍ SCHVÁLENÁ VARIANTA');
+    await expect(modal.locator('.reservation-current-option-note')).toContainText('už není v aktuální nabídce');
+    await expect(modal.locator('[data-accommodation-availability]')).toContainText('Aktuální dostupnost nelze ověřit');
+    await expect(modal.locator('[data-reservation-change-price]')).toContainText('Původní schválená cena 1 940');
+    const box=await dialog.boundingBox();expect(box?.x).toBe(0);expect(box?.y).toBe(0);expect(box?.width).toBe(390);expect(box?.height).toBe(844);
+    expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+    expect(observations.reservationWrites).toEqual([]);expectNoUnexpectedClientErrors(observations);
   });
 
   test('approved reservation renders server payment balance, variable symbol and QR', async ({ page }) => {

@@ -32,8 +32,8 @@ async function listAccommodationOptions(env, eventId, activeOnly = false) {
 }
 
 async function listMemberAccommodationOptions(env, eventId, reservation = null) {
-  const options = await listAccommodationOptions(env, eventId, true);
   const ownSnapshot = reservation ? mapAccommodationSnapshot(reservation) : null;
+  const options = (await listAccommodationOptions(env, eventId, !ownSnapshot)).filter(option => option.active || option.id === ownSnapshot?.optionId);
   if (ownSnapshot && reservation.status === "approved") {
     const ownOption = options.find(option => option.id === ownSnapshot.optionId && option.inventoryMode === "limited");
     if (ownOption) {
@@ -123,6 +123,7 @@ async function getReservationChangeCapacity(env, reservationId, eventId, optionI
       target.name AS target_option_name,
       target.kind AS target_option_kind,
       target.inventory_mode AS target_inventory_mode,
+      target.active AS target_active,
       target.units_total AS target_units_total,
       COALESCE((
         SELECT SUM(allocation.unit_count)
@@ -134,7 +135,7 @@ async function getReservationChangeCapacity(env, reservationId, eventId, optionI
       ), 0) AS approved_other_units
     FROM (SELECT 1) seed
     LEFT JOIN current_allocation ON 1 = 1
-    LEFT JOIN event_accommodation_options target ON target.id = ? AND target.event_id = ? AND target.active = 1
+    LEFT JOIN event_accommodation_options target ON target.id = ? AND target.event_id = ?
     LIMIT 1
   `).bind(reservationId, reservationId, optionId || null, eventId).first();
   const currentUnits = Number(row?.current_unit_count || 0);
@@ -154,13 +155,24 @@ async function getReservationChangeCapacity(env, reservationId, eventId, optionI
     proposedUnits: 0, netChangeUnits: -currentUnits, occupiedAfterApproval: 0,
     freeAfterApproval: null, deficitUnits: 0, available: true, source,
   };
-  if (!row?.target_option_id) return null;
+  if (!row?.target_option_id) {
+    if (!sameOption) return null;
+    return {
+      optionId, optionName: row.current_option_name || "Původní ubytování", kind: row.current_option_kind || "",
+      inventoryMode: "retained", unitsTotal: currentUnits, occupiedUnits: currentUnits,
+      freeUnits: 0, currentReservationUnits: currentUnits, proposedUnits: requestedUnits,
+      netChangeUnits: requestedUnits - currentUnits, occupiedAfterApproval: requestedUnits,
+      freeAfterApproval: 0, deficitUnits: Math.max(0, requestedUnits - currentUnits),
+      available: requestedUnits <= currentUnits, source, configurationMissing: true,
+    };
+  }
   const limited = row.target_inventory_mode === "limited";
   const total = limited ? Number(row.target_units_total || 0) : null;
   const otherUnits = Number(row.approved_other_units || 0);
   const occupied = otherUnits + retainedUnits;
   const after = otherUnits + requestedUnits;
-  const deficit = limited ? Math.max(0, after - total) : 0;
+  const inactiveRetention = sameOption && !row.target_active;
+  const deficit = inactiveRetention ? Math.max(0, requestedUnits - currentUnits) : limited ? Math.max(0, after - total) : 0;
   return {
     optionId: row.target_option_id, optionName: row.target_option_name, kind: row.target_option_kind,
     inventoryMode: row.target_inventory_mode, unitsTotal: total, occupiedUnits: occupied,
@@ -168,7 +180,7 @@ async function getReservationChangeCapacity(env, reservationId, eventId, optionI
     currentReservationUnits: retainedUnits, proposedUnits: requestedUnits,
     netChangeUnits: requestedUnits - retainedUnits, occupiedAfterApproval: after,
     freeAfterApproval: limited ? Math.max(0, total - after) : null,
-    deficitUnits: deficit, available: deficit === 0, source,
+    deficitUnits: deficit, available: deficit === 0, source, active: !!row.target_active,
   };
 }
 

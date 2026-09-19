@@ -7,6 +7,16 @@ import { paymentStatusFor } from './payments.js';
 const MAX_CREW=5;
 
 const parseJson=value=>{try{return value?JSON.parse(value):null}catch{return null}};
+function storedAccommodationSnapshot(row){
+  if(!row?.accommodation_option_id)return null;
+  const peopleCount=Number(row.accommodation_people_count??row.accommodation_units??0),unitCount=Number(row.accommodation_unit_count??0);
+  return {optionId:row.accommodation_option_id,optionName:row.accommodation_option_name||row.accommodation||'Původní ubytování',kind:row.accommodation_option_kind||'',
+    capacityPerUnit:Math.max(1,Math.ceil(peopleCount/Math.max(1,unitCount))),peopleCount,unitCount,
+    unitPriceCzk:Number(row.accommodation_unit_price_czk||0),personPriceCzk:Number(row.accommodation_person_price_czk||0),
+    beddingFeePerPersonCzk:Number(row.accommodation_bedding_fee_czk||0),cityTaxPerPersonPerNightCzk:Number(row.accommodation_city_tax_czk||0),
+    nights:Number(row.accommodation_nights||0),baseTotalCzk:Number(row.accommodation_base_total_czk||0),personTotalCzk:Number(row.accommodation_person_total_czk||0),
+    beddingTotalCzk:Number(row.accommodation_bedding_total_czk||0),cityTaxTotalCzk:Number(row.accommodation_city_tax_total_czk||0),totalCzk:Number(row.accommodation_total_czk||0)};
+}
 const requestView=row=>row?{
   id:row.id,type:row.request_type,status:row.status,
   original:parseJson(row.original_json),proposed:parseJson(row.proposed_json),
@@ -21,13 +31,18 @@ function reservationSnapshot(row){
     accommodation:row.accommodation||'Bez ubytování',accommodationOptionId:row.accommodation_option_id||null,
     accommodationUnits:Number(row.accommodation_units||0),showShine:row.show_shine||'Ne',note:row.note||'',
     amountDueCzk:Number(row.amount_due_czk||0),amountPaidCzk:Number(row.amount_paid_czk||0),
-    accommodationSnapshot:row.accommodation_option_id?{optionId:row.accommodation_option_id,optionName:row.accommodation_option_name||row.accommodation,kind:row.accommodation_option_kind||''}:null,
+    accommodationSnapshot:storedAccommodationSnapshot(row),
   };
 }
 
 async function reservationRequestSource(env,reservationId,memberId=null){
   return env.DB.prepare(`SELECT r.*,e.year AS event_year,e.full_weekend_nights,e.saturday_only_nights,
-    ra.option_id AS accommodation_option_id,ra.option_name AS accommodation_option_name,ra.kind AS accommodation_option_kind
+    ra.option_id AS accommodation_option_id,ra.option_name AS accommodation_option_name,ra.kind AS accommodation_option_kind,
+    ra.people_count AS accommodation_people_count,ra.unit_count AS accommodation_unit_count,ra.unit_price_czk AS accommodation_unit_price_czk,
+    ra.person_price_czk AS accommodation_person_price_czk,ra.bedding_fee_per_person_czk AS accommodation_bedding_fee_czk,
+    ra.city_tax_per_person_per_night_czk AS accommodation_city_tax_czk,ra.nights AS accommodation_nights,
+    ra.base_total_czk AS accommodation_base_total_czk,ra.person_total_czk AS accommodation_person_total_czk,
+    ra.bedding_total_czk AS accommodation_bedding_total_czk,ra.city_tax_total_czk AS accommodation_city_tax_total_czk,ra.total_czk AS accommodation_total_czk
     FROM reservations r JOIN events e ON e.id=r.event_id
     LEFT JOIN reservation_accommodation ra ON ra.reservation_id=r.id
     WHERE r.id=? ${memberId?'AND r.member_id=?':''} LIMIT 1`).bind(reservationId,...(memberId?[memberId]:[])).first();
@@ -44,20 +59,27 @@ async function normalizeProposal(env,row,body){
   if(!['Chatka','Stan','Bez ubytování'].includes(requestedAccommodation))throw Object.assign(new Error('Vyber platné ubytování.'),{code:'invalid_accommodation'});
   if(!['Ne','Možná','Ano'].includes(showShine))throw Object.assign(new Error('Vyber platnou možnost Show & Shine.'),{code:'invalid_show_shine'});
   if(!Number.isInteger(accommodationUnits)||accommodationUnits<(wantsAccommodation?1:0)||accommodationUnits>crew)throw Object.assign(new Error('Počet ubytovaných musí být celé číslo od 1 do počtu členů posádky.'),{code:'invalid_accommodation_units'});
-  let option=null,pricing=null,accommodation='Bez ubytování';
+  let option=null,pricing=null,accommodation='Bez ubytování',retainsApproved=false,configurationMissing=false;
   if(wantsAccommodation){
     if(!optionId)throw Object.assign(new Error('Vyber konkrétní typ ubytování.'),{code:'accommodation_option_required'});
-    option=await env.DB.prepare('SELECT * FROM event_accommodation_options WHERE id=? AND event_id=? AND active=1 LIMIT 1').bind(optionId,row.event_id).first();
-    if(!option)throw Object.assign(new Error('Vybrané ubytování už není dostupné.'),{code:'accommodation_option_not_found',status:409});
     const kind=requestedAccommodation==='Chatka'?'cabin':'tent';
-    if(option.kind!==kind)throw Object.assign(new Error('Vybraný typ neodpovídá zvolenému ubytování.'),{code:'invalid_accommodation_option'});
+    const stored=storedAccommodationSnapshot(row);retainsApproved=!!stored&&stored.optionId===optionId;
+    option=await env.DB.prepare('SELECT * FROM event_accommodation_options WHERE id=? AND event_id=? LIMIT 1').bind(optionId,row.event_id).first();
+    if(!option&&!retainsApproved)throw Object.assign(new Error('Vybrané ubytování už není dostupné.'),{code:'accommodation_option_not_found',status:409});
+    if(option&&option.active!==1&&!retainsApproved)throw Object.assign(new Error('Vybrané ubytování už není dostupné.'),{code:'accommodation_option_not_found',status:409});
+    if((option?.kind||stored?.kind)!==kind)throw Object.assign(new Error('Vybraný typ neodpovídá zvolenému ubytování.'),{code:'invalid_accommodation_option'});
     accommodation=kind==='cabin'?'Chatka':'Stan';
-    pricing=calculateAccommodationPricing(row,option,accommodationUnits,attendanceType);
+    configurationMissing=!option;
+    if(!option){
+      if(attendanceType!==row.attendance_type||accommodationUnits!==Number(row.accommodation_units||0))throw Object.assign(new Error('Původní ubytování už není v konfiguraci. Pro změnu pobytu nebo počtu ubytovaných vyber aktuální variantu.'),{code:'retained_accommodation_change_unsupported',status:409});
+      pricing={unitCount:stored.unitCount,nights:stored.nights,unitPriceCzk:stored.unitPriceCzk,personPriceCzk:stored.personPriceCzk,beddingFeePerPersonCzk:stored.beddingFeePerPersonCzk,cityTaxPerPersonPerNightCzk:stored.cityTaxPerPersonPerNightCzk,baseTotalCzk:stored.baseTotalCzk,personTotalCzk:stored.personTotalCzk,beddingTotalCzk:stored.beddingTotalCzk,cityTaxTotalCzk:stored.cityTaxTotalCzk,totalCzk:stored.totalCzk};
+    }else pricing=calculateAccommodationPricing(row,option,accommodationUnits,attendanceType);
+    option=option||{id:stored.optionId,name:stored.optionName,kind:stored.kind,active:0};
   }
   return {arrival,attendanceType,crew,accommodation,accommodationOptionId:option?.id||null,
     accommodationUnits,showShine,note,amountDueCzk:pricing?.totalCzk||0,
     accommodationSnapshot:option?{optionId:option.id,optionName:option.name,kind:option.kind,
-      peopleCount:accommodationUnits,...pricing}:null};
+      peopleCount:accommodationUnits,...pricing,...(retainsApproved&&option.active!==1?{retainedApprovedOption:true,configurationMissing}:{})}:null};
 }
 
 async function readBody(request,origin){
@@ -78,6 +100,10 @@ async function submitReservationRequest(request,env,auth,reservationId,origin){
   let proposed=null;
   if(type==='change'){
     try{proposed=await normalizeProposal(env,row,body)}catch(error){return json({ok:false,error:error.code||'invalid_request',message:error.message},error.status||400,origin)}
+    const snapshot=proposed.accommodationSnapshot,capacity=await getReservationChangeCapacity(env,reservationId,row.event_id,snapshot?.optionId||null,snapshot?.unitCount||0);
+    if(snapshot&&!capacity)return json({ok:false,error:'accommodation_option_not_found',message:'Vybrané ubytování už není dostupné.'},409,origin);
+    if(capacity&&!capacity.available)return accommodationCapacityConflict(capacity.optionName,origin,
+      `Pro navrženou změnu chybí ${capacity.deficitUnits} ${capacity.deficitUnits===1?'ubytovací jednotka':'ubytovací jednotky'}. Současná rezervace zůstala beze změny.`,{capacity});
   }
   const original=reservationSnapshot(row),payload=proposed?JSON.stringify(proposed):null;
   const pending=await env.DB.prepare("SELECT * FROM reservation_requests WHERE reservation_id=? AND status='pending' LIMIT 1").bind(reservationId).first();
@@ -162,8 +188,15 @@ async function reviewReservationRequest(request,env,auth,reservationId,requestId
   const decision=clean(body.decision),comment=clean(body.adminComment).slice(0,1000);
   if(!['approved','rejected'].includes(decision))return json({ok:false,error:'invalid_decision',message:'Vyber schválení nebo zamítnutí.'},400,origin);
   const requestRow=await env.DB.prepare(`SELECT rr.*,r.status AS reservation_status,r.event_id,r.member_id,r.amount_paid_czk,r.amount_due_czk,
-    e.full_weekend_nights,e.saturday_only_nights FROM reservation_requests rr JOIN reservations r ON r.id=rr.reservation_id
-    JOIN events e ON e.id=r.event_id WHERE rr.id=? AND rr.reservation_id=? LIMIT 1`).bind(requestId,reservationId).first();
+    r.arrival,r.attendance_type,r.crew,r.accommodation,r.accommodation_units,r.show_shine,r.note,
+    e.full_weekend_nights,e.saturday_only_nights,ra.option_id AS accommodation_option_id,ra.option_name AS accommodation_option_name,
+    ra.kind AS accommodation_option_kind,ra.people_count AS accommodation_people_count,ra.unit_count AS accommodation_unit_count,
+    ra.unit_price_czk AS accommodation_unit_price_czk,ra.person_price_czk AS accommodation_person_price_czk,
+    ra.bedding_fee_per_person_czk AS accommodation_bedding_fee_czk,ra.city_tax_per_person_per_night_czk AS accommodation_city_tax_czk,
+    ra.nights AS accommodation_nights,ra.base_total_czk AS accommodation_base_total_czk,ra.person_total_czk AS accommodation_person_total_czk,
+    ra.bedding_total_czk AS accommodation_bedding_total_czk,ra.city_tax_total_czk AS accommodation_city_tax_total_czk,ra.total_czk AS accommodation_total_czk
+    FROM reservation_requests rr JOIN reservations r ON r.id=rr.reservation_id JOIN events e ON e.id=r.event_id
+    LEFT JOIN reservation_accommodation ra ON ra.reservation_id=r.id WHERE rr.id=? AND rr.reservation_id=? LIMIT 1`).bind(requestId,reservationId).first();
   if(!requestRow)return json({ok:false,error:'reservation_request_not_found',message:'Žádost nebyla nalezena.'},404,origin);
   if(requestRow.status!=='pending')return json({ok:false,error:'reservation_request_decided',message:'O této žádosti už bylo rozhodnuto.'},409,origin);
   const actionId=crypto.randomUUID(),updatedAt=new Date().toISOString();
@@ -189,28 +222,32 @@ async function reviewReservationRequest(request,env,auth,reservationId,requestId
   const proposed=parseJson(requestRow.proposed_json);
   if(!proposed)return json({ok:false,error:'invalid_request_data',message:'Navržené údaje nelze bezpečně načíst.'},409,origin);
   let normalized;try{normalized=await normalizeProposal(env,requestRow,proposed)}catch(error){return json({ok:false,error:error.code||'invalid_request',message:error.message},error.status||409,origin)}
-  const snapshot=normalized.accommodationSnapshot,option=snapshot?await env.DB.prepare('SELECT * FROM event_accommodation_options WHERE id=? AND event_id=? AND active=1').bind(snapshot.optionId,requestRow.event_id).first():null;
+  const snapshot=normalized.accommodationSnapshot,option=snapshot?await env.DB.prepare('SELECT * FROM event_accommodation_options WHERE id=? AND event_id=?').bind(snapshot.optionId,requestRow.event_id).first():null;
   const capacity=await getReservationChangeCapacity(env,reservationId,requestRow.event_id,snapshot?.optionId||null,snapshot?.unitCount||0);
   if(snapshot&&!capacity)return json({ok:false,error:'accommodation_option_not_found',message:'Vybrané ubytování už není dostupné. Obnov detail žádosti.'},409,origin);
   if(capacity&&!capacity.available)return accommodationCapacityConflict(capacity.optionName,origin,
     `Pro schválení chybí ${capacity.deficitUnits} ${capacity.deficitUnits===1?'ubytovací jednotka':'ubytovací jednotky'}. Rezervace zůstala beze změny.`,{capacity});
+  const retained=snapshot?.retainedApprovedOption===true;
+  const accommodationGuard=!snapshot?'':retained?`AND EXISTS(SELECT 1 FROM reservation_accommodation own_option
+      WHERE own_option.reservation_id=reservations.id AND own_option.option_id=? AND own_option.unit_count>=?)`:`AND EXISTS(SELECT 1 FROM event_accommodation_options current_option
+      WHERE current_option.id=? AND current_option.event_id=? AND current_option.active=1
+      AND (current_option.inventory_mode='unlimited' OR current_option.units_total>=?+
+        (SELECT COALESCE(SUM(ra.unit_count),0) FROM reservation_accommodation ra JOIN reservations r2 ON r2.id=ra.reservation_id
+          WHERE ra.option_id=? AND r2.status='approved' AND r2.id<>?)))`;
+  const accommodationBindings=!snapshot?[]:retained?[snapshot.optionId,snapshot.unitCount]:[snapshot.optionId,requestRow.event_id,snapshot.unitCount,snapshot.optionId,reservationId];
   const statements=[env.DB.prepare(`UPDATE reservations SET arrival=?,crew=?,accommodation=?,show_shine=?,note=?,attendance_type=?,accommodation_units=?,amount_due_czk=?,
     payment_status=CASE WHEN amount_paid_czk>? THEN 'overpaid' WHEN ?<=0 THEN 'not_required' WHEN amount_paid_czk<=0 THEN 'unpaid' WHEN amount_paid_czk<? THEN 'underpaid' ELSE 'paid' END,
     reviewed_by=?,reviewed_at=CURRENT_TIMESTAMP,updated_at=? WHERE id=? AND status='approved'
     AND EXISTS(SELECT 1 FROM reservation_requests pending_request WHERE pending_request.id=? AND pending_request.reservation_id=? AND pending_request.status='pending')
-    ${snapshot?`AND EXISTS(SELECT 1 FROM event_accommodation_options current_option
-      WHERE current_option.id=? AND current_option.event_id=? AND current_option.active=1
-      AND (current_option.inventory_mode='unlimited' OR current_option.units_total>=?+
-        (SELECT COALESCE(SUM(ra.unit_count),0) FROM reservation_accommodation ra JOIN reservations r2 ON r2.id=ra.reservation_id
-          WHERE ra.option_id=? AND r2.status='approved' AND r2.id<>?)))`:''}`)
+    ${accommodationGuard}`)
     .bind(normalized.arrival,normalized.crew,normalized.accommodation,normalized.showShine,normalized.note||null,normalized.attendanceType,normalized.accommodationUnits,normalized.amountDueCzk,
       normalized.amountDueCzk,normalized.amountDueCzk,normalized.amountDueCzk,auth.uid,updatedAt,reservationId,requestId,reservationId,
-      ...(snapshot?[snapshot.optionId,requestRow.event_id,snapshot.unitCount,snapshot.optionId,reservationId]:[]))];
-  if(snapshot)statements.push(env.DB.prepare(`INSERT INTO reservation_accommodation(reservation_id,option_id,option_name,kind,people_count,unit_count,unit_price_czk,person_price_czk,bedding_fee_per_person_czk,city_tax_per_person_per_night_czk,nights,base_total_czk,person_total_czk,bedding_total_czk,city_tax_total_czk,total_czk,updated_at)
+      ...accommodationBindings)];
+  if(snapshot&&!snapshot.configurationMissing)statements.push(env.DB.prepare(`INSERT INTO reservation_accommodation(reservation_id,option_id,option_name,kind,people_count,unit_count,unit_price_czk,person_price_czk,bedding_fee_per_person_czk,city_tax_per_person_per_night_czk,nights,base_total_czk,person_total_czk,bedding_total_czk,city_tax_total_czk,total_czk,updated_at)
     SELECT ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,? WHERE EXISTS(SELECT 1 FROM reservations WHERE id=? AND updated_at=?) AND EXISTS(SELECT 1 FROM reservation_requests WHERE id=? AND status='pending')
     ON CONFLICT(reservation_id) DO UPDATE SET option_id=excluded.option_id,option_name=excluded.option_name,kind=excluded.kind,people_count=excluded.people_count,unit_count=excluded.unit_count,unit_price_czk=excluded.unit_price_czk,person_price_czk=excluded.person_price_czk,bedding_fee_per_person_czk=excluded.bedding_fee_per_person_czk,city_tax_per_person_per_night_czk=excluded.city_tax_per_person_per_night_czk,nights=excluded.nights,base_total_czk=excluded.base_total_czk,person_total_czk=excluded.person_total_czk,bedding_total_czk=excluded.bedding_total_czk,city_tax_total_czk=excluded.city_tax_total_czk,total_czk=excluded.total_czk,updated_at=excluded.updated_at`)
     .bind(reservationId,snapshot.optionId,snapshot.optionName,snapshot.kind,snapshot.peopleCount,snapshot.unitCount,snapshot.unitPriceCzk,snapshot.personPriceCzk,snapshot.beddingFeePerPersonCzk,snapshot.cityTaxPerPersonPerNightCzk,snapshot.nights,snapshot.baseTotalCzk,snapshot.personTotalCzk,snapshot.beddingTotalCzk,snapshot.cityTaxTotalCzk,snapshot.totalCzk,updatedAt,reservationId,updatedAt,requestId));
-  else statements.push(env.DB.prepare("DELETE FROM reservation_accommodation WHERE reservation_id=? AND EXISTS(SELECT 1 FROM reservations WHERE id=? AND updated_at=?) AND EXISTS(SELECT 1 FROM reservation_requests WHERE id=? AND status='pending')").bind(reservationId,reservationId,updatedAt,requestId));
+  else if(!snapshot)statements.push(env.DB.prepare("DELETE FROM reservation_accommodation WHERE reservation_id=? AND EXISTS(SELECT 1 FROM reservations WHERE id=? AND updated_at=?) AND EXISTS(SELECT 1 FROM reservation_requests WHERE id=? AND status='pending')").bind(reservationId,reservationId,updatedAt,requestId));
   statements.push(env.DB.prepare("UPDATE reservation_requests SET status='approved',admin_comment=?,proposed_json=?,decided_at=CURRENT_TIMESTAMP,decided_by=?,updated_at=? WHERE id=? AND status='pending' AND EXISTS(SELECT 1 FROM reservations WHERE id=? AND updated_at=?)").bind(comment||null,JSON.stringify(normalized),auth.uid,updatedAt,requestId,reservationId,updatedAt));
   statements.push(env.DB.prepare(`INSERT INTO admin_actions(id,admin_member_id,action_type,entity_type,entity_id,old_state_json,new_state_json,note)
     SELECT ?,?,'reservation_change_approved','reservation',?,original_json,proposed_json,? FROM reservation_requests WHERE id=? AND updated_at=?`).bind(actionId,auth.uid,reservationId,comment||null,requestId,updatedAt));
