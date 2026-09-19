@@ -44,8 +44,53 @@ for (const width of [390, 1440]) test(`public readability layout remains usable 
   await expect(page.locator('#show-shine')).not.toContainText('8 věcí, které rozhodují');
   await expect(page.locator('#show-shine')).not.toContainText('SHOW & SHINE / HODNOCENÍ');
   await page.locator('.showshine-disclosure-trigger').click();
+  await expect(page.locator('.showshine-disclosure')).toHaveAttribute('open', '');
   await expect(page.locator('.judging-criterion')).toHaveCount(8);
-  if(width===1440){const [criteria,visual]=await Promise.all([page.locator('.judging-criteria').boundingBox(),page.locator('.judging-stage').boundingBox()]);expect(Math.abs(criteria.y-visual.y)).toBeLessThanOrEqual(1);expect(Math.abs(criteria.height-visual.height)).toBeLessThanOrEqual(1);expect(criteria.height).toBeLessThanOrEqual(420);}
+  if (width === 1440) {
+    const disclosure = page.locator('.showshine-disclosure');
+    await expect.poll(() => disclosure.evaluate(element => {
+      const panel = element.querySelector('.showshine-judging');
+      if (!panel) throw new Error('Show & Shine panel is unavailable');
+      return {
+        open: element.open,
+        fonts: document.fonts.status,
+        activeAnimations: panel.getAnimations()
+          .filter(animation => animation.playState === 'running' || animation.playState === 'pending').length
+      };
+    })).toEqual({ open: true, fonts: 'loaded', activeAnimations: 0 });
+
+    let geometry;
+    await expect.poll(async () => {
+      geometry = await disclosure.evaluate(async element => {
+        const snapshots = [];
+        for (let frame = 0; frame < 5; frame += 1) {
+          await new Promise(requestAnimationFrame);
+          const criteriaRect = element.querySelector('.judging-criteria')?.getBoundingClientRect();
+          const visualRect = element.querySelector('.judging-stage')?.getBoundingClientRect();
+          if (!criteriaRect || !visualRect) throw new Error('Show & Shine geometry is unavailable');
+          snapshots.push({
+            criteria: { y: criteriaRect.y, height: criteriaRect.height },
+            visual: { y: visualRect.y, height: visualRect.height }
+          });
+        }
+        const latest = snapshots.at(-1);
+        const stable = snapshots.slice(1).every((snapshot, index) => {
+          const previous = snapshots[index];
+          return Math.abs(snapshot.criteria.y - previous.criteria.y) < 0.01
+            && Math.abs(snapshot.criteria.height - previous.criteria.height) < 0.01
+            && Math.abs(snapshot.visual.y - previous.visual.y) < 0.01
+            && Math.abs(snapshot.visual.height - previous.visual.height) < 0.01;
+        });
+        return { ...latest, stable };
+      });
+      return geometry.stable;
+    }).toBe(true);
+
+    const { criteria, visual } = geometry;
+    expect(Math.abs(criteria.y - visual.y)).toBeLessThanOrEqual(1);
+    expect(Math.abs(criteria.height - visual.height)).toBeLessThanOrEqual(1);
+    expect(criteria.height).toBeLessThanOrEqual(420);
+  }
   await expect(page.locator('.band-section')).toHaveCount(0);
   await expect(page.locator('.story-preview--community .section-title')).toHaveText(/Šest ročníků\.\s*Jedna komunita\./);
   await expect(page.locator('#planer .section-title')).toHaveText('Poskládej si svůj United.');
