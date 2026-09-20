@@ -30,7 +30,7 @@ function initGalleryNavigation(){
     if(id===activeId)return;activeId=id;
     items.forEach(item=>{
     const active=item.id===id;item.link.classList.toggle('is-active',active);
-    if(active){item.link.setAttribute('aria-current','location');item.link.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'})}
+    if(active){item.link.setAttribute('aria-current','location');nav.scrollTo({left:Math.max(0,item.link.offsetLeft-(nav.clientWidth-item.link.offsetWidth)/2),behavior:'smooth'})}
     else item.link.removeAttribute('aria-current');
     });
   };
