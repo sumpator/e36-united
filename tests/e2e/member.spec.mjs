@@ -256,7 +256,7 @@ test.describe('desktop member portal', () => {
     const initialScroll=await page.evaluate(()=>scrollY);await trigger.click();
     const modal=page.locator('[data-reservation-change-modal]'),form=modal.locator('[data-reservation-form]'),select=form.locator('[name="accommodationOptionId"]');
     await expect(modal).toBeVisible();await expect(select).toHaveValue('cabin-premium');
-    await expect(modal.getByRole('button',{name:'Zavřít návrh změny'})).toBeFocused();await page.keyboard.press('Shift+Tab');
+    const modalTitle=modal.locator('[data-member-planner-title]');await expect(modalTitle).toBeVisible();await expect(modalTitle).toHaveAttribute('tabindex','-1');await expect(modalTitle).toBeFocused();await page.keyboard.press('Shift+Tab');
     expect(await modal.evaluate(node=>node.contains(document.activeElement))).toBe(true);
     await expect(form.locator('.reservation-current-option-note')).toContainText('nyní vypnutá');
     await select.selectOption('cabin-standard');
