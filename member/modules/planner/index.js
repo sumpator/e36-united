@@ -5,7 +5,7 @@ import { $, esc, setButtonBusy, toast } from '../../ui.js?v=20260902-phase3';
 import { createReservationPayments, formatCzk } from './payments.js?v=20260912-member-reservation-panels-r1';
 import { normalizeAccommodationOption, normalizeReservation } from './reservation.js?v=20260911-reservation-flow-r1';
 import { isAuthorizationFailure } from '../../refresh.js?v=20260907-feedback';
-import { createMemberPlannerExperience } from './experience.js?v=20260920-registration-ui-r1';
+import { createMemberPlannerExperience } from './experience.js?v=20260920-registration-ux-r2';
 
 const plannerHandoffPrefix='e36UnitedPlannerHandoff:v1:';
 
@@ -136,8 +136,8 @@ export function createMemberPlanner({
     return 'Jen na otočku · bez noclehu';
   }
   function registrationCarAction(car){
-    const hasCars=getData().cars.length>0,label=car?.nickname||car?.model||'Doplníš později',action=hasCars?'Vybrat auto':'+ Přidat auto';
-    return `<button class="member-summary-car-action" data-registration-car-action type="button"><span><small>AUTO</small><b>${esc(label)}</b></span><em>${action}</em></button>`;
+    const hasCars=getData().cars.length>0,label=car?.nickname||car?.model||'S čím přijedeš?',action=hasCars?'Vybrat auto':'+ Přidat auto';
+    return `<button class="member-summary-car-action${car?'':' is-empty'}" data-registration-car-action type="button"><span><small>AUTO</small><b>${esc(label)}</b></span><em>${action}</em></button>`;
   }
   function renderPreliminarySummary(){
     const summary=$('[data-reservation-summary]'),p=preliminary?.status==='active'?preliminary.preferences:null;if(!summary)return;

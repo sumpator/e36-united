@@ -1,13 +1,13 @@
 const STAYS=Object.freeze([
-  {arrival:'Pátek',title:'Celý víkend',meta:'Pátek → Neděle · 2 noci',short:'Pá → Ne'},
-  {arrival:'Sobota',title:'Sobota → Neděle',meta:'1 noc · hlavní den + noc',short:'So → Ne'},
-  {arrival:'Jen na otočku',title:'Na otočku',meta:'Bez noclehu',short:'Bez noclehu'},
+  {arrival:'Pátek',title:'Celý víkend',meta:'Pátek → Neděle · 2 noci',short:'Pá → Ne',image:'assets/images/program/friday.webp'},
+  {arrival:'Sobota',title:'Sobota → Neděle',meta:'1 noc · hlavní den + noc',short:'So → Ne',image:'assets/images/program/saturday.webp'},
+  {arrival:'Jen na otočku',title:'Na otočku',meta:'Bez noclehu',short:'Bez noclehu',image:'assets/images/program/sunday.jpg'},
 ]);
 
 const SHOW_SHINE=Object.freeze([
-  {value:'Ano',label:'Ano!',copy:'Chci soutěžit'},
-  {value:'Možná',label:'Uvidíme',copy:'Rozhodnu se později'},
-  {value:'Ne',label:'Jedu se podívat',copy:'Bez soutěžení'},
+  {value:'Ano',label:'Ano!',copy:'Chci soutěžit',image:'pohary.jpg'},
+  {value:'Možná',label:'Uvidíme',copy:'Rozhodnu se později',image:'assets/images/program/friday.webp'},
+  {value:'Ne',label:'Jedu se podívat',copy:'Bez soutěžení',image:'assets/images/program/saturday.webp'},
 ]);
 
 const personLabel=count=>count===1?'osoba':count>=2&&count<=4?'osoby':'osob';
@@ -33,6 +33,7 @@ export function createMemberPlannerExperience(form){
   const shell=document.createElement('section');
   shell.className='member-weekend-planner planner-shell planner-shell--v8';
   shell.dataset.memberWeekendPlanner='';
+  shell.dataset.reservationEditField='';
   shell.innerHTML=`<div class="planner-workspace member-planner-workspace">
     <div class="planner-controls planner-controls--v8 member-planner-controls">
       <section class="planner-step planner-step--stay planner-main-step">
@@ -41,7 +42,7 @@ export function createMemberPlannerExperience(form){
           <div class="stay-slider-current" aria-live="polite"><strong data-member-stay-title></strong><small data-member-stay-meta></small></div>
           <div class="stay-slider-options" data-member-stay-options>${STAYS.map((stay,index)=>`<button data-member-stay="${index}" type="button"><b>${stay.title.toUpperCase()}</b><small>${stay.short}</small></button>`).join('')}</div>
         </div>
-        <aside class="planner-context-preview planner-context-preview--media"><img alt="Páteční komunita E36 United" loading="lazy" onerror="this.src='fallback.svg'" src="assets/images/program/friday.webp"><div class="planner-context-shade"></div><div class="planner-context-copy"><span>TVŮJ POBYT</span><strong data-member-stay-preview></strong><b data-member-night-preview></b></div></aside>
+        <aside class="planner-context-preview planner-context-preview--media"><img data-member-stay-image alt="Páteční komunita E36 United" loading="lazy" onerror="this.src='fallback.svg'" src="assets/images/program/friday.webp"><div class="planner-context-shade"></div><div class="planner-context-copy"><span>TVŮJ POBYT</span><strong data-member-stay-preview></strong><b data-member-night-preview></b></div></aside>
       </section>
       <section class="planner-step planner-step--sleep planner-main-step">
         <div class="planner-step-head"><span>02</span><b>Kde chceš spát?</b></div>
@@ -58,11 +59,11 @@ export function createMemberPlannerExperience(form){
       <section class="planner-step planner-step--showshine planner-main-step">
         <div class="planner-step-head"><span>04</span><b>Chceš soutěžit v Show &amp; Shine?</b></div>
         <div class="choice-row choice-row--three" data-member-show-options>${SHOW_SHINE.map(item=>`<button class="choice" data-member-show="${item.value}" type="button">${item.label}</button>`).join('')}</div>
-        <aside class="planner-context-preview planner-context-preview--media"><img alt="Show and Shine E36 United" loading="lazy" onerror="this.src='fallback.svg'" src="assets/images/program/saturday.webp"><div class="planner-context-shade"></div><div class="planner-context-copy"><span>SHOW &amp; SHINE</span><strong data-member-show-preview></strong><b data-member-show-copy></b></div></aside>
+        <aside class="planner-context-preview planner-context-preview--media"><img data-member-show-image alt="Show and Shine E36 United" loading="lazy" onerror="this.src='fallback.svg'" src="assets/images/program/saturday.webp"><div class="planner-context-shade"></div><div class="planner-context-copy"><span>SHOW &amp; SHINE</span><strong data-member-show-preview></strong><b data-member-show-copy></b></div></aside>
       </section>
       <section class="planner-step member-planner-personal planner-main-step">
         <div class="planner-step-head"><span>05</span><b>Tvoje E36 a poznámka</b></div>
-        <div class="member-planner-personal-grid"><div data-member-car-slot></div><div data-member-crew-details-slot></div><div data-member-note-slot></div></div>
+        <div class="member-planner-personal-grid"><div data-member-car-slot></div><div data-member-note-slot></div></div>
       </section>
     </div>
     <aside class="weekend-preview weekend-preview--v8 member-planner-summary" aria-live="polite">
@@ -90,7 +91,9 @@ export function createMemberPlannerExperience(form){
   move(form.querySelector('[data-accommodation-preview]'),shell.querySelector('[data-member-accommodation-preview-slot]'));
   move(form.querySelector('.reservation-partial-stack'),shell.querySelector('[data-member-partial-slot]'));
   move(form.querySelector('[data-reservation-form-car]'),shell.querySelector('[data-member-car-slot]'));
-  move(form.querySelector('[data-preliminary-crew]'),shell.querySelector('[data-member-crew-details-slot]'));
+  // Keep existing crew details in the form for saved-data round trips, outside the editor.
+  const crewDetails=form.querySelector('[data-preliminary-crew]');
+  if(crewDetails)crewDetails.hidden=true;
   const note=[...form.querySelectorAll(':scope > label')].find(label=>label.querySelector('[name="note"]'));
   move(note,shell.querySelector('[data-member-note-slot]'));
 
@@ -98,6 +101,11 @@ export function createMemberPlannerExperience(form){
     const stay=STAYS.find(item=>item.arrival===source.arrival?.value)||STAYS[0];
     const crew=Math.max(1,Math.min(5,Number(source.crew?.value)||1));
     const show=SHOW_SHINE.find(item=>item.value===source.showshine?.value)||SHOW_SHINE.at(-1);
+    for(const [selector,item,alt] of [['[data-member-stay-image]',stay,stay.title],['[data-member-show-image]',show,show.copy]]){
+      const img=shell.querySelector(selector);
+      if(img.getAttribute('src')!==item.image)img.setAttribute('src',item.image);
+      img.alt=alt;
+    }
     shell.querySelector('[data-member-stay-title]').textContent=stay.title;
     shell.querySelector('[data-member-stay-meta]').textContent=stay.meta;
     shell.querySelector('[data-member-stay-preview]').textContent=stay.arrival==='Jen na otočku'?'Sobota / hlavní den':stay.title;

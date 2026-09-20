@@ -198,6 +198,7 @@ test.describe('desktop member portal', () => {
     await expect(page.locator('.reservation-unified-card')).toBeVisible();
     await expect(page.locator('[data-reservation-summary]')).toContainText('Chatka Premium');
     await expect(form).toHaveClass(/is-view-mode/);
+    await expect(form.locator('[data-member-weekend-planner]')).toBeHidden();
     await expect(page.locator('.reservation-unified-card .member-saved-accommodation-visual')).toHaveCount(1);
     await expect(form.locator('[name="arrival"]')).toHaveValue('Sobota');
     await expect(form.locator('[name="crew"]')).toHaveValue('3');
@@ -242,7 +243,8 @@ test.describe('desktop member portal', () => {
     await expect(page.locator('[data-reservation-request-status]')).toContainText('čeká na rozhodnutí');
     await expect(feedback).toHaveAttribute('data-state','success');await expect(feedback).toContainText('Žádost o změnu byla odeslána ke schválení');
     await expect(modal).toBeHidden();
-    await expect(form).toHaveClass(/is-view-mode/);await expect(page.locator('.reservation-unified-card .member-saved-accommodation-visual')).toHaveCount(1);
+    await expect(form).toHaveClass(/is-view-mode/);
+    await expect(form.locator('[data-member-weekend-planner]')).toBeHidden();await expect(page.locator('.reservation-unified-card .member-saved-accommodation-visual')).toHaveCount(1);
     await page.setViewportSize({width:390,height:844});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
 
     expectNoUnexpectedClientErrors(observations);
