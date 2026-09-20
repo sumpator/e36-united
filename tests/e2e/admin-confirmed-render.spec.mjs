@@ -66,7 +66,7 @@ test('CONFIRMED reservation request compares the proposal and records the public
     ]);
     const capacity=request.locator('[data-request-capacity]');await expect(capacity).toBeVisible();await expect(capacity).toContainText('KAPACITA PŘI SCHVÁLENÍ');
     const capacityValues=await capacity.locator('dl > div').evaluateAll(rows=>rows.map(row=>[(row.querySelector('dt')?.textContent||'').trim(),(row.querySelector('dd')?.textContent||'').trim().replace(/\s+/g,' ')]));
-    expect(capacityValues).toEqual([['Celkem','8'],['Aktuálně obsazeno','1'],['Aktuálně volno','7'],['Tato rezervace','1'],['Návrh','3'],['Čistý rozdíl','+2'],['Po schválení','3 obsazeno · 5 volno']]);
+    expect(capacityValues).toEqual([['Celkem','8'],['Aktuálně obsazeno','1'],['Aktuálně volno','7'],['Tato registrace','1'],['Návrh','3'],['Čistý rozdíl','+2'],['Po schválení','3 obsazeno · 5 volno']]);
     const validReservation=drawer.locator('.admin-reservation-drawer-grid');
     await expect(validReservation).toBeVisible();expect(await request.evaluate((panel,details)=>Boolean(panel.compareDocumentPosition(details)&Node.DOCUMENT_POSITION_FOLLOWING),await validReservation.elementHandle())).toBe(true);
     const currentStay=await validReservation.locator('.command-stay').evaluate(section=>Object.fromEntries([...section.querySelectorAll('dl > div')].map(row=>[row.querySelector('dt')?.textContent.trim(),row.querySelector('dd')?.textContent.trim()])));

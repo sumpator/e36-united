@@ -65,15 +65,15 @@ for(const width of [1600,390])test(`RESPONSIVE Member overview sections and priv
  await select(page,'club');await expect(modal(page)).toContainText('S&S TOP 3');await shot(page,info,'member-club-'+width);
  await select(page,'qr');await expect(modal(page)).toContainText('Členské QR zatím nebylo vydáno');expect(c.r.db.prepare('SELECT COUNT(*) n FROM member_qr_identities').get().n).toBe(0);
  await select(page,'overview');await page.reload();await expect(modal(page).locator('[data-member-overview]')).toBeVisible();await modal(page).locator('[data-member-close]').click();await expect(modal(page)).toBeHidden();
- await page.locator('[data-member-list] [data-member-open="n"]').click();await expect(modal(page)).toContainText('Na tento ročník zatím nemá rezervaci.');await expect(modal(page)).toContainText('Bez rezervace nejsou');await expect(modal(page)).not.toContainText('dlouhy.testovaci');await shot(page,info,'member-without-reservation-'+width);
+ await page.locator('[data-member-list] [data-member-open="n"]').click();await expect(modal(page)).toContainText('Na tento ročník zatím nemá registraci.');await expect(modal(page)).toContainText('Bez registrace nejsou');await expect(modal(page)).not.toContainText('dlouhy.testovaci');await shot(page,info,'member-without-reservation-'+width);
  clean(c);c.r.db.close();
 });
 
 test('RESPONSIVE overview partial Club failure and header failure are not empty or foreign data',async({page},info)=>{
  const c=await commandFixture(page);c.response=({request,response})=>request.url().includes('/members/m/club?')?new Response('{"message":"Synthetic Club unavailable"}',{status:503}):response;
- await page.goto('/admin.html?section=community&view=members&event=e&member=m');await expect(modal(page)).toContainText('United Club se nepodařilo načíst.');await expect(modal(page)).toContainText('EU-MEMBER');await expect(modal(page)).toContainText('Evidovaně uhrazeno');await expect(modal(page)).not.toContainText('Na tento ročník zatím nemá rezervaci.');await shot(page,info,'member-club-unavailable');
+ await page.goto('/admin.html?section=community&view=members&event=e&member=m');await expect(modal(page)).toContainText('United Club se nepodařilo načíst.');await expect(modal(page)).toContainText('EU-MEMBER');await expect(modal(page)).toContainText('Evidovaně uhrazeno');await expect(modal(page)).not.toContainText('Na tento ročník zatím nemá registraci.');await shot(page,info,'member-club-unavailable');
  await modal(page).locator('[data-member-close]').click();c.response=({request,response})=>new URL(request.url()).pathname==='/api/admin/members/n'?new Response('{"message":"Synthetic header unavailable"}',{status:503}):response;
- await page.locator('[data-member-list] [data-member-open="n"]').click();await expect(modal(page)).toContainText('Rezervaci se nepodařilo načíst.');await expect(modal(page)).not.toContainText('Na tento ročník zatím nemá rezervaci.');await expect(modal(page)).not.toContainText('EU-MEMBER');clean(c);c.r.db.close();
+ await page.locator('[data-member-list] [data-member-open="n"]').click();await expect(modal(page)).toContainText('Registraci se nepodařilo načíst.');await expect(modal(page)).not.toContainText('Na tento ročník zatím nemá registraci.');await expect(modal(page)).not.toContainText('EU-MEMBER');clean(c);c.r.db.close();
 });
 
 test('FINISH Member 360 keeps compact history cards and routes photo status to existing moderation',async({page},info)=>{
@@ -96,7 +96,7 @@ test('FINISH Member 360 keeps compact history cards and routes photo status to e
  await shot(page,info,'member-history-three-compact');
  const historyGrid=modal(page).locator('.admin-member-section-grid--history');await page.setViewportSize({width:1000,height:800});expect(await historyGrid.evaluate(node=>getComputedStyle(node).gridTemplateColumns.split(' ').length)).toBe(2);await page.setViewportSize({width:390,height:844});expect(await historyGrid.evaluate(node=>getComputedStyle(node).gridTemplateColumns.split(' ').length)).toBe(1);await page.setViewportSize({width:1600,height:900});
  await select(page,'garage');await expect(modal(page)).not.toContainText('Otevřít fotografii');
- await select(page,'reservations');await expect(modal(page)).not.toContainText('Zdroj: uložená rezervace');await expect(modal(page).getByRole('button',{name:'Otevřít detail rezervace'})).toBeVisible();
+ await select(page,'reservations');await expect(modal(page)).not.toContainText('Zdroj: uložená registrace');await expect(modal(page).getByRole('button',{name:'Otevřít detail registrace'})).toBeVisible();
  await select(page,'photos');const status=modal(page).locator('[data-member-photo-moderation]');await expect(status).toHaveText(/Čeká na schválení/);await expect(modal(page).locator('.admin-member-review-note')).toHaveCount(0);await status.click();
  await expect(page.locator('[data-admin-panel="gallery"]')).toBeVisible();await expect(page.locator('[data-gallery-filter="pending"]')).toHaveAttribute('aria-selected','true');await expect(page.locator('[data-member-queue-notice]')).toBeVisible();expect(c.writes).toEqual([]);clean(c);c.r.db.close();
 });

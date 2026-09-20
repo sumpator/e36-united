@@ -34,7 +34,7 @@ for(const width of [1440,390])test('Stage 3 factory compositions, exact graphs, 
 test('Stage 3 exact finance drill, Member 360, Back restores range/composition/filter/scroll without writes',async({page})=>{
  const c=await fixture(page);await open(page);await page.locator('[data-dashboard-composition]').selectOption('onsite');await card(page,'trend').locator('[data-dashboard-range]').selectOption('30');
  await card(page,'outstanding').scrollIntoViewIfNeeded();const scroll=await page.evaluate(()=>scrollY);
- await card(page,'outstanding').locator('button').click();await expect(page).toHaveURL(/section=payments.*view=payments.*scope=outstanding/);await expect(page.locator('[data-admin-panel="payments"] [data-dashboard-filter]')).toContainText('Aktivní rezervace se zbývající úhradou');
+ await card(page,'outstanding').locator('button').click();await expect(page).toHaveURL(/section=payments.*view=payments.*scope=outstanding/);await expect(page.locator('[data-admin-panel="payments"] [data-dashboard-filter]')).toContainText('Aktivní registrace se zbývající úhradou');
  await expect(page.locator('[data-payment-list] tr[data-reservation-open]')).toHaveCount(1);await page.locator('[data-payment-list] [data-member-open="m"]').click();await expect(page.locator('[data-member-dialog]')).toContainText('EU-MEMBER');
  await page.goBack();await expect(page.locator('[data-member-dialog]')).not.toBeVisible();await expect(page).toHaveURL(/scope=outstanding/);await page.goBack();await expect(page.locator('[data-dashboard-title]')).toHaveText('Na srazu');await expect(page.locator('[data-dashboard-range]')).toHaveValue('30');
  await expect.poll(()=>page.evaluate(()=>history.state?.scrollY)).toBeCloseTo(scroll,0);

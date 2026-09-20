@@ -105,7 +105,7 @@ test('APPROVAL PREVIEWS stay compact and open the exact existing filtered queues
  const widget=page.locator('[data-widget="approvals"]');await expect(widget.locator('[data-dashboard-preview]')).toHaveCount(3);
  const photo=widget.locator('[data-dashboard-preview]').filter({hasText:'Fotografie ke schválení'});await expect.poll(()=>photo.locator('img').evaluate(n=>n.complete&&n.naturalWidth>0)).toBe(true);
  await page.screenshot({path:info.outputPath('approval-previews-desktop.png'),fullPage:true});
- await widget.locator('[data-dashboard-preview]').filter({hasText:'Nová rezervace'}).click();await expect(page.locator('[data-reservation-drawer]')).toBeVisible();await expect(page).toHaveURL(/queueMember=n.*reservation=pending|reservation=pending.*queueMember=n/);
+ await widget.locator('[data-dashboard-preview]').filter({hasText:'Nová registrace'}).click();await expect(page.locator('[data-reservation-drawer]')).toBeVisible();await expect(page).toHaveURL(/queueMember=n.*reservation=pending|reservation=pending.*queueMember=n/);
  await page.goto('/admin.html?section=dashboard&event=e');await expect(page.locator('[data-dashboard-edit]')).toBeEnabled();
  await page.locator('[data-widget="approvals"] [data-dashboard-preview]').filter({hasText:'Fotografie ke schválení'}).click();await expect(page.locator('[data-gallery-community]')).toBeVisible();await expect.poll(()=>c.calls.some(call=>call.includes('/gallery?')&&call.includes('queueMember=m'))).toBe(true);
  await page.goto('/admin.html?section=dashboard&event=e');await expect(page.locator('[data-dashboard-edit]')).toBeEnabled();
@@ -124,7 +124,7 @@ test('POLISH pending reservation approval uses one existing command and converge
  await page.screenshot({path:info.outputPath('POLISH-pending-dashboard.png'),fullPage:true});
  await page.locator('[data-widget="payment-summary"] details summary').click();
  await page.locator('[data-command-reservation="r"]').click();const drawer=page.locator('[data-reservation-drawer]');
- await expect(drawer.locator('[data-review-action="approved"]')).toHaveText('Schválit rezervaci');await expect(drawer.locator('[data-review-action="rejected"]')).toHaveText('Zamítnout rezervaci');
+ await expect(drawer.locator('[data-review-action="approved"]')).toHaveText('Schválit registraci');await expect(drawer.locator('[data-review-action="rejected"]')).toHaveText('Zamítnout registraci');
  await expect(drawer).toContainText('Celý víkend');await expect(drawer).toContainText('Testovací data: přijedeme');await expect(drawer.locator('.command-qr')).toHaveText('Členské QR: Nevydáno');
  const img=drawer.locator('[data-reservation-car-photo]');await img.scrollIntoViewIfNeeded();await expect.poll(()=>img.evaluate(n=>n.complete&&n.naturalWidth>0)).toBe(true);
  expect(c.calls.some(p=>p.endsWith('/media/cars/c2/selected'))).toBe(true);expect(c.calls.some(p=>p.endsWith('/media/cars/c/p'))).toBe(false);
@@ -165,7 +165,7 @@ test('NEW empty-data dashboard is truthful and history evidence stays in its pri
    c.calls.push('GET '+new URL(route.request().url()).pathname);
    return route.fulfill({status:200,headers:{'Access-Control-Allow-Origin':'*'},contentType:'image/svg+xml',body:'<svg xmlns="http://www.w3.org/2000/svg" width="800" height="500"><rect width="800" height="500" fill="#123d59"/><text x="80" y="250" fill="white" font-size="38">TESTOVACÍ SOUKROMÝ DŮKAZ</text></svg>'});
  });
- await open(page);await expect(page.locator('[data-kpi-reservations]')).toHaveText('0');await expect(page.locator('[data-widget="recent"]')).toContainText('Žádné uložené rezervace');await expect(page.locator('[data-command-clear]')).not.toContainText('Vše vyřízeno');await page.screenshot({path:info.outputPath('NEW-empty-data.png'),fullPage:true});
+ await open(page);await expect(page.locator('[data-kpi-reservations]')).toHaveText('0');await expect(page.locator('[data-widget="recent"]')).toContainText('Žádné uložené registrace');await expect(page.locator('[data-command-clear]')).not.toContainText('Vše vyřízeno');await page.screenshot({path:info.outputPath('NEW-empty-data.png'),fullPage:true});
  await page.locator('[data-widget="approvals"] [data-dashboard-destination="history"]').click();const card=page.locator('[data-history-id="h"]');await card.locator('summary').click();await expect(card.locator('[data-history-evidence-media]')).toHaveAttribute('src',/^blob:/);
  await expect(card.locator('[data-history-review="attendance"]')).toBeVisible();await expect(card.locator('[data-history-review="sns"]')).toBeVisible();await page.screenshot({path:info.outputPath('NEW-history-review.png'),fullPage:true});
  await card.locator('[data-history-evidence="hp"]').click();await expect(page.locator('[data-history-evidence-lightbox]')).toBeVisible();await page.screenshot({path:info.outputPath('NEW-history-evidence.png')});
