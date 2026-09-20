@@ -1,4 +1,4 @@
-import { deriveOverviewState } from '../../member-portal-state.js?v=20260919-member-plan-r1';
+import { deriveOverviewState } from '../../member-portal-state.js?v=20260920-reservation-unified-r1';
 import { $, esc } from '../ui.js?v=20260902-phase3';
 
 export function createMemberOverview({
@@ -69,7 +69,7 @@ export function createMemberOverview({
     if(kicker)kicker.textContent=complete?'Děkujeme, že jsi UNITED':'TVŮJ UNITED ZAČÍNÁ TADY';
     if(title)title.innerHTML=complete?'Profil máš kompletní.':'Vstup do komunity.<br><em>Doplň svou stopu.</em>';
     setStep(root.querySelector('[data-onboarding-profile]'),profileReady?'Profil je založený ✓':'Dokončit profil →',profileReady);
-    setStep(root.querySelector('[data-onboarding-reservation]'),reservation?'Rezervace je připravená ✓':registrationOpen?'Otevřít registraci →':'Připravit rezervaci →',!!reservation);
+    setStep(root.querySelector('[data-onboarding-reservation]'),reservation?'Rezervace je připravená ✓':registrationOpen?'Otevřít rezervaci →':'Připravit rezervaci →',!!reservation);
     const states=new Map([
       ['garage',data.cars.length>0],
       ['club',(data.club?.history||[]).some(item=>item.attendance?.status==='approved')],

@@ -30,24 +30,24 @@ test('hero: primary car and its private photo win over other cars', () => {
 test('overview: closed registration without enabled plans does not claim a persisted plan', () => {
   const view = deriveOverviewState({ registrationOpen: false, eventYear: 2026 });
   assert.equal(view.active, true);
-  assert.equal(view.label, 'Registrace na sraz je nyní uzavřená');
-  assert.equal(view.copy, 'Registrace ani ukládání plánů teď nejsou otevřené.');
+  assert.equal(view.label, 'REZERVACE NYNÍ NEJSOU OTEVŘENÉ');
+  assert.equal(view.copy, 'Rezervace na tento event nyní nejsou otevřené.');
   assert.equal(view.action, '');
 });
 
 test('overview: enabled and saved plans have explicit closed/open actions',()=>{
   const enabled=deriveOverviewState({registrationOpen:false,planEnabled:true,eventYear:2026});
-  assert.equal(enabled.action,'Připravit plán');assert.match(enabled.copy,/nezávazný plán/i);
+  assert.equal(enabled.action,'Vytvořit předběžnou rezervaci');assert.match(enabled.copy,/Předběžnou rezervaci/i);
   const saved=deriveOverviewState({registrationOpen:false,plan:{status:'active'},eventYear:2026});
-  assert.equal(saved.label,'TVŮJ PLÁN MÁME');assert.equal(saved.action,'Upravit plán');assert.match(saved.copy,/Tvůj plán máme/);
+  assert.equal(saved.label,'PŘEDBĚŽNÁ REZERVACE · ULOŽENÁ');assert.equal(saved.action,'Upravit předběžnou rezervaci');assert.match(saved.copy,/Nezávazná/);
   const open=deriveOverviewState({registrationOpen:true,plan:{status:'active'},eventYear:2026});
-  assert.equal(open.label,'REZERVACE JSOU OTEVŘENÉ');assert.equal(open.action,'Zkontrolovat a odeslat');assert.match(open.copy,/odešli ho ke schválení/);
+  assert.equal(open.label,'REZERVACE JSOU OTEVŘENÉ');assert.equal(open.action,'Zkontrolovat a odeslat');assert.match(open.copy,/odešli ji ke schválení/);
 });
 
 test('overview: open registration without reservation exposes the event CTA', () => {
   const view = deriveOverviewState({ registrationOpen: true, eventYear: 2027 });
   assert.equal(view.active, true);
-  assert.equal(view.label, 'Zaregistruj se na sraz');
+  assert.equal(view.label, 'REZERVACE JSOU OTEVŘENÉ');
   assert.equal(view.copy, 'Vyber příjezd, posádku, Show & Shine a případné ubytování.');
   assert.equal(view.action, 'Vytvořit rezervaci');
 });
@@ -85,7 +85,7 @@ test('overview: a real reservation wins over both waiting and unavailable planne
 test('overview: planner sync error is not rendered as no plan', () => {
   const view=deriveOverviewState({plannerUnavailable:true,registrationOpen:false});
   assert.equal(view.active,true);
-  assert.equal(view.label,'PLÁN TEĎ NELZE OVĚŘIT');
+  assert.equal(view.label,'PŘEDBĚŽNOU REZERVACI TEĎ NELZE OVĚŘIT');
 });
 
 test('member rating follows the complete BMW ladder and clamps invalid progress', () => {

@@ -5,11 +5,11 @@ import { loadMemberSessionSnapshot } from './member/refresh.js?v=20260907-feedba
 import { apiError, authError, authOrApiError, createMemberSession } from './member/session.js?v=20260907-feedback';
 import { createMemberData as defaultData, normalizeMember as normalizeMemberState } from './member/state.js?v=20260913-club-profiles-r1';
 import { $, $$, setButtonBusy, toast } from './member/ui.js?v=20260902-phase3';
-import { createMemberShell } from './member/shell.js?v=20260920-planner-lifecycle-r1';
-import { createMemberOverview } from './member/modules/overview.js?v=20260919-member-plan-r1';
-import { createMemberGarage } from './member/modules/garage.js?v=20260913-new-member-r1';
+import { createMemberShell } from './member/shell.js?v=20260920-reservation-unified-r1';
+import { createMemberOverview } from './member/modules/overview.js?v=20260920-reservation-unified-r1';
+import { createMemberGarage } from './member/modules/garage.js?v=20260920-reservation-unified-r1';
 import { createMemberPhotos } from './member/modules/photos.js?v=20260907-feedback';
-import { createMemberPlanner } from './member/modules/planner/index.js?v=20260920-planner-modal-stack-r2';
+import { createMemberPlanner } from './member/modules/planner/index.js?v=20260920-reservation-unified-r1';
 import { formatCzk } from './member/modules/planner/payments.js?v=20260912-member-reservation-panels-r1';
 import { createMemberClub } from './member/modules/club/index.js?v=20260920-club-profile-release-r1';
 import { achievementIcon, pictogram } from './member/modules/club/points.js?v=20260911-readability-r1';
@@ -221,9 +221,9 @@ const memberGarage=createMemberGarage({
   renderReservationCarPhoto:()=>memberPlanner?.renderReservationCarPhoto(data.reservation),
   clearReservationCarError:()=>memberPlanner?.setReservationCarError(false),
   onCarDisplayChanged:()=>renderProfile(),
-  onCarSaved:({resumeReservation})=>{
+  onCarSaved:({resumeReservation,resumePlanner})=>{
     renderProfile();memberClub.renderPoints();memberClub.renderAchievements();
-    memberPlanner?.handleGarageCarSaved({resumeReservation});
+    memberPlanner?.handleGarageCarSaved({resumeReservation,resumePlanner});
   },
   renderEditIcon:()=>pictogram('<path d="m4 20 4.2-1 10.4-10.4a2.1 2.1 0 0 0-3-3L5.2 16 4 20Z"/><path d="m13.8 7.4 3 3"/>'),
   formatApiError:apiError,

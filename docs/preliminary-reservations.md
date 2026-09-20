@@ -19,7 +19,8 @@ This is submitted non-binding member interest, not Planner autosave and not a re
 - `DELETE /api/preliminary-reservations/current`: cancel active interest with `eventId` and `revision`.
 - `GET /api/admin/preliminary-reservations?eventId=…&page=…`: separate active count and 20-row page of preferences and member identity.
 - `PUT /api/admin/events/:id/preliminary-settings`: explicit `enabled` boolean and current settings `revision`.
-- Member Reservation section reuses the existing form and adds a clearly non-binding notice, optional crew details and cancellation. It accepts sold-out accommodation as a preference, never as a capacity guarantee. On reopening registration, the member must explicitly press “Potvrdit a odeslat skutečnou rezervaci”.
+- Member Reservation section presents both preliminary and real reservations through one status box and one two-panel detail. “Předběžná rezervace” is the only member-facing name for the persisted non-binding interest; Weekend Planner remains the shared modal editor. Optional crew details and cancellation remain available. Sold-out accommodation can be retained only as a preference, never as a capacity guarantee. On reopening reservations, the member must explicitly review and submit the real reservation.
+- The existing real-reservation change-result acknowledgement remains authoritative: “Beru na vědomí” hides only the decided request result through its existing API and does not hide the reservation state or Admin message. No parallel notification store or acknowledgement workflow was added.
 - Admin Reservations has a separate expandable preliminary overview, event opt-in switch, details and pagination. It is never merged into normal queues, receipts, income, capacity or confirmed-attendance metrics.
 
 ## Explicit conversion

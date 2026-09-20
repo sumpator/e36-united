@@ -20,7 +20,7 @@ export function createMemberGarage({
 }){
   const carPhotoObjectUrls=new Map(),carPhotoObjectUrlRequests=new Map();
   const carModal=$('[data-car-modal]'),carForm=$('[data-car-form]'),carPhotoInput=$('[data-car-photo-input]');
-  let carPhotoRequestGeneration=0,editingCarId='',selectedCarPhoto=null,returnToReservationAfterCar=false,carPhotoPreview=null,bound=false;
+  let carPhotoRequestGeneration=0,editingCarId='',selectedCarPhoto=null,returnToReservationAfterCar=false,returnToPlannerAfterCar=false,carPhotoPreview=null,bound=false;
 
   function clearCarPhotoObjectUrls(){carPhotoRequestGeneration+=1;for(const url of carPhotoObjectUrls.values())URL.revokeObjectURL(url);carPhotoObjectUrls.clear();carPhotoObjectUrlRequests.clear()}
   function pruneCarPhotoObjectUrls(){
@@ -75,7 +75,7 @@ export function createMemberGarage({
   }
   function clearSelectedCarPhoto(){selectedCarPhoto=null;if(carPhotoInput)carPhotoInput.value='';carPhotoPreview?.clear();syncCarPhotoSelection()}
   function closeCarModal(){
-    if(!carModal)return;carModal.hidden=true;delete carModal.dataset.carId;document.body.classList.remove('modal-open');returnToReservationAfterCar=false;editingCarId='';carForm?.reset();clearSelectedCarPhoto();
+    if(!carModal)return;carModal.hidden=true;delete carModal.dataset.carId;document.body.classList.remove('modal-open');returnToReservationAfterCar=false;returnToPlannerAfterCar=false;editingCarId='';carForm?.reset();clearSelectedCarPhoto();
     const current=$('[data-car-current-photo]');if(current){current.hidden=true;delete current.dataset.available}
   }
   function openCarModal(car=null){
@@ -92,7 +92,7 @@ export function createMemberGarage({
     if(photoId&&current&&currentImage){void getPrivateCarPhotoUrl(String(photoId)).then(url=>{if(editingCarId!==String(car.id)||selectedCarPhoto)return;currentImage.src=url;current.dataset.available='true';current.hidden=false;syncCarPhotoSelection()}).catch(error=>console.warn('Current car photo preview unavailable',error))}
     carModal.hidden=false;document.body.classList.add('modal-open');requestAnimationFrame(()=>carForm.elements.nickname?.focus());syncCarPhotoSelection();
   }
-  function openCarForReservation(){returnToReservationAfterCar=true;openCarModal()}
+  function openCarForReservation(event){returnToReservationAfterCar=true;returnToPlannerAfterCar=event?.currentTarget?.hasAttribute('data-preliminary-add-car')===true;openCarModal()}
 
   function bind(){
     if(bound)return;bound=true;carPhotoPreview=createImagePreviewController($('[data-car-photo-preview]'));
@@ -100,6 +100,7 @@ export function createMemberGarage({
     $('[data-open-car]')?.addEventListener('click',openCarModal);
     $('[data-planner-handoff-add-car]')?.addEventListener('click',openCarForReservation);
     $('[data-reservation-add-car]')?.addEventListener('click',openCarForReservation);
+    $('[data-preliminary-add-car]')?.addEventListener('click',openCarForReservation);
     $$('[data-close-car]').forEach(button=>button.addEventListener('click',closeCarModal));
     carPhotoInput?.addEventListener('change',()=>{
       const selection=selectImageFiles(carPhotoInput.files,{maxFiles:1});
@@ -128,7 +129,7 @@ export function createMemberGarage({
         if(photoError){console.warn('Car photo upload failed',photoError);toast('Auto je uložené, ale fotku se nepodařilo nahrát. Zkus Uložit znovu; původní fotka zůstala beze změny.');return}
         clearSelectedCarPhoto();
         setCars(await loadCarsFromApi());await refreshClub().catch(error=>console.warn('Club refresh unavailable',error));
-        const resumeReservation=returnToReservationAfterCar;closeCarModal();clearReservationCarError();renderGarage();onCarSaved({resumeReservation});
+        const resumeReservation=returnToReservationAfterCar,resumePlanner=returnToPlannerAfterCar;closeCarModal();clearReservationCarError();renderGarage();onCarSaved({resumeReservation,resumePlanner});
         returnToReservationAfterCar=false;
         toast(carId?(file?'Auto i nová fotka byly aktualizovány.':'Změny auta byly uloženy.'):(file?'Auto i fotka jsou uložené v Můj United.':'Auto je uložené v Můj United.'));
       }catch(error){console.warn('Car upload failed',error);toast(error?.message===IMAGE_ERROR_MESSAGE?IMAGE_ERROR_MESSAGE:error?.status===409?'Profilovou fotku se nepodařilo uložit.':'Uložení se nepodařilo dokončit. Zkontroluj připojení a zkus to znovu.')}
