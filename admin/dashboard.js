@@ -1,14 +1,14 @@
-import {adminState} from './state.js?v=20260919-preliminary-r1';
-import {adminCommand,bindCurrentEditors,forgetAdminEditor,editorProtected,allowAdminNavigation,adminEditorDirty} from './editors.js?v=20260919-preliminary-r1';
-import {COMPOSITIONS,validatePreferences} from './dashboard-model.js?v=20260919-preliminary-r1';
-import {COMMAND_WIDGETS as WIDGETS,commandDefaults as factoryPreferences,commandLayout,commandBadges} from './command-model.js?v=20260919-preliminary-r1';
-import {commandCard,metricInfo} from './command-cards.js?v=20260919-preliminary-r1';
-import {commandIcon} from './command-icons.js?v=20260919-preliminary-r1';
-import {renderCommandShell} from './command-shell.js?v=20260919-preliminary-r1';
-import {DESTINATIONS,QUICK_LINK_IDS,destination,drillLabel} from './destinations.js?v=20260919-preliminary-r1';
-import {dashboardKpi,chartModel,attentionModel,showValue} from './dashboard-data.js?v=20260919-preliminary-r1';
-import {$,escapeHtml as esc,toast} from './ui.js?v=20260919-preliminary-r1';
-import {createCardMedia} from './member-cards.js?v=20260919-preliminary-r1';
+import {adminState} from './state.js?v=20260920-registration-ui-r1';
+import {adminCommand,bindCurrentEditors,forgetAdminEditor,editorProtected,allowAdminNavigation,adminEditorDirty} from './editors.js?v=20260920-registration-ui-r1';
+import {COMPOSITIONS,validatePreferences} from './dashboard-model.js?v=20260920-registration-ui-r1';
+import {COMMAND_WIDGETS as WIDGETS,commandDefaults as factoryPreferences,commandLayout,commandBadges} from './command-model.js?v=20260920-registration-ui-r1';
+import {commandCard,metricInfo} from './command-cards.js?v=20260920-registration-ui-r1';
+import {commandIcon} from './command-icons.js?v=20260920-registration-ui-r1';
+import {renderCommandShell} from './command-shell.js?v=20260920-registration-ui-r1';
+import {DESTINATIONS,QUICK_LINK_IDS,destination,drillLabel} from './destinations.js?v=20260920-registration-ui-r1';
+import {dashboardKpi,chartModel,attentionModel,showValue} from './dashboard-data.js?v=20260920-registration-ui-r1';
+import {$,escapeHtml as esc,toast} from './ui.js?v=20260920-registration-ui-r1';
+import {createCardMedia} from './member-cards.js?v=20260920-registration-ui-r1';
 
 let navigate=()=>{},refresh=()=>{},draft=null,pendingPreferences=null,acceptNext=false;
 const approvalMedia=createCardMedia();
@@ -41,9 +41,9 @@ function chartMarkup(model){
   if(!model)return '<p>Data zatím nejsou dostupná.</p>';
   const rows=model.rows,max=Math.max(1,...rows.flatMap(r=>[r.value,r.pending,r.capacity]).filter(Number.isFinite));
   const known=rows.every(r=>Number.isFinite(r.value));
-  const visual=!rows.length?'<p>Žádná zaznamenaná data.</p>':model.kind==='line'?`<svg viewBox="0 0 600 120" role="img" aria-label="Kumulativní počet rezervací; přesné hodnoty v tabulce"><path d="${rows.map((r,i)=>`${i?'L':'M'}${rows.length===1?300:10+i*580/(rows.length-1)},${110-100*(r.value||0)/max}`).join(' ')}"/><circle cx="${rows.length===1?300:590}" cy="${110-100*(rows.at(-1).value||0)/max}" r="4"/></svg>`:
+  const visual=!rows.length?'<p>Žádná zaznamenaná data.</p>':model.kind==='line'?`<svg viewBox="0 0 600 120" role="img" aria-label="Kumulativní počet registrací; přesné hodnoty v tabulce"><path d="${rows.map((r,i)=>`${i?'L':'M'}${rows.length===1?300:10+i*580/(rows.length-1)},${110-100*(r.value||0)/max}`).join(' ')}"/><circle cx="${rows.length===1?300:590}" cy="${110-100*(rows.at(-1).value||0)/max}" r="4"/></svg>`:
     `<div class="dashboard-bars">${rows.map(r=>`<div><span>${esc(r.label)}</span><div class="dashboard-bar-track"><i style="width:${Number.isFinite(r.value)?100*r.value/max:0}%"></i>${model.kind==='occupancy'?`<em style="width:${Number.isFinite(r.pending)?100*r.pending/max:0}%"></em>`:''}</div><b>${esc(showValue(r.value,model.unit))}${model.kind==='occupancy'?` / ${r.unlimited?'bez limitu':esc(showValue(r.capacity))}`:''}</b></div>`).join('')}</div>`;
-  return `<p class="dashboard-definition">${model.kind==='line'?'Celkem vytvořených rezervací v čase':esc(model.definition)}</p>${model.kind==='line'?metricInfo(model.definition):''}${known?visual:'<p>Část údajů není dostupná; graf nelze spolehlivě zobrazit.</p>'}${model.kind==='occupancy'?'<p class="dashboard-legend">Modrá: potvrzené jednotky · Oranžová: čekající poptávka. Čekající nejsou obsazenost.</p>':''}${model.missing?`<p>Bez ověřitelného data vytvoření: ${esc(model.missing)} rezervací; nejsou uměle přiřazeny k datu.</p>`:''}<details data-dashboard-table><summary>Zobrazit data</summary><div class="dashboard-table-scroll"><table><caption>${esc(model.unit)}</caption><thead><tr><th scope="col">Položka</th><th scope="col">${model.kind==='line'?'Kumulativně':'Hodnota'}</th>${model.kind==='line'?'<th scope="col">Nové</th>':model.kind==='occupancy'?'<th scope="col">Čekající</th><th scope="col">Kapacita</th>':''}</tr></thead><tbody>${rows.map(r=>`<tr><th scope="row">${esc(r.label)}</th><td>${Number.isFinite(r.value)?button(r.destination,showValue(r.value,model.unit),r.drill):'—'}</td>${model.kind==='line'?`<td>${esc(showValue(r.added))}</td>`:model.kind==='occupancy'?`<td>${Number.isFinite(r.pending)?button(r.destination,showValue(r.pending),r.pendingDrill):'—'}</td><td>${r.unlimited?'Bez limitu':esc(showValue(r.capacity))}</td>`:''}</tr>`).join('')}</tbody></table></div></details>`;
+  return `<p class="dashboard-definition">${model.kind==='line'?'Celkem vytvořených registrací v čase':esc(model.definition)}</p>${model.kind==='line'?metricInfo(model.definition):''}${known?visual:'<p>Část údajů není dostupná; graf nelze spolehlivě zobrazit.</p>'}${model.kind==='occupancy'?'<p class="dashboard-legend">Modrá: potvrzené jednotky · Oranžová: čekající poptávka. Čekající nejsou obsazenost.</p>':''}${model.missing?`<p>Bez ověřitelného data vytvoření: ${esc(model.missing)} registrací; nejsou uměle přiřazeny k datu.</p>`:''}<details data-dashboard-table><summary>Zobrazit data</summary><div class="dashboard-table-scroll"><table><caption>${esc(model.unit)}</caption><thead><tr><th scope="col">Položka</th><th scope="col">${model.kind==='line'?'Kumulativně':'Hodnota'}</th>${model.kind==='line'?'<th scope="col">Nové</th>':model.kind==='occupancy'?'<th scope="col">Čekající</th><th scope="col">Kapacita</th>':''}</tr></thead><tbody>${rows.map(r=>`<tr><th scope="row">${esc(r.label)}</th><td>${Number.isFinite(r.value)?button(r.destination,showValue(r.value,model.unit),r.drill):'—'}</td>${model.kind==='line'?`<td>${esc(showValue(r.added))}</td>`:model.kind==='occupancy'?`<td>${Number.isFinite(r.pending)?button(r.destination,showValue(r.pending),r.pendingDrill):'—'}</td><td>${r.unlimited?'Bez limitu':esc(showValue(r.capacity))}</td>`:''}</tr>`).join('')}</tbody></table></div></details>`;
 }
 function paintCard(card,widget){
   const meta=WIDGETS[widget.id],model=meta.kind==='kpi'?dashboardKpi(widget.id,adminState.summary):chartModel(widget.id,adminState.summary,adminState.dashboardAnalytics,adminState.dashboardRange);
@@ -54,7 +54,7 @@ function paintCard(card,widget){
   card.className=`dashboard-card dashboard-${meta.kind} dashboard-size-${widget.size}`;
   card.style.setProperty('--widget-span',widget.span||4);
   if(meta.kind==='command'){if(widget.id==='approvals')approvalMedia.clear();card.innerHTML=`<h3><span class="command-heading-icon">${commandIcon(widget.id)}</span>${esc(meta.label)}</h3>${commandCard(widget.id,adminState,button,chartMarkup)}`;restoreDetails();if(widget.id==='approvals')approvalMedia.hydrate(card);return;}
-  card.innerHTML=`<h3><span class="command-heading-icon">${commandIcon(widget.id)}</span>${esc(meta.label)}</h3>${meta.kind==='kpi'?`<p class="dashboard-kpi-value" data-kpi-${widget.id}>${Number.isFinite(model)?button(meta.destination,showValue(model,moneyIds.has(widget.id)?'Kč':null)):'—'}</p><p class="dashboard-definition">${esc(meta.definition)}</p>`:meta.kind==='detail'?'<p>Volitelný diagnostický panel níže. Neúplné historické sledování není úplný census.</p>':`${widget.id==='trend'?`<label>Období <select data-dashboard-range aria-label="Rozsah vývoje rezervací"><option value="7">7 dní</option><option value="30">30 dní</option><option value="all">Celé období</option></select></label>`:''}${chartMarkup(model)}`}`;
+  card.innerHTML=`<h3><span class="command-heading-icon">${commandIcon(widget.id)}</span>${esc(meta.label)}</h3>${meta.kind==='kpi'?`<p class="dashboard-kpi-value" data-kpi-${widget.id}>${Number.isFinite(model)?button(meta.destination,showValue(model,moneyIds.has(widget.id)?'Kč':null)):'—'}</p><p class="dashboard-definition">${esc(meta.definition)}</p>`:meta.kind==='detail'?'<p>Volitelný diagnostický panel níže. Neúplné historické sledování není úplný census.</p>':`${widget.id==='trend'?`<label>Období <select data-dashboard-range aria-label="Rozsah vývoje registrací"><option value="7">7 dní</option><option value="30">30 dní</option><option value="all">Celé období</option></select></label>`:''}${chartMarkup(model)}`}`;
   restoreDetails();
   if(card.querySelector('[data-dashboard-range]'))card.querySelector('[data-dashboard-range]').value=adminState.dashboardRange;
 }

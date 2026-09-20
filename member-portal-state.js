@@ -19,19 +19,21 @@ export function deriveMemberHeroState({ cars = [], memberSince = null } = {}) {
   };
 }
 
-export function deriveOverviewState({ reservation = null, registrationOpen = false, plan = null, planEnabled = false, plannerWaiting = false, plannerUnavailable = false, eventYear = null, formatAmount = value => String(value) } = {}) {
+export function deriveOverviewState({ reservation = null, registrationOpen = false, plan = null, planEnabled = false, plannerWaiting = false, plannerDraft = false, plannerUnavailable = false, eventYear = null, eventName = '', formatAmount = value => String(value) } = {}) {
   if (!reservation) {
     const activePlan=plan?.status==='active';
+    const draft=plannerWaiting||plannerDraft;
+    const closedCopy=eventName?`Registrace na ${eventName} nyní nejsou otevřené.`:'Registrace nyní nejsou otevřené.';
     return {
       active: true,
-      label: activePlan&&registrationOpen?'REZERVACE JSOU OTEVŘENÉ':activePlan?'PŘEDBĚŽNÁ REZERVACE · ULOŽENÁ':plannerUnavailable?'PŘEDBĚŽNOU REZERVACI TEĎ NELZE OVĚŘIT':plannerWaiting?'ROZPRACOVANÝ WEEKEND PLANNER':registrationOpen?'REZERVACE JSOU OTEVŘENÉ':planEnabled?'PŘIPRAV PŘEDBĚŽNOU REZERVACI':'REZERVACE NYNÍ NEJSOU OTEVŘENÉ',
-      copy: activePlan&&registrationOpen?'Rezervace jsou otevřené. Zkontroluj předběžnou rezervaci a odešli ji ke schválení.':activePlan?'Nezávazná, bez zajištěné kapacity. Po otevření rezervací ji zkontroluješ a odešleš ke schválení.':plannerUnavailable?'Spojení se serverem se nezdařilo. Stav uložené předběžné rezervace teď nelze ověřit.':plannerWaiting?'Výběr z Weekend Planneru zůstává draftem a není uloženou předběžnou rezervací.':registrationOpen?'Vyber příjezd, posádku, Show & Shine a případné ubytování.':planEnabled?'Ulož předběžnou rezervaci bez blokace kapacity a bez platební povinnosti.':'Rezervace na tento event nyní nejsou otevřené.',
-      action: activePlan&&registrationOpen?'Zkontrolovat a odeslat':activePlan?'Upravit předběžnou rezervaci':plannerUnavailable||plannerWaiting?'':registrationOpen?'Vytvořit rezervaci':planEnabled?'Vytvořit předběžnou rezervaci':'',
-      emptyCopy: eventYear ? `United ${eventYear}: rezervaci zatím nemáš.` : 'Aktuálně tu není nic, co potřebuje tvoji akci.',
+      label: activePlan&&registrationOpen?'POTVRĎ SVOU REGISTRACI!':activePlan?'MÁŠ PŘEDBĚŽNOU REGISTRACI.':plannerUnavailable?'PŘEDBĚŽNOU REGISTRACI TEĎ NELZE OVĚŘIT':draft?(registrationOpen?'DOKONČI REGISTRACI':'DOKONČI PŘEDBĚŽNOU REGISTRACI'):(registrationOpen||planEnabled)?'REGISTRUJ SE NA UNITED':'REGISTRACE NYNÍ NEJSOU OTEVŘENÉ',
+      copy: activePlan&&registrationOpen?'Registrace jsou otevřené.':activePlan?'Až otevřeme registrace, dáme Ti vědět a registraci dokončíš.':plannerUnavailable?'Spojení se serverem se nezdařilo. Stav uložené předběžné registrace teď nelze ověřit.':draft?'':registrationOpen?'':planEnabled?'Zatím přijímáme předběžné registrace.':closedCopy,
+      action: activePlan&&registrationOpen?'Zkontrolovat a potvrdit':activePlan?'Upravit':plannerUnavailable?'':draft?'Pokračovat':registrationOpen||planEnabled?'Začít':'',
+      emptyCopy: '',
     };
   }
-  const labels = { approved: 'REZERVACE SCHVÁLENA', pending: reservation.changePending ? 'ZMĚNA REZERVACE ČEKÁ NA SCHVÁLENÍ' : 'ČEKÁ NA SCHVÁLENÍ', rejected: 'REZERVACE ZAMÍTNUTA', cancelled: 'REZERVACE ZRUŠENA' };
-  const copies = { approved: 'Máš potvrzeno. Tvoje rezervace je schválená United týmem.', pending: reservation.changePending ? 'Upravenou rezervaci teď zkontroluje United tým. Do schválení nic nedoplácej.' : 'Rezervaci máme. United tým ji ještě zkontroluje.', rejected: 'Tvoje rezervace nebyla schválena.', cancelled: 'Tvoje rezervace je zrušená.' };
+  const labels = { approved: 'TVOJE ÚČAST JE POTVRZENÁ.', pending: reservation.changePending ? 'ZMĚNA REGISTRACE ČEKÁ NA SCHVÁLENÍ' : 'REGISTRACE ČEKÁ NA SCHVÁLENÍ.', rejected: 'REGISTRACE NEBYLA SCHVÁLENA.', cancelled: 'REGISTRACE BYLA ZRUŠENA.' };
+  const copies = { approved: '', pending: reservation.changePending ? 'Změna registrace čeká na schválení. Do té doby nic nedoplácej.' : 'Registraci kontroluje United tým.', rejected: '', cancelled: '' };
   const payment = reservation.payment || null;
   const remaining = Number(payment?.remainingCzk || 0);
   const overpayment = Number(payment?.overpaymentCzk || 0);
@@ -42,9 +44,9 @@ export function deriveOverviewState({ reservation = null, registrationOpen = fal
         : approvedPayment?.status === 'paid' ? 'ZAPLACENO' : '';
   return {
     active: true,
-    label: paymentLabel || labels[reservation.status] || 'AKTUÁLNÍ REZERVACE',
-    copy: approvedPayment?.status === 'overpaid' ? `U rezervace evidujeme přeplatek ${formatAmount(overpayment)}. Není potřeba nic platit.` : approvedPayment && remaining > 0 ? 'Rezervace je schválená. Platební údaje obsahují pouze aktuální částku k úhradě.' : copies[reservation.status] || 'Otevři detail aktuální rezervace.',
-    action: approvedPayment ? 'Otevřít platbu' : 'Otevřít rezervaci',
+    label: paymentLabel || labels[reservation.status] || 'AKTUÁLNÍ REGISTRACE',
+    copy: approvedPayment?.status === 'overpaid' ? `U registrace evidujeme přeplatek ${formatAmount(overpayment)}. Není potřeba nic platit.` : approvedPayment && remaining > 0 ? 'Registrace je schválená. Platební údaje obsahují pouze aktuální částku k úhradě.' : copies[reservation.status] || '',
+    action: approvedPayment ? 'Otevřít platbu' : 'Otevřít registraci',
     target: approvedPayment ? 'payments' : 'reservation',
     emptyCopy: '',
   };

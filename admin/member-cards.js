@@ -1,11 +1,11 @@
-import {escapeHtml as esc} from './ui.js?v=20260919-preliminary-r1';
-import {apiRequest} from './api.js?v=20260919-preliminary-r1';
-import {adminState} from './state.js?v=20260919-preliminary-r1';
+import {escapeHtml as esc} from './ui.js?v=20260920-registration-ui-r1';
+import {apiRequest} from './api.js?v=20260920-registration-ui-r1';
+import {adminState} from './state.js?v=20260920-registration-ui-r1';
 
 export function pendingSummary(card){
  const p=card?.pending;
  if(!p||!['reservations','attendance','sns','photos'].every(k=>Number.isInteger(p[k])&&p[k]>=0))return null;
- return {total:p.reservations+p.attendance+p.sns+p.photos,target:p.reservations?'reservations':p.attendance+p.sns?'history':'photos',label:`Rezervace: ${p.reservations}; účast: ${p.attendance}; S&S: ${p.sns}; fotky: ${p.photos}`};
+ return {total:p.reservations+p.attendance+p.sns+p.photos,target:p.reservations?'reservations':p.attendance+p.sns?'history':'photos',label:`Registrace: ${p.reservations}; účast: ${p.attendance}; S&S: ${p.sns}; fotky: ${p.photos}`};
 }
 export function compactMemberIdentity(member){
  const id=member.memberId||member.id;
@@ -14,7 +14,7 @@ export function compactMemberIdentity(member){
 export function compactMemberDetails(member){
  const id=member.memberId||member.id,card=member.card,pending=pendingSummary(card);
  const status={pending:'Čeká na schválení',approved:'Schválená',rejected:'Zamítnutá',cancelled:'Zrušená',draft:'Koncept'};
- return `<div class="compact-member-data"><a href="mailto:${esc(member.email||'')}">${esc(member.email||'E-mail neuveden')}</a><p class="compact-member-facts"><span>United: ${Number.isInteger(card?.attendances)?card.attendances+'×':'nenačteno'}</span><span>${card?.eventId?(card.reservationStatus===null?'Bez rezervace':status[card.reservationStatus]||'Stav nenačten'): 'Rezervace nenačtena'}</span></p>${pending?.total?`<button type="button" class="admin-badge admin-badge--pending" data-member-pending="${pending.target}" data-pending-member="${esc(id)}" title="${esc(pending.label)}" aria-label="${pending.total} čekajících žádostí. ${esc(pending.label)}">Čeká: ${pending.total} →</button>`:''}</div>`;
+ return `<div class="compact-member-data"><a href="mailto:${esc(member.email||'')}">${esc(member.email||'E-mail neuveden')}</a><p class="compact-member-facts"><span>United: ${Number.isInteger(card?.attendances)?card.attendances+'×':'nenačteno'}</span><span>${card?.eventId?(card.reservationStatus===null?'Bez registrace':status[card.reservationStatus]||'Stav nenačten'): 'Registrace nenačtena'}</span></p>${pending?.total?`<button type="button" class="admin-badge admin-badge--pending" data-member-pending="${pending.target}" data-pending-member="${esc(id)}" title="${esc(pending.label)}" aria-label="${pending.total} čekajících žádostí. ${esc(pending.label)}">Čeká: ${pending.total} →</button>`:''}</div>`;
 }
 export function compactMemberPhoto(member){
  const id=member.memberId||member.id,photo=member.card?.photo;

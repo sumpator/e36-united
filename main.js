@@ -839,8 +839,8 @@ if (accommodationOptionTitle) accommodationOptionTitle.textContent=plannerState.
 if (partialAccommodationInput) partialAccommodationInput.checked=plannerState.partialAccommodation;
 if (unitedMap) unitedMap.classList.toggle('is-day-pass', dayPass);
 const existingReservation=memberPlannerMode&&memberPlannerHasReservation;
-if (plannerActionCopy) plannerActionCopy.textContent = existingReservation ? 'Rezervaci už máš. Aktuální pobyt otevřeš v Můj United.' : memberPlannerMode ? 'Hotovo. Výběr přeneseme do Můj United.' : 'Hotovo. Teď už jen dokončit rezervaci.';
-if (mail) {mail.innerHTML = existingReservation?'Otevřít aktuální rezervaci <span>→</span>':'Dokončit v Můj United <span>→</span>';mail.href='member.html?section=reservation'}
+if (plannerActionCopy) plannerActionCopy.textContent = existingReservation ? 'Registraci už máš. Aktuální pobyt otevřeš v Můj United.' : memberPlannerMode ? 'Hotovo. Výběr přeneseme do Můj United.' : 'Hotovo. Teď už jen dokončit registraci.';
+if (mail) {mail.innerHTML = existingReservation?'Otevřít aktuální registraci <span>→</span>':'Dokončit v Můj United <span>→</span>';mail.href='member.html?section=reservation'}
 if (peopleEl) peopleEl.textContent = plannerState.people;
 if (peopleLabel) peopleLabel.textContent = personLabel(plannerState.people);
 if (accommodationUnitsEl) accommodationUnitsEl.textContent = plannerState.accommodationUnits;
@@ -914,7 +914,7 @@ const loadPlannerCurrentEvent=async()=>{
       unitPriceCzk:Number(option.unitPriceCzk||0),personPriceCzk:Number(option.personPriceCzk||0),beddingFeePerPersonCzk:Number(option.beddingFeePerPersonCzk||0),cityTaxPerPersonPerNightCzk:Number(option.cityTaxPerPersonPerNightCzk||0),active:option.active!==false,soldOut:option.soldOut===true,sortOrder:option.sortOrder==null?index:Number(option.sortOrder),visual:option.visual||{hasCustomPhoto:false,imageUrl:null,version:null},photos:Array.isArray(option.photos)?option.photos.filter(photo=>photo?.imageUrl).slice(0,5):[],
     })).filter(option=>option.id&&option.name);
     if(plannerSection&&plannerEventData){plannerSection.dataset.eventId=plannerEventData.id;plannerSection.dataset.eventYear=plannerEventData.year}
-    const statusCopy=qs('.planner-status span',planner);if(statusCopy&&plannerEventData)statusCopy.textContent=`Výběr pro United ${plannerEventData.year} zatím není rezervace. Dokončíš ji v Můj United.`;
+    const statusCopy=qs('.planner-status span',planner);if(statusCopy&&plannerEventData)statusCopy.textContent=`Výběr pro United ${plannerEventData.year} zatím není uložená registrace. Dokončíš ji v Můj United.`;
     renderPlannerAccommodationOptions();updatePlanner();
   }catch(error){console.debug('Aktuální nabídka ubytování není dostupná; Planner pokračuje bez live ceníku.',error);plannerEventData=null;plannerAccommodationOptions=[];renderPlannerAccommodationOptions();updatePlanner()}
 };
@@ -1027,7 +1027,7 @@ const setPlannerNavigationState=(busy,message='')=>{
 };
 const plannerNavigationFailed=()=>setPlannerNavigationState(false,'Přechod se nepodařil. Zkus to prosím znovu.');
 const openExistingReservation=()=>{
-  if(memberHandoffNavigating)return;setPlannerNavigationState(true,'Otevírám tvoji rezervaci…');
+  if(memberHandoffNavigating)return;setPlannerNavigationState(true,'Otevírám tvoji registraci…');
   try{window.location.assign(new URL('member.html?section=reservation',window.location.href).href)}catch{plannerNavigationFailed()}
 };
 const continueToMember=async mode=>{

@@ -119,7 +119,7 @@ test('secondary reservation failure opens shell with unavailable state and manua
 
 test('authenticated Planner opens an existing reservation without creating another handoff',async({page,context})=>{
   const observations=await prepareE2ePage(page,{authenticated:true,reservation:paidReservation});
-  await page.goto('/#planer');const cta=page.locator('[data-planner-mail]');await expect(cta).toContainText('Otevřít aktuální rezervaci');await expect(page.locator('.planner-actionbar-copy strong')).toContainText('Rezervaci už máš');
+  await page.goto('/#planer');const cta=page.locator('[data-planner-mail]');await expect(cta).toContainText('Otevřít aktuální registraci');await expect(page.locator('.planner-actionbar-copy strong')).toContainText('Registraci už máš');
   await clickReady(cta);await expect(page).toHaveURL(/member\.html\?section=reservation$/);await expect(page.locator('[data-member-panel="reservation"]')).toBeVisible();
   expect(observations.requests.some(item=>item==='POST /api/planner-handoffs')).toBe(false);expect(context.pages()).toHaveLength(1);expectNoUnexpectedClientErrors(observations);
 });
@@ -139,9 +139,9 @@ test('approved reservation change supports sold-out inquiry, compact layouts and
   await page.goto('/member.html?section=reservation');
   await expect(page.locator('[data-reservation-payment-detail]')).toContainText('Zaplaceno');
   const statusCard=page.locator('.reservation-status-card'),detailCard=page.locator('.reservation-unified-card');
-  await expect(statusCard).toContainText('STAV REZERVACE');
-  await expect(detailCard).not.toContainText('STAV REZERVACE');
-  await expect(detailCard.locator('.reservation-unified-head')).toContainText('Tvoje rezervace');
+  await expect(statusCard).toContainText('STAV REGISTRACE');
+  await expect(detailCard).not.toContainText('STAV REGISTRACE');
+  await expect(detailCard.locator('.reservation-unified-head')).toContainText('Tvoje registrace');
   await expect(page.locator('[data-member-payment]')).toHaveCount(0);
   const statusBox=await statusCard.boundingBox(),detailBox=await detailCard.boundingBox();
   expect(detailBox.y-statusBox.y-statusBox.height).toBeGreaterThanOrEqual(10);
@@ -179,7 +179,7 @@ test('approved reservation change supports sold-out inquiry, compact layouts and
 test('existing rejected reservation hides a stale Planner handoff and never presents a closed registration action',async({page})=>{
  const rejected={...paidReservation,status:'rejected',payment:null,amountPaidCzk:0};const draftId='22222222-2222-4222-8222-222222222222';
  const observations=await prepareE2ePage(page,{authenticated:true,reservation:rejected});await page.addInitScript(({draftId})=>{const now=Date.now();localStorage.setItem('e36UnitedPlannerHandoff:'+draftId,JSON.stringify({version:1,draftId,source:'weekend-planner',eventId:'united-2026',eventYear:2026,createdAt:new Date(now-1000).toISOString(),expiresAt:new Date(now+86400000).toISOString(),arrival:'Pátek',departure:'Neděle',nights:2,attendanceType:'full_weekend',accommodation:'Bez ubytování',accommodationOptionId:null,accommodationUnits:0,crew:2,showShine:'Ne'}))},{draftId});
- await page.goto(`/member.html?section=reservation&draft=${draftId}`);await expect(page.locator('[data-planner-handoff]')).toBeHidden();const action=page.locator('[data-reservation-submit]');await expect(action).toBeDisabled();await expect(action).toHaveText('Rezervace byla zamítnuta');await expect(action).toHaveClass(/is-rejected-closed/);await expect(page.locator('.reservation-unified-card .member-saved-accommodation-visual')).toHaveCount(1);expectNoUnexpectedClientErrors(observations);
+ await page.goto(`/member.html?section=reservation&draft=${draftId}`);await expect(page.locator('[data-planner-handoff]')).toBeHidden();const action=page.locator('[data-reservation-submit]');await expect(action).toBeDisabled();await expect(action).toHaveText('Registrace nebyla schválena');await expect(action).toHaveClass(/is-rejected-closed/);await expect(page.locator('.reservation-unified-card .member-saved-accommodation-visual')).toHaveCount(1);expectNoUnexpectedClientErrors(observations);
 });
 
 test('paid reservation cancellation remains a request and keeps payment visible',async({page})=>{

@@ -209,7 +209,7 @@ test.describe('desktop member portal', () => {
     await page.locator('[data-request-change]').click();
     const modal=page.locator('[data-reservation-change-modal]');
     await expect(modal).toBeVisible();
-    await expect(modal).toContainText('Současná schválená rezervace zůstává platná');
+    await expect(modal).toContainText('Platné údaje zůstanou beze změny až do rozhodnutí United týmu.');
     await expect(modal.locator('[data-reservation-change-recap]')).toContainText('Chatka Premium');
     await expect(form).toHaveClass(/is-editing/);
     await expect(form.locator('[name="accommodationOptionId"]')).toBeEnabled();

@@ -7,16 +7,16 @@
   <meta content="#090a0c" name="theme-color"/>
   <title>United Admin | E36 United</title>
   <link href="styles.css?v=20260825-mobile1" rel="stylesheet"/>
-  <link href="accommodation-visual.css?v=20260919-preliminary-r1" rel="stylesheet"/>
-  <link href="admin/accommodation-gallery.css?v=20260919-preliminary-r1" rel="stylesheet"/>
-  <link href="admin.css?v=20260919-preliminary-r1" rel="stylesheet"/>
+  <link href="accommodation-visual.css?v=20260920-registration-ui-r1" rel="stylesheet"/>
+  <link href="admin/accommodation-gallery.css?v=20260920-registration-ui-r1" rel="stylesheet"/>
+  <link href="admin.css?v=20260920-registration-ui-r1" rel="stylesheet"/>
   <link href="admin/funnel.css?v=20260907-feedback" rel="stylesheet"/>
   <link rel="stylesheet" href="admin-safety.css?v=20260908-stage1"/>
-  <link href="admin-members.css?v=20260919-preliminary-r1" rel="stylesheet"/>
+  <link href="admin-members.css?v=20260920-registration-ui-r1" rel="stylesheet"/>
   <link href="admin/dashboard.css?v=20260908-stage3" rel="stylesheet"/>
   <link href="admin/command-center.css?v=20260912-reservation-compact-r1" rel="stylesheet"/>
-  <link href="admin/command-polish.css?v=20260919-preliminary-r1" rel="stylesheet"/>
-  <link href="admin/compact-overviews.css?v=20260919-preliminary-r1" rel="stylesheet"/>
+  <link href="admin/command-polish.css?v=20260920-registration-ui-r1" rel="stylesheet"/>
+  <link href="admin/compact-overviews.css?v=20260920-registration-ui-r1" rel="stylesheet"/>
 </head>
 <body class="admin-page">
   <header class="site-header scrolled admin-header">
@@ -92,16 +92,16 @@
           </section>
 
           <section class="admin-reservations admin-view-panel" data-admin-panel="reservations" hidden>
-            <div class="admin-section-head"><div><span class="admin-kicker">RESERVATIONS</span><h2>Rezervace členů.</h2><p>Rychlý provozní přehled nebo detailnější tabulka nad stejnými daty.</p></div><span class="admin-count" data-reservation-count>0 záznamů</span></div>
+            <div class="admin-section-head"><div><span class="admin-kicker">REGISTRATIONS</span><h2>Registrace členů.</h2><p>Schvalování účasti, aut a volitelného ubytování.</p></div><span class="admin-count" data-reservation-count>0 záznamů</span></div>
             <div class="admin-view-body" id="admin-reservations-content">
             <div class="admin-agenda-toolbar">
-              <label class="admin-search"><span>HLEDAT REZERVACI</span><input autocomplete="off" data-reservation-search placeholder="Jméno, přezdívka, e-mail nebo VS" type="search"/></label>
-              <div aria-label="Režim tabulky rezervací" class="admin-view-switch" data-reservation-view-switch role="group">
+              <label class="admin-search"><span>HLEDAT REGISTRACI</span><input autocomplete="off" data-reservation-search placeholder="Jméno, přezdívka, e-mail nebo VS" type="search"/></label>
+              <div aria-label="Režim tabulky registrací" class="admin-view-switch" data-reservation-view-switch role="group">
                 <button aria-pressed="true" class="is-active" data-reservation-mode="quick" type="button">Quick overview</button>
                 <button aria-pressed="false" data-reservation-mode="detail" type="button">Detail</button>
               </div>
             </div>
-            <div aria-label="Filtrovat rezervace podle stavu" class="admin-reservation-tabs" data-reservation-tabs role="tablist">
+            <div aria-label="Filtrovat registrace podle stavu" class="admin-reservation-tabs" data-reservation-tabs role="tablist">
               <button aria-selected="true" class="admin-reservation-tab is-active" data-reservation-filter="all" role="tab" type="button">Vše <b data-reservation-filter-count="all">0</b></button>
               <button aria-selected="false" class="admin-reservation-tab" data-reservation-filter="action" role="tab" type="button">Vyžaduje akci <b data-reservation-filter-count="action">0</b></button>
               <button aria-selected="false" class="admin-reservation-tab" data-reservation-filter="active" role="tab" type="button">Aktivní <b data-reservation-filter-count="active">0</b></button>
@@ -110,7 +110,7 @@
             </div>
             <div class="admin-reservation-detail-filters" data-reservation-detail-panel hidden id="admin-reservation-detail-filters">
               <div><span>PODROBNÉ STAVY</span><button data-reservation-filter-clear type="button">Vymazat filtry</button></div>
-              <div aria-label="Podrobné filtry rezervací" class="admin-filter-chip-list">
+              <div aria-label="Podrobné filtry registrací" class="admin-filter-chip-list">
                 <button aria-pressed="false" data-reservation-detail-filter="pending" type="button">Pending</button>
                 <button aria-pressed="false" data-reservation-detail-filter="approved" type="button">Schváleno</button>
                 <button aria-pressed="false" data-reservation-detail-filter="payment" type="button">K platbě</button>
@@ -121,8 +121,13 @@
                 <button aria-pressed="false" data-reservation-detail-filter="cancelled" type="button">Zrušeno</button>
               </div>
             </div>
-            <details data-admin-preliminary><summary>Předběžné rezervace — nezávazný zájem (<span data-admin-preliminary-count>—</span>)</summary><div data-admin-preliminary-content></div></details>
             <div class="admin-reservation-list" data-reservation-list></div></div>
+          </section>
+
+          <section class="admin-preliminary admin-view-panel" data-admin-panel="preliminary" hidden>
+            <div class="admin-section-head"><div><span class="admin-kicker">PRELIMINARY REGISTRATIONS</span><h2>Předběžné registrace.</h2><p>Nezávazný uložený zájem bez blokace kapacity, platby nebo QR.</p></div><span class="admin-count"><b data-admin-preliminary-count>—</b> aktivních</span></div>
+            <div class="admin-preliminary-toolbar"><p>Příjem pro vybraný event: <strong data-admin-preliminary-setting-state>—</strong></p><button class="admin-secondary" type="button" data-preliminary-setting>Nastavení</button></div>
+            <div class="admin-preliminary-list" data-admin-preliminary-content></div>
           </section>
 
           <section class="admin-gallery admin-view-panel" data-admin-panel="gallery" hidden>
@@ -150,7 +155,7 @@
           </section>
 
           <section class="booking-block admin-view-panel" data-admin-panel="payments" hidden>
-            <div class="admin-section-head booking-heading"><div><span class="admin-kicker">PAYMENTS</span><h2>Platby a závazky.</h2><p>Celková cena, skutečně uhrazená částka a aktuální doplatek nebo přeplatek každé rezervace.</p></div><span class="admin-count" data-payment-count>0 plateb</span></div>
+            <div class="admin-section-head booking-heading"><div><span class="admin-kicker">PAYMENTS</span><h2>Platby a závazky.</h2><p>Celková cena, skutečně uhrazená částka a aktuální doplatek nebo přeplatek každé registrace.</p></div><span class="admin-count" data-payment-count>0 plateb</span></div>
             <div class="booking-collapse-body" id="admin-booking-content">
               <div class="booking-primary"><small>Závazek United</small><strong data-booking-commitment>0 Kč</strong><span>Splatnost <b data-booking-due>—</b></span></div>
               <div class="booking-grid">
@@ -163,7 +168,7 @@
               <div class="admin-payment-overview">
                 <div class="payment-test-warning" data-admin-payment-test hidden>TESTOVACÍ PLATBA – NEPLAŤTE</div>
                 <div class="admin-payment-totals"><span><small>PŘEDEPSÁNO · PENDING + SCHVÁLENÉ</small><b data-payment-total-due>0 Kč</b></span><span><small>ZAZNAMENANÉ ÚHRADY · VŠECHNY STAVY</small><b data-payment-total-paid>0 Kč</b></span><span><small>NEDOPLATKY · PENDING + SCHVÁLENÉ</small><b data-payment-total-remaining>0 Kč</b></span></div>
-                <p>Ručně zaznamenané částky nejsou bankovní párování. Přeplatky se neodečítají od cizích nedoplatků. <span data-payment-extra></span></p><div class="admin-payment-counts" aria-label="Platební stavy všech rezervací vybraného eventu"><span>Nezaplaceno <b data-payment-count-unpaid>0</b></span><span>Částečně <b data-payment-count-underpaid>0</b></span><span>Zaplaceno <b data-payment-count-paid>0</b></span><span>Přeplatek <b data-payment-count-overpaid>0</b></span><span>Po splatnosti <b data-payment-count-overdue>0</b></span></div>
+                <p>Ručně zaznamenané částky nejsou bankovní párování. Přeplatky se neodečítají od cizích nedoplatků. <span data-payment-extra></span></p><div class="admin-payment-counts" aria-label="Platební stavy všech registrací vybraného eventu"><span>Nezaplaceno <b data-payment-count-unpaid>0</b></span><span>Částečně <b data-payment-count-underpaid>0</b></span><span>Zaplaceno <b data-payment-count-paid>0</b></span><span>Přeplatek <b data-payment-count-overpaid>0</b></span><span>Po splatnosti <b data-payment-count-overdue>0</b></span></div>
               </div>
             </div>
             <div class="admin-payment-workspace">
@@ -208,8 +213,8 @@
           <section class="admin-event-settings admin-view-panel" data-admin-panel="event" hidden>
             <div class="admin-section-head"><div><span class="admin-kicker">EVENT SETTINGS</span><h2>United <span data-event-settings-year>—</span>.</h2><p>Změny platí jen pro vybraný ročník a zapisují se do admin auditu.</p></div><span class="admin-view-label">EVENT</span></div>
             <p class="dashboard-settings-context" data-settings-context></p><div class="admin-view-body" id="admin-settings-content"><form class="admin-config-card admin-config-form" data-event-settings-form>
-              <label class="admin-field"><span>Rezervace</span><select name="registrationStatus"><option value="open">Otevřené</option><option value="closed">Uzavřené</option></select></label>
-              <label class="admin-field"><span>Kapacita rezervací</span><input min="0" name="reservationCapacity" required type="number"/></label>
+              <label class="admin-field"><span>Registrace</span><select name="registrationStatus"><option value="open">Otevřené</option><option value="closed">Uzavřené</option></select></label>
+              <label class="admin-field"><span>Kapacita registrací</span><input min="0" name="reservationCapacity" required type="number"/></label>
               <label class="admin-field"><span>Nocí · full weekend</span><input max="14" min="0" name="fullWeekendNights" required type="number"/></label>
               <label class="admin-field"><span>Nocí · sobota</span><input max="14" min="0" name="saturdayOnlyNights" required type="number"/></label>
               <label class="admin-field"><span>Booking závazek (Kč)</span><input min="0" name="bookingCommitmentCzk" required type="number"/></label>
@@ -217,7 +222,7 @@
               <label class="admin-field"><span>Booking paid (Kč)</span><input min="0" name="bookingPaidCzk" required type="number"/></label>
               <label class="admin-field"><span>Skutečný konec eventu</span><input name="eventEndAt" type="date"/><small>Teprve po tomto datu se ročník nabídne v historii členů.</small></label>
               <label class="admin-field"><span>Venue / kemp</span><input name="venueName" type="text" maxlength="120"/><small>Volitelné. Bez názvu se na webu zobrazí jen termín.</small></label>
-              <label class="admin-check admin-field--wide"><input name="isCurrent" type="checkbox"/><span>Použít jako aktuální event pro web a členské rezervace</span></label>
+              <label class="admin-check admin-field--wide"><input name="isCurrent" type="checkbox"/><span>Použít jako aktuální event pro web a členské registrace</span></label>
               <button class="admin-button admin-button--primary" type="submit">Uložit nastavení <span>→</span></button>
             </form></div>
           </section>
@@ -322,13 +327,13 @@
   </div>
   <div aria-labelledby="admin-history-evidence-title" aria-modal="true" class="admin-history-evidence-lightbox" data-history-evidence-lightbox hidden role="dialog"><button aria-label="Zavřít důkazní fotografii" class="admin-gallery-lightbox-backdrop" data-history-evidence-close type="button"></button><div class="admin-history-evidence-dialog"><button aria-label="Zavřít náhled" class="admin-gallery-lightbox-close" data-history-evidence-close type="button">×</button><img alt="Soukromý důkaz účasti" data-history-evidence-full/><aside><span class="admin-kicker">SOUKROMÝ DŮKAZ</span><h2 id="admin-history-evidence-title" data-history-evidence-title>United historie</h2><p data-history-evidence-member></p><dl><div><dt>ODESLÁNO</dt><dd data-history-evidence-submitted>—</dd></div><div><dt>NAHRÁNO</dt><dd data-history-evidence-created>—</dd></div><div><dt>DOCHÁZKA</dt><dd data-history-evidence-attendance>—</dd></div><div><dt>SHOW &amp; SHINE</dt><dd data-history-evidence-sns>—</dd></div></dl><div class="admin-history-evidence-thumbs" data-history-evidence-thumbs></div></aside></div></div>
   <div aria-labelledby="admin-reservation-drawer-title" aria-modal="true" class="admin-reservation-drawer" data-reservation-drawer hidden role="dialog">
-    <button aria-label="Zavřít detail rezervace" class="admin-reservation-drawer-backdrop" data-reservation-drawer-close type="button"></button>
+    <button aria-label="Zavřít detail registrace" class="admin-reservation-drawer-backdrop" data-reservation-drawer-close type="button"></button>
     <aside class="admin-reservation-drawer-panel">
-      <button aria-label="Zavřít detail rezervace" class="admin-reservation-drawer-close" data-reservation-drawer-close type="button">×</button>
+      <button aria-label="Zavřít detail registrace" class="admin-reservation-drawer-close" data-reservation-drawer-close type="button">×</button>
       <div data-reservation-drawer-content></div>
     </aside>
   </div>
   <div aria-live="polite" class="admin-toast" data-toast role="status"></div>
-  <script src="admin.js?v=20260919-preliminary-r1" type="module"></script>
+  <script src="admin.js?v=20260920-registration-ui-r1" type="module"></script>
 </body>
 </html>

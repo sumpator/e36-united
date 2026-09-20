@@ -93,7 +93,7 @@ for (const width of [390, 1440]) test(`public readability layout remains usable 
   }
   await expect(page.locator('.band-section')).toHaveCount(0);
   await expect(page.locator('.story-preview--community .section-title')).toHaveText(/Šest ročníků\.\s*Jedna komunita\./);
-  await expect(page.locator('#planer .section-title')).toHaveText('Poskládej si svůj United.');
+  await expect(page.locator('#planer .section-title')).toHaveText('Registruj se na United');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 
   expectNoUnexpectedClientErrors(observations);

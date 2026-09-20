@@ -15,7 +15,7 @@ export function trendModel(payload,range='all'){
   const shown=start?Array.from({length:Number(range)},(_,i)=>new Date(Date.parse(start+'T00:00:00Z')+i*86400000).toISOString().slice(0,10)):days.map(d=>d.day);
   let total=days.filter(d=>start&&d.day<start).reduce((n,d)=>n+d.count,0);
   const rows=shown.map(day=>{const added=byDate.get(day)?.count||0;total+=added;return row(day,total,'reservations',{added,drill:{to:day}})});
-  return {rows,unit:'rezervace',definition:'Kumulativně vytvořené rezervace všech stavů, včetně základu před zvoleným rozsahem. UTC / created_at; nejde o aktuální aktivní rezervace.',
+  return {rows,unit:'registrace',definition:'Kumulativně vytvořené registrace všech stavů, včetně základu před zvoleným rozsahem. UTC / created_at; nejde o aktuální aktivní registrace.',
     range,start,end:range==='all'?days.at(-1)?.day||today:today,missing:payload.missingDateCount||0,kind:'line'};
 }
 export function chartModel(id,summary,analytics,range='all'){
@@ -27,19 +27,19 @@ export function chartModel(id,summary,analytics,range='all'){
     rows:[row('Předpis aktivním',p.amountDueCzk,'activeDue'),row('Aplikováno na aktivní závazky',p.appliedToActiveCzk,'applied'),
       row('Zbývá aktivním',p.amountRemainingCzk,'outstanding'),row('Evidováno celkem · všechny stavy',p.amountPaidCzk,'recorded'),
       row('Úhrady mimo aktivní · i zrušené',p.inactivePaidCzk,'inactivePaid'),row('Přeplatky · všechny stavy',p.overpaymentCzk,'overpaid')]}:null;
-  if(id==='statuses')return{unit:'rezervace',kind:'bars',definition:'Disjunktní stavy všech uložených rezervací vybraného ročníku.',
+  if(id==='statuses')return{unit:'registrace',kind:'bars',definition:'Disjunktní stavy všech uložených registrací vybraného ročníku.',
     rows:[['pending','Čekající'],['approved','Schválené'],['rejected','Zamítnuté'],['cancelled','Zrušené'],['draft','Koncepty']].map(([key,label])=>row(label,o.statuses?.[key],key))};
-  if(id==='attendance')return{unit:'aktivní rezervace',kind:'bars',definition:'Plánovaná účast pending + approved rezervací. Nikoli skutečný příjezd / check-in.',
+  if(id==='attendance')return{unit:'aktivní registrace',kind:'bars',definition:'Plánovaná účast pending + approved registrací. Nikoli skutečný příjezd / check-in.',
     rows:[['fullWeekend','Celý víkend','full_weekend'],['saturdayOnly','Sobota','saturday_only'],['dayVisit','Na otočku','day_visit']].map(([key,label,type])=>row(label,o.attendance?.[key],'active',{drill:{attendance:type}}))};
-  if(id==='sns')return{unit:'aktivní rezervace',kind:'bars',definition:'Deklarovaný zájem pending + approved rezervací. Nikoli přihlášky, hodnocení nebo výsledky.',
+  if(id==='sns')return{unit:'aktivní registrace',kind:'bars',definition:'Deklarovaný zájem pending + approved registrací. Nikoli přihlášky, hodnocení nebo výsledky.',
     rows:[['yes','Ano'],['maybe','Možná'],['no','Ne']].map(([key,label])=>row(label,o.showShine?.[key],'active',{drill:{sns:label}}))};
   return null;
 }
 export function attentionModel(summary,analytics,{summaryFresh=false,analyticsFresh=false}={}){
   const o=summary?.overview,a=summary?.attention;
-  const rows=[row('Rezervační schvalování',a?.reservationApprovals?.total,'reservationApprovals',{scope:'Vybraný ročník',reason:'Nové rezervace, změny a zrušení',oldest:analytics?.attention?.oldestPendingAt}),
+  const rows=[row('Rezervační schvalování',a?.reservationApprovals?.total,'reservationApprovals',{scope:'Vybraný ročník',reason:'Nové registrace, změny a zrušení',oldest:analytics?.attention?.oldestPendingAt}),
     row('Čeká na úhradu',analytics?.attention?.awaiting,'awaiting',{scope:'Vybraný ročník',reason:'Aktivní nedoplatky, které nejsou po splatnosti'}),
-    row('Po splatnosti',o?.payments?.overdue,'overdue',{scope:'Vybraný ročník',reason:'Podle uložené splatnosti schválených rezervací'}),
+    row('Po splatnosti',o?.payments?.overdue,'overdue',{scope:'Vybraný ročník',reason:'Podle uložené splatnosti schválených registrací'}),
     row('Přeplatky',o?.payments?.overpaid,'overpaid',{scope:'Vybraný ročník · všechny stavy',reason:'Ke kontrole, bez automatického refundu'}),
     row('Fotky ke schválení',a?.gallery,'photos',{scope:'Globálně',reason:'Komunitní galerie',oldest:o?.gallery?.oldestPendingAt}),
     row('Historie / S&S ke kontrole',a?.history,'history',{scope:'Globálně',reason:'Unikátní žádosti, komponenty se mohou překrývat',oldest:o?.history?.oldestPendingAt})];

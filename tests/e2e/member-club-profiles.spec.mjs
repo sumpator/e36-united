@@ -64,7 +64,7 @@ async function verifyMemberAndGallery(page,label){
   const intro=page.locator('[data-onboarding-intro-modal]');await expect(intro).toBeVisible();await expect(intro).toContainText('TVŮJ UNITED ZAČÍNÁ TADY');
   if(label==='desktop')await intro.locator('.united-onboarding').screenshot({path:'test-results/member-onboarding-first-desktop.png'});
   await intro.getByRole('button',{name:'Zavřít úvod'}).click();await expect(intro).toBeHidden();
-  const onboarding=page.locator('[data-united-onboarding]');await expect(onboarding).toBeVisible();await expect(onboarding).toContainText('Otevřít rezervaci');
+  const onboarding=page.locator('[data-united-onboarding]');await expect(onboarding).toBeVisible();await expect(onboarding).toContainText('Otevřít registraci');
   await page.reload();await expect(page.locator('[data-app-view]')).toBeVisible();await expect(intro).toBeHidden();
 
   await page.locator('[data-member-section="club"]').click();const clubPanel=page.locator('[data-member-panel="club"]');await expect(clubPanel).toHaveClass(/is-active/);

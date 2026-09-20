@@ -1,10 +1,10 @@
-import {adminState} from './state.js?v=20260919-preliminary-r1';
-import {$,$$,escapeHtml as esc,rememberSessionChoice} from './ui.js?v=20260919-preliminary-r1';
-import {apiRequest} from './api.js?v=20260919-preliminary-r1';
-import {ADMIN_REFRESH} from './refresh-policy.js?v=20260919-preliminary-r1';
-import qrcode from '../vendor/qrcode-generator.mjs?v=20260919-preliminary-r1';
-import {MEMBER_TABS,memberIdentity,memberOverview,memberReservation,memberSection,memberEmpty} from './member-presentation.js?v=20260919-preliminary-r1';
-import {compactMemberDetails,compactMemberIdentity,compactMemberPhoto,createCardMedia} from './member-cards.js?v=20260919-preliminary-r1';
+import {adminState} from './state.js?v=20260920-registration-ui-r1';
+import {$,$$,escapeHtml as esc,rememberSessionChoice} from './ui.js?v=20260920-registration-ui-r1';
+import {apiRequest} from './api.js?v=20260920-registration-ui-r1';
+import {ADMIN_REFRESH} from './refresh-policy.js?v=20260920-registration-ui-r1';
+import qrcode from '../vendor/qrcode-generator.mjs?v=20260920-registration-ui-r1';
+import {MEMBER_TABS,memberIdentity,memberOverview,memberReservation,memberSection,memberEmpty} from './member-presentation.js?v=20260920-registration-ui-r1';
+import {compactMemberDetails,compactMemberIdentity,compactMemberPhoto,createCardMedia} from './member-cards.js?v=20260920-registration-ui-r1';
 const cardsMedia=createCardMedia();
 let memberListMarkup=null;
 function clearCards(){cardsMedia.clear();memberListMarkup=null}
@@ -74,7 +74,7 @@ export function renderMemberHeader(payload){
  ensureProjectionContext();headerData=payload;
  const identity=memberIdentity(payload.member,payload.heroCar);if($('[data-member-identity]').innerHTML!==identity)$('[data-member-identity]').innerHTML=identity;
  renderMemberHero(payload);
- $('[data-member-event]').innerHTML=payload.reservations?.length?payload.reservations.map(memberReservation).join(''):memberEmpty('Na tento ročník zatím nemá rezervaci.','reservations');syncTabs();renderMemberReadState();
+ $('[data-member-event]').innerHTML=payload.reservations?.length?payload.reservations.map(memberReservation).join(''):memberEmpty('Na tento ročník zatím nemá registraci.','reservations');syncTabs();renderMemberReadState();
 }
 export function renderMembers(payload){
  const list=$('[data-member-list]'),markup=rows(payload.members,m=>`<article class="admin-member-card compact-member-card">${compactMemberIdentity(m)}${compactMemberPhoto(m)}${compactMemberDetails(m)}</article>`)+pagination(payload,'list');

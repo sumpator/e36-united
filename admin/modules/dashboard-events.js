@@ -1,9 +1,9 @@
-import { adminCommand, editorProtected, changedFields, forgetAdminEditor } from '../editors.js?v=20260919-preliminary-r1';
-import { adminActionCountState, adminModerationCounts, paymentNeedsAttention, reservationMatchesFilter } from '../../admin-view-model.js?v=20260919-preliminary-r1';
-import { apiRequest } from '../api.js?v=20260919-preliminary-r1';
-import { adminState } from '../state.js?v=20260919-preliminary-r1';
-import { setDenied } from '../shell.js?v=20260919-preliminary-r1';
-import { $, $$, escapeHtml, formatDate, formatMoney, numeric, toast } from '../ui.js?v=20260919-preliminary-r1';
+import { adminCommand, editorProtected, changedFields, forgetAdminEditor } from '../editors.js?v=20260920-registration-ui-r1';
+import { adminActionCountState, adminModerationCounts, paymentNeedsAttention, reservationMatchesFilter } from '../../admin-view-model.js?v=20260920-registration-ui-r1';
+import { apiRequest } from '../api.js?v=20260920-registration-ui-r1';
+import { adminState } from '../state.js?v=20260920-registration-ui-r1';
+import { setDenied } from '../shell.js?v=20260920-registration-ui-r1';
+import { $, $$, escapeHtml, formatDate, formatMoney, numeric, toast } from '../ui.js?v=20260920-registration-ui-r1';
 
 
 export function renderEventSelector(){
@@ -49,7 +49,7 @@ export function renderOverview(payload){
   adminState.summary=payload;
   adminState.historyCounts={...adminState.historyCounts,...history};
   $('[data-event-year]').textContent=event?.year||'—';
-  $('[data-event-state]').textContent=event?`${event.isCurrent?'Aktuální event · ':''}Rezervace: ${event.registrationStatus==='open'?'otevřené':'uzavřené'}`:'Žádný event v databázi';
+  $('[data-event-state]').textContent=event?`${event.isCurrent?'Aktuální event · ':''}Registrace: ${event.registrationStatus==='open'?'otevřené':'uzavřené'}`:'Žádný event v databázi';
   const current=adminState.events.find(item=>item.isCurrent);
   $('[data-settings-context]').textContent=`Upravuješ vybraný ročník United ${event?.year||'—'}. Veřejný CURRENT: United ${current?.year||'—'}. Přepnutí vybraného ročníku nemění veřejný event.`;
   renderEventSettings(event);
@@ -63,7 +63,7 @@ export function renderOverview(payload){
   $('[data-booking-gap]').textContent=formatMoney(Math.max(0,commitment-collected));
   $('[data-payment-total-due]').textContent=formatMoney(payments.amountDueCzk);$('[data-payment-total-paid]').textContent=formatMoney(payments.amountPaidCzk);$('[data-payment-total-remaining]').textContent=formatMoney(payments.amountRemainingCzk);
   $('[data-payment-count-unpaid]').textContent=numeric(payments.unpaid);$('[data-payment-count-underpaid]').textContent=numeric(payments.underpaid);$('[data-payment-count-paid]').textContent=numeric(payments.paid);$('[data-payment-count-overpaid]').textContent=numeric(payments.overpaid);$('[data-payment-count-overdue]').textContent=numeric(payments.overdue);
-  const extra=$('[data-payment-extra]');if(extra)extra.textContent=`Přeplatky: ${formatMoney(payments.overpaymentCzk)} · Úhrady mimo aktivní rezervace: ${formatMoney(payments.inactivePaidCzk)}.`;
+  const extra=$('[data-payment-extra]');if(extra)extra.textContent=`Přeplatky: ${formatMoney(payments.overpaymentCzk)} · Úhrady mimo aktivní registrace: ${formatMoney(payments.inactivePaidCzk)}.`;
   const testWarning=$('[data-admin-payment-test]');if(testWarning)testWarning.hidden=!event?.paymentTestMode;
   renderAttentionCounts();
 }
@@ -105,7 +105,7 @@ export async function saveEventSettings(form,reloadAdminData){
   const event=selectedEvent();if(!event)return;
   const data=new FormData(form);
   const switchingCurrent=!event.isCurrent&&form.elements.isCurrent.checked;
-  if(switchingCurrent&&!window.confirm(`Nastavit United ${numeric(event.year)} jako aktuální event? Změna okamžitě ovlivní veřejný Weekend Planner a členské rezervace.`)){form.elements.isCurrent.checked=false;return}
+  if(switchingCurrent&&!window.confirm(`Nastavit United ${numeric(event.year)} jako aktuální event? Změna okamžitě ovlivní veřejný Weekend Planner a členské registrace.`)){form.elements.isCurrent.checked=false;return}
   const body={
     venueName:String(data.get('venueName')||''),
     registrationStatus:String(data.get('registrationStatus')||''),reservationCapacity:Number(data.get('reservationCapacity')),

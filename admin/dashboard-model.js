@@ -1,16 +1,16 @@
-import {QUICK_LINK_IDS} from './destinations.js?v=20260919-preliminary-r1';
+import {QUICK_LINK_IDS} from './destinations.js?v=20260920-registration-ui-r1';
 export const COMPOSITIONS=Object.freeze({preparation:'Příprava srazu',onsite:'Na srazu'});
 export const WIDGETS=Object.freeze({
-  reservations:{label:'Rezervace',kind:'kpi',sizes:['compact'],definition:'Pending + approved · rezervace',destination:'active'},
-  people:{label:'Osoby',kind:'kpi',sizes:['compact'],definition:'Plánované osoby v pending + approved rezervacích',destination:'active'},
+  reservations:{label:'Registrace',kind:'kpi',sizes:['compact'],definition:'Pending + approved · registrace',destination:'active'},
+  people:{label:'Osoby',kind:'kpi',sizes:['compact'],definition:'Plánované osoby v pending + approved registracích',destination:'active'},
   recorded:{label:'Evidovaně uhrazeno',kind:'kpi',sizes:['compact'],definition:'Kč · všechny stavy včetně zrušených',destination:'recorded'},
-  outstanding:{label:'Zbývá uhradit',kind:'kpi',sizes:['compact'],definition:'Kč · součet kladných nedoplatků aktivních rezervací',destination:'outstanding'},
-  trend:{label:'Vývoj rezervací',kind:'chart',sizes:['wide','compact'],definition:'Zaznamenané rezervace · všechny stavy · created_at / UTC'},
+  outstanding:{label:'Zbývá uhradit',kind:'kpi',sizes:['compact'],definition:'Kč · součet kladných nedoplatků aktivních registrací',destination:'outstanding'},
+  trend:{label:'Vývoj registrací',kind:'chart',sizes:['wide','compact'],definition:'Zaznamenané registrace · všechny stavy · created_at / UTC'},
   occupancy:{label:'Ubytování podle typu',kind:'chart',sizes:['wide','compact'],definition:'Fyzické jednotky · potvrzené a čekající odděleně'},
   finance:{label:'Finance v souvislostech',kind:'chart',sizes:['compact','wide'],definition:'Kč · předpis a aplikované úhrady v aktivních závazcích; ostatní úhrady odděleně'},
-  statuses:{label:'Stavy rezervací',kind:'chart',sizes:['compact','wide'],definition:'Rezervace · disjunktní aktuální stavy, celý vybraný ročník'},
-  attendance:{label:'Plánovaná účast',kind:'chart',sizes:['compact','wide'],definition:'Aktivní rezervace · deklarovaná účast, nikoli skutečný příjezd'},
-  sns:{label:'Deklarovaný zájem S&S',kind:'chart',sizes:['compact','wide'],definition:'Aktivní rezervace · zájem, nikoli soutěžní přihlášky nebo výsledky'},
+  statuses:{label:'Stavy registrací',kind:'chart',sizes:['compact','wide'],definition:'Registrace · disjunktní aktuální stavy, celý vybraný ročník'},
+  attendance:{label:'Plánovaná účast',kind:'chart',sizes:['compact','wide'],definition:'Aktivní registrace · deklarovaná účast, nikoli skutečný příjezd'},
+  sns:{label:'Deklarovaný zájem S&S',kind:'chart',sizes:['compact','wide'],definition:'Aktivní registrace · zájem, nikoli soutěžní přihlášky nebo výsledky'},
   members:{label:'Členské profily',kind:'kpi',sizes:['compact'],definition:'Globální D1 profily · nikoli úplný census Firebase',destination:'members'},
   planner:{label:'Registrace / Planner funnel',kind:'detail',sizes:['wide'],definition:'Volitelné forward-only pozorování · detaily nejvýše 50'},
 });

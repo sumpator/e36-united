@@ -1,5 +1,5 @@
 // Frontend-only catalog. The deployed schema-v1 validator and saved unknown IDs stay intact.
-import { WIDGETS as LEGACY } from './dashboard-model.js?v=20260919-preliminary-r1';
+import { WIDGETS as LEGACY } from './dashboard-model.js?v=20260920-registration-ui-r1';
 export const COMMAND_WIDGETS = Object.freeze({
   ...LEGACY,
   approvals: {
@@ -8,7 +8,7 @@ export const COMMAND_WIDGETS = Object.freeze({
     sizes: ['wide', 'compact']
   },
   'reservation-summary': {
-    label: 'Rezervace & ubytování',
+    label: 'Registrace & ubytování',
     kind: 'command',
     sizes: ['compact', 'wide']
   },
@@ -18,7 +18,7 @@ export const COMMAND_WIDGETS = Object.freeze({
     sizes: ['wide', 'compact']
   },
   recent: {
-    label: 'Poslední rezervace',
+    label: 'Poslední registrace',
     kind: 'command',
     sizes: ['wide', 'compact']
   },
@@ -81,8 +81,8 @@ export function commandBadges(summary) {
   };
 }
 export const BADGE_SCOPE = Object.freeze({
-  dashboard: 'Vybraný ročník: unikátní rezervace pending / po splatnosti / přeplacené + globální fotky a unikátní historické žádosti',
-  reservations: 'Vybraný ročník: nové čekající rezervace a pending žádosti o změnu nebo zrušení',
+  dashboard: 'Vybraný ročník: unikátní registrace pending / po splatnosti / přeplacené + globální fotky a unikátní historické žádosti',
+  reservations: 'Vybraný ročník: nové čekající registrace a pending žádosti o změnu nebo zrušení',
   payments: 'Vybraný ročník: unikátní případy po splatnosti nebo přeplatku',
   photos: 'Globálně: čekající komunitní fotografie, bez Garage',
   history: 'Globálně: unikátní žádosti s čekající účastí nebo S&S',
