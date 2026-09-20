@@ -3,6 +3,7 @@ export const ALLOWED_ORIGINS = new Set([
   "https://www.e36united.cz",
   "https://e36-united.pages.dev",
   "https://cloudflare-auth-phase1.e36-united.pages.dev",
+  "https://feat-member-planner-change-r.e36-united.pages.dev",
 ]);
 
 export function isAllowedOrigin(origin) {

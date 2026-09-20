@@ -6,6 +6,7 @@ import { optionsResponse } from '../worker/http/cors.js';
 import { json } from '../worker/http/responses.js';
 
 const allowedOrigin = 'https://e36united.cz';
+const plannerPreviewOrigin = 'https://feat-member-planner-change-r.e36-united.pages.dev';
 
 test('allowed OPTIONS keeps the existing 204 CORS contract', () => {
   const response = optionsResponse(allowedOrigin);
@@ -22,6 +23,16 @@ test('disallowed OPTIONS keeps the existing bare 403 response', () => {
 
   assert.equal(response.status, 403);
   assert.equal(response.headers.get('Access-Control-Allow-Origin'), null);
+});
+
+test('only the exact Planner feature preview origin is allowed', () => {
+  const allowed = optionsResponse(plannerPreviewOrigin);
+  const otherPreview = optionsResponse('https://other-feature.e36-united.pages.dev');
+
+  assert.equal(allowed.status, 204);
+  assert.equal(allowed.headers.get('Access-Control-Allow-Origin'), plannerPreviewOrigin);
+  assert.equal(otherPreview.status, 403);
+  assert.equal(otherPreview.headers.get('Access-Control-Allow-Origin'), null);
 });
 
 test('JSON helper preserves status, body, cache and allowed-origin headers', async () => {
