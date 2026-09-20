@@ -25,7 +25,7 @@ test('hero keeps identity and onboarding CTA without session controls', () => {
 });
 
 test('mobile auth is compact while desktop auth content and tab behavior remain intact', () => {
-  assert.match(html, /auth-copy-desktop">Historie srazů, tvoje auta, rezervace, body a Achievements na jednom místě/);
+  assert.match(html, /auth-copy-desktop">Historie srazů, tvoje auta, registrace, body a Achievements na jednom místě/);
   assert.match(html, /auth-copy-mobile">Tvůj profil, auta a srazy na jednom místě/);
   for (const proof of ['12 / 12', 'GARAGE', 'ACHIEVEMENTS']) assert.match(html, new RegExp(proof));
   assert.match(html, /BMW E36 COMMUNITY ACCESS/);

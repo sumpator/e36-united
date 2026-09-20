@@ -100,6 +100,6 @@ test('polish payment labels use exact amounts, preserve stored values and have h
 });
 test('polish known-zero finance is neutral, unknown is distinct and positive overdue stays urgent',()=>{
  const markup=value=>commandCard('payment-summary',{summary:{overview:{payments:{overdue:value}}}},()=>'',()=> '');
- assert.match(markup(0),/data-money-kind="overdue" class="command-money neutral"/);assert.match(markup(0),/0 rezervací/);
+ assert.match(markup(0),/data-money-kind="overdue" class="command-money neutral"/);assert.match(markup(0),/0 registrací/);
  assert.match(markup(2),/data-money-kind="overdue" class="command-money red"/);assert.match(markup(undefined),/data-money-kind="overdue" class="command-money unknown"/);
 });

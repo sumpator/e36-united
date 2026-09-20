@@ -24,7 +24,7 @@ test('main navigation contains exactly seven internal panels in target order', (
   const sidebar = memberHtml.slice(memberHtml.indexOf('<aside class="member-sidebar"'), memberHtml.indexOf('</aside>'));
   const labels = [...sidebar.matchAll(/data-member-section="([^"]+)"/g)].map(match => match[1]);
   assert.deepEqual(labels, ['overview', 'reservation', 'garage', 'payments', 'club', 'photos', 'account']);
-  assert.match(sidebar, /data-member-section="reservation"[\s\S]*?<strong>Rezervace<\/strong><small>Sraz &amp; ubytování<\/small>/);
+  assert.match(sidebar, /data-member-section="reservation"[\s\S]*?<strong>Registrace<\/strong><small>Účast &amp; ubytování<\/small>/);
   for (const panel of ['overview', 'reservation', 'garage', 'payments', 'club', 'photos', 'account']) assert.match(memberHtml, new RegExp(`data-member-panel="${panel}"`));
 });
 
@@ -40,7 +40,7 @@ test('authenticated main mobile menu contains all Member Portal sections', () =>
   const start = memberHtml.indexOf('data-member-main-mobile-nav');
   const mobile = memberHtml.slice(start, memberHtml.indexOf('</div>', start));
   const labels = [...mobile.matchAll(/data-main-member-section="[^"]+"[^>]*>([^<]+)<\/button>/g)].map(match => match[1].replace('&amp;', '&'));
-  assert.deepEqual(labels, ['Přehled', 'Rezervace', 'Garáž', 'Platby', 'United Club', 'Moje fotky', 'Účet']);
+  assert.deepEqual(labels, ['Přehled', 'Registrace', 'Garáž', 'Platby', 'United Club', 'Moje fotky', 'Účet']);
   assert.match(memberHtml, /data-member-main-mobile-nav="" hidden=""/);
   assert.match(memberShellJs, /setMainMobileMemberNavigation\(true\)/);
   assert.match(memberShellJs, /setMainMobileMemberNavigation\(false\)/);

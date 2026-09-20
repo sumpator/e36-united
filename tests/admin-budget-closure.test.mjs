@@ -141,6 +141,7 @@ test('actual coordinator task selection reproduces the 12h workload without poll
   assert.equal(runInNewContext(taskFunctions+'\n(function(){'+body+'return tasks.length;})()',{...mocks,context:{view:'mailing',eventId:'e'},reason:'poll'}),1); // Shared badge summary, no hidden domain.
   const interest=()=>runInNewContext(preliminaryTasks+'\npreliminaryTasks()',{...mocks,$:()=>({open:true})});
   assert.equal(interest().length,0,'Mailing does not poll preliminary reservations');
-  state.activeAdminView='reservations';assert.equal(interest().length,1);assert.equal(interest()[0][3],ADMIN_REFRESH.heavyListMs);
+  state.activeAdminView='reservations';assert.equal(interest().length,0,'Registrations do not poll the separate preliminary list');
+  state.activeAdminView='preliminary';assert.equal(interest().length,1);assert.equal(interest()[0][3],ADMIN_REFRESH.heavyListMs);
   state.memberId='m';assert.equal(interest().length,0,'Member 360 suspends the background preliminary list');
 });

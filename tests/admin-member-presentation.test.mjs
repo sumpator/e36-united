@@ -20,9 +20,9 @@ test('Member overview adds only existing Club analytics to header tasks and keep
  adminState.memberTab='club';assert.equal(memberRefreshTasks()[1][1],tasks[1][1]);adminState.memberTab='event';assert.equal(memberRefreshTasks().length,1);adminState.memberId=null;
 });
 test('Member overview distinguishes success-empty, initial loading, unavailable and stale projections',()=>{
- assert.match(memberOverview(header,null),/Na tento ročník zatím nemá rezervaci/);assert.match(memberOverview(header,null),/Bez rezervace nejsou/);assert.doesNotMatch(memberOverview(header,null),/vše zaplaceno/i);
- const failed=memberOverview(null,null,{headerState:{state:'unavailable'},clubState:{state:'unavailable'}});assert.match(failed,/Rezervaci se nepodařilo načíst/);assert.doesNotMatch(failed,/zatím nemá rezervaci/);
- assert.match(memberOverview(null,null),/Načítám rezervaci/);assert.match(memberOverview(header,null,{headerState:{state:'stale'}}),/posledního úspěšného čtení/);
+ assert.match(memberOverview(header,null),/Na tento ročník zatím nemá registraci/);assert.match(memberOverview(header,null),/Bez registrace nejsou/);assert.doesNotMatch(memberOverview(header,null),/vše zaplaceno/i);
+ const failed=memberOverview(null,null,{headerState:{state:'unavailable'},clubState:{state:'unavailable'}});assert.match(failed,/Registraci se nepodařilo načíst/);assert.doesNotMatch(failed,/zatím nemá registraci/);
+ assert.match(memberOverview(null,null),/Načítám registraci/);assert.match(memberOverview(header,null,{headerState:{state:'stale'}}),/posledního úspěšného čtení/);
 });
 test('Member presentation uses exact per-reservation finance, known zero and unknown are distinct',()=>{
  const res={id:'r',eventId:'e',amountDueCzk:1000,amountPaidCzk:1300};
@@ -48,7 +48,7 @@ test('Member photos and reservations expose the existing moderation and editor d
  const photos=memberSection({context:{tab:'photos'},items:[{caption:'United',mediaPath:'/api/admin/members/m/media/photos/g',status:'pending',reviewNote:''}]});
  assert.match(photos,/data-member-photo-moderation/);assert.match(photos,/Čeká na schválení/);assert.doesNotMatch(photos,/>—</);assert.doesNotMatch(photos,/>Otevřít fotografii</);
  const garage=memberSection({context:{tab:'garage'},items:[{model:'328i',photos:[{mediaPath:'/photo'}]}]});assert.doesNotMatch(garage,/>Otevřít fotografii</);
- const reservation=memberSection({context:{tab:'reservations'},items:[{id:'r',eventId:'e'}]});assert.match(reservation,/Otevřít detail rezervace/);assert.doesNotMatch(reservation,/Zdroj: uložená rezervace/);
+ const reservation=memberSection({context:{tab:'reservations'},items:[{id:'r',eventId:'e'}]});assert.match(reservation,/Otevřít detail registrace/);assert.doesNotMatch(reservation,/Zdroj: uložená rezervace/);
 });
 
 test('Member known technical labels are presentation-only and keep Mailing eligibility distinct from consent',()=>{
