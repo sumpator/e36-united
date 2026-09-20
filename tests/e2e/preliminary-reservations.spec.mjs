@@ -13,27 +13,36 @@ const stableScroll=page=>page.evaluate(()=>new Promise(resolve=>{let previous=sc
 for(const width of [1440,390])test(`PLAN shared modal saves without a car and survives a new session ${width}`,async({page},info)=>{
  await page.setViewportSize({width,height:900});
  const observations=await prepareE2ePage(page,{authenticated:true,registrationOpen:false,cars:[]});
- const r=memberRuntime();r.db.exec("DELETE FROM reservations;DELETE FROM preliminary_reservations;UPDATE events SET registration_status='closed' WHERE id='e';INSERT INTO event_preliminary_settings(event_id,enabled,write_token) VALUES('e',1,'fixture')");
+ const r=memberRuntime();r.db.exec("DELETE FROM reservations;DELETE FROM preliminary_reservations;UPDATE events SET id='united-2026',registration_status='closed' WHERE id='e';INSERT INTO event_preliminary_settings(event_id,enabled,write_token) VALUES('united-2026',1,'fixture')");
  let serverDraft=null;
  await page.route('https://api.e36united.cz/api/planner-draft**',route=>route.fulfill({status:200,headers,json:{ok:true,draft:route.request().method()==='GET'?serverDraft:null,deleted:route.request().method()==='DELETE'}}));
  await page.route('https://api.e36united.cz/api/{preliminary-reservations,reservations}/current',async route=>{
-  const q=route.request();if(q.method()==='OPTIONS')return route.fulfill({status:204,headers});
-  const prelim=q.url().includes('/preliminary-reservations/');
+ const q=route.request();if(q.method()==='OPTIONS')return route.fulfill({status:204,headers});
+ const prelim=q.url().includes('/preliminary-reservations/');
+  if(!prelim&&q.method()==='GET')return route.fallback();
   const response=prelim?(q.method()==='GET'?await getPreliminaryReservation(r.env,{uid:'m'},origin):q.method()==='DELETE'?await cancelPreliminaryReservation(incoming(q),r.env,{uid:'m'},origin):await putPreliminaryReservation(incoming(q),r.env,{uid:'m'},origin)):
    q.method()==='GET'?await getCurrentReservation(r.env,{uid:'m'},origin):await putCurrentReservation(incoming(q),r.env,{uid:'m'},origin);
   await fulfill(route,response);
  });
  const open=async()=>{await page.goto('/member.html?section=reservation');await expect(page.locator('[data-app-view]')).toBeVisible();const intro=page.locator('[data-onboarding-intro-modal]');if(await intro.isVisible())await intro.getByRole('button',{name:'Zavřít úvod'}).click();await expect(intro).toBeHidden();};
- const review=async name=>{if(!process.env.E36_REVIEW_SCREENSHOTS)return;if(name.endsWith('-390'))await modal.getByRole('button',{name:'Zavřít Weekend Planner'}).focus();await page.screenshot({path:`docs/review/${name}.png`,fullPage:true})};
  await open();const modal=page.locator('[data-member-planner-modal]'),form=modal.locator('[data-reservation-form]'),submit=form.locator('[data-reservation-submit]');
  await expect(page.locator('[data-reservation-status-card], .reservation-status-card')).toContainText('Zatím přijímáme předběžné registrace.');await expect(page.locator('[data-preliminary-detail]')).toBeVisible();await page.locator('[data-member-plan-open]').click();await expect(modal).toBeVisible();
- await expect(submit).toContainText('Uložit předběžnou registraci');await expect(form.locator('[name="carId"]')).toHaveValue('');await modal.locator('[data-member-stay="2"]').click();
+ await expect(submit).toContainText('Uložit předběžnou registraci');await expect(form.locator('[name="carId"]')).toHaveValue('');
+ const plannerAddCar=modal.locator('[data-member-planner-add-car]');await expect(plannerAddCar).toBeVisible();await expect(plannerAddCar).toHaveText('+ Přidat auto');await expect(plannerAddCar).toHaveCSS('background-color','rgb(22, 77, 124)');await expect(modal).not.toContainText(/Auto doplníš později|Doplníš později/);
+ if(width===1440){await plannerAddCar.click();const carModal=page.locator('[data-car-modal]');await expect(carModal).toBeVisible();await carModal.getByRole('button',{name:'Zavřít formulář auta'}).click();await expect(carModal).toBeHidden();await expect(modal).toBeVisible()}
+ if(width===390){const box=await form.boundingBox(),right=390-(box.x+box.width);expect(box.x).toBeGreaterThanOrEqual(10);expect(box.x).toBeLessThanOrEqual(12);expect(right).toBeGreaterThanOrEqual(10);expect(right).toBeLessThanOrEqual(12)}
+ await modal.locator('[data-member-stay="0"]').click();await modal.locator('[data-member-sleep="Chatka"]').click();await form.locator('[name="accommodationOptionId"]').selectOption('cabin-standard');
+ const sleepStep=modal.locator('.planner-step--sleep'),optionSlot=modal.locator('[data-member-accommodation-option-slot]'),previewSlot=modal.locator('[data-member-accommodation-preview-slot]');await expect(previewSlot.locator('[data-member-accommodation-gallery]')).toBeVisible();await expect(previewSlot.locator('img')).toHaveAttribute('src',/cabin-standard/);
+ const optionBox=await optionSlot.boundingBox(),previewBox=await previewSlot.boundingBox();if(width===1440)expect(previewBox.x).toBeGreaterThan(optionBox.x+optionBox.width-1);else expect(previewBox.y).toBeGreaterThan(optionBox.y+optionBox.height-1);
+ if(process.env.E36_REVIEW_SCREENSHOTS)await sleepStep.screenshot({path:`docs/review/member-plan-chatka-${width}.png`});
+ await modal.locator('[data-member-stay="2"]').click();
  await expect(modal.locator('[data-member-stay-image]')).toHaveAttribute('src','assets/images/program/sunday.jpg');
  await modal.locator('[data-member-show="Ano"]').click();await expect(modal.locator('[data-member-show-image]')).toHaveAttribute('src','pohary.jpg');
  await modal.locator('[data-member-show="Možná"]').click();await expect(modal.locator('[data-member-show-image]')).toHaveAttribute('src','assets/images/program/friday.webp');await form.locator('[name="note"]').fill('Zájem bez závazku');await expect(form.locator('[name="preliminaryCrewDetails"]')).toBeHidden();
- await review(`member-plan-edit-${width}`);await submit.click();await expect(modal).toBeHidden();await expect(page.locator('[data-preliminary-copy]')).toHaveText('Až otevřeme registrace, dáme Ti vědět a registraci dokončíš.');await expect(page.locator('[data-member-plan-disclaimer]')).toHaveText('Nezávazná · bez zajištěné kapacity.');await expect(page.locator('[data-reservation-summary]>div')).toHaveCount(5);
+ await submit.click();await expect(modal).toBeHidden();await expect(page.locator('[data-preliminary-copy]')).toHaveText('Až otevřeme registrace, dáme Ti vědět a registraci dokončíš.');await expect(page.locator('[data-member-plan-disclaimer]')).toHaveText('Nezávazná · bez zajištěné kapacity.');await expect(page.locator('[data-reservation-summary]>div')).toHaveCount(5);
+ const noCarAction=page.locator('[data-registration-car-action]');await expect(noCarAction).toContainText('S čím přijedeš?');await expect(noCarAction).toContainText('+ Přidat auto');await expect(noCarAction).toHaveCSS('background-color','rgb(22, 77, 124)');
  expect(r.db.prepare('SELECT COUNT(*) n FROM reservations').get().n).toBe(0);expect(r.db.prepare('SELECT COUNT(*) n FROM member_qr_identities').get().n).toBe(0);
- expect(JSON.parse(r.db.prepare('SELECT preferences_json FROM preliminary_reservations').get().preferences_json).carId).toBeNull();if(width===1440)await review('member-plan-saved-closed-desktop');
+ expect(JSON.parse(r.db.prepare('SELECT preferences_json FROM preliminary_reservations').get().preferences_json).carId).toBeNull();if(width===1440&&process.env.E36_REVIEW_SCREENSHOTS)await page.locator('.reservation-unified-card').screenshot({path:'docs/review/member-registration-no-car-cta.png'});
  await page.reload();await expect(page.locator('[data-preliminary-copy]')).toHaveText('Až otevřeme registrace, dáme Ti vědět a registraci dokončíš.');const editPlan=page.locator('[data-member-plan-open]');await stableScroll(page);
  if(width===390){await page.locator('[data-preliminary-add-car]').click();const carModal=page.locator('[data-car-modal]'),carForm=carModal.locator('[data-car-form]');await expect(carModal).toBeVisible();await carForm.locator('[name="nickname"]').fill('Planner E36');await carForm.locator('[name="model"]').fill('318is');await carForm.locator('[type="submit"]').click();await expect(carModal).toBeHidden();await expect(modal).toBeVisible();await expect(form.locator('[name="note"]')).toHaveValue('Zájem bez závazku');await expect(form.locator('[name="carId"] option')).toHaveCount(2)}else await editPlan.click();
  await expect(submit).toContainText('Uložit změny');

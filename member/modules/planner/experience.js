@@ -63,7 +63,7 @@ export function createMemberPlannerExperience(form){
       </section>
       <section class="planner-step member-planner-personal planner-main-step">
         <div class="planner-step-head"><span>05</span><b>Tvoje E36 a poznámka</b></div>
-        <div class="member-planner-personal-grid"><div data-member-car-slot></div><div data-member-note-slot></div></div>
+        <div class="member-planner-personal-grid"><div class="member-planner-car-field"><div data-member-car-slot></div><button class="member-planner-add-car member-primary member-primary--compact" data-member-planner-add-car type="button">+ Přidat auto</button></div><div data-member-note-slot></div></div>
       </section>
     </div>
     <aside class="weekend-preview weekend-preview--v8 member-planner-summary" aria-live="polite">
@@ -126,7 +126,11 @@ export function createMemberPlannerExperience(form){
     shell.querySelector('[data-member-summary-sleep]').textContent=stay.arrival==='Jen na otočku'?'Bez ubytování':source.sleep?.value||'—';
     shell.querySelector('[data-member-summary-crew]').textContent=`${crew} ${personLabel(crew)}`;
     shell.querySelector('[data-member-summary-show]').textContent=show.label;
-    shell.querySelector('[data-member-summary-car]').textContent=source.car?.selectedOptions?.[0]?.textContent||'Doplníš později';
+    shell.querySelector('[data-member-summary-car]').textContent=source.car?.selectedOptions?.[0]?.textContent||'S čím přijedeš?';
+    const carLabel=source.car?.closest('label')?.querySelector(':scope > span');
+    if(carLabel)carLabel.textContent=source.car?.value?'Auto z garáže':'S čím přijedeš?';
+    const addCar=shell.querySelector('[data-member-planner-add-car]');
+    if(addCar)addCar.hidden=Boolean(source.car?.value);
     shell.querySelector('[data-member-summary-recap]').textContent=`${stay.title} · ${stay.arrival==='Jen na otočku'?'Bez ubytování':source.sleep?.value||'—'} · ${crew} ${personLabel(crew)} · Show & Shine: ${show.label}`;
   }
 

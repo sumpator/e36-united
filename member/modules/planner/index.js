@@ -5,7 +5,7 @@ import { $, esc, setButtonBusy, toast } from '../../ui.js?v=20260902-phase3';
 import { createReservationPayments, formatCzk } from './payments.js?v=20260912-member-reservation-panels-r1';
 import { normalizeAccommodationOption, normalizeReservation } from './reservation.js?v=20260911-reservation-flow-r1';
 import { isAuthorizationFailure } from '../../refresh.js?v=20260907-feedback';
-import { createMemberPlannerExperience } from './experience.js?v=20260920-registration-ux-r2';
+import { createMemberPlannerExperience } from './experience.js?v=20260920-registration-ux-r3';
 
 const plannerHandoffPrefix='e36UnitedPlannerHandoff:v1:';
 
@@ -136,7 +136,7 @@ export function createMemberPlanner({
     return 'Jen na otočku · bez noclehu';
   }
   function registrationCarAction(car){
-    const hasCars=getData().cars.length>0,label=car?.nickname||car?.model||'S čím přijedeš?',action=hasCars?'Vybrat auto':'+ Přidat auto';
+    const label=car?.nickname||car?.model||'S čím přijedeš?',action=car?'Vybrat auto':'+ Přidat auto';
     return `<button class="member-summary-car-action${car?'':' is-empty'}" data-registration-car-action type="button"><span><small>AUTO</small><b>${esc(label)}</b></span><em>${action}</em></button>`;
   }
   function renderPreliminarySummary(){
@@ -200,7 +200,7 @@ export function createMemberPlanner({
   function renderCarSelect(){
     const select=$('[data-car-select]');if(!select)return;
     const data=getData(),selectedId=select.value,optional=!data.reservation&&!reservationState.registrationOpen;
-    select.innerHTML=`<option value="">${optional?'Auto doplníš později':'Vyber auto z garáže'}</option>`+data.cars.map(c=>`<option value="${c.id}">${esc(c.nickname||c.model)} · ${esc(c.body)}</option>`).join('');
+    select.innerHTML=`<option value="">${optional?'S čím přijedeš?':'Vyber auto z garáže'}</option>`+data.cars.map(c=>`<option value="${c.id}">${esc(c.nickname||c.model)} · ${esc(c.body)}</option>`).join('');
     const selected=data.cars.find(car=>String(car.id)===String(selectedId))||(!optional?preferredReservationCar():null);if(selected)select.value=String(selected.id);else select.value='';
     if(data.cars.length)setReservationCarError(false);
     plannerExperience.sync();
@@ -715,7 +715,7 @@ export function createMemberPlanner({
     document.addEventListener('click',event=>{const trigger=event.target.closest('[data-reservation-form-jump]');if(trigger&&!getData().reservation&&(reservationState.registrationOpen||preliminaryEnabled))requestAnimationFrame(()=>openPlanPlanner(trigger))});
     document.addEventListener('click',event=>{
       const trigger=event.target.closest('[data-registration-car-action]');if(!trigger)return;
-      if(!getData().cars.length){$('[data-preliminary-add-car]')?.click();return}
+      if(trigger.classList.contains('is-empty')){$('[data-member-planner-add-car]')?.click();return}
       if(getData().reservation){const select=$('[data-reservation-car-select]');select?.scrollIntoView({block:'center',behavior:'smooth'});select?.focus();return}
       openPlanPlanner(trigger);requestAnimationFrame(()=>reservationForm?.elements?.carId?.focus());
     });
