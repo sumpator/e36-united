@@ -2,7 +2,7 @@ import { firebaseConfig, portalConfig } from './firebase-config.js?v=20260823-au
 import { initUnitedAuth } from './united-auth.js?v=20260825-phase-a1';
 import { createImagePreviewController, selectImageFiles } from './image-upload.js?v=20260827-garage-photos';
 import { initScrollAffordance } from './scroll-affordance.js?v=20260907-mobile';
-import { createClubProfileViewer } from './member/club-profile.js?v=20260913-club-profile-scroll-r1';
+import { createClubProfileViewer } from './member/club-profile.js?v=20260920-club-profile-release-r1';
 
 const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
 const apiBase=(portalConfig.apiBaseUrl||'https://api.e36united.cz').replace(/\/$/,'');

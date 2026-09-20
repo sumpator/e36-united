@@ -55,9 +55,17 @@ export function createClubProfileViewer({ apiBaseUrl, apiRequest, apiRequestBlob
 
   function restoreScrollOwnershipNow(owner) {
     if (!owner || scrollOwner !== owner) return;
-    restoreInlineScrollBehavior(document.documentElement, owner.documentBehavior);
-    restoreInlineScrollBehavior(document.body, owner.bodyBehavior);
-    if (owner.restoration && 'scrollRestoration' in history) history.scrollRestoration = owner.restoration;
+    const documentBehavior = inlineScrollBehavior(document.documentElement);
+    const bodyBehavior = inlineScrollBehavior(document.body);
+    if (documentBehavior?.value === 'auto' && documentBehavior.priority === 'important') {
+      restoreInlineScrollBehavior(document.documentElement, owner.documentBehavior);
+    }
+    if (bodyBehavior?.value === 'auto' && bodyBehavior.priority === 'important') {
+      restoreInlineScrollBehavior(document.body, owner.bodyBehavior);
+    }
+    if (owner.restoration && 'scrollRestoration' in history && history.scrollRestoration === 'manual') {
+      history.scrollRestoration = owner.restoration;
+    }
     scrollOwner = null;
   }
 
@@ -69,10 +77,19 @@ export function createClubProfileViewer({ apiBaseUrl, apiRequest, apiRequestBlob
       if (focus?.isConnected) focus.focus({ preventScroll: true });
       if (position) window.scrollTo({ left: position.x, top: position.y, behavior: 'auto' });
     }
+    let finished = false;
+    let channel = null;
     const finish = () => {
+      if (finished) return;
+      finished = true;
+      channel?.port1.close();
+      channel?.port2.close();
       if (token === scrollReleaseToken) restoreScrollOwnershipNow(owner);
     };
     if (!defer) { finish(); return; }
+    channel = new MessageChannel();
+    channel.port1.onmessage = finish;
+    channel.port2.postMessage(null);
     requestAnimationFrame(() => requestAnimationFrame(finish));
   }
 
