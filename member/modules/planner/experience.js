@@ -37,34 +37,42 @@ export function createMemberPlannerExperience(form){
   shell.innerHTML=`<div class="planner-workspace member-planner-workspace">
     <div class="planner-controls planner-controls--v8 member-planner-controls">
       <section class="planner-step planner-step--stay planner-main-step">
-        <div class="planner-step-head"><span>01</span><b>Jak dlouho zůstaneš?</b></div>
-        <div class="stay-slider member-stay-picker">
-          <div class="stay-slider-current" aria-live="polite"><strong data-member-stay-title></strong><small data-member-stay-meta></small></div>
-          <div class="stay-slider-options" data-member-stay-options>${STAYS.map((stay,index)=>`<button data-member-stay="${index}" type="button"><b>${stay.title.toUpperCase()}</b><small>${stay.short}</small></button>`).join('')}</div>
+        <div class="member-planner-step-controls">
+          <div class="planner-step-head"><span>01</span><b>Jak dlouho zůstaneš?</b></div>
+          <div class="stay-slider member-stay-picker">
+            <div class="stay-slider-current" aria-live="polite"><strong data-member-stay-title></strong><small data-member-stay-meta></small></div>
+            <div class="stay-slider-options" data-member-stay-options>${STAYS.map((stay,index)=>`<button data-member-stay="${index}" type="button"><b>${stay.title.toUpperCase()}</b><small>${stay.short}</small></button>`).join('')}</div>
+          </div>
         </div>
         <aside class="planner-context-preview planner-context-preview--media"><img data-member-stay-image alt="Páteční komunita E36 United" loading="lazy" onerror="this.src='fallback.svg'" src="assets/images/program/friday.webp"><div class="planner-context-shade"></div><div class="planner-context-copy"><span>TVŮJ POBYT</span><strong data-member-stay-preview></strong><b data-member-night-preview></b></div></aside>
       </section>
       <section class="planner-step planner-step--sleep planner-main-step">
-        <div class="planner-step-head"><span>02</span><b>Kde chceš spát?</b></div>
-        <div class="choice-row choice-row--three choice-row--sleep" data-member-sleep-options>${['Chatka','Stan','Bez ubytování'].map((value,index)=>`<button class="choice" data-member-sleep="${value}" type="button"><span>${['⌂','△','→'][index]}</span>${value}</button>`).join('')}</div>
-        <div class="member-planner-slot" data-member-accommodation-option-slot></div>
+        <div class="member-planner-step-controls">
+          <div class="planner-step-head"><span>02</span><b>Kde chceš spát?</b></div>
+          <div class="choice-row choice-row--three choice-row--sleep" data-member-sleep-options>${['Chatka','Stan','Bez ubytování'].map((value,index)=>`<button class="choice" data-member-sleep="${value}" type="button"><span>${['⌂','△','→'][index]}</span>${value}</button>`).join('')}</div>
+          <div class="member-planner-slot" data-member-accommodation-option-slot></div>
+        </div>
         <div class="member-planner-slot" data-member-accommodation-preview-slot></div>
       </section>
       <section class="planner-step planner-step--crew planner-main-step">
-        <div class="planner-step-head"><span>03</span><b>Kolik vás bude?</b></div>
-        <div class="people-picker people-picker--v8"><button aria-label="Ubrat osobu" data-member-crew-minus type="button">−</button><strong data-member-crew></strong><span data-member-crew-label></span><button aria-label="Přidat osobu" data-member-crew-plus type="button">+</button></div>
-        <div class="member-planner-slot" data-member-partial-slot></div>
+        <div class="member-planner-step-controls">
+          <div class="planner-step-head"><span>03</span><b>Kolik vás bude?</b></div>
+          <div class="people-picker people-picker--v8"><button aria-label="Ubrat osobu" data-member-crew-minus type="button">−</button><strong data-member-crew></strong><span data-member-crew-label></span><button aria-label="Přidat osobu" data-member-crew-plus type="button">+</button></div>
+          <div class="member-planner-slot" data-member-partial-slot></div>
+        </div>
         <aside class="planner-context-preview planner-context-preview--crew"><div aria-hidden="true" class="planner-context-crew-icons" data-member-crew-icons></div><div class="planner-context-crew-number" data-member-crew-number></div><strong data-member-crew-copy></strong><small>Společně na United.</small></aside>
       </section>
       <section class="planner-step planner-step--showshine planner-main-step">
-        <div class="planner-step-head"><span>04</span><b>Chceš soutěžit v Show &amp; Shine?</b></div>
-        <div class="choice-row choice-row--three" data-member-show-options>${SHOW_SHINE.map(item=>`<button class="choice" data-member-show="${item.value}" type="button">${item.label}</button>`).join('')}</div>
+        <div class="member-planner-step-controls">
+          <div class="planner-step-head"><span>04</span><b>Chceš soutěžit v Show &amp; Shine?</b></div>
+          <div class="choice-row choice-row--three" data-member-show-options>${SHOW_SHINE.map(item=>`<button class="choice" data-member-show="${item.value}" type="button">${item.label}</button>`).join('')}</div>
+        </div>
         <aside class="planner-context-preview planner-context-preview--media"><img data-member-show-image alt="Show and Shine E36 United" loading="lazy" onerror="this.src='fallback.svg'" src="assets/images/program/saturday.webp"><div class="planner-context-shade"></div><div class="planner-context-copy"><span>SHOW &amp; SHINE</span><strong data-member-show-preview></strong><b data-member-show-copy></b></div></aside>
       </section>
-      <section class="planner-step member-planner-personal planner-main-step">
-        <div class="planner-step-head"><span>05</span><b>Tvoje E36 a poznámka</b></div>
-        <div class="member-planner-personal-grid"><div class="member-planner-car-field"><div data-member-car-slot></div><button class="member-planner-add-car member-primary member-primary--compact" data-member-planner-add-car type="button">+ Přidat auto</button></div><div data-member-note-slot></div></div>
+      <section class="planner-step planner-step--car member-planner-personal planner-main-step">
+        <div class="member-planner-step-controls"><div class="planner-step-head"><span>05</span><b>Registrované auto</b></div><div class="member-planner-personal-grid"><div class="member-planner-car-field"><div data-member-car-slot></div><button class="member-planner-add-car member-primary member-primary--compact" data-member-planner-add-car type="button">+ Přidat auto</button></div></div></div>
       </section>
+      <section class="member-planner-note"><div><small>VOLITELNÉ</small><strong>Poznámka pro tým</strong><p>Co má United tým vědět k tvému příjezdu nebo pobytu?</p></div><div data-member-note-slot></div></section>
     </div>
     <aside class="weekend-preview weekend-preview--v8 member-planner-summary" aria-live="polite">
       <div class="weekend-preview-head weekend-preview-head--v8"><div><span class="micro-label">LIVE SUMMARY</span><h3>Tvůj United.</h3></div><span class="summary-sync"><i></i> live sync</span></div>
@@ -96,6 +104,7 @@ export function createMemberPlannerExperience(form){
   if(crewDetails)crewDetails.hidden=true;
   const note=[...form.querySelectorAll(':scope > label')].find(label=>label.querySelector('[name="note"]'));
   move(note,shell.querySelector('[data-member-note-slot]'));
+  if(note){note.querySelector(':scope > span')?.remove();const textarea=note.querySelector('textarea');if(textarea){textarea.rows=3;textarea.setAttribute('aria-label','Poznámka pro tým')}}
 
   function sync(){
     const stay=STAYS.find(item=>item.arrival===source.arrival?.value)||STAYS[0];
@@ -131,6 +140,8 @@ export function createMemberPlannerExperience(form){
     if(carLabel)carLabel.textContent=source.car?.value?'Auto z garáže':'S čím přijedeš?';
     const addCar=shell.querySelector('[data-member-planner-add-car]');
     if(addCar)addCar.hidden=Boolean(source.car?.value);
+    const carField=source.car?.closest('[data-reservation-form-car]'),carStep=shell.querySelector('.planner-step--car');
+    if(carStep)carStep.hidden=Boolean(carField?.hidden)&&Boolean(addCar?.hidden);
     shell.querySelector('[data-member-summary-recap]').textContent=`${stay.title} · ${stay.arrival==='Jen na otočku'?'Bez ubytování':source.sleep?.value||'—'} · ${crew} ${personLabel(crew)} · Show & Shine: ${show.label}`;
   }
 

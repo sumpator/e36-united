@@ -43,14 +43,14 @@ test('mobile auth is compact while desktop auth content and tab behavior remain 
 
 test('Member Card renders real profile identity and meaningful progress data', () => {
   const overview = panel('overview', 'reservation');
-  for (const attribute of ['data-summary-name', 'data-summary-member-code', 'data-member-since', 'data-attendance-count', 'data-member-rating', 'data-overview-points']) assert.match(overview, new RegExp(attribute));
+  for (const attribute of ['data-summary-name', 'data-summary-member-code', 'data-member-since', 'data-attendance-count', 'data-overview-points', 'data-profile-complete']) assert.match(overview, new RegExp(attribute));
   assert.match(overview, /aria-label="United Member Card"/);
   assert.match(overview, /<strong data-summary-name/);
   assert.match(overview, /<span class="member-card-code" data-summary-member-code/);
   assert.doesNotMatch(overview, /data-summary-nickname|MEMBER SUMMARY/);
   assert.match(js, /summaryName\.textContent=p\.name\|\|'United Member'/);
   assert.match(js, /summaryCode\.textContent=p\.memberCode/);
-  assert.match(js, /ratingEl\.textContent=data\.club\?\.rating\?\.name\|\|'316i'/);
+  assert.doesNotMatch(overview, /data-member-rating/);
   assert.match(css, /\.member-card\{display:grid/);
 });
 

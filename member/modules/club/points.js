@@ -8,7 +8,6 @@ export function createMemberPoints({getData,renderOverviewPoints,renderFeaturedA
     since:{kicker:'UNITED OD',title:'Začátek tvé United stopy',intro:'Nejstarší ročník, který máš ve své ověřené historii účastí.'},
     verified:{kicker:'OVĚŘENÉ UNITED',title:'Potvrzené účasti',intro:'Počítají se jen ročníky ověřené United týmem.'},
     points:{kicker:'UNITED POINTS',title:'Aktuální zůstatek',intro:'Body získáváš za ověřené United aktivity. Samostatný metr ukazuje postup k odměně na hranici 12 bodů.'},
-    rating:{kicker:'MEMBER RATING',title:'Tvoje členská úroveň',intro:'Rating roste podle všech bodů, které jsi kdy získal: od 316i až po M POWER.'},
     verification:{kicker:'MOJE STOPA',title:'Proč ověření?',intro:'Účast můžeš přidat hned. Body a související Achievements se započítají až po potvrzení United týmem.'},
     'points-system':{kicker:'UNITED POINTS',title:'Jak fungují body?',intro:'Body odměňují ověřenou účast a přínos komunitě.',sections:[{label:'ODMĚNA',rows:[['12 bodů','United Merch reward','U']]}]},
     'earn-attendance':{kicker:'ÚČAST NA SRAZU',title:'Ověřené United',sections:[{label:'BODY ZA ÚČAST',rows:[['Každý ověřený sraz','+1 bod','•'],['3 ověřené srazy','+3 body navíc','3'],['5 ověřených srazů','+3 body navíc','5']]}]},

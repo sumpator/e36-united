@@ -236,8 +236,9 @@ test('Points help and Achievement detail use structured sections and rows',()=>{
   assert.match(memberCss,/\.context-popover-rows>div/);
 });
 
-test('Member Card keeps four core blocks with the requested typography lift',()=>{
-  assert.equal((memberHtml.match(/class="member-card-stat(?: [^"]*)?"/g)||[]).length,4);
+test('Member Card keeps three core stats with the requested typography lift',()=>{
+  assert.equal((memberHtml.match(/class="member-card-stat(?: [^"]*)?"/g)||[]).length,3);
+  assert.doesNotMatch(memberHtml,/MEMBER RATING|data-member-rating/);
   assert.match(memberHtml,/member-card-achievements-label">ACHIEVEMENTS/);
   assert.match(memberCss,/\.member-card-stat>small\{font-size:11px\}/);
   assert.match(memberCss,/\.member-card-stat>b\{font-size:24px\}/);

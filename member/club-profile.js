@@ -165,7 +165,7 @@ export function createClubProfileViewer({ apiBaseUrl, apiRequest, apiRequestBlob
     root.innerHTML = `<header class="club-profile-identity">
       <span class="club-profile-hero${heroPhoto ? '' : ' is-fallback'}" data-photo-shell><img alt="${escapeHtml(heroCar?.nickname || heroCar?.model || displayName)}" data-club-profile-private-photo><i aria-hidden="true"><img alt="" src="${fallbackLogo}"></i></span>
       <div><small>UNITED CLUB PROFIL</small><h2 id="club-profile-title">${escapeHtml(displayName)}</h2>${profile.name && profile.name !== profile.nickname ? `<p>${escapeHtml(profile.name)}</p>` : ''}
-      <div class="club-profile-identity-facts"><span><b>United od</b>${escapeHtml(profile.memberSince || '—')}</span><span><b>Účasti</b>${escapeHtml(profile.attendanceCount || 0)}×</span><span><b>United Points</b>${escapeHtml(profile.points?.available || 0)}</span><span><b>Stav výhod</b>${escapeHtml(profile.rating?.name || '316i')}</span></div></div>
+      <div class="club-profile-identity-facts"><span><b>United od</b>${escapeHtml(profile.memberSince || '—')}</span><span><b>Účasti</b>${escapeHtml(profile.attendanceCount || 0)}×</span><span><b>United Points</b>${escapeHtml(profile.points?.available || 0)}</span></div></div>
     </header>
     <section class="club-profile-primary-section" data-club-profile-gallery><div class="club-profile-section-head"><small>FOTKY ČLENA</small><h3>United v obrazech.</h3></div><div class="club-profile-gallery">${gallery.length ? gallery.map(photo => {
       const url = `${apiBaseUrl}${photo.imageUrl}`;

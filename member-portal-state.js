@@ -5,7 +5,7 @@ export function selectPrimaryCar(cars = []) {
 export function deriveMemberHeroState({ cars = [], memberSince = null } = {}) {
   const car = selectPrimaryCar(cars);
   if (!car) {
-    return { state: 'no-car', car: null, photoId: '', carText: 'Tvoje E36 sem patří.', cta: 'Přidat první auto →', since: memberSince || null };
+    return { state: 'no-car', car: null, photoId: '', carText: 'Tvoje E36 sem patří.', cta: '', since: memberSince || null };
   }
   const carText = ['BMW E36', car.body, car.model, car.nickname, car.color].filter(Boolean).join(' · ');
   const photoId = car.photos?.[0]?.id ? String(car.photos[0].id) : '';
@@ -28,7 +28,8 @@ export function deriveOverviewState({ reservation = null, registrationOpen = fal
       active: true,
       label: activePlan&&registrationOpen?'POTVRĎ SVOU REGISTRACI!':activePlan?'MÁŠ PŘEDBĚŽNOU REGISTRACI.':plannerUnavailable?'PŘEDBĚŽNOU REGISTRACI TEĎ NELZE OVĚŘIT':draft?(registrationOpen?'DOKONČI REGISTRACI':'DOKONČI PŘEDBĚŽNOU REGISTRACI'):(registrationOpen||planEnabled)?'REGISTRUJ SE NA UNITED':'REGISTRACE NYNÍ NEJSOU OTEVŘENÉ',
       copy: activePlan&&registrationOpen?'Registrace jsou otevřené.':activePlan?'Až otevřeme registrace, dáme Ti vědět a registraci dokončíš.':plannerUnavailable?'Spojení se serverem se nezdařilo. Stav uložené předběžné registrace teď nelze ověřit.':draft?'':registrationOpen?'':planEnabled?'Zatím přijímáme předběžné registrace.':closedCopy,
-      action: activePlan&&registrationOpen?'Zkontrolovat a potvrdit':activePlan?'Upravit':plannerUnavailable?'':draft?'Pokračovat':registrationOpen||planEnabled?'Začít':'',
+      action: activePlan?'Zobrazit registraci':plannerUnavailable?'':draft?'Pokračovat':registrationOpen||planEnabled?'Začít':'',
+      openEditor: !activePlan&&!plannerUnavailable&&(draft||registrationOpen||planEnabled),
       emptyCopy: '',
     };
   }
@@ -48,6 +49,7 @@ export function deriveOverviewState({ reservation = null, registrationOpen = fal
     copy: approvedPayment?.status === 'overpaid' ? `U registrace evidujeme přeplatek ${formatAmount(overpayment)}. Není potřeba nic platit.` : approvedPayment && remaining > 0 ? 'Registrace je schválená. Platební údaje obsahují pouze aktuální částku k úhradě.' : copies[reservation.status] || '',
     action: approvedPayment ? 'Otevřít platbu' : 'Otevřít registraci',
     target: approvedPayment ? 'payments' : 'reservation',
+    openEditor: false,
     emptyCopy: '',
   };
 }

@@ -142,9 +142,9 @@ test('login profile failure cannot automatically sign out an authenticated Fireb
   assert.match(loginFlow, /restoreAuthenticatedSession/);
 });
 
-test('overview is an action center with no static Merch or Club promo cards', () => {
+test('overview keeps the profile and current registration hierarchy without a redundant action-center intro', () => {
   const overview = memberHtml.slice(memberHtml.indexOf('data-member-panel="overview"'), memberHtml.indexOf('data-member-panel="reservation"'));
-  assert.match(overview, /ACTION CENTER/);
+  assert.doesNotMatch(overview, /ACTION CENTER|Co je teď důležité/);
   assert.match(overview, /Všechno ready/);
   assert.match(overview, /data-reservation-overview-card="" hidden/);
   assert.doesNotMatch(overview, /United Merch|badges-preview|points-card/);
@@ -170,7 +170,7 @@ test('hero follows primary car and the authorized private-photo path', () => {
   assert.match(memberGarageJs, /carPhotoRequestGeneration/);
   assert.match(memberGarageJs, /stale_car_photo_request/);
   assert.match(memberStateJs, /Přidat fotku auta/);
-  assert.match(memberStateJs, /Přidat první auto/);
+  assert.doesNotMatch(memberStateJs, /Přidat první auto/);
 });
 
 test('community submissions keep the existing flow in their own main panel', () => {

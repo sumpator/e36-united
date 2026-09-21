@@ -1,4 +1,4 @@
-import { deriveOverviewState } from '../../member-portal-state.js?v=20260920-registration-ui-r1';
+import { deriveOverviewState } from '../../member-portal-state.js?v=20260921-member-ux-r2';
 import { $, esc } from '../ui.js?v=20260902-phase3';
 
 export function createMemberOverview({
@@ -22,7 +22,7 @@ export function createMemberOverview({
     const idEl=$('[data-card-id]');if(idEl)idEl.textContent=code;
     const summaryCode=$('[data-summary-member-code]');if(summaryCode)summaryCode.textContent=p.memberCode||`EU${code}`;
     const car=data.cars.find(item=>item.primary)||data.cars[0];const carEl=$('[data-card-car]');if(carEl)carEl.textContent=car?`${car.body} · ${car.model}${car.nickname?' · '+car.nickname:''}`:'BMW E36 · Garáž čeká na první auto';
-    const sinceEl=$('[data-member-since]'),attendanceEl=$('[data-attendance-count]'),ratingEl=$('[data-member-rating]');if(sinceEl)sinceEl.textContent=getMemberSince()||'—';if(attendanceEl)attendanceEl.textContent=getVerified();if(ratingEl)ratingEl.textContent=data.club?.rating?.name||'316i';
+    const sinceEl=$('[data-member-since]'),attendanceEl=$('[data-attendance-count]');if(sinceEl)sinceEl.textContent=getMemberSince()||'—';if(attendanceEl)attendanceEl.textContent=getVerified();
   }
 
   function renderPoints(){
@@ -44,7 +44,7 @@ export function createMemberOverview({
   function renderActionCenter({reservation,registrationOpen,plan,planEnabled,plannerWaiting,plannerDraft,plannerUnavailable,event,plannerEventYear}){
     const eventYear=reservation?.year&&reservation.year!=='NEXT'?reservation.year:(event?.year||plannerWaiting&&plannerEventYear||new Date().getFullYear());
     const card=$('[data-reservation-overview-card]'),empty=$('[data-action-center-empty]'),emptyCopy=$('[data-action-center-empty-copy]'),eventElement=$('[data-reservation-overview-event]'),label=$('[data-reservation-overview-label]'),copy=$('[data-reservation-overview-copy]'),action=$('[data-reservation-overview-action]');
-    const view=deriveOverviewState({reservation,registrationOpen,plan,planEnabled,plannerWaiting,plannerDraft,plannerUnavailable,eventYear:event?eventYear:null,eventName:event?.title||'',formatAmount});if(card){card.hidden=!view.active;card.dataset.jump=view.target||'reservation';card.toggleAttribute('data-reservation-form-jump',!reservation&&!plannerUnavailable)}if(empty)empty.hidden=view.active;if(emptyCopy)emptyCopy.textContent=view.emptyCopy;
+    const view=deriveOverviewState({reservation,registrationOpen,plan,planEnabled,plannerWaiting,plannerDraft,plannerUnavailable,eventYear:event?eventYear:null,eventName:event?.title||'',formatAmount});if(card){card.hidden=!view.active;card.dataset.jump=view.target||'reservation';card.toggleAttribute('data-reservation-form-jump',view.openEditor===true)}if(empty)empty.hidden=view.active;if(emptyCopy)emptyCopy.textContent=view.emptyCopy;
     if(eventElement)eventElement.textContent=`UNITED ${eventYear}`;
     if(label)label.textContent=view.label;if(copy)copy.textContent=view.copy;if(action)action.innerHTML=view.action?`${view.action} <b>→</b>`:'';
     onboardingContext={reservation,registrationOpen};renderOnboarding();
@@ -64,10 +64,11 @@ export function createMemberOverview({
   function renderOnboardingCard(root,state){
     if(!root)return;
     const {data,reservation,registrationOpen,profileReady,complete}=state;
-    root.classList.toggle('is-complete',complete);
+    root.classList.toggle('is-complete',complete);root.hidden=complete;
     const kicker=root.querySelector('header span'),title=root.querySelector('header h2');
     if(kicker)kicker.textContent=complete?'Děkujeme, že jsi UNITED':'TVŮJ UNITED ZAČÍNÁ TADY';
-    if(title)title.innerHTML=complete?'Profil máš kompletní.':'Vstup do komunity.<br><em>Doplň svou stopu.</em>';
+    if(title)title.innerHTML='Doplň profil.<br><em>Získej víc z United.</em>';
+    const profileTitle=root.querySelector('[data-onboarding-profile] strong');if(profileTitle)profileTitle.textContent=profileReady?'United profil':'Založ si United profil';
     setStep(root.querySelector('[data-onboarding-profile]'),profileReady?'Profil je založený ✓':'Dokončit profil →',profileReady);
     setStep(root.querySelector('[data-onboarding-reservation]'),reservation?'Registrace je připravená ✓':registrationOpen?'Otevřít registraci →':'Připravit registraci →',!!reservation);
     const states=new Map([
@@ -98,7 +99,7 @@ export function createMemberOverview({
     document.addEventListener('keydown',event=>{if(!modal||modal.hidden)return;if(event.key==='Escape'){event.preventDefault();closeOnboardingIntro();return}if(event.key!=='Tab')return;const focusable=[...modal.querySelectorAll('button:not([disabled]),a[href],[tabindex]:not([tabindex="-1"])')].filter(item=>item.getClientRects().length);if(!focusable.length)return;const first=focusable[0],last=focusable.at(-1);if(event.shiftKey&&document.activeElement===first){event.preventDefault();last.focus()}else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first.focus()}});
   }
   function renderOnboarding(){
-    bindOnboarding();const state=onboardingState(),root=$('[data-united-onboarding]');renderOnboardingCard(root,state);
+    bindOnboarding();const state=onboardingState(),root=$('[data-united-onboarding]'),completeBadge=$('[data-profile-complete]');renderOnboardingCard(root,state);if(completeBadge)completeBadge.hidden=!state.complete;
     const modal=$('[data-onboarding-intro-modal]'),content=$('[data-onboarding-intro-content]');if(modal&&!modal.hidden&&content){const card=root.cloneNode(true);card.removeAttribute('data-united-onboarding');card.dataset.onboardingIntroCard='';content.replaceChildren(card);if(state.complete)closeOnboardingIntro()}
     queueMicrotask(()=>showOnboardingIntro(state));
   }

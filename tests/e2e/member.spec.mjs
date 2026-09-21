@@ -263,7 +263,7 @@ test.describe('desktop member portal', () => {
     await expect(form.locator('.reservation-current-option-note')).toContainText('nyní vypnutá');
     await select.selectOption('cabin-standard');
     await expect(select.locator('option[value="cabin-premium"]')).toHaveAttribute('disabled','');
-    await modal.getByRole('button',{name:'Zavřít návrh změny'}).focus();
+    await modal.getByRole('button',{name:'Zavřít Planner'}).focus();
     page.once('dialog',dialog=>{expect(dialog.message()).toContain('Zahodit neodeslaný návrh');void dialog.accept()});
     await page.keyboard.press('Escape');
     await expect(modal).toBeHidden();await expect(trigger).toBeFocused();
@@ -271,7 +271,7 @@ test.describe('desktop member portal', () => {
     expect(observations.reservationRequestWrites).toEqual([]);expectNoUnexpectedClientErrors(observations);
   });
 
-  test('change Planner modal safely labels a missing approved option and becomes full-screen on mobile', async ({ page }) => {
+  test('change Planner modal safely labels a missing approved option and keeps safe mobile margins', async ({ page }) => {
     await page.setViewportSize({width:390,height:844});
     const observations=await prepareE2ePage(page,{authenticated:true,registrationOpen:true,reservation:approvedReservation,accommodations:[accommodationOptions[0]]});
     await page.goto('/member.html?section=reservation');await page.locator('[data-request-change]').click();
@@ -281,7 +281,7 @@ test.describe('desktop member portal', () => {
     await expect(modal.locator('.reservation-current-option-note')).toContainText('už není v aktuální nabídce');
     await expect(modal.locator('[data-accommodation-availability]')).toContainText('Aktuální dostupnost nelze ověřit');
     await expect(modal.locator('[data-reservation-change-price]')).toContainText('Původní schválená cena 1 940');
-    const box=await dialog.boundingBox();expect(box?.x).toBe(0);expect(box?.y).toBe(0);expect(box?.width).toBe(390);expect(box?.height).toBe(844);
+    const box=await dialog.boundingBox();expect(box?.x).toBeGreaterThanOrEqual(10);expect(box?.x).toBeLessThanOrEqual(12);expect(box?.y).toBeGreaterThanOrEqual(10);expect(box?.width).toBeLessThanOrEqual(370);expect(box?.height).toBeLessThanOrEqual(824);
     expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
     expect(observations.reservationWrites).toEqual([]);expectNoUnexpectedClientErrors(observations);
   });

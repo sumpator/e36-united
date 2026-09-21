@@ -30,10 +30,11 @@ test('authenticated hero remains dominant and nickname-led while the Member Card
   assert.doesNotMatch(overview, /data-summary-nickname/);
 });
 
-test('Member Card keeps four centered core blocks and uses Czech Points terminology', () => {
+test('Member Card keeps three centered core stats without the retired rating', () => {
   const stats = [...overview.matchAll(/class="member-card-stat(?: [^"]*)?" data-member-help="([^"]+)"/g)].map(match => match[1]);
-  assert.deepEqual(stats, ['since', 'verified', 'points', 'rating']);
-  for (const label of ['UNITED OD', 'OVĚŘENÉ UNITED', 'UNITED POINTS', 'MEMBER RATING']) assert.match(overview, new RegExp(label));
+  assert.deepEqual(stats, ['since', 'verified', 'points']);
+  for (const label of ['UNITED OD', 'OVĚŘENÉ UNITED', 'UNITED POINTS']) assert.match(overview, new RegExp(label));
+  assert.doesNotMatch(overview, /MEMBER RATING|data-member-rating/);
   assert.match(overview, /data-overview-points="">0<\/b><em>bodů<\/em>/);
   assert.doesNotMatch(overview, /data-overview-points="">0<\/b><em>\/ 12 bodů<\/em>/);
   assert.match(overview, /Hranice konkrétní odměny: 12 bodů/);
@@ -54,7 +55,7 @@ test('Member Card has a readable bottom server-featured Achievements strip with 
 
 test('one reusable micro tutorial supports dynamic earning help, outside click, Escape and focus return', () => {
   assert.equal((html.match(/data-member-help-popover=""/g) || []).length, 1);
-  for (const key of ['since', 'verified', 'points', 'rating', 'verification', 'points-system', 'earn-attendance', 'earn-showshine', 'earn-photos', 'earn-profile']) assert.ok(js.includes(`${key}:{`) || js.includes(`'${key}':{`), `missing ${key} help content`);
+  for (const key of ['since', 'verified', 'points', 'verification', 'points-system', 'earn-attendance', 'earn-showshine', 'earn-photos', 'earn-profile']) assert.ok(js.includes(`${key}:{`) || js.includes(`'${key}':{`), `missing ${key} help content`);
   assert.match(js, /event\.target\.closest\('\[data-member-help\]'\)/);
   assert.match(js, /event\.key==='Escape'/);
   assert.match(js, /restoreFocus:true/);

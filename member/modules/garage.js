@@ -84,7 +84,7 @@ export function createMemberGarage({
     const title=$('[data-car-modal-title]'),kicker=$('[data-car-modal-kicker]'),copy=$('[data-car-modal-copy]'),submit=$('[data-car-submit]'),current=$('[data-car-current-photo]'),currentImage=$('[data-car-current-photo-image]');
     if(title)title.textContent=editingCarId?'Upravit auto.':'Přidat auto.';
     if(kicker)kicker.textContent=editingCarId?'MY GARAGE · ÚPRAVA':'MY GARAGE · NOVÉ AUTO';
-    if(copy)copy.textContent=editingCarId?'Změň jen to, co potřebuješ. Auto zůstane pod stejným ID a současná fotka se nahradí až po úspěšném uploadu.':'Fotka není povinná. Pro profil auta používáme jednu privátní fotografii načítanou přes autorizovaný endpoint.';
+    if(copy)copy.textContent=editingCarId?'Změň jen to, co potřebuješ. Auto zůstane stejné a současná fotka se nahradí až po úspěšném uložení nové.':'Fotografie není povinná. K autu ji můžeš bezpečně doplnit kdykoliv a zůstane soukromá.';
     if(submit)submit.innerHTML=editingCarId?'Uložit změny <span>→</span>':'Přidat do garáže <span>→</span>';
     if(car){for(const field of ['nickname','body','model','year','color'])if(carForm.elements[field])carForm.elements[field].value=car[field]??'';if(carForm.elements.primary)carForm.elements.primary.checked=car.primary===true}
     if(current){current.hidden=true;delete current.dataset.available}

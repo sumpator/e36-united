@@ -2,9 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { deriveMemberHeroState, deriveMemberRating, deriveOverviewState } from '../member-portal-state.js';
 
-test('hero: member without a car gets the branded garage CTA', () => {
+test('hero: member without a car keeps the identity treatment without a duplicate CTA', () => {
   assert.deepEqual(deriveMemberHeroState({ cars: [] }), {
-    state: 'no-car', car: null, photoId: '', carText: 'Tvoje E36 sem patří.', cta: 'Přidat první auto →', since: null,
+    state: 'no-car', car: null, photoId: '', carText: 'Tvoje E36 sem patří.', cta: '', since: null,
   });
 });
 
@@ -37,11 +37,11 @@ test('overview: closed registration without enabled plans does not claim a persi
 
 test('overview: enabled and saved plans have explicit closed/open actions',()=>{
   const enabled=deriveOverviewState({registrationOpen:false,planEnabled:true,eventYear:2026});
-  assert.equal(enabled.action,'Začít');assert.equal(enabled.copy,'Zatím přijímáme předběžné registrace.');
+  assert.equal(enabled.action,'Začít');assert.equal(enabled.openEditor,true);assert.equal(enabled.copy,'Zatím přijímáme předběžné registrace.');
   const saved=deriveOverviewState({registrationOpen:false,plan:{status:'active'},eventYear:2026});
-  assert.equal(saved.label,'MÁŠ PŘEDBĚŽNOU REGISTRACI.');assert.equal(saved.action,'Upravit');assert.match(saved.copy,/dáme Ti vědět/);
+  assert.equal(saved.label,'MÁŠ PŘEDBĚŽNOU REGISTRACI.');assert.equal(saved.action,'Zobrazit registraci');assert.equal(saved.openEditor,false);assert.match(saved.copy,/dáme Ti vědět/);
   const open=deriveOverviewState({registrationOpen:true,plan:{status:'active'},eventYear:2026});
-  assert.equal(open.label,'POTVRĎ SVOU REGISTRACI!');assert.equal(open.action,'Zkontrolovat a potvrdit');assert.equal(open.copy,'Registrace jsou otevřené.');
+  assert.equal(open.label,'POTVRĎ SVOU REGISTRACI!');assert.equal(open.action,'Zobrazit registraci');assert.equal(open.openEditor,false);assert.equal(open.copy,'Registrace jsou otevřené.');
 });
 
 test('overview: open registration without reservation exposes the event CTA', () => {
