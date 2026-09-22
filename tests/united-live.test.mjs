@@ -62,6 +62,7 @@ test('UNITED LIVE migration is additive and activates the current event once', (
 test('public vote is one editable 1-10 score, rejects own car and closes authoritatively', async () => {
   const runtime = setupLive();
   try {
+    runtime.db.exec("DELETE FROM event_member_presence WHERE event_id='e' AND member_id='m'");
     let response = await saveLiveVote(request({ score: 6 }), runtime.env, member, 'entry-n', origin);
     assert.equal(response.status, 200);
     response = await saveLiveVote(request({ score: 9 }), runtime.env, member, 'entry-n', origin);
@@ -69,6 +70,9 @@ test('public vote is one editable 1-10 score, rejects own car and closes authori
     assert.deepEqual(JSON.parse(JSON.stringify(runtime.db.prepare('SELECT voter_id,score FROM live_public_votes').all())), [{ voter_id: 'm', score: 9 }]);
     assert.equal((await saveLiveVote(request({ score: 11 }), runtime.env, member, 'entry-n', origin)).status, 400);
     assert.equal((await saveLiveVote(request({ score: 7 }), runtime.env, other, 'entry-n', origin)).status, 403);
+    const unregistered = await saveLiveVote(request({ score: 7 }), runtime.env, admin, 'entry-n', origin);
+    assert.equal(unregistered.status, 403);
+    assert.equal((await body(unregistered)).error, 'approved_registration_required');
     runtime.db.exec("UPDATE live_competition_state SET status='closed' WHERE event_id='e' AND discipline='show_shine'");
     assert.equal((await saveLiveVote(request({ score: 8 }), runtime.env, member, 'entry-n', origin)).status, 409);
   } finally {
@@ -79,12 +83,24 @@ test('public vote is one editable 1-10 score, rejects own car and closes authori
 test('jury notes stay private and results appear only after explicit publication', async () => {
   const runtime = setupLive();
   try {
-    runtime.db.exec("INSERT INTO event_live_judges(event_id,member_id,created_by) VALUES('e','m','a')");
-    const scored = await saveJudgeScore(request({ scores: { overall: 8, condition: 7, cohesion: 9, originality: 6 }, note: 'Interní poznámka', submitted: true }), runtime.env, member, 'entry-n', origin);
+    const denied = await saveJudgeScore(request({ scores: { overall: 8 }, submitted: false }), runtime.env, member, 'entry-n', origin);
+    assert.equal(denied.status, 403);
+    assert.equal((await body(denied)).error, 'judge_forbidden');
+    runtime.db.exec("UPDATE live_entries SET member_id='a' WHERE id='entry-n'");
+    const own = await saveJudgeScore(request({ scores: { overall: 8 }, submitted: false }), runtime.env, admin, 'entry-n', origin);
+    assert.equal(own.status, 403);
+    assert.equal((await body(own)).error, 'own_car_score');
+    runtime.db.exec("UPDATE live_entries SET member_id='n' WHERE id='entry-n'");
+    const scored = await saveJudgeScore(request({ scores: { overall: 8, condition: 7, cohesion: 9, originality: 6 }, note: 'Interní poznámka', submitted: true }), runtime.env, admin, 'entry-n', origin);
     assert.equal(scored.status, 200);
     const before = await body(await getMemberLive(runtime.env, other, origin));
     assert.deepEqual(before.results, {});
+    assert.equal(before.me.judge, false);
+    assert.deepEqual(before.judgeHistory, []);
     assert.equal(JSON.stringify(before).includes('Interní poznámka'), false);
+    const adminView = await body(await getMemberLive(runtime.env, admin, origin));
+    assert.equal(adminView.me.judge, true);
+    assert.equal(adminView.judgeHistory.length, 1);
 
     let transition = await controlLive(request({ action: 'close', expectedVersion: 1 }), runtime.env, admin, 'e', 'show_shine', origin);
     assert.equal(transition.status, 200);

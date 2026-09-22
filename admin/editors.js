@@ -1,6 +1,6 @@
-import { apiRequest } from './api.js?v=20260922-live3';
-import { adminState } from './state.js?v=20260922-live3';
-import { confirmedFields, commandReceiptMatches } from './confirmed-state.js?v=20260922-live3';
+import { apiRequest } from './api.js?v=20260922-live4';
+import { adminState } from './state.js?v=20260922-live4';
+import { confirmedFields, commandReceiptMatches } from './confirmed-state.js?v=20260922-live4';
 
 const roots=new Map(),pending=new Map();
 const deferred=new Map();

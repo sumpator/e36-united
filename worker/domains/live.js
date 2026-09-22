@@ -65,12 +65,13 @@ async function memberContext(env, eventId, memberId) {
     WHERE r.event_id=? AND r.member_id=? LIMIT 1`, [eventId, memberId]);
   const presence = await one(env, 'SELECT present FROM event_member_presence WHERE event_id=? AND member_id=?', [eventId, memberId]);
   const qr = await one(env, 'SELECT token FROM member_qr_identities WHERE member_id=?', [memberId]);
-  const judge = await one(env, 'SELECT 1 assigned FROM event_live_judges WHERE event_id=? AND member_id=?', [eventId, memberId]);
+  const judge = await one(env, `SELECT 1 assigned FROM members m WHERE m.id=? AND m.status='active'
+    AND (m.role='admin' OR EXISTS(SELECT 1 FROM event_live_judges j WHERE j.event_id=? AND j.member_id=m.id))`, [memberId, eventId]);
   return {
     memberId,
     reservation:reservation ? { id:reservation.id,status:reservation.status,arrival:reservation.arrival||'',attendanceType:reservation.attendance_type||'',crew:Number(reservation.crew||1),accommodation:reservation.stay_name||reservation.accommodation||'Bez ubytování',stayPeople:Number(reservation.stay_people||0),stayNights:Number(reservation.stay_nights||0),showShine:reservation.show_shine||'',carId:reservation.car_id||null,car:[reservation.car_nickname,reservation.car_model,reservation.car_body].filter(Boolean).join(' · '),payment:{due:Number(reservation.amount_due_czk||0),paid:Number(reservation.amount_paid_czk||0),status:reservation.payment_status||'unpaid'}}:null,
     present:presence?.present === 1,
-    eligible:reservation?.status === 'approved' && presence?.present === 1,
+    eligible:reservation?.status === 'approved',
     qrPayload:qr ? MEMBER_QR_PREFIX + qr.token : null,
     judge:!!judge,
   };
@@ -136,7 +137,7 @@ export async function saveLiveVote(request, env, auth, entryId, origin) {
   if(!['live','paused'].includes(entry.status)||!entry.presented_at)return json({ok:false,error:'voting_not_open'},409,origin);
   if(entry.status==='paused')return json({ok:false,error:'voting_paused'},409,origin);
   if(entry.member_id===auth.uid)return json({ok:false,error:'own_car_vote'},403,origin);
-  const context=await memberContext(env,entry.event_id,auth.uid);if(!context.eligible)return json({ok:false,error:'attendance_required'},403,origin);
+  const context=await memberContext(env,entry.event_id,auth.uid);if(!context.eligible)return json({ok:false,error:'approved_registration_required'},403,origin);
   await env.DB.prepare(`INSERT INTO live_public_votes(id,event_id,discipline,entry_id,voter_id,score) VALUES(?,?,?,?,?,?)
     ON CONFLICT(event_id,discipline,entry_id,voter_id) DO UPDATE SET score=excluded.score,updated_at=CURRENT_TIMESTAMP`).bind(crypto.randomUUID(),entry.event_id,entry.discipline,entry.id,auth.uid,value).run();
   return json({ok:true,entryId,score:value},200,origin);
@@ -145,7 +146,8 @@ export async function saveLiveVote(request, env, auth, entryId, origin) {
 export async function saveJudgeScore(request,env,auth,entryId,origin){
   const body=await readBody(request),entry=await one(env,`SELECT e.*,s.status FROM live_entries e JOIN events ev ON ev.id=e.event_id AND ev.live_enabled=1 JOIN live_competition_state s ON s.event_id=e.event_id AND s.discipline=e.discipline WHERE e.id=? AND e.discipline='show_shine'`,[entryId]);
   if(!entry)return json({ok:false,error:'entry_not_available'},404,origin);
-  const assigned=await one(env,'SELECT 1 ok FROM event_live_judges WHERE event_id=? AND member_id=?',[entry.event_id,auth.uid]);if(!assigned)return json({ok:false,error:'judge_forbidden'},403,origin);
+  const allowed=await one(env,`SELECT 1 ok FROM members m WHERE m.id=? AND m.status='active'
+    AND (m.role='admin' OR EXISTS(SELECT 1 FROM event_live_judges j WHERE j.event_id=? AND j.member_id=m.id))`,[auth.uid,entry.event_id]);if(!allowed)return json({ok:false,error:'judge_forbidden'},403,origin);
   if(entry.member_id===auth.uid)return json({ok:false,error:'own_car_score'},403,origin);
   if(!entry.presented_at)return json({ok:false,error:'entry_not_presented'},409,origin);
   if(['closed','published'].includes(entry.status))return json({ok:false,error:'judging_closed'},409,origin);
@@ -170,7 +172,8 @@ export async function uploadLivePhoto(request,env,auth,origin){
 
 export async function uploadJudgePhoto(request,env,auth,entryId,origin){
   const entry=await one(env,`SELECT e.* FROM live_entries e JOIN events ev ON ev.id=e.event_id AND ev.live_enabled=1 WHERE e.id=?`,[entryId]);if(!entry)return json({ok:false,error:'entry_not_available'},404,origin);
-  const assigned=await one(env,'SELECT 1 ok FROM event_live_judges WHERE event_id=? AND member_id=?',[entry.event_id,auth.uid]);if(!assigned)return json({ok:false,error:'judge_forbidden'},403,origin);
+  const allowed=await one(env,`SELECT 1 ok FROM members m WHERE m.id=? AND m.status='active'
+    AND (m.role='admin' OR EXISTS(SELECT 1 FROM event_live_judges j WHERE j.event_id=? AND j.member_id=m.id))`,[auth.uid,entry.event_id]);if(!allowed)return json({ok:false,error:'judge_forbidden'},403,origin);
   if(entry.member_id===auth.uid)return json({ok:false,error:'own_car_score'},403,origin);
   const form=await request.formData(),file=form.get('file'),validation=validateImageFile(file);if(validation)return json({ok:false,error:validation},400,origin);
   const id=crypto.randomUUID(),key=`live-judge/${entry.event_id}/${entry.id}/${auth.uid}/${id}.${extensionFor(file.type)}`;

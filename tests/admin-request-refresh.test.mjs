@@ -83,6 +83,16 @@ test('invalid successful JSON is unavailable, never an empty successful projecti
  const api=createAdminApiClient({baseUrl:'https://local.invalid',getContext:()=>({user,generation:1,eventId:'e'}),fetchRequest:async()=>new Response('<html>error</html>')});
  await assert.rejects(api.request('/summary'),/Neplatná odpověď/);
 });
+test('business-rule 403 stays local while real authentication and admin denial revoke access',async()=>{
+ let denied=0,status=403,payload={error:'own_car_score'};
+ const api=createAdminApiClient({baseUrl:'https://local.invalid',getContext:()=>({user,generation:1,eventId:'e'}),onDenied:()=>denied++,fetchRequest:async()=>json(payload,status)});
+ await assert.rejects(api.request('/api/live/judge/scores/own',{method:'PUT',body:{}}),error=>error.status===403&&error.payload.error==='own_car_score');
+ assert.equal(denied,0);
+ payload={error:'admin_forbidden'};
+ await assert.rejects(api.request('/api/admin/live',{method:'POST',body:{}}),error=>error.status===403);assert.equal(denied,1);
+ status=401;payload={error:'Unauthorized'};
+ await assert.rejects(api.request('/api/admin/live',{method:'POST',body:{}}),error=>error.status===401);assert.equal(denied,2);
+});
 test('known offline is idle; lifecycle storms coalesce and failures back off to a bounded five minutes',async()=>{
  let online=true,calls=0,release;const timers=new Map();let id=0;const hold=new Promise(resolve=>release=resolve);
  const c=createAdminRefresh({readContext:()=>({key:'a:e',authenticated:true,visible:true,online}),refresh:async()=>{calls++;if(calls===1)await hold;return{failed:['summary']}},setTimer:(fn,ms)=>{timers.set(++id,{fn,ms});return id},clearTimer:key=>timers.delete(key)});

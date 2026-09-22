@@ -13,7 +13,7 @@
 <link href="club-profile.css?v=20260913-club-profile-ux-r1" rel="stylesheet"/>
 <link href="member/reliability.css?v=20260907-feedback" rel="stylesheet"/>
 <link href="mobile-feedback.css?v=20260907-mobile" rel="stylesheet"/>
-<link href="member/live.css?v=20260922-live3" rel="stylesheet"/>
+<link href="member/live.css?v=20260922-live4" rel="stylesheet"/>
 </head>
 <body class="member-page">
 <header class="site-header scrolled member-header">
@@ -89,7 +89,7 @@
 <button class="member-nav-item" data-member-section="photos" data-portal-target="photos"><span>06</span><b>Moje fotky</b></button>
 <button class="member-nav-item" data-member-section="account" data-portal-target="account"><span>07</span><b>Účet</b></button>
 <a class="member-nav-item member-nav-external member-nav-shop" href="merch.html"><b>United Merch</b></a>
-<button class="member-nav-item member-nav-live" data-member-section="live" data-portal-target="live"><span aria-hidden="true">●</span><b class="member-nav-label"><strong>UNITED LIVE</strong><small data-live-nav-copy>Načítám stav…</small></b><i aria-hidden="true" class="member-live-indicator">LIVE</i></button>
+<button class="member-nav-item member-nav-live" data-member-section="live" data-portal-target="live"><span aria-hidden="true">●</span><b class="member-nav-label"><span class="member-nav-live-title"><strong>UNITED LIVE</strong><i aria-hidden="true" class="member-live-indicator">LIVE</i></span><small data-live-nav-copy>Načítám stav…</small></b></button>
 </aside>
 </div>
 <button class="member-sidebar-logout" data-logout="" type="button">Odhlásit se</button>
@@ -240,7 +240,7 @@
 <div class="member-live-app" data-live-app hidden>
 <div class="member-live-view is-active" data-live-view="program"><div data-live-program></div></div>
 <div class="member-live-view" data-live-view="showshine" hidden><div data-live-showshine></div></div>
-<div class="member-live-view" data-live-view="photos" hidden><div class="member-live-section-head"><span>LIVE GALERIE</span><h2>Fotky ze srazu.</h2></div><form class="member-live-upload" data-live-upload><label><input accept="image/jpeg,image/png,image/webp" capture="environment" multiple name="photos" required type="file"><span>＋</span><b>Přidat fotky</b><small>Vyfotit nebo vybrat · popisek je volitelný</small></label><input maxlength="240" name="caption" placeholder="Krátký popisek (volitelné)"><button class="member-primary member-primary--compact" type="submit">Odeslat ke schválení</button><p data-live-upload-state role="status"></p></form><div class="member-live-gallery" data-live-gallery></div></div>
+<div class="member-live-view" data-live-view="photos" hidden><div class="member-live-section-head"><span>LIVE GALERIE</span><h2>Fotky ze srazu.</h2></div><form class="member-live-upload" data-live-upload><label><input accept="image/jpeg,image/png,image/webp" capture="environment" multiple name="photos" type="file"><span>＋</span><b>Přidat fotky</b><small>Vyfotit nebo vybrat · popisek je volitelný</small></label><input maxlength="240" name="caption" placeholder="Krátký popisek (volitelné)"><button class="member-primary member-primary--compact" type="submit">Odeslat ke schválení</button><div class="live-upload-previews" data-live-upload-previews></div><p data-live-upload-state role="status"></p></form><div class="member-live-gallery" data-live-gallery></div></div>
 <nav aria-label="UNITED LIVE" class="member-live-tabs"><button aria-current="page" class="is-active" data-live-tab="program" type="button"><span>▤</span>Program</button><button aria-current="false" data-live-tab="showshine" type="button"><span>★</span>Show &amp; Shine</button><button aria-current="false" data-live-tab="photos" type="button"><span>▧</span>Fotky</button></nav>
 </div>
 </div>
@@ -259,5 +259,5 @@
 <div class="member-gallery-lightbox" data-member-gallery-lightbox="" hidden=""><div class="member-gallery-lightbox-backdrop" data-member-gallery-close=""></div><div aria-label="Náhled fotografie" aria-modal="true" class="member-gallery-lightbox-dialog" role="dialog"><button aria-label="Zavřít náhled" class="member-gallery-lightbox-close" data-member-gallery-close="" type="button">×</button><button aria-label="Předchozí fotografie" class="member-gallery-lightbox-nav member-gallery-lightbox-prev" data-member-gallery-prev="" type="button">←</button><figure><img alt="" data-member-gallery-lightbox-image=""/><figcaption data-member-gallery-lightbox-caption=""></figcaption></figure><button aria-label="Další fotografie" class="member-gallery-lightbox-nav member-gallery-lightbox-next" data-member-gallery-next="" type="button">→</button></div></div>
 <div aria-live="polite" class="member-toast" data-toast="" role="status"></div>
 <script src="showshine-data.js?v=20260824"></script>
-<script src="member.js?v=20260922-live3" type="module"></script>
+<script src="member.js?v=20260922-live4" type="module"></script>
 </body></html>

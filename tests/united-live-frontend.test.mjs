@@ -49,6 +49,9 @@ test('member LIVE exposes only Program, Show and Shine and Photos with QR and no
   assert.match(live, /data-live-open-votes/);
   assert.match(live, /data-live-tab-direct="photos"/);
   assert.match(live, /getRegistrationCar\(\)/);
+  assert.match(live, /payload\.me\?\.judge/);
+  assert.match(html, /multiple name="photos"/);
+  assert.match(html, /data-live-upload-previews/);
   assert.doesNotMatch(live, /live-participation|Moje účast a pobyt|reservation\.accommodation/);
 });
 
@@ -76,8 +79,11 @@ test('admin LIVE is one compact workflow and keeps global state changes in setti
   assert.match(live, /data-live-start/);
   assert.match(live, /data-live-judge-form/);
   assert.match(live, /data-live-judge-submit/);
+  assert.match(live, /data-live-judge-previews/);
   assert.match(live, /function settingsView\(\)/);
   assert.match(live, /data-admin-live-toggle/);
+  assert.doesNotMatch(live, /data-live-judge-assign|\/live\/judges/);
+  assert.ok(live.indexOf('modeActive=true;setMode(true);render();if(setAdminView') > 0);
   assert.equal((html.match(/data-admin-live-toggle/g) || []).length, 0);
   assert.match(main, /await refreshCoordinator\.trigger\('startup'\);await adminLive\.startup\(\)/);
   assert.match(shell, /new CustomEvent\('admin:liveentryrequest',\{cancelable:true/);

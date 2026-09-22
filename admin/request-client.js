@@ -36,7 +36,8 @@ export function createAdminApiClient({baseUrl,getContext,fetchRequest=fetch,time
         check();if(result.refreshToken){force=true;continue}return result.payload;
       }catch(error){
         check();if(error.stale)throw error;
-        if([401,403].includes(error.status)){onDenied(error);throw error}
+        const deniedCode=error.payload?.error;
+        if(error.status===401||error.status===403&&['admin_forbidden','active_member_required'].includes(deniedCode)){onDenied(error);throw error}
         const transient=error.network||error instanceof TypeError||[429,502,503,504].includes(error.status);
         if(method==='GET'&&transient&&transientAttempts++===0){await new Promise(resolve=>setTimeout(resolve,error.retryAfterMs??retryDelayMs));check();continue}
         throw error;
