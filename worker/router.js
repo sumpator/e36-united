@@ -13,6 +13,7 @@ import { getAdminFunnel, trackOnboarding, trackPlannerHandoff } from './domains/
 import { getAdminHistoryCounts } from './domains/club/history.js';
 import { handleSmtp2goWebhook } from './domains/mailing/tracking.js';
 import { getPreliminaryReservation, putPreliminaryReservation, cancelPreliminaryReservation, listAdminPreliminaryReservations, savePreliminarySettings } from './domains/reservations/preliminary.js';
+import { assignLiveJudge, controlLive, createEvent, createLiveEntry, deleteProgramItem, getAdminLive, getLiveState, getMemberLive, judgePhotoMedia, liveEntryMedia, resolveLiveQr, saveJudgeScore, saveLiveVote, saveProgramItem, searchLiveMembers, setAdminLiveEnabled, setLivePresence, uploadJudgePhoto, uploadLivePhoto } from './domains/live.js';
 
 const PROTECTED_MEMBER_EXACT_ROUTES = new Set([
   'GET /api/preliminary-reservations/current',
@@ -34,6 +35,9 @@ const PROTECTED_MEMBER_EXACT_ROUTES = new Set([
   "POST /api/cars",
   "POST /api/gallery/submissions",
   "GET /api/gallery/mine",
+  "GET /api/live",
+  "GET /api/live/state",
+  "POST /api/live/photos",
 ]);
 
 const PROTECTED_MEMBER_ROUTE_PATTERNS = [
@@ -49,6 +53,11 @@ const PROTECTED_MEMBER_ROUTE_PATTERNS = [
   ["GET", /^\/api\/gallery\/mine\/media\/[^/]+$/],
   ["GET", /^\/api\/united-club\/members\/[^/]+$/],
   ["GET", /^\/api\/united-club\/members\/[^/]+\/media\/cars\/[^/]+$/],
+  ["PUT", /^\/api\/live\/votes\/[^/]+$/],
+  ["PUT", /^\/api\/live\/judge\/scores\/[^/]+$/],
+  ["POST", /^\/api\/live\/judge\/entries\/[^/]+\/photos$/],
+  ["GET", /^\/api\/live\/judge\/photos\/[^/]+$/],
+  ["GET", /^\/api\/live\/entries\/[^/]+\/media$/],
 ];
 
 export function isProtectedMemberRoute(method, pathname) {
@@ -102,6 +111,25 @@ export async function routeRequest({ request, env, url, origin }) {
       }
 
       if(url.pathname==='/api/admin/dashboard'&&request.method==='GET')return getAdminDashboard(env,url,origin);
+      if(url.pathname==='/api/admin/live'&&request.method==='GET')return getAdminLive(env,url,origin);
+      if(url.pathname==='/api/admin/events'&&request.method==='POST')return createEvent(request,env,auth,origin);
+      const liveEnabled=url.pathname.match(/^\/api\/admin\/events\/([^/]+)\/live$/);
+      if(liveEnabled&&request.method==='PUT')return setAdminLiveEnabled(request,env,auth,decodeURIComponent(liveEnabled[1]),origin);
+      const liveProgram=url.pathname.match(/^\/api\/admin\/events\/([^/]+)\/live\/program(?:\/([^/]+))?$/);
+      if(liveProgram&&['POST','PUT'].includes(request.method))return saveProgramItem(request,env,auth,decodeURIComponent(liveProgram[1]),liveProgram[2]?decodeURIComponent(liveProgram[2]):null,origin);
+      if(liveProgram&&request.method==='DELETE'&&liveProgram[2])return deleteProgramItem(env,decodeURIComponent(liveProgram[1]),decodeURIComponent(liveProgram[2]),origin);
+      const liveJudges=url.pathname.match(/^\/api\/admin\/events\/([^/]+)\/live\/judges$/);
+      if(liveJudges&&request.method==='PUT')return assignLiveJudge(request,env,auth,decodeURIComponent(liveJudges[1]),origin);
+      const liveMembers=url.pathname.match(/^\/api\/admin\/events\/([^/]+)\/live\/members$/);
+      if(liveMembers&&request.method==='GET')return searchLiveMembers(env,decodeURIComponent(liveMembers[1]),url,origin);
+      const liveQr=url.pathname.match(/^\/api\/admin\/events\/([^/]+)\/live\/qr$/);
+      if(liveQr&&request.method==='POST')return resolveLiveQr(request,env,decodeURIComponent(liveQr[1]),origin);
+      const livePresence=url.pathname.match(/^\/api\/admin\/events\/([^/]+)\/live\/members\/([^/]+)\/presence$/);
+      if(livePresence&&request.method==='PUT')return setLivePresence(request,env,auth,decodeURIComponent(livePresence[1]),decodeURIComponent(livePresence[2]),origin);
+      const liveEntries=url.pathname.match(/^\/api\/admin\/events\/([^/]+)\/live\/entries$/);
+      if(liveEntries&&request.method==='POST')return createLiveEntry(request,env,auth,decodeURIComponent(liveEntries[1]),origin);
+      const liveControl=url.pathname.match(/^\/api\/admin\/events\/([^/]+)\/live\/(show_shine|best_exhaust)\/control$/);
+      if(liveControl&&request.method==='PATCH')return controlLive(request,env,auth,decodeURIComponent(liveControl[1]),liveControl[2],origin);
       if(url.pathname==='/api/admin/preliminary-reservations'&&request.method==='GET')return listAdminPreliminaryReservations(env,url,origin);
       const preliminarySettings=url.pathname.match(/^\/api\/admin\/events\/([^/]+)\/preliminary-settings$/);
       if(preliminarySettings&&request.method==='PUT')return savePreliminarySettings(request,env,auth,decodeURIComponent(preliminarySettings[1]),origin);
@@ -241,6 +269,19 @@ export async function routeRequest({ request, env, url, origin }) {
       if(request.method==='PUT')return putPreliminaryReservation(request,env,auth,origin);
       if(request.method==='DELETE')return cancelPreliminaryReservation(request,env,auth,origin);
     }
+    if(url.pathname==='/api/live'&&request.method==='GET')return getMemberLive(env,auth,origin);
+    if(url.pathname==='/api/live/state'&&request.method==='GET')return getLiveState(env,auth,url,origin);
+    if(url.pathname==='/api/live/photos'&&request.method==='POST')return uploadLivePhoto(request,env,auth,origin);
+    const liveVote=url.pathname.match(/^\/api\/live\/votes\/([^/]+)$/);
+    if(liveVote&&request.method==='PUT')return saveLiveVote(request,env,auth,decodeURIComponent(liveVote[1]),origin);
+    const liveJudgeScore=url.pathname.match(/^\/api\/live\/judge\/scores\/([^/]+)$/);
+    if(liveJudgeScore&&request.method==='PUT')return saveJudgeScore(request,env,auth,decodeURIComponent(liveJudgeScore[1]),origin);
+    const liveJudgeUpload=url.pathname.match(/^\/api\/live\/judge\/entries\/([^/]+)\/photos$/);
+    if(liveJudgeUpload&&request.method==='POST')return uploadJudgePhoto(request,env,auth,decodeURIComponent(liveJudgeUpload[1]),origin);
+    const liveJudgeMedia=url.pathname.match(/^\/api\/live\/judge\/photos\/([^/]+)$/);
+    if(liveJudgeMedia&&request.method==='GET')return judgePhotoMedia(env,auth,decodeURIComponent(liveJudgeMedia[1]),origin);
+    const liveEntryPhoto=url.pathname.match(/^\/api\/live\/entries\/([^/]+)\/media$/);
+    if(liveEntryPhoto&&request.method==='GET')return liveEntryMedia(env,auth,decodeURIComponent(liveEntryPhoto[1]),origin);
     if (url.pathname === "/api/navigation-state" && request.method === "GET") return await domain.getMemberNavigationState(env, auth, origin);
     if (url.pathname === '/api/planner-handoffs/claim' && request.method === 'POST') return trackPlannerHandoff(request,env,auth,origin);
     if (url.pathname === "/api/united-club" && request.method === "GET") return await domain.getUnitedClub(env, auth, origin);

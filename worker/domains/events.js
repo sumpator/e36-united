@@ -3,7 +3,7 @@ import { clean } from "../utils/text.js";
 
 const eventSelect = env => `
   SELECT
-    id, year, registration_status, is_current,
+    id, year, title, registration_status, is_current, COALESCE(live_enabled,0) AS live_enabled,
     ${env.ADMIN_READ ? "COALESCE((SELECT revision FROM admin_resource_versions WHERE resource_type='event-settings' AND resource_id='*'),0)" : '0'} AS admin_revision,
     ${env.ADMIN_READ ? "COALESCE((SELECT revision FROM admin_resource_versions WHERE resource_type='accommodation-catalog' AND resource_id=events.id),0)" : '0'} AS accommodation_revision,
     accommodation_capacity, reservation_capacity,
@@ -40,10 +40,12 @@ function publicAdminEvent(event) {
   if (!event) return null;
   return {
     id: event.id,
+    title: event.title || `United ${event.year}`,
     revision: Number(event.admin_revision || 0),
     accommodationRevision: Number(event.accommodation_revision || 0),
     year: Number(event.year || 0),
     isCurrent: !!event.is_current,
+    liveEnabled: !!event.live_enabled,
     registrationStatus: event.registration_status || "",
     accommodationCapacity: Number(event.accommodation_capacity || 0),
     reservationCapacity: Number(event.reservation_capacity || 0),

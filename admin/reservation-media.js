@@ -1,4 +1,4 @@
-import { apiMedia } from './api.js?v=20260920-registration-ui-r1';
+import { apiMedia } from './api.js?v=20260922-live1';
 let observer = null,
   controller = null,
   objectUrl = null,

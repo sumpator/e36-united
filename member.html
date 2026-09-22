@@ -13,6 +13,7 @@
 <link href="club-profile.css?v=20260913-club-profile-ux-r1" rel="stylesheet"/>
 <link href="member/reliability.css?v=20260907-feedback" rel="stylesheet"/>
 <link href="mobile-feedback.css?v=20260907-mobile" rel="stylesheet"/>
+<link href="member/live.css?v=20260922-live1" rel="stylesheet"/>
 </head>
 <body class="member-page">
 <header class="site-header scrolled member-header">
@@ -22,6 +23,7 @@
 <a href="index.html">Web</a><a href="galerie.html">Galerie</a><a href="merch.html">United Merch</a><a class="nav-member active" data-member-entry="" href="member.html"><span class="nav-member-label">Můj United</span></a>
 <div aria-label="Sekce Můj United" class="member-main-mobile-nav" data-member-main-mobile-nav="" hidden="" role="group">
 <button class="is-active" data-main-member-section="overview" type="button">Přehled</button>
+<button data-main-member-section="live" type="button">LIVE</button>
 <button data-main-member-section="reservation" type="button">Registrace</button>
 <button data-main-member-section="garage" type="button">Garáž</button>
 <button data-main-member-section="payments" type="button">Platby</button>
@@ -80,6 +82,7 @@
 <div class="portal-nav-viewport">
 <aside class="member-sidebar" data-portal-tablist>
 <button class="member-nav-item is-active" data-member-section="overview" data-portal-target="overview"><span>01</span><b>Přehled</b></button>
+<button class="member-nav-item member-nav-live" data-member-section="live" data-portal-target="live"><span aria-hidden="true">●</span><b class="member-nav-label"><strong>UNITED LIVE</strong><small data-live-nav-copy>Na srazu</small></b><i aria-hidden="true" class="member-live-indicator">LIVE</i></button>
 <button class="member-nav-item" data-member-section="reservation" data-portal-target="reservation"><span>02</span><b class="member-nav-label"><strong>Registrace</strong><small>Účast &amp; ubytování</small></b><i aria-hidden="true" class="member-nav-reservation-status is-status-none" data-reservation-nav-status=""></i></button>
 <button class="member-nav-item" data-member-section="garage" data-portal-target="garage"><span>03</span><b>Garáž</b></button>
 <button class="member-nav-item" data-member-section="payments" data-portal-target="payments"><span>04</span><b>Platby</b></button>
@@ -115,6 +118,19 @@
 </div>
 <section class="united-onboarding-club"><div><span>DOPLŇ UNITED CLUB</span><h3>Doplň United Club a získej výhody</h3><nav aria-label="Doplnění United Clubu"><button data-jump="garage" type="button"><span>Nahrát fotku auta</span><b aria-hidden="true">→</b></button><button data-jump="club" type="button"><span>Doplnit účast na minulých srazech</span><b aria-hidden="true">→</b></button><button data-jump="photos" type="button"><span>Přidat fotky do galerie</span><b aria-hidden="true">→</b></button></nav></div><div class="united-onboarding-flow" aria-hidden="true"><i></i><span>U</span><i></i></div><ul><li><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 7.5h16v3a2 2 0 0 0 0 4v3H4v-3a2 2 0 0 0 0-4z"/><path d="M9 8v8"/></svg><span>Levnější vstup</span></li><li><svg aria-hidden="true" viewBox="0 0 24 24"><path d="m4.5 12.5 8-8H19v6.5l-8 8z"/><circle cx="16" cy="7.5" r="1"/></svg><span>Sleva na merch</span></li><li><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 18V9h16v9M7 9V6h10v3M4 14h16M7 18v-4M17 18v-4"/></svg><span>Přednostní rezervace ubytování</span></li></ul></section>
 </article>
+</section>
+<section class="member-section member-live" data-member-panel="live">
+<header class="member-live-head"><div><span class="member-kicker">UNITED LIVE</span><h2>Právě na United.</h2><p data-live-event-copy>Načítám aktuální ročník…</p></div><nav aria-label="Rychlé akce UNITED LIVE"><button data-live-quick="qr" type="button">▦ <span>Můj QR</span></button><button data-live-quick="stay" type="button">⌂ <span>Můj pobyt</span></button><button data-live-exit type="button">← <span>Portál</span></button></nav></header>
+<div class="member-live-disabled" data-live-disabled hidden><span aria-hidden="true">○</span><h3>UNITED LIVE teď není aktivní.</h3><p>Program a členský portál zůstávají dostupné. LIVE zapne United tým pro konkrétní ročník.</p><button class="member-secondary" data-live-exit type="button">Zpět do portálu</button></div>
+<div class="member-live-app" data-live-app hidden>
+  <p class="member-live-connection" data-live-connection role="status">ONLINE · živý stav</p>
+  <div class="member-live-view is-active" data-live-view="now"><div data-live-now></div></div>
+  <div class="member-live-view" data-live-view="program" hidden><div class="member-live-section-head"><span>PROGRAM</span><h3>Co se děje.</h3></div><div data-live-program></div></div>
+  <div class="member-live-view" data-live-view="rating" hidden><div class="member-live-section-head"><span>HODNOCENÍ</span><h3>Tvůj hlas.</h3></div><div data-live-rating></div></div>
+  <div class="member-live-view" data-live-view="photos" hidden><div class="member-live-section-head"><span>LIVE GALERIE</span><h3>Fotky ze srazu.</h3></div><form class="member-live-upload" data-live-upload><label><input accept="image/jpeg,image/png,image/webp" capture="environment" multiple name="photos" required type="file"><span>＋</span><b>Přidat fotky</b><small>Vyfotit nebo vybrat · popisek je volitelný</small></label><input maxlength="240" name="caption" placeholder="Krátký popisek (volitelné)"><button class="member-primary member-primary--compact" type="submit">Odeslat ke schválení</button><p data-live-upload-state role="status"></p></form><div class="member-live-gallery" data-live-gallery></div></div>
+  <div class="member-live-sheet" data-live-sheet hidden><button aria-label="Zavřít" data-live-sheet-close type="button">×</button><div data-live-sheet-content></div></div>
+  <nav aria-label="UNITED LIVE" class="member-live-tabs"><button class="is-active" data-live-tab="now" type="button"><span>⌁</span>Teď</button><button data-live-tab="program" type="button"><span>▤</span>Program</button><button data-live-tab="rating" type="button"><span>★</span>Hodnocení</button><button data-live-tab="photos" type="button"><span>▧</span>Fotky</button></nav>
+</div>
 </section>
 <section class="member-section" data-member-panel="reservation" data-reservation-section="">
 <div class="member-section-head"><div><span class="member-kicker">UNITED 2026</span><h2 data-reservation-section-entry tabindex="-1">Registrace.</h2></div><span class="member-chip">ÚČAST &amp; UBYTOVÁNÍ</span></div>
@@ -241,5 +257,5 @@
 <div class="member-gallery-lightbox" data-member-gallery-lightbox="" hidden=""><div class="member-gallery-lightbox-backdrop" data-member-gallery-close=""></div><div aria-label="Náhled fotografie" aria-modal="true" class="member-gallery-lightbox-dialog" role="dialog"><button aria-label="Zavřít náhled" class="member-gallery-lightbox-close" data-member-gallery-close="" type="button">×</button><button aria-label="Předchozí fotografie" class="member-gallery-lightbox-nav member-gallery-lightbox-prev" data-member-gallery-prev="" type="button">←</button><figure><img alt="" data-member-gallery-lightbox-image=""/><figcaption data-member-gallery-lightbox-caption=""></figcaption></figure><button aria-label="Další fotografie" class="member-gallery-lightbox-nav member-gallery-lightbox-next" data-member-gallery-next="" type="button">→</button></div></div>
 <div aria-live="polite" class="member-toast" data-toast="" role="status"></div>
 <script src="showshine-data.js?v=20260824"></script>
-<script src="member.js?v=20260921-member-ux-r2" type="module"></script>
+<script src="member.js?v=20260922-live1" type="module"></script>
 </body></html>

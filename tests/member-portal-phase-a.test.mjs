@@ -20,12 +20,12 @@ const galleryHtml = read('galerie.html');
 const galleryJs = read('gallery.js');
 const authStatesCss = read('auth-states.css');
 
-test('main navigation contains exactly seven internal panels in target order', () => {
+test('main navigation contains exactly eight internal panels in target order', () => {
   const sidebar = memberHtml.slice(memberHtml.indexOf('<aside class="member-sidebar"'), memberHtml.indexOf('</aside>'));
   const labels = [...sidebar.matchAll(/data-member-section="([^"]+)"/g)].map(match => match[1]);
-  assert.deepEqual(labels, ['overview', 'reservation', 'garage', 'payments', 'club', 'photos', 'account']);
+  assert.deepEqual(labels, ['overview', 'live', 'reservation', 'garage', 'payments', 'club', 'photos', 'account']);
   assert.match(sidebar, /data-member-section="reservation"[\s\S]*?<strong>Registrace<\/strong><small>Účast &amp; ubytování<\/small>/);
-  for (const panel of ['overview', 'reservation', 'garage', 'payments', 'club', 'photos', 'account']) assert.match(memberHtml, new RegExp(`data-member-panel="${panel}"`));
+  for (const panel of ['overview', 'live', 'reservation', 'garage', 'payments', 'club', 'photos', 'account']) assert.match(memberHtml, new RegExp(`data-member-panel="${panel}"`));
 });
 
 test('United Merch is a separated external destination, never an internal panel', () => {
@@ -40,7 +40,7 @@ test('authenticated main mobile menu contains all Member Portal sections', () =>
   const start = memberHtml.indexOf('data-member-main-mobile-nav');
   const mobile = memberHtml.slice(start, memberHtml.indexOf('</div>', start));
   const labels = [...mobile.matchAll(/data-main-member-section="[^"]+"[^>]*>([^<]+)<\/button>/g)].map(match => match[1].replace('&amp;', '&'));
-  assert.deepEqual(labels, ['Přehled', 'Registrace', 'Garáž', 'Platby', 'United Club', 'Moje fotky', 'Účet']);
+  assert.deepEqual(labels, ['Přehled', 'LIVE', 'Registrace', 'Garáž', 'Platby', 'United Club', 'Moje fotky', 'Účet']);
   assert.match(memberHtml, /data-member-main-mobile-nav="" hidden=""/);
   assert.match(memberShellJs, /setMainMobileMemberNavigation\(true\)/);
   assert.match(memberShellJs, /setMainMobileMemberNavigation\(false\)/);
@@ -84,7 +84,7 @@ test('duplicate internal mobile hamburger is removed while the horizontal scroll
   const nav = memberHtml.slice(navStart, memberHtml.indexOf('<div class="member-content">', navStart));
   assert.doesNotMatch(nav, /portal-menu-button|data-portal-menu-open|portal-nav-sheet|data-portal-sheet/);
   assert.match(nav, /portal-nav-viewport[\s\S]*?<aside class="member-sidebar" data-portal-tablist>/);
-  assert.equal((nav.match(/data-member-section="/g)||[]).length,7);
+  assert.equal((nav.match(/data-member-section="/g)||[]).length,8);
   assert.match(memberCss, /@media\(max-width:1050px\)\{\.member-portal-nav\{grid-template-columns:minmax\(0,1fr\)\}\}/);
   assert.match(portalNavigationJs, /scrollIntoView/);
 });
@@ -106,7 +106,7 @@ test('authenticated entry keeps Overview fallback but applies a handoff before c
   assert.match(memberHtml, /member-nav-item is-active" data-member-section="overview"/);
   assert.match(memberHtml, /member-section is-active" data-member-panel="overview"/);
   assert.match(memberJs, /showApp\(\);\s*if\(!errors.reservation\)await memberPlanner\.applyPlannerDraft/);
-  assert.match(memberJs, /openSection\(new URLSearchParams\(window.location.search\).has\('draft'\)&&memberPlanner.hasActiveHandoff\(\)\?'reservation':requestedMemberSection\(window.location.search\)\)/);
+  assert.match(memberJs, /const initialSection=new URLSearchParams\(window.location.search\).has\('draft'\)&&memberPlanner.hasActiveHandoff\(\)\?'reservation':requestedMemberSection\(window.location.search\);\s*openSection\(initialSection\)/);
   assert.doesNotMatch(memberJs, /requestedMemberPanel/);
   assert.match(memberPlannerJs, /applyPlannerHandoffToForm\(\{navigate:false\}\)/);
   const draftFlow = memberPlannerJs.slice(memberPlannerJs.indexOf('async function applyPlannerDraft'), memberPlannerJs.indexOf('function handleGarageCarSaved'));

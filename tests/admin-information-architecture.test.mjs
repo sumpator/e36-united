@@ -56,9 +56,9 @@ const reservations = [
 test('admin has one persistent navigation target for each real agenda and one default active panel', () => {
   const panels = [...html.matchAll(/data-admin-panel="([^"]+)"/g)].map(match => match[1]);
   assert.deepEqual(panels.sort(), ADMIN_VIEW_IDS.filter(id=>id!=='united-club').sort()); // Club reuses the canonical Members panel.
-  assert.deepEqual(Object.keys(ADMIN_AREAS),['dashboard','reservations','payments','community','mailing','settings']);
+  assert.deepEqual(Object.keys(ADMIN_AREAS),['dashboard','live','reservations','payments','community','mailing','settings']);
   const shell=read('admin/command-shell.js');
-  for(const area of ['dashboard','reservations','payments','mailing','settings'])assert.ok(shell.includes("navButton('"+area+"'"));
+  for(const area of ['dashboard','live','reservations','payments','mailing','settings'])assert.ok(shell.includes("navButton('"+area+"'"));
   assert.match(shell,/data-community-toggle aria-expanded="false"/);
   assert.equal((html.match(/data-portal-target=/g)||[]).length,0); // One generated registry for desktop + mobile.
   for(const view of ADMIN_VIEW_IDS)assert.ok(ADMIN_AREAS[areaFor(view)].views.includes(view));

@@ -1,7 +1,7 @@
 import { deriveMemberHeroState } from '../member-portal-state.js?v=20260921-member-ux-r2';
 import { initPortalNavigation } from '../portal-navigation.js?v=20260825-mobile1';
 import { $, $$ } from './ui.js?v=20260902-phase3';
-import { memberSection } from './deep-links.js?v=20260907-feedback';
+import { memberSection } from './deep-links.js?v=20260922-live1';
 import { initScrollAffordance } from '../scroll-affordance.js?v=20260907-mobile';
 
 export function createMemberShell({
@@ -67,6 +67,7 @@ export function createMemberShell({
     $$('.member-nav-item[data-member-section]').forEach(button=>button.classList.toggle('is-active',button.dataset.memberSection===id));
     $$('[data-main-member-section]').forEach(button=>button.classList.toggle('is-active',button.dataset.mainMemberSection===id));
     $$('[data-member-panel]').forEach(panel=>panel.classList.toggle('is-active',panel.dataset.memberPanel===id));
+    window.dispatchEvent(new CustomEvent('member:sectionchange',{detail:{section:id}}));
     memberPortalNavigation?.sync(id);if(innerWidth<700)window.scrollTo({top:82,behavior:'smooth'});return true;
   }
   function focusReservationEntry(){
