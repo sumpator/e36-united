@@ -1,17 +1,17 @@
-import { canonicalMemberLink } from '../member-detail.js?v=20260922-live4';
-import {showReservationMedia,clearReservationMedia} from '../reservation-media.js?v=20260922-live4';
-import {listChanged,renderListPagination} from '../lists.js?v=20260922-live4';
-import { adminCommand, editorProtected, allowAdminNavigation, forgetAdminEditor } from '../editors.js?v=20260922-live4';
-import { accommodationVisualMarkup, bindAccommodationVisualFallbacks } from '../../accommodation-visual.js?v=20260922-live4';
-import { RESERVATION_DETAIL_FILTERS, RESERVATION_PRIMARY_FILTERS, RESERVATION_VIEW_MODES, adminItemPayment, filterAdminPayments, filterAdminReservations, paymentMatchesFilter, reservationMatchesFilter } from '../../admin-view-model.js?v=20260922-live4';
-import { apiBaseUrl, apiRequest } from '../api.js?v=20260922-live4';
-import { renderAttentionCounts } from './dashboard-events.js?v=20260922-live4';
-import { adminState } from '../state.js?v=20260922-live4';
-import { setDenied } from '../shell.js?v=20260922-live4';
-import { $, $$, attendanceLabel, attendanceShortLabel, escapeHtml, formatDate, formatMoney, numeric, paymentLabel, paymentQrSvg, recordsLabel, rememberSessionChoice, statusLabel, toast } from '../ui.js?v=20260922-live4';
+import { canonicalMemberLink } from '../member-detail.js?v=20260922-live5';
+import {showReservationMedia,clearReservationMedia} from '../reservation-media.js?v=20260922-live5';
+import {listChanged,renderListPagination} from '../lists.js?v=20260922-live5';
+import { adminCommand, editorProtected, allowAdminNavigation, forgetAdminEditor } from '../editors.js?v=20260922-live5';
+import { accommodationVisualMarkup, bindAccommodationVisualFallbacks } from '../../accommodation-visual.js?v=20260922-live5';
+import { RESERVATION_DETAIL_FILTERS, RESERVATION_PRIMARY_FILTERS, RESERVATION_VIEW_MODES, adminItemPayment, filterAdminPayments, filterAdminReservations, paymentMatchesFilter, reservationMatchesFilter } from '../../admin-view-model.js?v=20260922-live5';
+import { apiBaseUrl, apiRequest } from '../api.js?v=20260922-live5';
+import { renderAttentionCounts } from './dashboard-events.js?v=20260922-live5';
+import { adminState } from '../state.js?v=20260922-live5';
+import { setDenied } from '../shell.js?v=20260922-live5';
+import { $, $$, attendanceLabel, attendanceShortLabel, escapeHtml, formatDate, formatMoney, numeric, paymentLabel, paymentQrSvg, recordsLabel, rememberSessionChoice, statusLabel, toast } from '../ui.js?v=20260922-live5';
 
 const paymentFilterLabels={attention:'Vyžaduje kontrolu',all:'Vše',unpaid:'K platbě',underpaid:'Doplatek',paid:'Zaplaceno',overpaid:'Přeplatek'};
-import {mergeReservation} from '../confirmed-state.js?v=20260922-live4';
+import {mergeReservation} from '../confirmed-state.js?v=20260922-live5';
 let reservationDrawerReturnFocus=null;
 let revisionContext='',revisionFloor=new Map();
 function floors(){

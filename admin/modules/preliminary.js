@@ -1,7 +1,7 @@
-import {adminState} from '../state.js?v=20260922-live4';
-import {apiRequest} from '../api.js?v=20260922-live4';
-import {$,escapeHtml as esc,toast} from '../ui.js?v=20260922-live4';
-import {ADMIN_REFRESH} from '../refresh-policy.js?v=20260922-live4';
+import {adminState} from '../state.js?v=20260922-live5';
+import {apiRequest} from '../api.js?v=20260922-live5';
+import {$,escapeHtml as esc,toast} from '../ui.js?v=20260922-live5';
+import {ADMIN_REFRESH} from '../refresh-policy.js?v=20260922-live5';
 let page=1,payload=null,refresh=()=>{},busy=false;
 export function clearPreliminary(){
   page=1;payload=null;

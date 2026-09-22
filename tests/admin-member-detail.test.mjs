@@ -1,6 +1,6 @@
 import test from 'node:test';
-import {memberQrSvg} from '../admin/member-detail.js';
-import {decodeMemberQrSvg} from './helpers/decode-member-qr.mjs';
+import {memberQrMarkup,memberQrSvg} from '../member-qr-renderer.js';
+import {decodeMemberQrSvg,decodeMemberQrSvgWithCenteredLogo} from './helpers/decode-member-qr.mjs';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {DatabaseSync} from 'node:sqlite';
@@ -48,6 +48,6 @@ test('exact Stage 2 forward migration applies to populated predecessor without b
  const db=new DatabaseSync(':memory:');db.exec(schema.split('-- Stage 2: apply once')[0]+'COMMIT;');db.exec("INSERT INTO members(id,member_code,email,name) VALUES('existing','EU-EXISTING','existing@example.invalid','Existing')");const before=db.prepare('SELECT * FROM members').all();db.exec(migration);assert.deepEqual(db.prepare('SELECT * FROM members').all(),before);assert.equal(db.prepare('SELECT COUNT(*) n FROM member_qr_identities').get().n,0);assert.throws(()=>db.exec(migration),/already exists/);assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(),[]);db.close();
 });
 test('rendered local QR SVG decodes to the exact versioned opaque identity with a four-module quiet zone',()=>{
- const payload='E36U1:'+'0123456789abcdef'.repeat(3),svg=memberQrSvg(payload);
- assert.equal(decodeMemberQrSvg(svg),payload);assert.ok(svg.includes('fill="white"'));assert.equal(memberQrSvg('E36U1:email@example.invalid'),'');
+ const payload='E36U1:'+'0123456789abcdef'.repeat(3),svg=memberQrSvg(payload),markup=memberQrMarkup(payload);
+ assert.equal(decodeMemberQrSvg(svg),payload);assert.equal(decodeMemberQrSvgWithCenteredLogo(svg),payload);assert.ok(svg.includes('fill="white"'));assert.match(markup,/class="member-qr-symbol"/);assert.match(markup,/assets\/united-qr-mark\.svg/);assert.match(readFileSync(new URL('../member-qr-renderer.js',import.meta.url),'utf8'),/qrcode\(0,'H'\)/);assert.equal(memberQrSvg('E36U1:email@example.invalid'),'');
 });

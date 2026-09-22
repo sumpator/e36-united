@@ -92,14 +92,16 @@ test('admin LIVE is one compact workflow and keeps global state changes in setti
   assert.ok(command.indexOf('liveButton()') < command.indexOf('logoutButton()'));
 });
 
-test('admin member selection reuses registered cars and preserves dirty judge drafts', () => {
+test('admin member selection prioritizes the chosen body category and preserves cancellable dirty judge drafts', () => {
   const live = read('admin/modules/live.js');
 
-  assert.match(live, /selectedCarId=member\?\.registeredCarId\|\|member\?\.cars\?\.\[0\]\?\.id/);
+  assert.match(live, /selectedCarId=\(member\?\.cars\|\|\[\]\)\.find\(car=>car\.body===selectedCategory\)\?\.id\|\|member\?\.registeredCarId\|\|member\?\.cars\?\.\[0\]\?\.id/);
   assert.match(live, /car\.photoId/);
   assert.match(live, /\/api\/admin\/members\/\$\{encodeURIComponent\(member\.memberId\)\}\/media\/cars\/\$\{encodeURIComponent\(car\.id\)\}\/\$\{encodeURIComponent\(car\.photoId\)\}/);
   assert.match(live, /judgeDrafts\.set\(form\.dataset\.liveJudgeForm,judgeValues\(form\)\)/);
   assert.match(live, /if\(signature!==lastStateSignature&&!hasUnsavedJudge\(\)\)/);
   assert.match(live, /confirmLeaveJudge\(\)/);
+  assert.match(live, /data-live-cancel-judge/);
+  assert.match(live, /Poslední uložená verze zůstane zachovaná/);
   assert.doesNotMatch(live, /waitForTimeout/);
 });

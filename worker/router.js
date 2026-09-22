@@ -13,7 +13,7 @@ import { getAdminFunnel, trackOnboarding, trackPlannerHandoff } from './domains/
 import { getAdminHistoryCounts } from './domains/club/history.js';
 import { handleSmtp2goWebhook } from './domains/mailing/tracking.js';
 import { getPreliminaryReservation, putPreliminaryReservation, cancelPreliminaryReservation, listAdminPreliminaryReservations, savePreliminarySettings } from './domains/reservations/preliminary.js';
-import { assignLiveJudge, controlLive, createEvent, createLiveEntry, deleteProgramItem, getAdminLive, getLiveState, getMemberLive, judgePhotoMedia, liveEntryMedia, resolveLiveQr, saveJudgeScore, saveLiveVote, saveProgramItem, searchLiveMembers, setAdminLiveEnabled, setLivePresence, uploadJudgePhoto, uploadLivePhoto } from './domains/live.js';
+import { assignLiveJudge, controlLive, createEvent, createLiveEntry, deleteProgramItem, getAdminLive, getLiveState, getMemberLive, judgePhotoMedia, liveEntryMedia, resolveLiveQr, saveJudgeScore, saveLiveVote, saveProgramItem, searchLiveMembers, setAdminLiveEnabled, setLivePresence, startLiveEntry, uploadJudgePhoto, uploadLivePhoto } from './domains/live.js';
 
 const PROTECTED_MEMBER_EXACT_ROUTES = new Set([
   'GET /api/preliminary-reservations/current',
@@ -128,6 +128,8 @@ export async function routeRequest({ request, env, url, origin }) {
       if(livePresence&&request.method==='PUT')return setLivePresence(request,env,auth,decodeURIComponent(livePresence[1]),decodeURIComponent(livePresence[2]),origin);
       const liveEntries=url.pathname.match(/^\/api\/admin\/events\/([^/]+)\/live\/entries$/);
       if(liveEntries&&request.method==='POST')return createLiveEntry(request,env,auth,decodeURIComponent(liveEntries[1]),origin);
+      const liveStart=url.pathname.match(/^\/api\/admin\/events\/([^/]+)\/live\/start$/);
+      if(liveStart&&request.method==='POST')return startLiveEntry(request,env,auth,decodeURIComponent(liveStart[1]),origin);
       const liveControl=url.pathname.match(/^\/api\/admin\/events\/([^/]+)\/live\/(show_shine|best_exhaust)\/control$/);
       if(liveControl&&request.method==='PATCH')return controlLive(request,env,auth,decodeURIComponent(liveControl[1]),liveControl[2],origin);
       if(url.pathname==='/api/admin/preliminary-reservations'&&request.method==='GET')return listAdminPreliminaryReservations(env,url,origin);

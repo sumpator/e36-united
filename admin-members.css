@@ -98,6 +98,7 @@ html.admin-member-modal-open{overflow:hidden;scrollbar-gutter:stable}
 .admin-member-history-card .admin-member-photo img{aspect-ratio:16/10}
 .admin-member-qr{width:min(300px,100%);margin:24px auto;background:white;padding:8px;box-sizing:border-box}
 .admin-member-qr svg{display:block;width:100%;height:auto}
+.member-qr-symbol{position:relative;display:block;width:100%;background:#fff}.member-qr-symbol>svg{display:block;width:100%;height:auto}.member-qr-symbol>img{position:absolute;left:50%;top:50%;width:15%;height:15%;transform:translate(-50%,-50%);object-fit:contain}
 .admin-member-dialog .admin-member-ledger{display:flex;align-items:center;gap:20px}
 .admin-member-ledger>strong{font-size:22px;color:#7dcfff;min-width:80px}
 .admin-member-ledger p{margin:0 0 5px}

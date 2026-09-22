@@ -6,6 +6,8 @@ import { extensionFor, validateImageFile } from './media.js';
 
 const DISCIPLINES = new Set(['show_shine', 'best_exhaust']);
 const LIVE_STATES = new Set(['idle', 'live', 'paused', 'closed', 'published']);
+export const SHOW_SHINE_CATEGORIES = Object.freeze(['Sedan', 'Coupé', 'Touring', 'Cabrio', 'Compact', 'Z3', '///M Power']);
+const SHOW_SHINE_CATEGORY_SET = new Set(SHOW_SHINE_CATEGORIES);
 export const DEFAULT_JUDGE_CRITERIA = Object.freeze(['overall', 'condition', 'cohesion', 'originality']);
 
 const validId = value => typeof value === 'string' && /^[a-z0-9_-]{1,128}$/i.test(value);
@@ -49,6 +51,17 @@ async function stateRows(env, eventId) {
     discipline:row.discipline, status:row.status, version:Number(row.version), updatedAt:row.updated_at,
     entry:row.entry_id ? { id:row.entry_id, memberId:row.member_id, carId:row.car_id, category:row.category||'', presentedAt:row.presented_at, car:{ model:row.model, body:row.body||'', nickname:row.nickname||'' }, member:{ name:row.member_nickname||row.name }, imageUrl:row.photo_id?`/api/live/entries/${encodeURIComponent(row.entry_id)}/media`:null } : null,
   }]));
+}
+
+async function categoryRows(env,eventId){
+  const [states,counts]=await Promise.all([
+    all(env,`SELECT category,status,version,updated_at updatedAt FROM live_category_state WHERE event_id=? AND discipline='show_shine'`,[eventId]),
+    all(env,`SELECT e.category,COUNT(DISTINCT e.car_id) loaded,
+      COUNT(DISTINCT CASE WHEN EXISTS(SELECT 1 FROM live_judge_scores s WHERE s.entry_id=e.id AND s.submitted=1) THEN e.car_id END) scored
+      FROM live_entries e WHERE e.event_id=? AND e.discipline='show_shine' AND e.category IS NOT NULL GROUP BY e.category`,[eventId]),
+  ]);
+  const stateByCategory=new Map(states.map(row=>[row.category,row])),countByCategory=new Map(counts.map(row=>[row.category,row]));
+  return SHOW_SHINE_CATEGORIES.map(category=>{const state=stateByCategory.get(category),count=countByCategory.get(category);return{category,status:state?.status||'idle',version:Number(state?.version||1),updatedAt:state?.updatedAt||null,loaded:Number(count?.loaded||0),scored:Number(count?.scored||0)}});
 }
 
 function currentProgram(program, clock = nowPrague()) {
@@ -132,8 +145,9 @@ export async function getLiveState(env, auth, url, origin) {
 
 export async function saveLiveVote(request, env, auth, entryId, origin) {
   const body=await readBody(request),value=score(body.score);if(!value)return json({ok:false,error:'invalid_score'},400,origin);
-  const entry=await one(env,`SELECT e.*,s.status FROM live_entries e JOIN events ev ON ev.id=e.event_id AND ev.live_enabled=1 JOIN live_competition_state s ON s.event_id=e.event_id AND s.discipline=e.discipline WHERE e.id=?`,[entryId]);
+  const entry=await one(env,`SELECT e.*,s.status,cs.status category_status FROM live_entries e JOIN events ev ON ev.id=e.event_id AND ev.live_enabled=1 JOIN live_competition_state s ON s.event_id=e.event_id AND s.discipline=e.discipline LEFT JOIN live_category_state cs ON cs.event_id=e.event_id AND cs.discipline=e.discipline AND cs.category=e.category WHERE e.id=?`,[entryId]);
   if(!entry)return json({ok:false,error:'entry_not_available'},404,origin);
+  if(entry.category_status==='closed')return json({ok:false,error:'category_closed'},409,origin);
   if(!['live','paused'].includes(entry.status)||!entry.presented_at)return json({ok:false,error:'voting_not_open'},409,origin);
   if(entry.status==='paused')return json({ok:false,error:'voting_paused'},409,origin);
   if(entry.member_id===auth.uid)return json({ok:false,error:'own_car_vote'},403,origin);
@@ -144,13 +158,13 @@ export async function saveLiveVote(request, env, auth, entryId, origin) {
 }
 
 export async function saveJudgeScore(request,env,auth,entryId,origin){
-  const body=await readBody(request),entry=await one(env,`SELECT e.*,s.status FROM live_entries e JOIN events ev ON ev.id=e.event_id AND ev.live_enabled=1 JOIN live_competition_state s ON s.event_id=e.event_id AND s.discipline=e.discipline WHERE e.id=? AND e.discipline='show_shine'`,[entryId]);
+  const body=await readBody(request),entry=await one(env,`SELECT e.*,s.status,cs.status category_status FROM live_entries e JOIN events ev ON ev.id=e.event_id AND ev.live_enabled=1 JOIN live_competition_state s ON s.event_id=e.event_id AND s.discipline=e.discipline LEFT JOIN live_category_state cs ON cs.event_id=e.event_id AND cs.discipline=e.discipline AND cs.category=e.category WHERE e.id=? AND e.discipline='show_shine'`,[entryId]);
   if(!entry)return json({ok:false,error:'entry_not_available'},404,origin);
   const allowed=await one(env,`SELECT 1 ok FROM members m WHERE m.id=? AND m.status='active'
     AND (m.role='admin' OR EXISTS(SELECT 1 FROM event_live_judges j WHERE j.event_id=? AND j.member_id=m.id))`,[auth.uid,entry.event_id]);if(!allowed)return json({ok:false,error:'judge_forbidden'},403,origin);
   if(entry.member_id===auth.uid)return json({ok:false,error:'own_car_score'},403,origin);
   if(!entry.presented_at)return json({ok:false,error:'entry_not_presented'},409,origin);
-  if(['closed','published'].includes(entry.status))return json({ok:false,error:'judging_closed'},409,origin);
+  if(entry.category_status==='closed'||['closed','published'].includes(entry.status))return json({ok:false,error:'judging_closed'},409,origin);
   const invalid=DEFAULT_JUDGE_CRITERIA.some(key=>body.scores?.[key]!==''&&body.scores?.[key]!=null&&score(body.scores[key])===null);if(invalid)return json({ok:false,error:'invalid_score'},400,origin);
   const scores=Object.fromEntries(DEFAULT_JUDGE_CRITERIA.map(key=>[key,score(body.scores?.[key])]));
   const submitted=body.submitted===true;if(submitted&&Object.values(scores).some(value=>!value))return json({ok:false,error:'incomplete_score'},400,origin);
@@ -196,15 +210,16 @@ export async function judgePhotoMedia(env,auth,photoId,origin){
 
 async function adminLivePayload(env,eventId){
   const event=await eventById(env,eventId);if(!event)return null;
-  const [program,states,judges,entries,results]=await Promise.all([
+  const [program,states,categories,judges,entries,results]=await Promise.all([
     programFor(env,event.id,true),stateRows(env,event.id),
+    categoryRows(env,event.id),
     all(env,`SELECT j.member_id memberId,m.name,m.nickname FROM event_live_judges j JOIN members m ON m.id=j.member_id WHERE j.event_id=? ORDER BY COALESCE(m.nickname,m.name)`,[event.id]),
     all(env,`SELECT e.id,e.discipline,e.member_id memberId,e.car_id carId,e.category,e.presented_at presentedAt,c.model,c.body,c.nickname,m.name,m.nickname memberNickname,
       (SELECT COUNT(*) FROM live_public_votes v WHERE v.entry_id=e.id) votes,(SELECT COUNT(*) FROM live_judge_scores s WHERE s.entry_id=e.id AND s.submitted=1) judgeScores
       FROM live_entries e JOIN cars c ON c.id=e.car_id JOIN members m ON m.id=e.member_id WHERE e.event_id=? ORDER BY e.created_at DESC`,[event.id]),
     publishedResults(env,event.id,true),
   ]);
-  return {ok:true,event:eventView(event),activeEvent:eventView(await activeLiveEvent(env)),program,states,judges,entries,results,judgeCriteria:DEFAULT_JUDGE_CRITERIA};
+  return {ok:true,event:eventView(event),activeEvent:eventView(await activeLiveEvent(env)),program,states,categories,judges,entries,results,judgeCriteria:DEFAULT_JUDGE_CRITERIA};
 }
 
 export async function getAdminLive(env,url,origin){const payload=await adminLivePayload(env,clean(url.searchParams.get('eventId')));return payload?json(payload,200,origin):json({ok:false,error:'event_not_found'},404,origin)}
@@ -212,8 +227,15 @@ export async function getAdminLive(env,url,origin){const payload=await adminLive
 export async function setAdminLiveEnabled(request,env,auth,eventId,origin){
   const body=await readBody(request),event=await eventById(env,eventId);if(!event)return json({ok:false,error:'event_not_found'},404,origin);
   const enabled=body.enabled===true;
-  if(enabled)await env.DB.batch([env.DB.prepare('UPDATE events SET live_enabled=0 WHERE live_enabled=1 AND id<>?').bind(eventId),env.DB.prepare('UPDATE events SET live_enabled=1,updated_at=CURRENT_TIMESTAMP WHERE id=?').bind(eventId)]);
-  else await env.DB.prepare('UPDATE events SET live_enabled=0,updated_at=CURRENT_TIMESTAMP WHERE id=?').bind(eventId).run();
+  if(enabled)await env.DB.batch([
+    env.DB.prepare("UPDATE live_competition_state SET status='idle',current_entry_id=NULL,version=version+1,updated_by=?,updated_at=CURRENT_TIMESTAMP WHERE event_id IN (SELECT id FROM events WHERE live_enabled=1 AND id<>?) AND status IN ('live','paused')").bind(auth.uid,eventId),
+    env.DB.prepare('UPDATE events SET live_enabled=0 WHERE live_enabled=1 AND id<>?').bind(eventId),
+    env.DB.prepare('UPDATE events SET live_enabled=1,updated_at=CURRENT_TIMESTAMP WHERE id=?').bind(eventId),
+  ]);
+  else await env.DB.batch([
+    env.DB.prepare('UPDATE events SET live_enabled=0,updated_at=CURRENT_TIMESTAMP WHERE id=?').bind(eventId),
+    env.DB.prepare("UPDATE live_competition_state SET status='idle',current_entry_id=NULL,version=version+1,updated_by=?,updated_at=CURRENT_TIMESTAMP WHERE event_id=? AND status IN ('live','paused')").bind(auth.uid,eventId),
+  ]);
   return json(await adminLivePayload(env,eventId),200,origin);
 }
 
@@ -263,16 +285,82 @@ export async function setLivePresence(request,env,auth,eventId,memberId,origin){
 }
 
 export async function createLiveEntry(request,env,auth,eventId,origin){
-  const body=await readBody(request),discipline=clean(body.discipline),memberId=clean(body.memberId),carId=clean(body.carId);if(!DISCIPLINES.has(discipline)||![memberId,carId].every(validId))return json({ok:false,error:'invalid_entry'},400,origin);
-  const eligible=await one(env,`SELECT r.id FROM reservations r JOIN cars c ON c.id=? AND c.member_id=r.member_id WHERE r.event_id=? AND r.member_id=? AND r.status='approved'`,[carId,eventId,memberId]);if(!eligible)return json({ok:false,error:'approved_registration_required'},409,origin);
-  const id=crypto.randomUUID();await env.DB.prepare('INSERT INTO live_entries(id,event_id,discipline,member_id,car_id,category) VALUES(?,?,?,?,?,?) ON CONFLICT(event_id,discipline,car_id) DO UPDATE SET category=excluded.category').bind(id,eventId,discipline,memberId,carId,clean(body.category).slice(0,60)||null).run();
+  const body=await readBody(request),discipline=clean(body.discipline),memberId=clean(body.memberId),carId=clean(body.carId),category=clean(body.category).slice(0,60);if(!DISCIPLINES.has(discipline)||![memberId,carId].every(validId))return json({ok:false,error:'invalid_entry'},400,origin);
+  const event=await eventById(env,eventId);if(!event?.live_enabled)return json({ok:false,error:'live_disabled'},409,origin);
+  const eligible=await one(env,`SELECT r.id,r.show_shine,c.body,p.present FROM reservations r JOIN cars c ON c.id=? AND c.member_id=r.member_id LEFT JOIN event_member_presence p ON p.event_id=r.event_id AND p.member_id=r.member_id WHERE r.event_id=? AND r.member_id=? AND r.status='approved'`,[carId,eventId,memberId]);if(!eligible)return json({ok:false,error:'approved_registration_required'},409,origin);
+  if(eligible.present!==1)return json({ok:false,error:'presence_required'},409,origin);
+  if(discipline==='show_shine'){
+    if(eligible.show_shine!=='Ano')return json({ok:false,error:'show_shine_not_registered'},409,origin);
+    if(!SHOW_SHINE_CATEGORY_SET.has(category))return json({ok:false,error:'category_required'},409,origin);
+    if(eligible.body!==category)return json({ok:false,error:'category_mismatch',actualCategory:eligible.body||null},409,origin);
+    const categoryState=await one(env,"SELECT status FROM live_category_state WHERE event_id=? AND discipline='show_shine' AND category=?",[eventId,category]);
+    if(categoryState?.status==='closed')return json({ok:false,error:'category_closed',category},409,origin);
+  }
+  const id=crypto.randomUUID();await env.DB.prepare('INSERT INTO live_entries(id,event_id,discipline,member_id,car_id,category) VALUES(?,?,?,?,?,?) ON CONFLICT(event_id,discipline,car_id) DO NOTHING').bind(id,eventId,discipline,memberId,carId,discipline==='show_shine'?category:null).run();
   const row=await one(env,'SELECT id FROM live_entries WHERE event_id=? AND discipline=? AND car_id=?',[eventId,discipline,carId]);return json({ok:true,entryId:row.id},201,origin);
+}
+
+export async function startLiveEntry(request,env,auth,eventId,origin){
+  const body=await readBody(request),discipline=clean(body.discipline),memberId=clean(body.memberId),carId=clean(body.carId),category=clean(body.category).slice(0,60),expected=Number(body.expectedVersion);
+  if(!DISCIPLINES.has(discipline)||![memberId,carId].every(validId)||!Number.isInteger(expected)||expected<1)return json({ok:false,error:'invalid_entry'},400,origin);
+  const event=await eventById(env,eventId);if(!event?.live_enabled)return json({ok:false,error:'live_disabled'},409,origin);
+  const eligible=await one(env,`SELECT r.status,r.show_shine,c.body,p.present FROM reservations r JOIN cars c ON c.id=? AND c.member_id=r.member_id LEFT JOIN event_member_presence p ON p.event_id=r.event_id AND p.member_id=r.member_id WHERE r.event_id=? AND r.member_id=? LIMIT 1`,[carId,eventId,memberId]);
+  if(!eligible||eligible.status!=='approved')return json({ok:false,error:'approved_registration_required'},409,origin);
+  if(eligible.present!==1)return json({ok:false,error:'presence_required'},409,origin);
+  if(discipline==='show_shine'){
+    if(eligible.show_shine!=='Ano')return json({ok:false,error:'show_shine_not_registered'},409,origin);
+    if(!SHOW_SHINE_CATEGORY_SET.has(category))return json({ok:false,error:'category_required'},409,origin);
+    if(eligible.body!==category)return json({ok:false,error:'category_mismatch',actualCategory:eligible.body||null},409,origin);
+    const categoryState=await one(env,"SELECT status FROM live_category_state WHERE event_id=? AND discipline='show_shine' AND category=?",[eventId,category]);
+    if(categoryState?.status==='closed')return json({ok:false,error:'category_closed',category},409,origin);
+  }
+  await env.DB.prepare("INSERT INTO live_competition_state(event_id,discipline,status,updated_by) VALUES(?,?,'idle',?) ON CONFLICT DO NOTHING").bind(eventId,discipline,auth.uid).run();
+  const [state,existing,competing]=await Promise.all([
+    one(env,'SELECT * FROM live_competition_state WHERE event_id=? AND discipline=?',[eventId,discipline]),
+    one(env,'SELECT id,member_id,category,presented_at FROM live_entries WHERE event_id=? AND discipline=? AND car_id=?',[eventId,discipline,carId]),
+    one(env,"SELECT discipline FROM live_competition_state WHERE event_id=? AND discipline<>? AND status IN ('live','paused')",[eventId,discipline]),
+  ]);
+  if(existing&&existing.member_id!==memberId)return json({ok:false,error:'entry_owner_conflict'},409,origin);
+  if(existing?.category&&discipline==='show_shine'&&existing.category!==category)return json({ok:false,error:'entry_category_conflict',actualCategory:existing.category},409,origin);
+  if(state?.status==='published')return json({ok:false,error:'judging_closed'},409,origin);
+  if(existing&&state?.status==='live'&&state.current_entry_id===existing.id)return json({ok:true,entryId:existing.id,states:await stateRows(env,eventId),categories:await categoryRows(env,eventId),replayed:true},200,origin);
+  if(competing)return json({ok:false,error:'other_discipline_active',discipline:competing.discipline},409,origin);
+  if(Number(state?.version)!==expected)return json({ok:false,error:'stale_live_state',currentVersion:Number(state?.version||0)},409,origin);
+  const entryId=existing?.id||crypto.randomUUID(),categoryValue=discipline==='show_shine'?category:null;
+  const guard=`EXISTS(SELECT 1 FROM events ev JOIN live_competition_state s ON s.event_id=ev.id AND s.discipline=? WHERE ev.id=? AND ev.live_enabled=1 AND s.version=? AND s.status<>'published')`;
+  const eligibleGuard=`EXISTS(SELECT 1 FROM reservations r JOIN cars c ON c.id=? AND c.member_id=r.member_id LEFT JOIN event_member_presence p ON p.event_id=r.event_id AND p.member_id=r.member_id WHERE r.event_id=? AND r.member_id=? AND r.status='approved' AND p.present=1${discipline==='show_shine'?" AND r.show_shine='Ano' AND c.body=?":''})`,eligibleBindings=[carId,eventId,memberId,...(discipline==='show_shine'?[category]:[])];
+  const statements=[];
+  if(discipline==='show_shine')statements.push(env.DB.prepare(`INSERT INTO live_category_state(event_id,discipline,category,status,updated_by) SELECT ?,'show_shine',?,'idle',? WHERE ${guard} AND ${eligibleGuard} ON CONFLICT DO NOTHING`).bind(eventId,category,auth.uid,discipline,eventId,expected,...eligibleBindings));
+  statements.push(env.DB.prepare(`INSERT INTO live_entries(id,event_id,discipline,member_id,car_id,category) SELECT ?,?,?,?,?,? WHERE ${guard} AND ${eligibleGuard} ON CONFLICT(event_id,discipline,car_id) DO NOTHING`).bind(entryId,eventId,discipline,memberId,carId,categoryValue,discipline,eventId,expected,...eligibleBindings));
+  if(discipline==='show_shine')statements.push(env.DB.prepare(`UPDATE live_entries SET category=? WHERE event_id=? AND discipline='show_shine' AND car_id=? AND member_id=? AND category IS NULL AND ${guard}`).bind(category,eventId,carId,memberId,discipline,eventId,expected));
+  if(discipline==='show_shine')statements.push(env.DB.prepare(`UPDATE live_category_state SET status='live',version=CASE WHEN status='idle' THEN version+1 ELSE version END,updated_by=?,updated_at=CURRENT_TIMESTAMP WHERE event_id=? AND discipline='show_shine' AND category=? AND status<>'closed' AND ${guard} AND EXISTS(SELECT 1 FROM live_entries e WHERE e.event_id=? AND e.discipline='show_shine' AND e.car_id=? AND e.category=?)`).bind(auth.uid,eventId,category,discipline,eventId,expected,eventId,carId,category));
+  statements.push(env.DB.prepare(`UPDATE live_competition_state SET status='live',current_entry_id=(SELECT id FROM live_entries WHERE event_id=? AND discipline=? AND car_id=?),version=version+1,updated_by=?,updated_at=CURRENT_TIMESTAMP WHERE event_id=? AND discipline=? AND version=? AND status<>'published' AND EXISTS(SELECT 1 FROM events WHERE id=? AND live_enabled=1) AND EXISTS(SELECT 1 FROM live_entries e WHERE e.event_id=? AND e.discipline=? AND e.car_id=?)${discipline==='show_shine'?" AND EXISTS(SELECT 1 FROM live_category_state cs WHERE cs.event_id=? AND cs.discipline='show_shine' AND cs.category=? AND cs.status='live')":''}`).bind(eventId,discipline,carId,auth.uid,eventId,discipline,expected,eventId,eventId,discipline,carId,...(discipline==='show_shine'?[eventId,category]:[])));
+  statements.push(env.DB.prepare('UPDATE live_entries SET presented_at=COALESCE(presented_at,CURRENT_TIMESTAMP) WHERE event_id=? AND discipline=? AND car_id=? AND id=(SELECT current_entry_id FROM live_competition_state WHERE event_id=? AND discipline=?)').bind(eventId,discipline,carId,eventId,discipline));
+  const results=await env.DB.batch(statements),stateResult=results[results.length-2];
+  const [confirmedState,confirmedEntry]=await Promise.all([one(env,'SELECT * FROM live_competition_state WHERE event_id=? AND discipline=?',[eventId,discipline]),one(env,'SELECT id,category,presented_at FROM live_entries WHERE event_id=? AND discipline=? AND car_id=?',[eventId,discipline,carId])]);
+  if(!confirmedEntry||confirmedState?.current_entry_id!==confirmedEntry.id||confirmedState.status!=='live')return json({ok:false,error:stateResult?.meta?.changes?'entry_start_failed':'stale_live_state',currentVersion:Number(confirmedState?.version||0)},409,origin);
+  const replayed=!!existing||entryId!==confirmedEntry.id||!stateResult?.meta?.changes;
+  return json({ok:true,entryId:confirmedEntry.id,states:await stateRows(env,eventId),categories:await categoryRows(env,eventId),replayed},replayed?200:201,origin);
 }
 
 export async function controlLive(request,env,auth,eventId,discipline,origin){
   if(!DISCIPLINES.has(discipline))return json({ok:false,error:'invalid_discipline'},400,origin);const event=await eventById(env,eventId);if(!event?.live_enabled)return json({ok:false,error:'live_disabled'},409,origin);const body=await readBody(request),action=clean(body.action),expected=Number(body.expectedVersion);
   let current=await one(env,'SELECT * FROM live_competition_state WHERE event_id=? AND discipline=?',[eventId,discipline]);
   if(!current){await env.DB.prepare("INSERT INTO live_competition_state(event_id,discipline,status,updated_by) VALUES(?,?,'idle',?) ON CONFLICT DO NOTHING").bind(eventId,discipline,auth.uid).run();current=await one(env,'SELECT * FROM live_competition_state WHERE event_id=? AND discipline=?',[eventId,discipline])}
+  if(action==='close_category'){
+    if(discipline!=='show_shine')return json({ok:false,error:'invalid_transition'},409,origin);
+    const category=clean(body.category),expectedCategoryVersion=Number(body.expectedCategoryVersion);if(!SHOW_SHINE_CATEGORY_SET.has(category)||!Number.isInteger(expectedCategoryVersion))return json({ok:false,error:'invalid_category'},400,origin);
+    const categoryState=await one(env,"SELECT * FROM live_category_state WHERE event_id=? AND discipline='show_shine' AND category=?",[eventId,category]);
+    if(!categoryState||categoryState.status==='idle')return json({ok:false,error:'category_not_started'},409,origin);
+    if(categoryState.status==='closed')return json({ok:true,states:await stateRows(env,eventId),categories:await categoryRows(env,eventId),replayed:true},200,origin);
+    if(Number(categoryState.version)!==expectedCategoryVersion)return json({ok:false,error:'stale_category_state',currentVersion:Number(categoryState.version)},409,origin);
+    const results=await env.DB.batch([
+      env.DB.prepare("UPDATE live_category_state SET status='closed',version=version+1,updated_by=?,updated_at=CURRENT_TIMESTAMP WHERE event_id=? AND discipline='show_shine' AND category=? AND status='live' AND version=?").bind(auth.uid,eventId,category,expectedCategoryVersion),
+      env.DB.prepare("UPDATE live_competition_state SET status='idle',current_entry_id=NULL,version=version+1,updated_by=?,updated_at=CURRENT_TIMESTAMP WHERE event_id=? AND discipline='show_shine' AND current_entry_id IN (SELECT id FROM live_entries WHERE event_id=? AND discipline='show_shine' AND category=?)").bind(auth.uid,eventId,eventId,category),
+    ]);
+    if(!results[0]?.meta?.changes)return json({ok:false,error:'stale_category_state'},409,origin);
+    return json({ok:true,states:await stateRows(env,eventId),categories:await categoryRows(env,eventId),results:await publishedResults(env,eventId)},200,origin);
+  }
   if(expected!==Number(current.version))return json({ok:false,error:'stale_live_state',currentVersion:Number(current.version)},409,origin);
   let status=current.status,entryId=current.current_entry_id;
   if(action==='present'){
@@ -282,10 +370,14 @@ export async function controlLive(request,env,auth,eventId,discipline,origin){
   }else if(action==='pause'&&status==='live')status='paused';
   else if(action==='resume'&&status==='paused'){const competing=await one(env,"SELECT discipline FROM live_competition_state WHERE event_id=? AND discipline<>? AND status IN ('live','paused')",[eventId,discipline]);if(competing)return json({ok:false,error:'other_discipline_active',discipline:competing.discipline},409,origin);status='live';}
   else if(action==='close'&&['live','paused','idle'].includes(status)){status='closed';entryId=null;}
-  else if(action==='publish'&&status==='closed'){status='published';entryId=null;}
+  else if(action==='publish'&&discipline==='show_shine'){
+    const openCategory=await one(env,"SELECT 1 open FROM live_category_state WHERE event_id=? AND discipline='show_shine' AND status='live' LIMIT 1",[eventId]);
+    const closedCategory=await one(env,"SELECT 1 closed FROM live_category_state WHERE event_id=? AND discipline='show_shine' AND status='closed' LIMIT 1",[eventId]);
+    if(openCategory||!closedCategory)return json({ok:false,error:'categories_not_closed'},409,origin);status='published';entryId=null;
+  }else if(action==='publish'&&status==='closed'){status='published';entryId=null;}
   else return json({ok:false,error:'invalid_transition'},409,origin);
   const result=await env.DB.prepare('UPDATE live_competition_state SET status=?,current_entry_id=?,version=version+1,updated_by=?,updated_at=CURRENT_TIMESTAMP WHERE event_id=? AND discipline=? AND version=?').bind(status,entryId||null,auth.uid,eventId,discipline,expected).run();
-  if(!result.meta?.changes)return json({ok:false,error:'stale_live_state'},409,origin);return json({ok:true,states:await stateRows(env,eventId),results:await publishedResults(env,eventId)},200,origin);
+  if(!result.meta?.changes)return json({ok:false,error:'stale_live_state'},409,origin);return json({ok:true,states:await stateRows(env,eventId),categories:await categoryRows(env,eventId),results:await publishedResults(env,eventId)},200,origin);
 }
 
 export async function createEvent(request,env,auth,origin){
@@ -295,4 +387,4 @@ export async function createEvent(request,env,auth,origin){
   return json({ok:true,event:eventView(await eventById(env,id))},201,origin);
 }
 
-export const liveInternals={score,currentProgram,DEFAULT_JUDGE_CRITERIA};
+export const liveInternals={score,currentProgram,DEFAULT_JUDGE_CRITERIA,SHOW_SHINE_CATEGORIES,categoryRows};

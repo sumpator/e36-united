@@ -1,10 +1,10 @@
-import {adminState} from './state.js?v=20260922-live4';
-import {$,$$,escapeHtml as esc,rememberSessionChoice} from './ui.js?v=20260922-live4';
-import {apiRequest} from './api.js?v=20260922-live4';
-import {ADMIN_REFRESH} from './refresh-policy.js?v=20260922-live4';
-import qrcode from '../vendor/qrcode-generator.mjs?v=20260922-live4';
-import {MEMBER_TABS,memberIdentity,memberOverview,memberReservation,memberSection,memberEmpty} from './member-presentation.js?v=20260922-live4';
-import {compactMemberDetails,compactMemberIdentity,compactMemberPhoto,createCardMedia} from './member-cards.js?v=20260922-live4';
+import {adminState} from './state.js?v=20260922-live5';
+import {$,$$,escapeHtml as esc,rememberSessionChoice} from './ui.js?v=20260922-live5';
+import {apiRequest} from './api.js?v=20260922-live5';
+import {ADMIN_REFRESH} from './refresh-policy.js?v=20260922-live5';
+import {memberQrMarkup,memberQrSvg} from '../member-qr-renderer.js?v=20260922-live5';
+import {MEMBER_TABS,memberIdentity,memberOverview,memberReservation,memberSection,memberEmpty} from './member-presentation.js?v=20260922-live5';
+import {compactMemberDetails,compactMemberIdentity,compactMemberPhoto,createCardMedia} from './member-cards.js?v=20260922-live5';
 const cardsMedia=createCardMedia();
 let memberListMarkup=null;
 function clearCards(){cardsMedia.clear();memberListMarkup=null}
@@ -18,10 +18,7 @@ export {MEMBER_TABS};
 export function canonicalMemberLink(id,label='Člen'){
   return /^[a-z0-9_-]{1,128}$/i.test(id||'')?`<button type="button" class="admin-member-link" data-member-open="${esc(id)}">${esc(label)}</button>`:esc(label);
 }
-export function memberQrSvg(payload){
-  if(!/^E36U1:[a-f0-9]{48}$/.test(payload||''))return '';
-  const qr=qrcode(0,'M');qr.addData(payload,'Byte');qr.make();return qr.createSvgTag({cellSize:6,margin:24,scalable:true});
-}
+export {memberQrSvg};
 let initialized=false,opener=null,searchTimer=null,searchSequence=0,searchController=null,searchFlight=null,observer=null,mediaGeneration=0;
 let renderedTab=null,headerData=null,clubData=null,projectionKey=null,overviewSignature=null;
 let scrollLock=null;
@@ -94,7 +91,7 @@ export function renderMemberTab(payload){
  ensureProjectionContext();
  if(payload.context.tab==='club'){clubData=payload;if(adminState.memberTab==='overview'){renderMemberReadState();return;}}
  const signature=currentKey()+':'+(payload.dataVersion||JSON.stringify(payload));if(renderedTab===signature)return;renderedTab=signature;
- $('[data-member-tab-content]').innerHTML=memberSection(payload,memberQrSvg)+pagination(payload,'tab');hydrateMemberMedia();
+ $('[data-member-tab-content]').innerHTML=memberSection(payload,memberQrMarkup)+pagination(payload,'tab');hydrateMemberMedia();
 }
 export function memberRefreshTasks(){
  if(adminState.memberId){const base='/api/admin/members/'+encodeURIComponent(adminState.memberId),suffix='?eventId='+encodeURIComponent(adminState.selectedEventId)+'&page='+(adminState.memberPage||1);const tasks=[['member-header',base+'?eventId='+encodeURIComponent(adminState.selectedEventId),renderMemberHeader,ADMIN_REFRESH.operationalMs]];

@@ -5,7 +5,7 @@ import {readFileSync} from 'node:fs';
 import {fileURLToPath} from 'node:url';
 import {resolve,relative,isAbsolute} from 'node:path';
 
-export const ADMIN_RELEASE_TOKEN='20260922-live4';
+export const ADMIN_RELEASE_TOKEN='20260922-live5';
 const origin='https://e36united.cz';
 const root=fileURLToPath(new URL('../',import.meta.url));
 const firebase=/^https:\/\/www\.gstatic\.com\/firebasejs\/[^/]+\/firebase-(app|auth)\.js$/;

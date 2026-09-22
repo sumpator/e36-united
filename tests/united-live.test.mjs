@@ -6,11 +6,13 @@ import { memberRuntime } from './helpers/admin-member-runtime.mjs';
 import {
   controlLive,
   createEvent,
+  getAdminLive,
   getMemberLive,
   saveJudgeScore,
   saveLiveVote,
   searchLiveMembers,
   setAdminLiveEnabled,
+  startLiveEntry,
 } from '../worker/domains/live.js';
 
 const origin = 'https://e36united.cz';
@@ -28,12 +30,15 @@ function setupLive() {
   const runtime = memberRuntime();
   runtime.db.exec(`
     UPDATE events SET live_enabled=1 WHERE id='e';
-    INSERT INTO reservations(id,member_id,event_id,car_id,status,crew)
-      VALUES('rn','n','e','cn','approved',1);
+    UPDATE cars SET body='Sedan' WHERE id='cn';
+    INSERT INTO reservations(id,member_id,event_id,car_id,status,crew,show_shine)
+      VALUES('rn','n','e','cn','approved',1,'Ano');
     INSERT INTO event_member_presence(event_id,member_id,present,confirmed_by)
       VALUES('e','m',1,'a'),('e','n',1,'a');
     INSERT INTO live_entries(id,event_id,discipline,member_id,car_id,category)
-      VALUES('entry-n','e','show_shine','n','cn','Street');
+      VALUES('entry-n','e','show_shine','n','cn','Sedan');
+    INSERT INTO live_category_state(event_id,discipline,category,status,version,updated_by)
+      VALUES('e','show_shine','Sedan','live',1,'a');
     INSERT INTO live_competition_state(event_id,discipline,status,current_entry_id,version,updated_by)
       VALUES('e','show_shine','live','entry-n',1,'a'),
             ('e','best_exhaust','idle',NULL,1,'a');
@@ -56,6 +61,20 @@ test('UNITED LIVE migration is additive and activates the current event once', (
   assert.equal(db.prepare("SELECT COUNT(*) n FROM sqlite_master WHERE type='table' AND name IN ('event_program_items','event_live_judges','event_member_presence','live_entries','live_competition_state','live_public_votes','live_judge_scores','live_judge_photos')").get().n, 8);
   assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(), []);
   assert.equal(db.prepare("SELECT COUNT(*) n FROM schema_migrations WHERE id='2026-09-22-united-live'").get().n, 1);
+  db.close();
+});
+
+test('Show & Shine category migration is additive and does not classify existing entries by guess', () => {
+  const schema = readFileSync(new URL('../db/schema.sql', import.meta.url), 'utf8');
+  const migration = readFileSync(new URL('../db/migrations/2026-09-22-united-live-categories.sql', import.meta.url), 'utf8');
+  const marker = '-- UNITED LIVE category state.';
+  const db = new DatabaseSync(':memory:');
+  db.exec(schema.slice(0, schema.indexOf(marker)) + 'COMMIT;');
+  db.exec("INSERT INTO members(id,member_code,email,name) VALUES('m','EU-M','m@example.invalid','Member'); INSERT INTO events(id,year,title) VALUES('e',2026,'United'); INSERT INTO cars(id,member_id,model,body) VALUES('c','m','BMW','Sedan'); INSERT INTO live_entries(id,event_id,discipline,member_id,car_id,category) VALUES('le','e','show_shine','m','c',NULL)");
+  db.exec(migration);
+  assert.equal(db.prepare('SELECT COUNT(*) n FROM live_category_state').get().n, 0);
+  assert.equal(db.prepare("SELECT category FROM live_entries WHERE id='le'").get().category, null);
+  assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(), []);
   db.close();
 });
 
@@ -102,7 +121,7 @@ test('jury notes stay private and results appear only after explicit publication
     assert.equal(adminView.me.judge, true);
     assert.equal(adminView.judgeHistory.length, 1);
 
-    let transition = await controlLive(request({ action: 'close', expectedVersion: 1 }), runtime.env, admin, 'e', 'show_shine', origin);
+    let transition = await controlLive(request({ action: 'close_category', category: 'Sedan', expectedCategoryVersion: 1 }), runtime.env, admin, 'e', 'show_shine', origin);
     assert.equal(transition.status, 200);
     transition = await controlLive(request({ action: 'publish', expectedVersion: 2 }), runtime.env, admin, 'e', 'show_shine', origin);
     assert.equal(transition.status, 200);
@@ -115,6 +134,48 @@ test('jury notes stay private and results appear only after explicit publication
   } finally {
     runtime.db.close();
   }
+});
+
+test('atomic start is idempotent under repeat, lost response and concurrent requests', async () => {
+  const runtime = memberRuntime();
+  try {
+    runtime.db.exec("UPDATE events SET live_enabled=1 WHERE id='e'; UPDATE cars SET body='Sedan' WHERE id='c'; UPDATE reservations SET car_id='c',show_shine='Ano' WHERE id='r'; INSERT INTO event_member_presence(event_id,member_id,present,confirmed_by) VALUES('e','m',1,'a'); INSERT INTO live_competition_state(event_id,discipline,status,version,updated_by) VALUES('e','show_shine','idle',1,'a')");
+    const originalBatch=runtime.env.DB.batch.bind(runtime.env.DB);let tail=Promise.resolve();runtime.env.DB.batch=statements=>{const next=tail.then(()=>originalBatch(statements));tail=next.catch(()=>{});return next};
+    const start=()=>startLiveEntry(request({discipline:'show_shine',memberId:'m',carId:'c',category:'Sedan',expectedVersion:1}),runtime.env,admin,'e',origin);
+    const [first,concurrent]=await Promise.all([start(),start()]),firstBody=await body(first),concurrentBody=await body(concurrent);
+    assert.equal(first.status,201);assert.equal(concurrent.status,200);assert.equal(firstBody.entryId,concurrentBody.entryId);assert.equal(concurrentBody.replayed,true);
+    const repeated=await start(),repeatedBody=await body(repeated);assert.equal(repeated.status,200);assert.equal(repeatedBody.entryId,firstBody.entryId);assert.equal(repeatedBody.replayed,true);
+    assert.equal(runtime.db.prepare("SELECT COUNT(*) n FROM live_entries WHERE event_id='e' AND discipline='show_shine' AND car_id='c'").get().n,1);
+    assert.equal(runtime.db.prepare("SELECT COUNT(*) n FROM live_category_state WHERE event_id='e' AND category='Sedan'").get().n,1);
+    assert.equal(runtime.db.prepare("SELECT status FROM live_competition_state WHERE event_id='e' AND discipline='show_shine'").get().status,'live');
+  } finally { runtime.db.close(); }
+});
+
+test('rejected start leaves no entry or category state and a closed category does not close others', async () => {
+  const runtime = memberRuntime();
+  try {
+    runtime.db.exec("UPDATE cars SET body='Sedan' WHERE id='c'; UPDATE reservations SET car_id='c',show_shine='Ano' WHERE id='r'; INSERT INTO event_member_presence(event_id,member_id,present,confirmed_by) VALUES('e','m',1,'a'); INSERT INTO live_competition_state(event_id,discipline,status,version,updated_by) VALUES('e','show_shine','idle',1,'a')");
+    let denied=await startLiveEntry(request({discipline:'show_shine',memberId:'m',carId:'c',category:'Sedan',expectedVersion:1}),runtime.env,admin,'e',origin);assert.equal(denied.status,409);assert.equal((await body(denied)).error,'live_disabled');
+    assert.equal(runtime.db.prepare("SELECT COUNT(*) n FROM live_entries WHERE event_id='e'").get().n,0);assert.equal(runtime.db.prepare("SELECT COUNT(*) n FROM live_category_state").get().n,0);
+    runtime.db.exec("UPDATE events SET live_enabled=1 WHERE id='e'");
+    denied=await startLiveEntry(request({discipline:'show_shine',memberId:'m',carId:'c',category:'Coupé',expectedVersion:1}),runtime.env,admin,'e',origin);assert.equal(denied.status,409);assert.equal((await body(denied)).error,'category_mismatch');
+    assert.equal(runtime.db.prepare("SELECT COUNT(*) n FROM live_entries WHERE event_id='e'").get().n,0);assert.equal(runtime.db.prepare("SELECT COUNT(*) n FROM live_category_state").get().n,0);
+    const started=await startLiveEntry(request({discipline:'show_shine',memberId:'m',carId:'c',category:'Sedan',expectedVersion:1}),runtime.env,admin,'e',origin);assert.equal(started.status,201);
+    runtime.db.exec("INSERT INTO live_category_state(event_id,discipline,category,status,version,updated_by) VALUES('e','show_shine','Coupé','live',1,'a')");
+    const closed=await controlLive(request({action:'close_category',category:'Sedan',expectedCategoryVersion:2}),runtime.env,admin,'e','show_shine',origin);assert.equal(closed.status,200);
+    assert.deepEqual(JSON.parse(JSON.stringify(runtime.db.prepare("SELECT category,status FROM live_category_state ORDER BY category").all())),[{category:'Coupé',status:'live'},{category:'Sedan',status:'closed'}]);
+    const scoreDenied=await saveJudgeScore(request({scores:{overall:8,condition:8,cohesion:8,originality:8},submitted:true}),runtime.env,admin,(await body(started)).entryId,origin);assert.equal(scoreDenied.status,409);assert.equal((await body(scoreDenied)).error,'judging_closed');
+  } finally { runtime.db.close(); }
+});
+
+test('admin may present own eligible car but cannot score it and results stay one row per entry', async () => {
+  const runtime = memberRuntime();
+  try {
+    runtime.db.exec("UPDATE events SET live_enabled=1 WHERE id='e'; UPDATE cars SET body='Sedan' WHERE id='c'; UPDATE reservations SET member_id='a',car_id='c',show_shine='Ano' WHERE id='r'; UPDATE cars SET member_id='a' WHERE id='c'; INSERT INTO event_member_presence(event_id,member_id,present,confirmed_by) VALUES('e','a',1,'a'); INSERT INTO live_competition_state(event_id,discipline,status,version,updated_by) VALUES('e','show_shine','idle',1,'a')");
+    const started=await startLiveEntry(request({discipline:'show_shine',memberId:'a',carId:'c',category:'Sedan',expectedVersion:1}),runtime.env,admin,'e',origin),startedBody=await body(started);assert.equal(started.status,201);
+    const denied=await saveJudgeScore(request({scores:{overall:8,condition:8,cohesion:8,originality:8},submitted:true}),runtime.env,admin,startedBody.entryId,origin);assert.equal(denied.status,403);assert.equal((await body(denied)).error,'own_car_score');
+    const adminPayload=await body(await getAdminLive(runtime.env,new URL('https://api.e36united.cz/api/admin/live?eventId=e'),origin));assert.equal(adminPayload.entries.length,1);assert.equal(adminPayload.results.show_shine.length,1);
+  } finally { runtime.db.close(); }
 });
 
 test('new year is closed and inactive while LIVE switching remains single and independent of current', async () => {
@@ -154,4 +215,19 @@ test('member organization search is event-scoped by default and loads cars witho
   } finally {
     runtime.db.close();
   }
+});
+
+test('LIVE clients keep one result row, cancellable jury drafts and stale-response guards', () => {
+  const adminSource=readFileSync(new URL('../admin/modules/live.js',import.meta.url),'utf8'),memberSource=readFileSync(new URL('../member/modules/live.js',import.meta.url),'utf8');
+  for(const source of [adminSource,memberSource]){
+    assert.match(source,/Zrušit hodnocení/);
+    assert.match(source,/readSequence/);
+    assert.match(source,/sequence!==readSequence/);
+    assert.doesNotMatch(source,/resultRows\(items,'public'/);
+    assert.doesNotMatch(source,/resultRows\(items,'jury'/);
+  }
+  assert.match(adminSource,/\/live\/start/);
+  assert.match(adminSource,/data-live-close-category/);
+  assert.doesNotMatch(adminSource,/discipline==='show_shine'.*data-live-control="pause"/);
+  assert.match(memberSource,/MOJE HODNOCENÍ POROTY/);
 });
