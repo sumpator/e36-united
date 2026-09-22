@@ -1,6 +1,6 @@
-import {escapeHtml as esc} from './ui.js?v=20260922-live1';
-import {apiRequest} from './api.js?v=20260922-live1';
-import {adminState} from './state.js?v=20260922-live1';
+import {escapeHtml as esc} from './ui.js?v=20260922-live2';
+import {apiRequest} from './api.js?v=20260922-live2';
+import {adminState} from './state.js?v=20260922-live2';
 
 export function pendingSummary(card){
  const p=card?.pending;

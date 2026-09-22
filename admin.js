@@ -1,29 +1,29 @@
-import {initializeDashboard,renderDashboard,receiveDashboardPreferences,dashboardWantsPlanner,dashboardWantsMailing,clearDashboard} from './admin/dashboard.js?v=20260922-live1';
-import {initializeCommandShell} from './admin/command-shell.js?v=20260922-live1';
-import {initializeMembers,openMember,closeMember,clearMemberPrivateState,memberContextKey,memberRefreshTasks,renderMemberReadState} from './admin/member-detail.js?v=20260922-live1';
-import {ADMIN_REFRESH,resourceDue} from './admin/refresh-policy.js?v=20260922-live1';
-import {reservationRequestPath,galleryRequestPath} from './admin/lists.js?v=20260922-live1';
-import { initializeAdminNavigation } from './admin/navigation.js?v=20260922-live1';
-import { createAdminRefresh } from './admin/refresh.js?v=20260922-live1';
-import { initializeAdminEditors, bindCurrentEditors, forgetAdminEditor, allowAdminNavigation, clearAdminPrivateEdits, adminRenderPending } from './admin/editors.js?v=20260922-live1';
-import { firebaseConfig } from './firebase-config.js?v=20260922-live1';
+import {initializeDashboard,renderDashboard,receiveDashboardPreferences,dashboardWantsPlanner,dashboardWantsMailing,clearDashboard} from './admin/dashboard.js?v=20260922-live2';
+import {initializeCommandShell} from './admin/command-shell.js?v=20260922-live2';
+import {initializeMembers,openMember,closeMember,clearMemberPrivateState,memberContextKey,memberRefreshTasks,renderMemberReadState} from './admin/member-detail.js?v=20260922-live2';
+import {ADMIN_REFRESH,resourceDue} from './admin/refresh-policy.js?v=20260922-live2';
+import {reservationRequestPath,galleryRequestPath} from './admin/lists.js?v=20260922-live2';
+import { initializeAdminNavigation } from './admin/navigation.js?v=20260922-live2';
+import { createAdminRefresh } from './admin/refresh.js?v=20260922-live2';
+import { initializeAdminEditors, bindCurrentEditors, forgetAdminEditor, allowAdminNavigation, clearAdminPrivateEdits, adminRenderPending } from './admin/editors.js?v=20260922-live2';
+import { firebaseConfig } from './firebase-config.js?v=20260922-live2';
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js';
 import { getAuth, setPersistence, browserLocalPersistence, onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js';
 
-import { apiRequest } from './admin/api.js?v=20260922-live1';
-import { adminState, resetAdminDomainState, resetAdminFiltersForEvent, resetAdminFiltersForLogin } from './admin/state.js?v=20260922-live1';
-import { initializeAdminShell, setAdminSectionCollapsed, setAdminView, setDenied, setLoading, setView } from './admin/shell.js?v=20260922-live1';
-import { $, toast } from './admin/ui.js?v=20260922-live1';
-import { renderEventSelector, renderEventSettings, renderOverview, saveEventSettings } from './admin/modules/dashboard-events.js?v=20260922-live1';
-import { moveAccommodationGalleryPhoto, previewAccommodationGalleryPhoto, previewAccommodationPhoto, removeAccommodationGalleryPhoto, resetAccommodationMedia, removeAccommodationPhoto, renderAccommodation, saveAccommodation, uploadAccommodationGalleryPhoto, uploadAccommodationPhoto } from './admin/modules/accommodation.js?v=20260922-live1';
-import { clearReservationDetailFilters, closeReservationDrawer, openReservationDrawer, renderReservations, renderReservationDetail, reviewReservationRequest, saveReservationNotes, setPaymentFilter, setPaymentSearch, setReservationFilter, setReservationSearch, setReservationViewMode, toggleReservationDetailFilter, toggleReservationFilters, updateReservation, updateReservationPayment } from './admin/modules/reservations-payments.js?v=20260922-live1';
-import { changeHistoryPage, clearHistoryFilters, closeGalleryLightbox, closeHistoryEvidence, historyRequestPath, hydrateOpenHistoryCard, openGalleryLightbox, openHistoryEvidence, releaseGalleryMedia, releaseHistoryEvidence, renderGallery, renderHistoryClaims, reviewHistoryClaim, setGalleryFilter, setGalleryMode, setHistoryClaimType, setHistoryFilter, setHistorySearch, setHistoryYear, updateGallery } from './admin/modules/moderation.js?v=20260922-live1';
-import { initializeMailingCenter, resetMailingCenter, refreshMailingCenter } from './admin/modules/mailing/index.js?v=20260922-live1';
-import { renderAdminFunnel } from './admin/modules/funnel.js?v=20260922-live1';
-import {releaseHistoryCardMedia} from './admin/modules/moderation.js?v=20260922-live1';
-import { refreshHistoryAttention } from './admin/modules/dashboard-events.js?v=20260922-live1';
-import {initializePreliminary,clearPreliminary,preliminaryContext,preliminaryTasks} from './admin/modules/preliminary.js?v=20260922-live1';
-import {initializeAdminLive} from './admin/modules/live.js?v=20260922-live1';
+import { apiRequest } from './admin/api.js?v=20260922-live2';
+import { adminState, resetAdminDomainState, resetAdminFiltersForEvent, resetAdminFiltersForLogin } from './admin/state.js?v=20260922-live2';
+import { initializeAdminShell, setAdminSectionCollapsed, setAdminView, setDenied, setLoading, setView } from './admin/shell.js?v=20260922-live2';
+import { $, toast } from './admin/ui.js?v=20260922-live2';
+import { renderEventSelector, renderEventSettings, renderOverview, saveEventSettings } from './admin/modules/dashboard-events.js?v=20260922-live2';
+import { moveAccommodationGalleryPhoto, previewAccommodationGalleryPhoto, previewAccommodationPhoto, removeAccommodationGalleryPhoto, resetAccommodationMedia, removeAccommodationPhoto, renderAccommodation, saveAccommodation, uploadAccommodationGalleryPhoto, uploadAccommodationPhoto } from './admin/modules/accommodation.js?v=20260922-live2';
+import { clearReservationDetailFilters, closeReservationDrawer, openReservationDrawer, renderReservations, renderReservationDetail, reviewReservationRequest, saveReservationNotes, setPaymentFilter, setPaymentSearch, setReservationFilter, setReservationSearch, setReservationViewMode, toggleReservationDetailFilter, toggleReservationFilters, updateReservation, updateReservationPayment } from './admin/modules/reservations-payments.js?v=20260922-live2';
+import { changeHistoryPage, clearHistoryFilters, closeGalleryLightbox, closeHistoryEvidence, historyRequestPath, hydrateOpenHistoryCard, openGalleryLightbox, openHistoryEvidence, releaseGalleryMedia, releaseHistoryEvidence, renderGallery, renderHistoryClaims, reviewHistoryClaim, setGalleryFilter, setGalleryMode, setHistoryClaimType, setHistoryFilter, setHistorySearch, setHistoryYear, updateGallery } from './admin/modules/moderation.js?v=20260922-live2';
+import { initializeMailingCenter, resetMailingCenter, refreshMailingCenter } from './admin/modules/mailing/index.js?v=20260922-live2';
+import { renderAdminFunnel } from './admin/modules/funnel.js?v=20260922-live2';
+import {releaseHistoryCardMedia} from './admin/modules/moderation.js?v=20260922-live2';
+import { refreshHistoryAttention } from './admin/modules/dashboard-events.js?v=20260922-live2';
+import {initializePreliminary,clearPreliminary,preliminaryContext,preliminaryTasks} from './admin/modules/preliminary.js?v=20260922-live2';
+import {initializeAdminLive} from './admin/modules/live.js?v=20260922-live2';
 
 const app=initializeApp(firebaseConfig);
 const auth=getAuth(app);
@@ -152,12 +152,13 @@ async function loadAdminData(){
     if(generation!==startupGeneration)return;
     adminState.events=payload.events||[];
     if(!adminState.events.some(event=>event.id===adminState.selectedEventId))adminState.selectedEventId=(adminState.events.find(event=>event.isCurrent)||adminState.events[0]||{}).id||'';
-    eventsReady=true;renderEventSelector();setView('admin');await refreshCoordinator.trigger('startup');
+    eventsReady=true;renderEventSelector();setView('admin');await refreshCoordinator.trigger('startup');await adminLive.startup();
     if(adminState.pendingMemberRoute){const target=adminState.pendingMemberRoute;adminState.pendingMemberRoute=null;openMember(target.memberId,null,{tab:target.memberTab,route:false})}
   }catch(error){if(!error.stale&&!adminState.denied)toast(error.message||'Admin data se nepodařilo načíst.')}
   finally{if(generation===startupGeneration)setLoading(false)}
 }
 function clearPrivateState(){
+  adminLive?.reset();
   clearPreliminary();
   adminState.queueMember=null;
   releaseHistoryCardMedia();
@@ -190,7 +191,7 @@ initializeMembers({
   openPhotoModeration:(status,memberId)=>{if(!allowAdminNavigation())return;adminState.restoringRoute=true;try{closeMember({route:false});closeReservationDrawer();adminState.queueMember=memberId||null;setGalleryMode('community');setGalleryFilter(['pending','approved','rejected'].includes(status)?status:'all');setAdminView('gallery')}finally{adminState.restoringRoute=false}navigation.write({replace:true});void loadEventData()}
 });
 initializeCommandShell();
-const adminLive=initializeAdminLive();
+const adminLive=initializeAdminLive({setAdminView});
 initializePreliminary(()=>{
   // Explicit panel open/page/settings refresh invalidates only this resource.
   for(const key of resourceFreshness.keys())if(key.includes('/api/admin/preliminary-reservations?'))resourceFreshness.delete(key);

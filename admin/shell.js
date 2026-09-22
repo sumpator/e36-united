@@ -1,9 +1,9 @@
-import { allowAdminNavigation } from './editors.js?v=20260922-live1';
-import { initPortalNavigation } from '../portal-navigation.js?v=20260922-live1';
-import { ADMIN_VIEW_IDS } from '../admin-view-model.js?v=20260922-live1';
-import {ADMIN_AREAS,VIEW_LABELS,areaFor} from './destinations.js?v=20260922-live1';
-import { adminState } from './state.js?v=20260922-live1';
-import { $, $$, rememberSessionChoice } from './ui.js?v=20260922-live1';
+import { allowAdminNavigation } from './editors.js?v=20260922-live2';
+import { initPortalNavigation } from '../portal-navigation.js?v=20260922-live2';
+import { ADMIN_VIEW_IDS } from '../admin-view-model.js?v=20260922-live2';
+import {ADMIN_AREAS,VIEW_LABELS,areaFor} from './destinations.js?v=20260922-live2';
+import { adminState } from './state.js?v=20260922-live2';
+import { $, $$, rememberSessionChoice } from './ui.js?v=20260922-live2';
 
 const adminCollapseStorageKey='e36UnitedAdmin.collapsedSections.v1';
 const adminCollapsePreferences=readAdminCollapsePreferences();
@@ -60,9 +60,14 @@ function initializeAdminCollapsibles(){
   });
 }
 
-export function setAdminView(view,{focus=true}={}){
+export function setAdminView(view,{focus=true,liveConfirmed=false}={}){
   if(view==='united-club')view='members';
   const nextView=['club','photos'].includes(view)?'gallery':ADMIN_VIEW_IDS.includes(view)?view:'dashboard';
+  if(nextView==='live'&&!liveConfirmed){
+    const request=new CustomEvent('admin:liveentryrequest',{cancelable:true,detail:{view:nextView}});
+    window.dispatchEvent(request);
+    if(request.defaultPrevented)return false;
+  }
   const nextMode=view==='club'?'history':view==='photos'?'community':adminState.galleryMode;
   const changed=nextView!==adminState.activeAdminView||nextView==='gallery'&&nextMode!==adminState.galleryMode;
   if(changed&&!allowAdminNavigation())return false;

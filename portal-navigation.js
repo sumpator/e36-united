@@ -61,7 +61,8 @@ export function initPortalNavigation({ root, onSelect, toggleMenu = false }) {
     const control = event.target.closest('[data-portal-target]');
     if (!control) return;
     event.preventDefault();
-    onSelect?.(control.dataset.portalTarget);
+    const selected = onSelect?.(control.dataset.portalTarget);
+    if (selected === false) return;
     sync(control.dataset.portalTarget);
     close();
   });

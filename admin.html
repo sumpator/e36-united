@@ -17,7 +17,7 @@
   <link href="admin/command-center.css?v=20260912-reservation-compact-r1" rel="stylesheet"/>
   <link href="admin/command-polish.css?v=20260920-registration-ui-r1" rel="stylesheet"/>
   <link href="admin/compact-overviews.css?v=20260920-registration-ui-r1" rel="stylesheet"/>
-  <link href="admin/live.css?v=20260922-live1" rel="stylesheet"/>
+  <link href="admin/live.css?v=20260922-live2" rel="stylesheet"/>
 </head>
 <body class="admin-page">
   <header class="site-header scrolled admin-header">
@@ -211,12 +211,7 @@
             </div>
           </section>
 
-          <section class="admin-live admin-view-panel" data-admin-panel="live" hidden>
-            <div class="admin-section-head"><div><span class="admin-kicker">UNITED LIVE</span><h2>Řízení srazu.</h2><p>Program, přítomnost, prezentace aut a bezpečné zveřejnění výsledků vybraného ročníku.</p></div><span class="admin-live-state" data-admin-live-state>NAČÍTÁM</span></div>
-            <div class="admin-live-toolbar"><button class="admin-button admin-button--primary" data-admin-live-toggle type="button">Zapnout LIVE</button><p data-admin-live-context></p></div>
-            <nav aria-label="Organizační LIVE" class="admin-live-tabs"><button class="is-active" data-admin-live-tab="control" type="button">Řízení</button><button data-admin-live-tab="members" type="button">Členové / QR</button><button data-admin-live-tab="rating" type="button">Hodnocení</button><button data-admin-live-tab="program" type="button">Program</button></nav>
-            <div class="admin-live-body" data-admin-live-body></div>
-          </section>
+          <section class="admin-view-panel" data-admin-panel="live" hidden></section>
 
           <section class="admin-event-settings admin-view-panel" data-admin-panel="event" hidden>
             <div class="admin-section-head"><div><span class="admin-kicker">EVENT SETTINGS</span><h2>United <span data-event-settings-year>—</span>.</h2><p>Změny platí jen pro vybraný ročník a zapisují se do admin auditu.</p></div><span class="admin-view-label">EVENT</span></div>
@@ -325,7 +320,17 @@
         </div>
       </div>
     </section>
+    <section class="admin-live admin-live-mode" data-admin-live-mode hidden>
+      <header class="admin-live-mode-bar"><a class="admin-live-brand" href="index.html"><img alt="" src="united-logo-blue-silver-transparent.png"><span><strong>UNITED LIVE · ORGANIZÁTOR</strong><small data-admin-live-event>Vybraný ročník</small></span></a><div><span class="admin-live-state" data-admin-live-state>NAČÍTÁM</span><button data-admin-live-exit type="button">← Zpět do administrace</button></div></header>
+      <div class="admin-live-mode-main">
+        <section class="admin-live-toolbar"><div><span class="admin-kicker">STAV LIVE REŽIMU</span><p data-admin-live-context>Ověřuji serverový stav…</p></div><button class="admin-button admin-button--primary" data-admin-live-toggle type="button" disabled>Načítám…</button></section>
+        <div class="admin-live-error" data-admin-live-error hidden><strong>Organizační LIVE se nepodařilo načíst.</strong><p>Stav zůstal beze změny. Ověř připojení a zkus to znovu.</p><button data-admin-live-retry type="button">Zkusit znovu</button></div>
+        <div class="admin-live-body" data-admin-live-body><p class="admin-live-status">Načítám organizační LIVE…</p></div>
+        <nav aria-label="Organizační UNITED LIVE" class="admin-live-tabs"><button class="is-active" data-admin-live-tab="control" type="button"><span>⌁</span>Řízení</button><button data-admin-live-tab="members" type="button"><span>▦</span>Členové</button><button data-admin-live-tab="rating" type="button"><span>★</span>Hodnocení</button><button data-admin-live-tab="program" type="button"><span>▤</span>Program</button></nav>
+      </div>
+    </section>
   </main>
+  <div class="admin-live-entry" data-admin-live-entry hidden><button aria-label="Zůstat v administraci" data-admin-live-entry-cancel type="button"></button><div aria-labelledby="admin-live-entry-title" aria-modal="true" role="dialog"><button aria-label="Zůstat v administraci" data-admin-live-entry-cancel type="button">×</button><span class="admin-kicker">UNITED LIVE</span><h2 id="admin-live-entry-title">Spustit organizační UNITED LIVE?</h2><p>Přepneš se do režimu pro řízení srazu. Zpět do administrace se můžeš kdykoliv vrátit.</p><p data-admin-live-entry-state role="status">Ověřuji stav vybraného ročníku…</p><footer><button class="admin-button admin-button--primary" data-admin-live-entry-confirm type="button" hidden>Spustit LIVE</button><button class="admin-button" data-admin-live-entry-retry type="button" hidden>Zkusit znovu</button><button class="admin-button" data-admin-live-entry-cancel type="button">Zůstat v administraci</button></footer></div></div>
   <div aria-labelledby="admin-gallery-lightbox-title" aria-modal="true" class="admin-gallery-lightbox" data-gallery-lightbox hidden role="dialog">
     <button aria-label="Zavřít náhled" class="admin-gallery-lightbox-backdrop" data-gallery-lightbox-close type="button"></button>
     <div class="admin-gallery-lightbox-dialog">
@@ -342,6 +347,6 @@
     </aside>
   </div>
   <div aria-live="polite" class="admin-toast" data-toast role="status"></div>
-  <script src="admin.js?v=20260922-live1" type="module"></script>
+  <script src="admin.js?v=20260922-live2" type="module"></script>
 </body>
 </html>

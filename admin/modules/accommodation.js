@@ -1,10 +1,10 @@
-import { adminCommand, editorProtected, adminEditorDirty } from '../editors.js?v=20260922-live1';
-import { accommodationVisualMarkup, bindAccommodationVisualFallbacks } from '../../accommodation-visual.js?v=20260922-live1';
-import { selectImageFiles } from '../../image-upload.js?v=20260922-live1';
-import { apiBaseUrl, apiRequest, apiUpload } from '../api.js?v=20260922-live1';
-import { adminState } from '../state.js?v=20260922-live1';
-import { setDenied } from '../shell.js?v=20260922-live1';
-import { $, escapeHtml, formatMoney, numeric, toast } from '../ui.js?v=20260922-live1';
+import { adminCommand, editorProtected, adminEditorDirty } from '../editors.js?v=20260922-live2';
+import { accommodationVisualMarkup, bindAccommodationVisualFallbacks } from '../../accommodation-visual.js?v=20260922-live2';
+import { selectImageFiles } from '../../image-upload.js?v=20260922-live2';
+import { apiBaseUrl, apiRequest, apiUpload } from '../api.js?v=20260922-live2';
+import { adminState } from '../state.js?v=20260922-live2';
+import { setDenied } from '../shell.js?v=20260922-live2';
+import { $, escapeHtml, formatMoney, numeric, toast } from '../ui.js?v=20260922-live2';
 
 const accommodationPhotoSelections=new Map();
 const accommodationGallerySelections=new Map();

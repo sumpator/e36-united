@@ -1,7 +1,7 @@
 import { deriveMemberHeroState } from '../member-portal-state.js?v=20260921-member-ux-r2';
 import { initPortalNavigation } from '../portal-navigation.js?v=20260825-mobile1';
 import { $, $$ } from './ui.js?v=20260902-phase3';
-import { memberSection } from './deep-links.js?v=20260922-live1';
+import { memberSection } from './deep-links.js?v=20260922-live2';
 import { initScrollAffordance } from '../scroll-affordance.js?v=20260907-mobile';
 
 export function createMemberShell({
@@ -13,6 +13,7 @@ export function createMemberShell({
   isAuthenticated,
   onGarageHeroAction,
   beforePortalAction,
+  onLiveEntry,
 }) {
   const menuBtn=$('.menu-btn'),nav=$('.nav-links');
   let memberHeroPhotoId='';
@@ -58,9 +59,17 @@ export function createMemberShell({
     $$('[data-auth-form]').forEach(form=>form.reset());
     activateAuthTab('login');
   }
-  function openSection(id){
+  function setLiveMode(active){
+    const appView=$('[data-app-view]'),liveView=$('[data-member-live-mode]');
+    document.body.classList.toggle('member-live-mode-active',active);
+    if(liveView)liveView.hidden=!active;
+    if(appView)appView.hidden=active;
+    if(active)closeMainMenu();
+  }
+  function openSection(id,{liveConfirmed=false}={}){
     if(beforePortalAction?.()===false)return false;
     id=memberSection(id);
+    if(id==='live'&&!liveConfirmed){void onLiveEntry?.();return false}
     const url=new URL(window.location.href);url.searchParams.set('section',id);url.searchParams.delete('panel');
     if(id!=='club'){url.searchParams.delete('profile');url.searchParams.delete('members')}
     window.history.replaceState(null,'',url);
@@ -101,5 +110,5 @@ export function createMemberShell({
     $$('[data-main-member-section]').forEach(button=>button.addEventListener('click',()=>{openSection(button.dataset.mainMemberSection);closeMainMenu()}));
   }
 
-  return {activateAuthTab,bindMainNavigation,closeMainMenu,memberPortalNavigation,openSection,renderMemberHero,resetAuthForms,setMode,showApp,showAuth,showAuthStatus};
+  return {activateAuthTab,bindMainNavigation,closeMainMenu,memberPortalNavigation,openSection,renderMemberHero,resetAuthForms,setLiveMode,setMode,showApp,showAuth,showAuthStatus};
 }

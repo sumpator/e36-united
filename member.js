@@ -5,7 +5,7 @@ import { loadMemberSessionSnapshot } from './member/refresh.js?v=20260907-feedba
 import { apiError, authError, authOrApiError, createMemberSession } from './member/session.js?v=20260907-feedback';
 import { createMemberData as defaultData, normalizeMember as normalizeMemberState } from './member/state.js?v=20260913-club-profiles-r1';
 import { $, $$, setButtonBusy, toast } from './member/ui.js?v=20260902-phase3';
-import { createMemberShell } from './member/shell.js?v=20260922-live1';
+import { createMemberShell } from './member/shell.js?v=20260922-live2';
 import { createMemberOverview } from './member/modules/overview.js?v=20260921-member-ux-r2';
 import { createMemberGarage } from './member/modules/garage.js?v=20260920-reservation-unified-r1';
 import { createMemberPhotos } from './member/modules/photos.js?v=20260907-feedback';
@@ -14,8 +14,8 @@ import { formatCzk } from './member/modules/planner/payments.js?v=20260912-membe
 import { createMemberClub } from './member/modules/club/index.js?v=20260921-member-ux-r2';
 import { achievementIcon, pictogram } from './member/modules/club/points.js?v=20260921-member-ux-r2';
 import { createMemberAccount } from './member/modules/account.js?v=20260913-club-profiles-r1';
-import { createMemberLive } from './member/modules/live.js?v=20260922-live1';
-import { requestedMemberSection } from './member/deep-links.js?v=20260922-live1';
+import { createMemberLive } from './member/modules/live.js?v=20260922-live2';
+import { requestedMemberSection } from './member/deep-links.js?v=20260922-live2';
 import { renderMemberAvailability } from './member/availability.js?v=20260907-feedback';
 import { isAuthorizationFailure } from './member/refresh.js?v=20260907-feedback';
 
@@ -70,8 +70,13 @@ async function openAuthenticatedSession(user,{quiet=false}={}){
   showApp();
   if(!errors.reservation)await memberPlanner.applyPlannerDraft(plannerDraftResult);
   const initialSection=new URLSearchParams(window.location.search).has('draft')&&memberPlanner.hasActiveHandoff()?'reservation':requestedMemberSection(window.location.search);
-  openSection(initialSection);
-  if(initialSection!=='live')void memberLive.probe();
+  if(initialSection==='live'){
+    openSection('overview');
+    await memberLive.startup({requested:true});
+  }else{
+    openSection(initialSection);
+    void memberLive.startup();
+  }
   renderMemberAvailability(startupErrors,retryMemberDomain,{hasHandoff:memberPlanner.hasActiveHandoff()});
   void trackOnboarding('portal');
   if(!quiet)toast(`Přihlášen jako ${member.nickname||member.name}.`);
@@ -271,10 +276,11 @@ memberShell=createMemberShell({
   isAuthenticated:()=>Boolean(memberSession.currentUser),
   onGarageHeroAction:()=>{if(!data.cars.length){openCarModal();return}requestAnimationFrame(()=>$('[data-primary-car-card]')?.scrollIntoView({behavior:'smooth',block:'center'}))},
   beforePortalAction:()=>memberPlanner?.requestClose({restoreFocus:false,restoreScroll:false})??true,
+  onLiveEntry:()=>memberLive?.requestEntry(),
 });
-const {activateAuthTab,bindMainNavigation,closeMainMenu,memberPortalNavigation,openSection,renderMemberHero,resetAuthForms,setMode,showApp,showAuth,showAuthStatus}=memberShell;
+const {activateAuthTab,bindMainNavigation,closeMainMenu,memberPortalNavigation,openSection,renderMemberHero,resetAuthForms,setLiveMode,setMode,showApp,showAuth,showAuthStatus}=memberShell;
 
-memberLive=createMemberLive({apiBaseUrl,apiRequest,apiRequestForm,apiRequestBlob,openSection});
+memberLive=createMemberLive({apiBaseUrl,apiRequest,apiRequestForm,apiRequestBlob,openSection,setLiveMode});
 
 memberPlanner=createMemberPlanner({
   apiBaseUrl,

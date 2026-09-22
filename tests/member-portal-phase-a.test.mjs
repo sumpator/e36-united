@@ -23,7 +23,7 @@ const authStatesCss = read('auth-states.css');
 test('main navigation contains exactly eight internal panels in target order', () => {
   const sidebar = memberHtml.slice(memberHtml.indexOf('<aside class="member-sidebar"'), memberHtml.indexOf('</aside>'));
   const labels = [...sidebar.matchAll(/data-member-section="([^"]+)"/g)].map(match => match[1]);
-  assert.deepEqual(labels, ['overview', 'live', 'reservation', 'garage', 'payments', 'club', 'photos', 'account']);
+  assert.deepEqual(labels, ['overview', 'reservation', 'garage', 'payments', 'club', 'photos', 'account', 'live']);
   assert.match(sidebar, /data-member-section="reservation"[\s\S]*?<strong>Registrace<\/strong><small>Účast &amp; ubytování<\/small>/);
   for (const panel of ['overview', 'live', 'reservation', 'garage', 'payments', 'club', 'photos', 'account']) assert.match(memberHtml, new RegExp(`data-member-panel="${panel}"`));
 });
@@ -40,7 +40,7 @@ test('authenticated main mobile menu contains all Member Portal sections', () =>
   const start = memberHtml.indexOf('data-member-main-mobile-nav');
   const mobile = memberHtml.slice(start, memberHtml.indexOf('</div>', start));
   const labels = [...mobile.matchAll(/data-main-member-section="[^"]+"[^>]*>([^<]+)<\/button>/g)].map(match => match[1].replace('&amp;', '&'));
-  assert.deepEqual(labels, ['Přehled', 'LIVE', 'Registrace', 'Garáž', 'Platby', 'United Club', 'Moje fotky', 'Účet']);
+  assert.deepEqual(labels, ['Přehled', 'Registrace', 'Garáž', 'Platby', 'United Club', 'Moje fotky', 'Účet', 'UNITED LIVE']);
   assert.match(memberHtml, /data-member-main-mobile-nav="" hidden=""/);
   assert.match(memberShellJs, /setMainMobileMemberNavigation\(true\)/);
   assert.match(memberShellJs, /setMainMobileMemberNavigation\(false\)/);
@@ -106,7 +106,7 @@ test('authenticated entry keeps Overview fallback but applies a handoff before c
   assert.match(memberHtml, /member-nav-item is-active" data-member-section="overview"/);
   assert.match(memberHtml, /member-section is-active" data-member-panel="overview"/);
   assert.match(memberJs, /showApp\(\);\s*if\(!errors.reservation\)await memberPlanner\.applyPlannerDraft/);
-  assert.match(memberJs, /const initialSection=new URLSearchParams\(window.location.search\).has\('draft'\)&&memberPlanner.hasActiveHandoff\(\)\?'reservation':requestedMemberSection\(window.location.search\);\s*openSection\(initialSection\)/);
+  assert.match(memberJs, /const initialSection=new URLSearchParams\(window.location.search\).has\('draft'\)&&memberPlanner.hasActiveHandoff\(\)\?'reservation':requestedMemberSection\(window.location.search\);\s*if\(initialSection==='live'\)\{\s*openSection\('overview'\);\s*await memberLive\.startup\(\{requested:true\}\);\s*\}else\{\s*openSection\(initialSection\);\s*void memberLive\.startup\(\);/);
   assert.doesNotMatch(memberJs, /requestedMemberPanel/);
   assert.match(memberPlannerJs, /applyPlannerHandoffToForm\(\{navigate:false\}\)/);
   const draftFlow = memberPlannerJs.slice(memberPlannerJs.indexOf('async function applyPlannerDraft'), memberPlannerJs.indexOf('function handleGarageCarSaved'));
