@@ -16,7 +16,7 @@ export function createMemberShell({
   onLiveEntry,
 }) {
   const menuBtn=$('.menu-btn'),nav=$('.nav-links');
-  let memberHeroPhotoId='';
+  let memberHeroPhotoId='',liveModeActive=false;
   initScrollAffordance(document.querySelector('.member-sidebar[data-portal-tablist]'));
 
   function closeMainMenu(){document.body.classList.remove('menu-open');menuBtn?.setAttribute('aria-expanded','false');nav?.classList.remove('open')}
@@ -32,23 +32,23 @@ export function createMemberShell({
     const authView=$('[data-auth-view]'),appView=$('[data-app-view]'),statusView=$('[data-auth-status-view]');
     if(statusView)statusView.hidden=true;
     if(authView)authView.hidden=false;
-    if(appView)appView.hidden=true;
+    if(appView){appView.hidden=true;appView.inert=true;appView.setAttribute('aria-hidden','true')}
   }
   function showAuthStatus({title='Ověřuji přihlášení.',copy='Počkám na potvrzený stav Firebase session.',retry=false}={}){
     document.body.classList.remove('member-authenticated');
     setMainMobileMemberNavigation(false);
     const authView=$('[data-auth-view]'),appView=$('[data-app-view]'),statusView=$('[data-auth-status-view]');
     if(authView)authView.hidden=true;
-    if(appView)appView.hidden=true;
+    if(appView){appView.hidden=true;appView.inert=true;appView.setAttribute('aria-hidden','true')}
     if(statusView){statusView.hidden=false;$('[data-auth-status-title]',statusView).textContent=title;$('[data-auth-status-copy]',statusView).textContent=copy;const button=$('[data-auth-retry]',statusView);if(button)button.hidden=!retry}
   }
   function showApp(){
     document.body.classList.add('member-authenticated');
-    setMainMobileMemberNavigation(true);
+    setMainMobileMemberNavigation(!liveModeActive);
     const authView=$('[data-auth-view]'),appView=$('[data-app-view]'),statusView=$('[data-auth-status-view]');
     if(statusView)statusView.hidden=true;
     if(authView)authView.hidden=true;
-    if(appView)appView.hidden=false;
+    if(appView){appView.hidden=liveModeActive;appView.inert=liveModeActive;appView.setAttribute('aria-hidden',String(liveModeActive))}
     renderApp();
   }
   function activateAuthTab(name){
@@ -61,9 +61,11 @@ export function createMemberShell({
   }
   function setLiveMode(active){
     const appView=$('[data-app-view]'),liveView=$('[data-member-live-mode]');
+    liveModeActive=active;
     document.body.classList.toggle('member-live-mode-active',active);
-    if(liveView)liveView.hidden=!active;
-    if(appView)appView.hidden=active;
+    setMainMobileMemberNavigation(!active&&isAuthenticated());
+    if(liveView){liveView.hidden=!active;liveView.inert=!active;liveView.setAttribute('aria-hidden',String(!active))}
+    if(appView){appView.hidden=active;appView.inert=active;appView.setAttribute('aria-hidden',String(active))}
     if(active)closeMainMenu();
   }
   function openSection(id,{liveConfirmed=false}={}){

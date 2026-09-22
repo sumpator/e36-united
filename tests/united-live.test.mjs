@@ -126,9 +126,12 @@ test('member organization search is event-scoped by default and loads cars witho
     const listed = await body(await searchLiveMembers(runtime.env, 'e', new URL('https://api.e36united.cz/api/admin/live/members?eventId=e'), origin));
     assert.deepEqual(listed.members.map(item => item.memberId), ['m']);
     assert.deepEqual(listed.members[0].cars.map(car => car.id).sort(), ['c', 'c2']);
+    assert.equal(listed.members[0].cars.find(car => car.id === 'c').photoId, 'p');
+    assert.equal(listed.members[0].cars.find(car => car.id === 'c2').photoId, null);
     const queries = runtime.queries.slice(start);
     assert.equal(queries.length, 1);
     assert.equal(queries[0].sql.includes('json_group_array'), true);
+    assert.equal(queries[0].sql.includes('FROM car_photos cp WHERE cp.car_id=c2.id'), true);
 
     const searched = await body(await searchLiveMembers(runtime.env, 'e', new URL('https://api.e36united.cz/api/admin/live/members?eventId=e&q=Second'), origin));
     assert.deepEqual(searched.members.map(item => item.memberId), ['n']);

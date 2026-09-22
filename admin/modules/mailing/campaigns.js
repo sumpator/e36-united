@@ -1,9 +1,9 @@
-import {renderListPagination} from '../../lists.js?v=20260922-live2';
-import { apiRequest } from '../../api.js?v=20260922-live2';
-import { $, escapeHtml, formatDate, numeric, toast } from '../../ui.js?v=20260922-live2';
-import { activeMailingCampaignId, initializeMailingEditor, markMailingEditorSaved, openMailingEditorDraft, resetMailingEditor } from './editor.js?v=20260922-live2';
-import { initializeMailingDelivery, openMailingDelivery, resetMailingDelivery } from './delivery.js?v=20260922-live2';
-import { defaultMailingSegment } from './segments.js?v=20260922-live2';
+import {renderListPagination} from '../../lists.js?v=20260922-live3';
+import { apiRequest } from '../../api.js?v=20260922-live3';
+import { $, escapeHtml, formatDate, numeric, toast } from '../../ui.js?v=20260922-live3';
+import { activeMailingCampaignId, initializeMailingEditor, markMailingEditorSaved, openMailingEditorDraft, resetMailingEditor } from './editor.js?v=20260922-live3';
+import { initializeMailingDelivery, openMailingDelivery, resetMailingDelivery } from './delivery.js?v=20260922-live3';
+import { defaultMailingSegment } from './segments.js?v=20260922-live3';
 
 const statusLabels={draft:'Koncept',prepared:'Připravená',sent:'Odeslaná',archived:'Archiv'};
 export let campaignPage=1;

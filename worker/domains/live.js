@@ -236,7 +236,7 @@ export async function searchLiveMembers(env,eventId,url,origin){
   const q=clean(url.searchParams.get('q')).slice(0,80);if(q&&q.replace(/\W/g,'').length<2)return json({ok:true,members:[]},200,origin);const needle=`%${q.replace(/[\\%_]/g,'\\$&')}%`,searchAll=q?1:0;
   const rows=await all(env,`SELECT m.id memberId,m.member_code memberCode,m.name,m.nickname,r.status,r.show_shine showShine,p.present,r.car_id registeredCarId,
     (SELECT COUNT(*) FROM live_entries le WHERE le.event_id=? AND le.member_id=m.id) competitionEntries,
-    (SELECT json_group_array(json_object('id',c2.id,'model',c2.model,'body',COALESCE(c2.body,''),'nickname',COALESCE(c2.nickname,''),'primary',c2.is_primary)) FROM cars c2 WHERE c2.member_id=m.id) carsJson
+    (SELECT json_group_array(json_object('id',c2.id,'model',c2.model,'body',COALESCE(c2.body,''),'nickname',COALESCE(c2.nickname,''),'primary',c2.is_primary,'photoId',(SELECT cp.id FROM car_photos cp WHERE cp.car_id=c2.id ORDER BY cp.sort_order,cp.id LIMIT 1))) FROM cars c2 WHERE c2.member_id=m.id) carsJson
     FROM members m LEFT JOIN reservations r ON r.member_id=m.id AND r.event_id=? LEFT JOIN event_member_presence p ON p.member_id=m.id AND p.event_id=?
     WHERE (?=1 OR r.id IS NOT NULL) AND (?='' OR m.name LIKE ? ESCAPE '\\' OR m.nickname LIKE ? ESCAPE '\\' OR m.member_code LIKE ? ESCAPE '\\' OR EXISTS(SELECT 1 FROM cars cs WHERE cs.member_id=m.id AND (cs.model LIKE ? ESCAPE '\\' OR cs.nickname LIKE ? ESCAPE '\\')))
     ORDER BY CASE WHEN r.id IS NULL THEN 1 ELSE 0 END,COALESCE(m.nickname,m.name) LIMIT 50`,[eventId,eventId,eventId,searchAll,q,...Array(5).fill(needle)]);
@@ -247,7 +247,7 @@ export async function resolveLiveQr(request,env,eventId,origin){
   const body=await readBody(request),token=parseMemberQr(clean(body.payload));if(!token)return json({ok:false,error:'invalid_qr'},400,origin);
   const row=await one(env,`SELECT m.id memberId,m.member_code memberCode,m.name,m.nickname,r.status,r.show_shine showShine,r.car_id registeredCarId,p.present,
     (SELECT COUNT(*) FROM live_entries le WHERE le.event_id=? AND le.member_id=m.id) competitionEntries,
-    (SELECT json_group_array(json_object('id',c2.id,'model',c2.model,'body',COALESCE(c2.body,''),'nickname',COALESCE(c2.nickname,''),'primary',c2.is_primary)) FROM cars c2 WHERE c2.member_id=m.id) carsJson
+    (SELECT json_group_array(json_object('id',c2.id,'model',c2.model,'body',COALESCE(c2.body,''),'nickname',COALESCE(c2.nickname,''),'primary',c2.is_primary,'photoId',(SELECT cp.id FROM car_photos cp WHERE cp.car_id=c2.id ORDER BY cp.sort_order,cp.id LIMIT 1))) FROM cars c2 WHERE c2.member_id=m.id) carsJson
     FROM member_qr_identities q JOIN members m ON m.id=q.member_id LEFT JOIN reservations r ON r.member_id=m.id AND r.event_id=? LEFT JOIN event_member_presence p ON p.member_id=m.id AND p.event_id=? WHERE q.token=?`,[eventId,eventId,eventId,token]);
   if(!row)return json({ok:false,error:'member_not_found'},404,origin);let cars=[];try{cars=JSON.parse(row.carsJson||'[]')}catch{}return json({ok:true,member:{...row,cars,present:row.present===1,competitionEntries:Number(row.competitionEntries||0)}},200,origin);
 }

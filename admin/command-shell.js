@@ -1,6 +1,6 @@
-import { commandBadges, BADGE_SCOPE } from './command-model.js?v=20260922-live2';
-import { adminState } from './state.js?v=20260922-live2';
-import {commandIcon} from './command-icons.js?v=20260922-live2';
+import { commandBadges, BADGE_SCOPE } from './command-model.js?v=20260922-live3';
+import { adminState } from './state.js?v=20260922-live3';
+import {commandIcon} from './command-icons.js?v=20260922-live3';
 const navButton = (id, label) => `<button data-portal-target="${id}" type="button"><span class="command-nav-icon" aria-hidden="true">${commandIcon(id)}</span><span>${label}</span>${Object.hasOwn(BADGE_SCOPE, id) ? `<b data-command-badge="${id}" hidden></b>` : ''}</button>`;
 const liveButton = () => `<button class="command-nav-live" data-portal-target="live" type="button"><span class="command-nav-icon" aria-hidden="true">${commandIcon('live')}</span><span class="command-nav-live-label"><strong>UNITED LIVE</strong><small data-admin-live-nav-copy>Načítám stav…</small></span><i aria-hidden="true">LIVE</i></button>`;
 const logoutButton = () => '<button class="command-nav-logout" data-logout type="button"><span class="command-nav-icon" aria-hidden="true">↪</span><span>Odhlásit se</span></button>';

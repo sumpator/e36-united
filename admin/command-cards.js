@@ -1,8 +1,8 @@
-import { escapeHtml as esc } from './ui.js?v=20260922-live2';
-import { showValue } from './dashboard-data.js?v=20260922-live2';
-import { canonicalMemberLink } from './member-detail.js?v=20260922-live2';
-import { commandIcon } from './command-icons.js?v=20260922-live2';
-import { formatDate } from './ui.js?v=20260922-live2';
+import { escapeHtml as esc } from './ui.js?v=20260922-live3';
+import { showValue } from './dashboard-data.js?v=20260922-live3';
+import { canonicalMemberLink } from './member-detail.js?v=20260922-live3';
+import { commandIcon } from './command-icons.js?v=20260922-live3';
+import { formatDate } from './ui.js?v=20260922-live3';
 export const metricInfo = text => `<details class="command-info"><summary>O údajích</summary><p>${esc(text)}</p></details>`;
 export function recentPaymentLabel(row) {
   const due=row.amountDueCzk, paid=row.amountPaidCzk;

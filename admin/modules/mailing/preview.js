@@ -1,5 +1,5 @@
-import { apiRequest } from '../../api.js?v=20260922-live2';
-import { $, $$ } from '../../ui.js?v=20260922-live2';
+import { apiRequest } from '../../api.js?v=20260922-live3';
+import { $, $$ } from '../../ui.js?v=20260922-live3';
 
 let previewTimer=null,previewSequence=0;
 
