@@ -1,20 +1,20 @@
 <!DOCTYPE html>
 
 <html lang="cs">
-<head>
+<head><script src="appearance.js?v=20260923-theme1"></script>
 <meta charset="utf-8"/>
 <meta content="width=device-width,initial-scale=1" name="viewport"/>
 <title>Můj United | E36 United Member Portal</title>
 <meta content="noindex,nofollow" name="robots"/>
 <meta content="#090a0c" name="theme-color"/>
-<link href="styles.css?v=20260911-finish-ui-r1" rel="stylesheet"/>
-<link href="accommodation-visual.css?v=20260912-reservation-detail-ux-r1" rel="stylesheet"/>
-<link href="member.css?v=20260921-member-ux-r2" rel="stylesheet"/>
-<link href="club-profile.css?v=20260913-club-profile-ux-r1" rel="stylesheet"/>
-<link href="member/reliability.css?v=20260907-feedback" rel="stylesheet"/>
-<link href="mobile-feedback.css?v=20260907-mobile" rel="stylesheet"/>
-<link href="member/live.css?v=20260923-live6" rel="stylesheet"/>
-</head>
+<link href="styles.css?v=20260923-theme1" rel="stylesheet"/>
+<link href="accommodation-visual.css?v=20260923-theme1" rel="stylesheet"/>
+<link href="member.css?v=20260923-theme1" rel="stylesheet"/>
+<link href="club-profile.css?v=20260923-theme1" rel="stylesheet"/>
+<link href="member/reliability.css?v=20260923-theme1" rel="stylesheet"/>
+<link href="mobile-feedback.css?v=20260923-theme1" rel="stylesheet"/>
+<link href="member/live.css?v=20260923-theme1" rel="stylesheet"/>
+<link rel="stylesheet" href="appearance.css?v=20260923-theme1"/></head>
 <body class="member-page">
 <header class="site-header scrolled member-header">
 <div class="container nav">
@@ -33,7 +33,7 @@
 <span aria-hidden="true" class="member-main-mobile-divider"></span>
 <button class="member-main-mobile-logout" data-logout="" type="button">Odhlásit se</button>
 </div>
-</nav>
+<label class="appearance-control"><span>Vzhled</span><select aria-label="Vzhled tohoto prohlížeče" data-appearance-select><option value="light">Světlý</option><option value="dark" selected>Tmavý</option><option value="system">Podle zařízení</option></select></label></nav>
 <button aria-expanded="false" aria-label="Otevřít menu" class="menu-btn"><span></span><span></span><span></span></button>
 </div>
 </header>
@@ -224,7 +224,7 @@
 </section>
 <section class="member-section" data-member-panel="account">
 <div class="member-section-head"><div><span class="member-kicker">OSOBNÍ ÚDAJE</span><h2>Účet.</h2><p>Tvoje osobní údaje a nastavení účtu.</p></div></div>
-<div class="member-account-grid">
+<section class="appearance-panel" aria-label="Vzhled"><h3>Vzhled</h3><label class="appearance-control"><span>Vzhled</span><select aria-label="Vzhled tohoto prohlížeče" data-appearance-select><option value="light">Světlý</option><option value="dark" selected>Tmavý</option><option value="system">Podle zařízení</option></select></label><p>Platí pro tento prohlížeč na celém webu.</p></section><div class="member-account-grid">
 <form class="member-account-card" data-account-form=""><div class="form-title"><span>PROFIL ČLENA</span><b>Osobní údaje</b></div><div class="form-grid-two"><label><span>Jméno</span><input maxlength="80" name="name" required=""/></label><label><span>Přezdívka</span><input maxlength="40" name="nickname"/></label></div><label><span>E-mail</span><input data-account-email="" readonly="" type="email"/></label><label><span>Telefon</span><input maxlength="30" name="phone" placeholder="Volitelné" type="tel"/></label><label class="club-privacy-setting"><input name="hideOnClub" type="checkbox"><span><b>Skrýt na klubu</b><small>Ostatní členové neuvidí tvůj klubový profil ani garáž. Fotografie, které jsi vložil do společné galerie, zůstanou viditelné.</small></span></label><button class="member-primary member-primary--compact" type="submit">Uložit profil <span>→</span></button></form>
 <div class="member-account-side"><article class="account-facts"><div><small>MEMBER ID</small><b data-account-member-code="">—</b></div><div><small>UNITED OD</small><b data-account-since="">—</b></div><div><small>OVĚŘENÍ E-MAILU</small><b data-account-verification="">—</b></div></article><article class="account-future"><span class="member-kicker">DORUČOVACÍ ÚDAJE</span><h3>Připraveno na United Merch.</h3><p>Doručovací adresu bude možné uložit pro budoucí objednávky United Merch. Teď tu nezobrazujeme nefunkční formulář ani fake adresu.</p></article><button class="account-logout" data-logout="" type="button">Odhlásit se</button></div>
 </div>
@@ -234,7 +234,7 @@
 </div>
 </section>
 <section aria-hidden="true" class="member-live member-live-mode" data-member-live-mode hidden inert>
-<header class="member-live-mode-bar"><a class="member-live-brand" href="index.html"><img alt="" src="united-logo-blue-silver-transparent.png"><span><strong>UNITED LIVE</strong><small data-live-event-copy>Načítám aktuální ročník…</small></span></a><div class="member-live-tools"><i aria-label="Online · živý stav" data-live-connection data-state="online" title="Online · živý stav"></i><button aria-expanded="false" data-live-more-toggle type="button">Více <span aria-hidden="true">•••</span></button><div class="member-live-more" data-live-more-menu hidden><button data-live-exit type="button">Zpět do portálu</button></div></div></header>
+<header class="member-live-mode-bar"><a class="member-live-brand" href="index.html"><img alt="" src="united-logo-blue-silver-transparent.png"><span><strong>UNITED LIVE</strong><small data-live-event-copy>Načítám aktuální ročník…</small></span></a><div class="member-live-tools"><i aria-label="Online · živý stav" data-live-connection data-state="online" title="Online · živý stav"></i><button aria-expanded="false" data-live-more-toggle type="button">Více <span aria-hidden="true">•••</span></button><div class="member-live-more" data-live-more-menu hidden><label class="appearance-control"><span>Vzhled</span><select aria-label="Vzhled tohoto prohlížeče" data-appearance-select><option value="light">Světlý</option><option value="dark" selected>Tmavý</option><option value="system">Podle zařízení</option></select></label><button data-live-exit type="button">Zpět do portálu</button></div></div></header>
 <div class="member-live-mode-main">
 <div class="member-live-error" data-live-error hidden><span aria-hidden="true">!</span><h2>LIVE se nepodařilo načíst.</h2><p>Ověř připojení a zkus potvrzený serverový stav znovu.</p><button class="live-primary" data-live-retry type="button">Zkusit znovu</button></div>
 <div class="member-live-app" data-live-app hidden>

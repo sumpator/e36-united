@@ -1,24 +1,24 @@
 <!DOCTYPE html>
 <html lang="cs">
-<head>
+<head><script src="appearance.js?v=20260923-theme1"></script>
   <meta charset="utf-8"/>
   <meta content="width=device-width,initial-scale=1" name="viewport"/>
   <meta content="noindex,nofollow" name="robots"/>
   <meta content="#090a0c" name="theme-color"/>
   <title>United Admin | E36 United</title>
-  <link href="styles.css?v=20260825-mobile1" rel="stylesheet"/>
-  <link href="accommodation-visual.css?v=20260920-registration-ui-r1" rel="stylesheet"/>
-  <link href="admin/accommodation-gallery.css?v=20260920-registration-ui-r1" rel="stylesheet"/>
-  <link href="admin.css?v=20260920-registration-ui-r1" rel="stylesheet"/>
-  <link href="admin/funnel.css?v=20260907-feedback" rel="stylesheet"/>
-  <link rel="stylesheet" href="admin-safety.css?v=20260908-stage1"/>
-  <link href="admin-members.css?v=20260920-registration-ui-r1" rel="stylesheet"/>
-  <link href="admin/dashboard.css?v=20260908-stage3" rel="stylesheet"/>
-  <link href="admin/command-center.css?v=20260912-reservation-compact-r1" rel="stylesheet"/>
-  <link href="admin/command-polish.css?v=20260920-registration-ui-r1" rel="stylesheet"/>
-  <link href="admin/compact-overviews.css?v=20260920-registration-ui-r1" rel="stylesheet"/>
-  <link href="admin/live.css?v=20260923-live6" rel="stylesheet"/>
-</head>
+  <link href="styles.css?v=20260923-theme1" rel="stylesheet"/>
+  <link href="accommodation-visual.css?v=20260923-theme1" rel="stylesheet"/>
+  <link href="admin/accommodation-gallery.css?v=20260923-theme1" rel="stylesheet"/>
+  <link href="admin.css?v=20260923-theme1" rel="stylesheet"/>
+  <link href="admin/funnel.css?v=20260923-theme1" rel="stylesheet"/>
+  <link rel="stylesheet" href="admin-safety.css?v=20260923-theme1"/>
+  <link href="admin-members.css?v=20260923-theme1" rel="stylesheet"/>
+  <link href="admin/dashboard.css?v=20260923-theme1" rel="stylesheet"/>
+  <link href="admin/command-center.css?v=20260923-theme1" rel="stylesheet"/>
+  <link href="admin/command-polish.css?v=20260923-theme1" rel="stylesheet"/>
+  <link href="admin/compact-overviews.css?v=20260923-theme1" rel="stylesheet"/>
+  <link href="admin/live.css?v=20260923-theme1" rel="stylesheet"/>
+<link rel="stylesheet" href="appearance.css?v=20260923-theme1"/></head>
 <body class="admin-page">
   <header class="site-header scrolled admin-header">
     <div class="container nav">
@@ -55,7 +55,7 @@
         <div class="container admin-hero-inner">
           <div><span class="admin-kicker">UNITED CONTROL ROOM</span><h1>Event <em data-event-year>—</em></h1><p data-event-state>Načítám aktuální přehled…</p></div>
           <label class="admin-event-selector"><span>ROČNÍK UNITED</span><select aria-label="Vybrat event" data-event-select></select></label>
-          <div class="admin-hero-actions"><span data-admin-account></span><button class="admin-button" data-refresh>Obnovit data</button><button class="admin-button" data-logout>Odhlásit</button></div>
+          <div class="admin-hero-actions"><span data-admin-account></span><details class="appearance-personal"><summary>Vzhled</summary><label class="appearance-control"><span>Vzhled</span><select aria-label="Vzhled tohoto prohlížeče" data-appearance-select><option value="light">Světlý</option><option value="dark" selected>Tmavý</option><option value="system">Podle zařízení</option></select></label></details><button class="admin-button" data-refresh>Obnovit data</button><button class="admin-button" data-logout>Odhlásit</button></div>
         </div>
       </div>
 
@@ -321,7 +321,7 @@
       </div>
     </section>
     <section aria-hidden="true" class="admin-live admin-live-mode" data-admin-live-mode hidden inert>
-      <header class="admin-live-mode-bar"><a class="admin-live-brand" href="index.html"><img alt="" src="united-logo-blue-silver-transparent.png"><span><strong>UNITED LIVE</strong><small data-admin-live-event>Vybraný ročník</small></span></a><div class="admin-live-tools"><i aria-label="Online · živý stav" data-admin-live-connection data-state="online" title="Online · živý stav"></i><button aria-expanded="false" data-admin-live-more-toggle type="button">Více <span aria-hidden="true">•••</span></button><div class="admin-live-more" data-admin-live-more-menu hidden><button data-admin-live-settings type="button">Nastavení</button><button data-admin-live-exit type="button">Zpět do administrace</button></div></div></header>
+      <header class="admin-live-mode-bar"><a class="admin-live-brand" href="index.html"><img alt="" src="united-logo-blue-silver-transparent.png"><span><strong>UNITED LIVE</strong><small data-admin-live-event>Vybraný ročník</small></span></a><div class="admin-live-tools"><i aria-label="Online · živý stav" data-admin-live-connection data-state="online" title="Online · živý stav"></i><button aria-expanded="false" data-admin-live-more-toggle type="button">Více <span aria-hidden="true">•••</span></button><div class="admin-live-more" data-admin-live-more-menu hidden><label class="appearance-control"><span>Vzhled</span><select aria-label="Vzhled tohoto prohlížeče" data-appearance-select><option value="light">Světlý</option><option value="dark" selected>Tmavý</option><option value="system">Podle zařízení</option></select></label><button data-admin-live-settings type="button">Nastavení</button><button data-admin-live-exit type="button">Zpět do administrace</button></div></div></header>
       <div class="admin-live-mode-main">
         <div class="admin-live-error" data-admin-live-error hidden><strong>Organizační LIVE se nepodařilo načíst.</strong><p>Stav zůstal beze změny. Ověř připojení a zkus to znovu.</p><button data-admin-live-retry type="button">Zkusit znovu</button></div>
         <div class="admin-live-body" data-admin-live-body><p class="admin-live-status">Načítám organizační LIVE…</p></div>
