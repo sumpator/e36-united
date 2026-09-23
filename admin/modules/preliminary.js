@@ -1,7 +1,7 @@
-import {adminState} from '../state.js?v=20260923-live6';
-import {apiRequest} from '../api.js?v=20260923-live6';
-import {$,escapeHtml as esc,toast} from '../ui.js?v=20260923-live6';
-import {ADMIN_REFRESH} from '../refresh-policy.js?v=20260923-live6';
+import {adminState} from '../state.js?v=20260924-merch2';
+import {apiRequest} from '../api.js?v=20260924-merch2';
+import {$,escapeHtml as esc,toast} from '../ui.js?v=20260924-merch2';
+import {ADMIN_REFRESH} from '../refresh-policy.js?v=20260924-merch2';
 let page=1,payload=null,refresh=()=>{},busy=false;
 export function clearPreliminary(){
   page=1;payload=null;

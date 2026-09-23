@@ -10,6 +10,7 @@
 <link href="styles.css?v=20260923-theme2" rel="stylesheet"/>
 <link href="accommodation-visual.css?v=20260923-theme2" rel="stylesheet"/>
 <link href="member.css?v=20260923-theme2" rel="stylesheet"/>
+<link href="merch/connected.css?v=20260924-merch2" rel="stylesheet"/>
 <link href="club-profile.css?v=20260923-theme2" rel="stylesheet"/>
 <link href="member/reliability.css?v=20260923-theme2" rel="stylesheet"/>
 <link href="mobile-feedback.css?v=20260923-theme2" rel="stylesheet"/>
@@ -88,7 +89,7 @@
 <button class="member-nav-item" data-member-section="club" data-portal-target="club"><span>05</span><b>United Club</b></button>
 <button class="member-nav-item" data-member-section="photos" data-portal-target="photos"><span>06</span><b>Moje fotky</b></button>
 <button class="member-nav-item" data-member-section="account" data-portal-target="account"><span>07</span><b>Účet</b></button>
-<a class="member-nav-item member-nav-external member-nav-shop" href="merch.html"><b>United Merch</b></a>
+<button class="member-nav-item member-nav-shop" data-member-section="merch" data-portal-target="merch" type="button"><b>United Merch</b></button>
 <button class="member-nav-item member-nav-live" data-member-section="live" data-portal-target="live"><span aria-hidden="true">●</span><b class="member-nav-label"><span class="member-nav-live-title"><strong>UNITED LIVE</strong><i aria-hidden="true" class="member-live-indicator">LIVE</i></span><small data-live-nav-copy>Načítám stav…</small></b></button>
 </aside>
 </div>
@@ -96,6 +97,7 @@
 </div>
 <div class="member-content">
 <section class="member-section is-active" data-member-panel="overview">
+<div data-merch-overview hidden></div>
 <article aria-label="United Member Card" class="member-card">
 <header class="member-card-identity"><small>UNITED MEMBER</small><strong data-summary-name="">United Member</strong><div class="member-card-meta"><span class="member-card-code" data-summary-member-code="">EU036</span></div></header>
 <button aria-controls="member-card-help" aria-expanded="false" class="member-card-stat" data-member-help="since" type="button"><small>UNITED OD <i aria-hidden="true">i</i></small><b data-member-since="">—</b></button>
@@ -120,6 +122,7 @@
 </article>
 </section>
 <section class="member-section" data-member-panel="live" hidden></section>
+<section class="member-section" data-member-panel="merch"><h2>United Merch</h2><a href="merch.html">Otevřít katalog →</a><div class="merch-actions"><button type="button" data-merch-filter="active">Aktivní objednávky</button><button type="button" data-merch-filter="history">Historie</button></div><div data-merch-orders></div><div class="merch-actions"><button type="button" data-merch-prev>← Předchozí</button><button type="button" data-merch-next>Další →</button></div><div data-merch-detail hidden></div></section>
 <section class="member-section" data-member-panel="reservation" data-reservation-section="">
 <div class="member-section-head"><div><span class="member-kicker">UNITED 2026</span><h2 data-reservation-section-entry tabindex="-1">Registrace.</h2></div><span class="member-chip">ÚČAST &amp; UBYTOVÁNÍ</span></div>
 <aside aria-live="polite" class="planner-handoff-banner" data-planner-handoff="" hidden="">
@@ -174,6 +177,7 @@
 <div class="garage-grid" data-garage-grid=""></div>
 </section>
 <section class="member-section" data-member-panel="payments">
+<div class="merch-actions" role="group" aria-label="Druh platby"><button type="button" data-member-payment-tab="sraz" aria-pressed="true">Sraz</button><button type="button" data-member-payment-tab="merch" aria-pressed="false">Merch</button></div><div data-merch-payments hidden></div>
 <div class="member-section-head"><div><span class="member-kicker">MOJE PLATBY</span><h2>Platby.</h2><p>Přehled plateb za tvoji účast na United.</p></div></div>
 <div class="member-payments-list" data-payments-list=""><article class="portal-empty-state"><span aria-hidden="true">✓</span><div><strong>Aktuálně nemáš žádnou platbu k řešení.</strong><p>Platební údaje se zobrazí pouze u skutečné schválené registrace.</p></div></article></div>
 </section>
@@ -223,10 +227,11 @@
 </div>
 </section>
 <section class="member-section" data-member-panel="account">
+<section class="merch-address" data-merch-address></section>
 <div class="member-section-head"><div><span class="member-kicker">OSOBNÍ ÚDAJE</span><h2>Účet.</h2><p>Tvoje osobní údaje a nastavení účtu.</p></div></div>
 <section class="appearance-panel" aria-label="Vzhled"><h3>Vzhled</h3><label class="appearance-control"><span>Vzhled</span><select aria-label="Vzhled tohoto prohlížeče" data-appearance-select><option value="light">Světlý</option><option value="dark" selected>Tmavý</option><option value="system">Podle zařízení</option></select></label><p>Platí pro tento prohlížeč na celém webu.</p></section><div class="member-account-grid">
 <form class="member-account-card" data-account-form=""><div class="form-title"><span>PROFIL ČLENA</span><b>Osobní údaje</b></div><div class="form-grid-two"><label><span>Jméno</span><input maxlength="80" name="name" required=""/></label><label><span>Přezdívka</span><input maxlength="40" name="nickname"/></label></div><label><span>E-mail</span><input data-account-email="" readonly="" type="email"/></label><label><span>Telefon</span><input maxlength="30" name="phone" placeholder="Volitelné" type="tel"/></label><label class="club-privacy-setting"><input name="hideOnClub" type="checkbox"><span><b>Skrýt na klubu</b><small>Ostatní členové neuvidí tvůj klubový profil ani garáž. Fotografie, které jsi vložil do společné galerie, zůstanou viditelné.</small></span></label><button class="member-primary member-primary--compact" type="submit">Uložit profil <span>→</span></button></form>
-<div class="member-account-side"><article class="account-facts"><div><small>MEMBER ID</small><b data-account-member-code="">—</b></div><div><small>UNITED OD</small><b data-account-since="">—</b></div><div><small>OVĚŘENÍ E-MAILU</small><b data-account-verification="">—</b></div></article><article class="account-future"><span class="member-kicker">DORUČOVACÍ ÚDAJE</span><h3>Připraveno na United Merch.</h3><p>Doručovací adresu bude možné uložit pro budoucí objednávky United Merch. Teď tu nezobrazujeme nefunkční formulář ani fake adresu.</p></article><button class="account-logout" data-logout="" type="button">Odhlásit se</button></div>
+<div class="member-account-side"><article class="account-facts"><div><small>MEMBER ID</small><b data-account-member-code="">—</b></div><div><small>UNITED OD</small><b data-account-since="">—</b></div><div><small>OVĚŘENÍ E-MAILU</small><b data-account-verification="">—</b></div></article><button class="account-logout" data-logout="" type="button">Odhlásit se</button></div>
 </div>
 </section>
 </div>
@@ -259,5 +264,5 @@
 <div class="member-gallery-lightbox" data-member-gallery-lightbox="" hidden=""><div class="member-gallery-lightbox-backdrop" data-member-gallery-close=""></div><div aria-label="Náhled fotografie" aria-modal="true" class="member-gallery-lightbox-dialog" role="dialog"><button aria-label="Zavřít náhled" class="member-gallery-lightbox-close" data-member-gallery-close="" type="button">×</button><button aria-label="Předchozí fotografie" class="member-gallery-lightbox-nav member-gallery-lightbox-prev" data-member-gallery-prev="" type="button">←</button><figure><img alt="" data-member-gallery-lightbox-image=""/><figcaption data-member-gallery-lightbox-caption=""></figcaption></figure><button aria-label="Další fotografie" class="member-gallery-lightbox-nav member-gallery-lightbox-next" data-member-gallery-next="" type="button">→</button></div></div>
 <div aria-live="polite" class="member-toast" data-toast="" role="status"></div>
 <script src="showshine-data.js?v=20260824"></script>
-<script src="member.js?v=20260923-live6" type="module"></script>
+<script src="member.js?v=20260924-merch2" type="module"></script>
 </body></html>

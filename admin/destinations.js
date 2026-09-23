@@ -1,6 +1,7 @@
 // Presentation/navigation IDs only. Never execute commands or accept arbitrary URLs.
 export const ADMIN_AREAS = Object.freeze({
   dashboard:{label:'Přehled',views:['dashboard']},
+  merch:{label:'Merchandising',views:['merch']},
   live:{label:'UNITED LIVE',views:['live']},
   reservations:{label:'Registrace',views:['reservations','preliminary','accommodation']},
   payments:{label:'Platby',views:['payments']},

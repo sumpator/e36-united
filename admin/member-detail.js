@@ -1,10 +1,12 @@
-import {adminState} from './state.js?v=20260923-live6';
-import {$,$$,escapeHtml as esc,rememberSessionChoice} from './ui.js?v=20260923-live6';
-import {apiRequest} from './api.js?v=20260923-live6';
-import {ADMIN_REFRESH} from './refresh-policy.js?v=20260923-live6';
-import {memberQrMarkup,memberQrSvg} from '../member-qr-renderer.js?v=20260923-live6';
-import {MEMBER_TABS,memberIdentity,memberOverview,memberReservation,memberSection,memberEmpty} from './member-presentation.js?v=20260923-live6';
-import {compactMemberDetails,compactMemberIdentity,compactMemberPhoto,createCardMedia} from './member-cards.js?v=20260923-live6';
+import {adminState} from './state.js?v=20260924-merch2';
+import {$,$$,escapeHtml as esc,rememberSessionChoice} from './ui.js?v=20260924-merch2';
+import {apiRequest} from './api.js?v=20260924-merch2';
+import {esc as merchEscape,statusLabel} from '../merch/order-view.js?v=20260924-merch2';
+import {money} from '../merch/catalog.js?v=20260924-merch2';
+import {ADMIN_REFRESH} from './refresh-policy.js?v=20260924-merch2';
+import {memberQrMarkup,memberQrSvg} from '../member-qr-renderer.js?v=20260924-merch2';
+import {MEMBER_TABS,memberIdentity,memberOverview,memberReservation,memberSection,memberEmpty} from './member-presentation.js?v=20260924-merch2';
+import {compactMemberDetails,compactMemberIdentity,compactMemberPhoto,createCardMedia} from './member-cards.js?v=20260924-merch2';
 const cardsMedia=createCardMedia();
 let memberListMarkup=null;
 function clearCards(){cardsMedia.clear();memberListMarkup=null}
@@ -95,6 +97,11 @@ export function renderMemberTab(payload){
 }
 export function memberRefreshTasks(){
  if(adminState.memberId){const base='/api/admin/members/'+encodeURIComponent(adminState.memberId),suffix='?eventId='+encodeURIComponent(adminState.selectedEventId)+'&page='+(adminState.memberPage||1);const tasks=[['member-header',base+'?eventId='+encodeURIComponent(adminState.selectedEventId),renderMemberHeader,ADMIN_REFRESH.operationalMs]];
+  if(adminState.memberTab==='merch'){
+   tasks.push(['member-tab','/api/admin/merch/orders?memberId='+encodeURIComponent(adminState.memberId)+'&page='+(adminState.memberPage||1),payload=>{
+    $('[data-member-tab-content]').innerHTML='<h3>Merch objednávky</h3>'+payload.orders.map(o=>`<p><a href="admin.html?section=merch&order=${encodeURIComponent(o.id)}">${merchEscape(o.number)} · ${money(o.snapshot.totalMinor)} · ${statusLabel[o.state.status]} · ${statusLabel[o.payment.status]}</a></p>`).join('')+(payload.orders.length?'':'<p>Žádné objednávky.</p>')+`<button type="button" data-member-page-kind="tab" data-member-page="${Math.max(1,adminState.memberPage-1)}" ${adminState.memberPage<=1?'disabled':''}>Předchozí</button><button type="button" data-member-page-kind="tab" data-member-page="${adminState.memberPage+1}" ${payload.hasMore?'':'disabled'}>Další</button>`;
+   },ADMIN_REFRESH.operationalMs]);return tasks;
+  }
   if(adminState.memberTab!=='event'){const tab=adminState.memberTab==='overview'?'club':adminState.memberTab;tasks.push(['member-tab',base+'/'+tab+suffix,renderMemberTab,['club','history','points','mailing','qr'].includes(tab)?ADMIN_REFRESH.analyticsMs:ADMIN_REFRESH.operationalMs]);}return tasks}
  if(['members','united-club'].includes(adminState.activeAdminView))return [['members','/api/admin/members?page='+(adminState.membersPage||1)+'&presentation=cards&eventId='+encodeURIComponent(adminState.selectedEventId),renderMembers,ADMIN_REFRESH.operationalMs]];
  return [];

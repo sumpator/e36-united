@@ -1,6 +1,6 @@
-import { apiMedia, apiRequest, apiUpload } from '../api.js?v=20260923-live6';
-import { adminState } from '../state.js?v=20260923-live6';
-import { escapeHtml, toast } from '../ui.js?v=20260923-live6';
+import { apiMedia, apiRequest, apiUpload } from '../api.js?v=20260924-merch2';
+import { adminState } from '../state.js?v=20260924-merch2';
+import { escapeHtml, toast } from '../ui.js?v=20260924-merch2';
 
 const labels={show_shine:'Show & Shine',best_exhaust:'Nejlepší výfuk'};
 const stateLabels={idle:'Čeká',live:'Probíhá',paused:'Pozastaveno',closed:'Uzavřeno',published:'Zveřejněno'};

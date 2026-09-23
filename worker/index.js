@@ -4,7 +4,7 @@ import { json } from "./http/responses.js";
 import { routeRequest } from "./router.js";
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const context = createRequestContext(request, env);
 
     if (request.method === "OPTIONS") {
@@ -12,7 +12,7 @@ export default {
     }
 
     try {
-      return await routeRequest(context);
+      return await routeRequest({...context,ctx});
     } catch (error) {
       console.error("Worker error:", error);
       return json({ ok: false, error: "Internal server error" }, 500, context.origin);

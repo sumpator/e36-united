@@ -5,8 +5,8 @@
 <title>United Merch | E36 United</title>
 <meta name="description" content="United U, Stay United a E36 United. Prohlédni si střihy a barvy členského merche.">
 <meta name="theme-color" content="#090a0c"><link rel="canonical" href="https://www.e36united.cz/merch">
-<link rel="stylesheet" href="styles.css?v=20260923-theme2"><link rel="stylesheet" href="auth-states.css?v=20260923-theme2"><link rel="stylesheet" href="appearance.css?v=20260923-theme2"><link rel="stylesheet" href="merch/shop.css?v=20260923-merch1">
-</head><body class="merch-page united-shop">
+<link rel="stylesheet" href="styles.css?v=20260923-theme2"><link rel="stylesheet" href="auth-states.css?v=20260923-theme2"><link rel="stylesheet" href="appearance.css?v=20260923-theme2"><link rel="stylesheet" href="merch/shop.css?v=20260924-merch2">
+<link rel="stylesheet" href="merch/connected.css?v=20260924-merch2"></head><body class="merch-page united-shop merch-connected">
 <header class="site-header"><div class="container nav">
  <a aria-label="E36 United – domů" class="brand" href="index.html"><span class="brand-mark"><img alt="" src="https://static.wixstatic.com/media/595239_e98c154b89304202a35b84993c3ddef4~mv2.png/v1/fill/w_61%2Ch_58%2Cal_c%2Cq_85%2Cusm_0.66_1.00_0.01%2Cenc_avif%2Cquality_auto/UsingleWhite.png"></span><span>E36 UNITED</span></a>
  <nav aria-label="Hlavní navigace" class="nav-links"><a href="index.html">Web</a><a href="galerie.html">Galerie</a><a class="active" href="merch.html">United Merch</a><a class="nav-member" href="member.html">Můj United</a></nav>
@@ -15,16 +15,17 @@
 <main>
 <section class="merch-hero"><div class="container merch-hero-grid"><div class="merch-hero-copy"><span class="eyebrow">United Goods / Shop Beta</span><h1>Wear<br><i>United.</i></h1><p>United merch vzniká pro sraz a komunitu. Menší série, ověřený materiál a věci, které dávají smysl i mimo jeden víkend.</p><div class="merch-hero-actions"><a class="btn btn-primary" href="#drop">Prohlédnout Drop 01 ↓</a><a class="btn btn-secondary" href="mailto:united@e36united.cz?subject=E36%20United%20Merch%20%E2%80%93%20chci%20info">Chci vědět o spuštění</a></div></div><div class="merch-hero-art" aria-hidden="true"><div class="merch-orbit merch-orbit-a"></div><div class="merch-orbit merch-orbit-b"></div><div class="merch-hero-logo-shell"><img class="merch-hero-logo" src="united-logo-blue-silver-transparent.png?v=20260823-03" alt=""></div><small>DROP / 01</small></div></div></section>
 <div id="shop-main" class="container">
- <section class="shop-catalog" aria-label="Katalog produktů" id="drop">
-  <div class="shop-toolbar"><div class="shop-filters" role="group" aria-label="Filtrovat merch"><button type="button" data-merch-filter="all" aria-pressed="true">Vše</button><button type="button" data-merch-filter="tee" aria-pressed="false">Trička</button><button type="button" data-merch-filter="polo" aria-pressed="false">Pola</button></div><span data-product-count></span><button type="button" class="shop-button shop-cart-launch" data-cart-open>Košík <span data-cart-count>0</span> <span aria-hidden="true">↗</span></button></div>
-  <p class="shop-catalog-note">Náhled kolekce · ceny, velikosti a dostupnost připravujeme. Zatím nelze objednat.</p>
-  <div class="shop-grid" data-shop-grid></div><noscript>Pro výběr variant a košík je potřeba JavaScript. Kontakt: united@e36united.cz.</noscript>
- </section>
  <section class="shop-benefit" aria-live="polite" data-benefit-state="loading" data-member-merch-benefit>
   <div data-benefit-loading><strong>Ověřuji tvoje United ID…</strong><small>Členský stav se načítá.</small><button class="shop-button" type="button" data-benefit-retry hidden>Zkusit znovu</button></div>
   <div data-benefit-anonymous hidden><div><span class="eyebrow">Můj United</span><h2>Tvoje komunita. Tvoje výhody.</h2><p>United Points a odemčené odměny najdeš v členském profilu.</p></div><a class="shop-button" href="member.html?section=club">Otevřít Můj United →</a></div>
   <div data-benefit-member hidden><div><span class="eyebrow">United Points</span><h2><span data-benefit-points>0</span> bodů</h2><p data-benefit-next></p><div class="shop-points" role="progressbar" aria-label="United Points do odměny" aria-valuemin="0" aria-valuemax="12" aria-valuenow="0" data-benefit-progress><i></i></div><small data-benefit-perk></small></div><a class="shop-button" href="member.html?section=club">Moje výhody →</a></div>
  </section>
+ <section class="shop-catalog" aria-label="Katalog produktů" id="drop">
+  <div class="shop-toolbar"><div data-catalog-filters></div><span data-product-count></span><button type="button" class="shop-button shop-cart-launch" data-cart-open>Košík <span data-cart-count>0</span> <span aria-hidden="true">↗</span></button></div>
+  <p class="shop-catalog-note">Náhled kolekce · ceny, velikosti a dostupnost připravujeme. Zatím nelze objednat.</p>
+  <div class="shop-grid" data-shop-grid></div><noscript>Pro výběr variant a košík je potřeba JavaScript. Kontakt: united@e36united.cz.</noscript>
+ </section>
+
  <p class="shop-disclaimer">Obrázky jsou produktové vizualizace. Nejde o fotografie hotových výrobků.</p>
 </div></main>
 <footer class="site-footer"><div class="container shop-footer"><a class="brand" href="index.html">E36 UNITED</a><a href="mailto:united@e36united.cz">united@e36united.cz</a><label class="appearance-control"><span>Vzhled</span><select aria-label="Vzhled tohoto prohlížeče" data-appearance-select><option value="light">Světlý</option><option value="dark" selected>Tmavý</option><option value="system">Podle zařízení</option></select></label><span>© 2026 E36 UNITED</span></div></footer>
@@ -43,10 +44,7 @@
 <dialog class="shop-dialog shop-cart" data-cart-dialog aria-labelledby="cart-title">
  <div class="shop-dialog-bar"><h2 id="cart-title">Tvůj košík</h2><button class="shop-icon" type="button" data-cart-close aria-label="Zavřít košík">×</button></div><div data-cart-body></div><p class="shop-error" role="alert" data-cart-error></p>
  <div class="shop-cart-total"><span>Celkem</span><strong data-cart-total></strong></div><button class="shop-button shop-primary" type="button" data-checkout-open>Pokračovat k objednávce →</button><button class="shop-text-button" type="button" data-cart-close>Pokračovat ve výběru</button>
- <div data-checkout hidden><hr><h3>Kontaktní údaje</h3><p>Bez online platby. Připravíme zprávu pro United tým.</p>
-  <button class="shop-text-button" type="button" data-edit-cart>← Upravit košík</button><form data-checkout-form><label>Jméno <input name="name" autocomplete="name" maxlength="120" required></label><label>E-mail <input name="email" type="email" autocomplete="email" maxlength="254" required></label><label>Poznámka <textarea name="note" maxlength="1000" rows="2"></textarea></label><p data-checkout-member></p><p data-checkout-handover></p><button class="shop-button shop-primary" type="submit">Zkontrolovat objednávku →</button></form>
- </div>
- <section class="shop-review" data-order-review hidden aria-labelledby="order-review-title"><h3 id="order-review-title" tabindex="-1">Rekapitulace objednávky</h3><div data-order-summary></div><details><summary>Text e-mailu včetně produktových ID</summary><pre data-order-text></pre></details><p>Objednávka se neodesílá z webu. Zprávu musíš sám odeslat ve svém e-mailovém klientu. Košík zůstane zachovaný.</p><a class="shop-button shop-primary" data-order-email href="#">Připravit objednávku v e-mailu</a><button class="shop-button" type="button" data-order-copy>Zkopírovat objednávku</button><button class="shop-text-button" type="button" data-order-edit>Upravit údaje</button><button class="shop-text-button" type="button" data-edit-cart>← Upravit košík</button><p role="status" data-order-status></p><label data-copy-fallback hidden>Zkopíruj text ručně<textarea readonly rows="8"></textarea></label></section>
+ <div data-checkout hidden></div><section class="shop-review" data-order-review hidden></section>
 </dialog>
-<script src="main.js?v=20260907-feedback" defer></script><script src="merch.js?v=20260923-merch1" type="module"></script>
+<script src="main.js?v=20260907-feedback" defer></script><script src="merch.js?v=20260924-merch2" type="module"></script>
 </body></html>

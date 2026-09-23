@@ -1,3 +1,4 @@
+import { publicMerch,routeMerch } from './domains/merch/index.js';
 import { listAdminMembers,getAdminMember,resolveAdminMemberQr,adminMemberMedia } from './admin/members.js';
 import { runAdminCommand, getAdminOperation } from './admin/commands.js';
 import { getAdminSummary } from './admin/summary.js';
@@ -66,7 +67,10 @@ export function isProtectedMemberRoute(method, pathname) {
   return PROTECTED_MEMBER_ROUTE_PATTERNS.some(([expectedMethod, pattern]) => expectedMethod === normalizedMethod && pattern.test(pathname));
 }
 
-export async function routeRequest({ request, env, url, origin }) {
+export async function routeRequest({ request, env, url, origin, ctx }) {
+  if(request.method==='GET'&&(url.pathname==='/api/merch/catalog'||url.pathname.startsWith('/api/merch/media/'))){
+    return await publicMerch(env,url,origin);
+  }
   // Provider secret replaces Firebase only for this exact public POST route.
   if(url.pathname==='/api/mailing/smtp2go-webhook'&&request.method==='POST')return handleSmtp2goWebhook(request,env);
   if (url.pathname === "/api/health" && request.method === "GET") {
@@ -118,6 +122,7 @@ export async function routeRequest({ request, env, url, origin }) {
         return json({ ok: false, error: "admin_forbidden", message: "Nemáš oprávnění pro United Admin" }, 403, origin);
       }
 
+      if(url.pathname.startsWith('/api/admin/merch/'))return routeMerch({request,env,url,origin,auth,ctx},true);
       if(url.pathname==='/api/admin/dashboard'&&request.method==='GET')return getAdminDashboard(env,url,origin);
       if(url.pathname==='/api/admin/live'&&request.method==='GET')return getAdminLive(env,url,origin);
       if(url.pathname==='/api/admin/events'&&request.method==='POST')return createEvent(request,env,auth,origin);
@@ -278,6 +283,7 @@ export async function routeRequest({ request, env, url, origin }) {
       auth.member = member;
     }
 
+    if(url.pathname.startsWith('/api/merch/'))return routeMerch({request,env,url,origin,auth,ctx});
     if(url.pathname==='/api/preliminary-reservations/current'){
       if(request.method==='GET')return getPreliminaryReservation(env,auth,origin);
       if(request.method==='PUT')return putPreliminaryReservation(request,env,auth,origin);

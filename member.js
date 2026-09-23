@@ -1,34 +1,36 @@
-import { firebaseConfig, portalConfig } from './firebase-config.js?v=20260823-auth2';
+import { firebaseConfig, portalConfig } from './firebase-config.js?v=20260924-merch2';
 import { performMemberLogout } from './member-logout.js?v=20260826-predeploy-fix';
 import { createMemberApiClient } from './member/api.js?v=20260907-feedback';
 import { loadMemberSessionSnapshot } from './member/refresh.js?v=20260907-feedback';
 import { apiError, authError, authOrApiError, createMemberSession } from './member/session.js?v=20260907-feedback';
 import { createMemberData as defaultData, normalizeMember as normalizeMemberState } from './member/state.js?v=20260913-club-profiles-r1';
-import { $, $$, setButtonBusy, toast } from './member/ui.js?v=20260902-phase3';
-import { createMemberShell } from './member/shell.js?v=20260923-live6';
+import { $, $$, setButtonBusy, toast } from './member/ui.js?v=20260924-merch2';
+import { createMemberShell } from './member/shell.js?v=20260924-merch2';
 import { createMemberOverview } from './member/modules/overview.js?v=20260921-member-ux-r2';
 import { createMemberGarage } from './member/modules/garage.js?v=20260920-reservation-unified-r1';
 import { createMemberPhotos } from './member/modules/photos.js?v=20260907-feedback';
 import { createMemberPlanner } from './member/modules/planner/index.js?v=20260921-member-ux-r2';
-import { formatCzk } from './member/modules/planner/payments.js?v=20260912-member-reservation-panels-r1';
+import { formatCzk } from './member/modules/planner/payments.js?v=20260924-merch2';
 import { createMemberClub } from './member/modules/club/index.js?v=20260921-member-ux-r2';
 import { achievementIcon, pictogram } from './member/modules/club/points.js?v=20260921-member-ux-r2';
 import { createMemberAccount } from './member/modules/account.js?v=20260913-club-profiles-r1';
 import { createMemberLive } from './member/modules/live.js?v=20260923-live6';
-import { requestedMemberSection } from './member/deep-links.js?v=20260922-live2';
+import { createMemberMerch } from './member/modules/merch.js?v=20260924-merch2';
+import { requestedMemberSection } from './member/deep-links.js?v=20260924-merch2';
 import { renderMemberAvailability } from './member/availability.js?v=20260907-feedback';
 import { isAuthorizationFailure } from './member/refresh.js?v=20260907-feedback';
 
 const apiBaseUrl=(portalConfig.apiBaseUrl||'https://api.e36united.cz').replace(/\/$/,'');
 const memberSession=createMemberSession({config:firebaseConfig,onStateChange:handleUnitedAuthState});
 const {request:apiRequest,requestForm:apiRequestForm,requestBlob:apiRequestBlob}=createMemberApiClient({baseUrl:apiBaseUrl,getCurrentUser:()=>memberSession.currentUser});
+const memberMerch=createMemberMerch({request:apiRequest,getUser:()=>memberSession.currentUser});
 const memberUrlParams=new URLSearchParams(window.location.search);
 
 let data=defaultData();
 let memberPlanner=null,memberShell=null,memberLive=null;
 let startupErrors={},lastPlannerDraftResult=null;
 const trackOnboarding=stage=>apiRequest('/api/onboarding',{method:'POST',body:{stage}}).catch(error=>console.warn('Onboarding tracking unavailable',error));
-function resetMemberState(){startupErrors={};lastPlannerDraftResult=null;resetGarage();resetMemberPhotos();memberClub.reset();memberPlanner.reset();memberLive?.reset();memberOverview?.resetOnboarding();data=defaultData();renderAll()}
+function resetMemberState(){startupErrors={};lastPlannerDraftResult=null;resetGarage();resetMemberPhotos();memberClub.reset();memberPlanner.reset();memberLive?.reset();memberMerch.reset();memberOverview?.resetOnboarding();data=defaultData();renderAll()}
 function normalizeMember(payload,user=memberSession.currentUser){return normalizeMemberState(payload,user)}
 
 async function ensureMemberProfile(user){
@@ -68,6 +70,7 @@ async function openAuthenticatedSession(user,{quiet=false}={}){
   data={...defaultData(),profile:member,cars,reservation,club:club||defaultData().club};
   setMode('AUTH + PROFIL LIVE');
   showApp();
+  memberMerch.startup();
   if(!errors.reservation)await memberPlanner.applyPlannerDraft(plannerDraftResult);
   const initialSection=new URLSearchParams(window.location.search).has('draft')&&memberPlanner.hasActiveHandoff()?'reservation':requestedMemberSection(window.location.search);
   if(initialSection==='live'){

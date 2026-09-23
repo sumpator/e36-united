@@ -1,5 +1,5 @@
-import { firebaseConfig, portalConfig } from './firebase-config.js?v=20260823-auth2';
-import {initShop} from './merch/shop.js?v=20260923-merch1';
+import { firebaseConfig, portalConfig } from './firebase-config.js?v=20260924-merch2';
+import {initShop} from './merch/shop.js?v=20260924-merch2';
 import { initUnitedAuth } from './united-auth.js?v=20260825-phase-a1';
 
 export function normalizeMemberBenefit(club={}){

@@ -1,6 +1,6 @@
-import {adminState} from './state.js?v=20260923-live6';
-import {allowAdminNavigation} from './editors.js?v=20260923-live6';
-import {cleanDrill} from './destinations.js?v=20260923-live6';
+import {adminState} from './state.js?v=20260924-merch2';
+import {allowAdminNavigation} from './editors.js?v=20260924-merch2';
+import {cleanDrill} from './destinations.js?v=20260924-merch2';
 export function reservationRequestPath(detailId=null){
  const s=adminState,payment=s.activeAdminView==='payments';
  const p=new URLSearchParams({eventId:s.selectedEventId,view:payment?'payments':'reservations',filter:payment?s.paymentFilter:s.reservationFilter,filters:[...s.reservationDetailFilters].join(','),q:payment?s.paymentSearch:s.reservationSearch,page:String(s.reservationPage),pageSize:'50'});

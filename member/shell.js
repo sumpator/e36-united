@@ -1,7 +1,7 @@
 import { deriveMemberHeroState } from '../member-portal-state.js?v=20260921-member-ux-r2';
-import { initPortalNavigation } from '../portal-navigation.js?v=20260825-mobile1';
-import { $, $$ } from './ui.js?v=20260902-phase3';
-import { memberSection } from './deep-links.js?v=20260922-live2';
+import { initPortalNavigation } from '../portal-navigation.js?v=20260924-merch2';
+import { $, $$ } from './ui.js?v=20260924-merch2';
+import { memberSection } from './deep-links.js?v=20260924-merch2';
 import { initScrollAffordance } from '../scroll-affordance.js?v=20260907-mobile';
 
 export function createMemberShell({

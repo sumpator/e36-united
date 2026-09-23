@@ -1,5 +1,5 @@
-import { ADMIN_VIEW_IDS } from '../admin-view-model.js?v=20260923-live6';
-import {ADMIN_AREAS,areaFor,cleanDrill} from './destinations.js?v=20260923-live6';
+import { ADMIN_VIEW_IDS } from '../admin-view-model.js?v=20260924-merch2';
+import {ADMIN_AREAS,areaFor,cleanDrill} from './destinations.js?v=20260924-merch2';
 
 const id=value=>/^[a-z0-9_-]{1,128}$/i.test(value||'')?value:null;
 export function adminRoute(search,fallback='dashboard'){
@@ -12,7 +12,7 @@ export function adminRoute(search,fallback='dashboard'){
   const galleryMode=section==='club'?'history':params.get('mode')==='history'?'history':'community';if(section==='club')section='gallery';
   if(section==='united-club')section='members';
   return {section,galleryMode,drill:cleanDrill(Object.fromEntries(params)),composition:params.get('composition')==='onsite'?'onsite':'preparation',range:['7','30','all'].includes(params.get('range'))?params.get('range'):'all',
-    queueMember:id(params.get('queueMember')),eventId:id(params.get('event')),reservationId:id(params.get('reservation')),memberId:id(params.get('member')),memberTab:['overview','event','reservations','garage','photos','club','history','points','mailing','qr'].includes(params.get('tab'))?params.get('tab'):'overview'};
+    queueMember:id(params.get('queueMember')),eventId:id(params.get('event')),reservationId:id(params.get('reservation')),memberId:id(params.get('member')),memberTab:['overview','event','reservations','garage','photos','club','history','points','mailing','qr','merch'].includes(params.get('tab'))?params.get('tab'):'overview'};
 }
 export function adminRouteUrl(route){
   const section=ADMIN_VIEW_IDS.includes(route.section)?route.section:'dashboard',area=areaFor(section);
@@ -24,7 +24,7 @@ export function adminRouteUrl(route){
   if(id(route.eventId))params.set('event',route.eventId);
   if(id(route.queueMember))params.set('queueMember',route.queueMember);
   if(id(route.reservationId))params.set('reservation',route.reservationId);
-  if(id(route.memberId)){params.set('member',route.memberId);if(['event','reservations','garage','photos','club','history','points','mailing','qr'].includes(route.memberTab))params.set('tab',route.memberTab)}
+  if(id(route.memberId)){params.set('member',route.memberId);if(['event','reservations','garage','photos','club','history','points','mailing','qr','merch'].includes(route.memberTab))params.set('tab',route.memberTab)}
   return `${location.pathname}?${params}`;
 }
 

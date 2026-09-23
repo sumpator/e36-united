@@ -1,9 +1,9 @@
-import {renderListPagination} from '../../lists.js?v=20260923-live6';
-import { apiRequest } from '../../api.js?v=20260923-live6';
-import { $, escapeHtml, formatDate, numeric, toast } from '../../ui.js?v=20260923-live6';
-import { activeMailingCampaignId, initializeMailingEditor, markMailingEditorSaved, openMailingEditorDraft, resetMailingEditor } from './editor.js?v=20260923-live6';
-import { initializeMailingDelivery, openMailingDelivery, resetMailingDelivery } from './delivery.js?v=20260923-live6';
-import { defaultMailingSegment } from './segments.js?v=20260923-live6';
+import {renderListPagination} from '../../lists.js?v=20260924-merch2';
+import { apiRequest } from '../../api.js?v=20260924-merch2';
+import { $, escapeHtml, formatDate, numeric, toast } from '../../ui.js?v=20260924-merch2';
+import { activeMailingCampaignId, initializeMailingEditor, markMailingEditorSaved, openMailingEditorDraft, resetMailingEditor } from './editor.js?v=20260924-merch2';
+import { initializeMailingDelivery, openMailingDelivery, resetMailingDelivery } from './delivery.js?v=20260924-merch2';
+import { defaultMailingSegment } from './segments.js?v=20260924-merch2';
 
 const statusLabels={draft:'Koncept',prepared:'Připravená',sent:'Odeslaná',archived:'Archiv'};
 export let campaignPage=1;

@@ -1,5 +1,5 @@
-import qrcode from '../../../vendor/qrcode-generator.mjs';
-import { $, esc } from '../../ui.js?v=20260902-phase3';
+import qrcode from '../../../vendor/qrcode-generator.mjs?v=20260924-merch2';
+import { $, esc } from '../../ui.js?v=20260924-merch2';
 
 const czkFormatter=new Intl.NumberFormat('cs-CZ',{style:'currency',currency:'CZK',maximumFractionDigits:0});
 const numericValue=value=>Number(value||0);
@@ -8,7 +8,7 @@ export function formatCzk(value){return czkFormatter.format(numericValue(value))
 
 function paymentLabel(status){return({unpaid:'K platbě',underpaid:'Doplatek',paid:'Zaplaceno',overpaid:'Přeplatek',not_required:'Bez platby'})[status]||'Platba'}
 
-function paymentQrSvg(spayd){
+export function paymentQrSvg(spayd){
   if(!spayd)return '';
   try{const qr=qrcode(0,'M');qr.addData(spayd,'Byte');qr.make();return qr.createSvgTag({cellSize:4,margin:8,scalable:true})}
   catch(error){console.error('QR payment render failed',error);return ''}

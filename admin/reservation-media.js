@@ -1,4 +1,4 @@
-import { apiMedia } from './api.js?v=20260923-live6';
+import { apiMedia } from './api.js?v=20260924-merch2';
 let observer = null,
   controller = null,
   objectUrl = null,

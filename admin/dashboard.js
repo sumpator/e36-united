@@ -1,14 +1,14 @@
-import {adminState} from './state.js?v=20260923-live6';
-import {adminCommand,bindCurrentEditors,forgetAdminEditor,editorProtected,allowAdminNavigation,adminEditorDirty} from './editors.js?v=20260923-live6';
-import {COMPOSITIONS,validatePreferences} from './dashboard-model.js?v=20260923-live6';
-import {COMMAND_WIDGETS as WIDGETS,commandDefaults as factoryPreferences,commandLayout,commandBadges} from './command-model.js?v=20260923-live6';
-import {commandCard,metricInfo} from './command-cards.js?v=20260923-live6';
-import {commandIcon} from './command-icons.js?v=20260923-live6';
-import {renderCommandShell} from './command-shell.js?v=20260923-live6';
-import {DESTINATIONS,QUICK_LINK_IDS,destination,drillLabel} from './destinations.js?v=20260923-live6';
-import {dashboardKpi,chartModel,attentionModel,showValue} from './dashboard-data.js?v=20260923-live6';
-import {$,escapeHtml as esc,toast} from './ui.js?v=20260923-live6';
-import {createCardMedia} from './member-cards.js?v=20260923-live6';
+import {adminState} from './state.js?v=20260924-merch2';
+import {adminCommand,bindCurrentEditors,forgetAdminEditor,editorProtected,allowAdminNavigation,adminEditorDirty} from './editors.js?v=20260924-merch2';
+import {COMPOSITIONS,validatePreferences} from './dashboard-model.js?v=20260924-merch2';
+import {COMMAND_WIDGETS as WIDGETS,commandDefaults as factoryPreferences,commandLayout,commandBadges} from './command-model.js?v=20260924-merch2';
+import {commandCard,metricInfo} from './command-cards.js?v=20260924-merch2';
+import {commandIcon} from './command-icons.js?v=20260924-merch2';
+import {renderCommandShell} from './command-shell.js?v=20260924-merch2';
+import {DESTINATIONS,QUICK_LINK_IDS,destination,drillLabel} from './destinations.js?v=20260924-merch2';
+import {dashboardKpi,chartModel,attentionModel,showValue} from './dashboard-data.js?v=20260924-merch2';
+import {$,escapeHtml as esc,toast} from './ui.js?v=20260924-merch2';
+import {createCardMedia} from './member-cards.js?v=20260924-merch2';
 
 let navigate=()=>{},refresh=()=>{},draft=null,pendingPreferences=null,acceptNext=false;
 const approvalMedia=createCardMedia();

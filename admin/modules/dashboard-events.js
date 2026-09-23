@@ -1,9 +1,9 @@
-import { adminCommand, editorProtected, changedFields, forgetAdminEditor } from '../editors.js?v=20260923-live6';
-import { adminActionCountState, adminModerationCounts, paymentNeedsAttention, reservationMatchesFilter } from '../../admin-view-model.js?v=20260923-live6';
-import { apiRequest } from '../api.js?v=20260923-live6';
-import { adminState } from '../state.js?v=20260923-live6';
-import { setDenied } from '../shell.js?v=20260923-live6';
-import { $, $$, escapeHtml, formatDate, formatMoney, numeric, toast } from '../ui.js?v=20260923-live6';
+import { adminCommand, editorProtected, changedFields, forgetAdminEditor } from '../editors.js?v=20260924-merch2';
+import { adminActionCountState, adminModerationCounts, paymentNeedsAttention, reservationMatchesFilter } from '../../admin-view-model.js?v=20260924-merch2';
+import { apiRequest } from '../api.js?v=20260924-merch2';
+import { adminState } from '../state.js?v=20260924-merch2';
+import { setDenied } from '../shell.js?v=20260924-merch2';
+import { $, $$, escapeHtml, formatDate, formatMoney, numeric, toast } from '../ui.js?v=20260924-merch2';
 
 
 export function renderEventSelector(){

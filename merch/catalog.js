@@ -21,6 +21,7 @@ export const shopSettings={
  fulfillment:null,
 };
 export function imageSource(variant,kind='card'){
+ if(variant.image?.startsWith('r2:'))return `https://api.e36united.cz/api/merch/media/${encodeURIComponent(variant.image.slice(3))}`;
  return `assets/images/merch/${variant.image}-${kind}.webp`;
 }
 export function productImages(variant){
@@ -28,7 +29,7 @@ export function productImages(variant){
  return variant.image.startsWith('polo-')?[main,...['Motiv U','Límeček','Rukáv'].map((label,i)=>({src:imageSource(variant,`close-${i+1}`),zoom:imageSource(variant,`close-${i+1}`),label}))]:[main];
 }
 export function missingCommerce(variant){
- return [!Number.isSafeInteger(variant.priceMinor)||variant.priceMinor<=0?'cena':null,
+ return [!variant.image?'fotografie':null,!Number.isSafeInteger(variant.priceMinor)||variant.priceMinor<=0?'cena':null,
   !variant.sizes.length?'velikosti':null,variant.availability!=='available'?'dostupnost':null].filter(Boolean);
 }
 export const money=value=>new Intl.NumberFormat('cs-CZ',{style:'currency',currency:'CZK',maximumFractionDigits:2}).format(value/100);

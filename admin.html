@@ -10,6 +10,7 @@
   <link href="accommodation-visual.css?v=20260923-theme2" rel="stylesheet"/>
   <link href="admin/accommodation-gallery.css?v=20260923-theme2" rel="stylesheet"/>
   <link href="admin.css?v=20260923-theme2" rel="stylesheet"/>
+  <link href="merch/connected.css?v=20260924-merch2" rel="stylesheet"/>
   <link href="admin/funnel.css?v=20260923-theme2" rel="stylesheet"/>
   <link rel="stylesheet" href="admin-safety.css?v=20260923-theme2"/>
   <link href="admin-members.css?v=20260923-theme2" rel="stylesheet"/>
@@ -212,6 +213,7 @@
           </section>
 
           <section class="admin-view-panel" data-admin-panel="live" hidden></section>
+          <section class="admin-view-panel" data-admin-panel="merch" hidden><h2>Merchandising</h2><div class="merch-actions"><button type="button" data-merch-admin-tab="orders">Objednávky</button><button type="button" data-merch-admin-tab="products">Produkty</button><button type="button" data-merch-admin-tab="settings">Nastavení</button></div><div data-merch-order-controls><form data-merch-search-form><label>Číslo / člen / VS<input data-merch-search type="search"></label><select data-merch-order-filter aria-label="Stav objednávek"><option value="all">Vše</option><option value="active">Aktivní</option><option value="unpaid">Nezaplacené</option><option value="fulfill">K vyřízení</option><option value="history">Historie</option></select><button>Hledat</button></form></div><p role="status" data-merch-admin-status></p><div data-merch-admin-body></div></section>
 
           <section class="admin-event-settings admin-view-panel" data-admin-panel="event" hidden>
             <div class="admin-section-head"><div><span class="admin-kicker">EVENT SETTINGS</span><h2>United <span data-event-settings-year>—</span>.</h2><p>Změny platí jen pro vybraný ročník a zapisují se do admin auditu.</p></div><span class="admin-view-label">EVENT</span></div>
@@ -346,6 +348,6 @@
     </aside>
   </div>
   <div aria-live="polite" class="admin-toast" data-toast role="status"></div>
-  <script src="admin.js?v=20260923-live6" type="module"></script>
+  <script src="admin.js?v=20260924-merch2" type="module"></script>
 </body>
 </html>

@@ -1,4 +1,4 @@
-import qrcode from '../vendor/qrcode-generator.mjs?v=20260923-live6';
+import qrcode from '../vendor/qrcode-generator.mjs?v=20260924-merch2';
 
 export const $=(selector,root=document)=>root.querySelector(selector);
 export const $$=(selector,root=document)=>[...root.querySelectorAll(selector)];
