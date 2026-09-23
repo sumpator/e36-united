@@ -52,7 +52,45 @@ image pixels are not transformed. No production business writes were used.
 ## Operation
 
 One blocking head script and one palette stylesheet, version `20260923-theme1`.
-Controls: public/member navigation, Member Account, personal Admin disclosure,
+Controls (initial release): public/member navigation, Member Account, personal Admin disclosure,
 and both LIVE More menus. `localStorage.e36UnitedAppearance` contains only the
 browser preference; storage failure falls back safely. No account/API setting.
 No Worker, schema, authorization, prices, polling or business modules changed.
+
+## Screenshot-led polish — theme2
+
+The 11 supplied production screenshots were compared with local real-photo captures.
+Structural borders now use the neutral border token at their original declarations,
+preserving original dark fallbacks and blue interaction states. Photo overlays no
+longer inherit the opaque light glass token in category thumbnails/public gallery.
+Decorative years use a separate quiet token; the redundant noninteractive event HUD
+and visible Merch rating were removed. Points/benefit calculations are unchanged.
+Page/card hierarchy, hero transition, Planner choices/warning, FAQ, route icon,
+Member hero/positive status/actions and Admin panels were refined. Thumbnail wrappers
+no longer inherit the rounded status-label rule. Lightbox captions retain contrast.
+
+Appearance controls now live in public footers, Member Account, Admin personal
+disclosure and LIVE More. The storage key/default/bootstrap behavior is unchanged.
+All six entries use `20260923-theme2`; Merch's updated module is also versioned.
+
+Verification: 31 distinct targeted Chromium scenarios passed in component-sized
+runs, with no automatic retries. During authoring, two photo checks failed on an
+ambiguous close locator (backdrop and button); one gallery check incorrectly expected
+the short final section to reach the existing scrollspy threshold. The checks now
+use the accessible close button and URL/viewport contract; affected checks passed.
+Final refinements were checked only in their affected components. Seven appearance
+Node checks (including semantic text contrast >=4.5:1), syntax and diff checks pass.
+
+Opened screenshots include 1440/390 public hero, About, Gallery navigation/media/
+upload/lightbox, Merch, all seven Show & Shine choices and expanded judging,
+Planner, Member photo header/overpayment/registration/Planner/photo selection,
+Admin payment/settings/Member detail and both LIVE interfaces. 360 coverage includes
+Show & Shine, Planner and LIVE. Representative dark screens were reviewed.
+Screenshots are stored outside the repository in `../appearance-polish-review/`.
+
+Limits: fixture accounts and real repository photos, not production business data.
+No actual upload, payment, route-service availability check or production admin write.
+External embedded map/video services are blocked by the isolated fixtures; their
+CSS treatment and surrounding controls were checked, not external service uptime.
+Not an exhaustive matrix of every record/error/photo contrast. No WebKit, full suite
+or CI monitoring was performed. Publication uses main's automatic Pages integration.

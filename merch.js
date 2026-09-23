@@ -53,7 +53,6 @@ if(memberBenefit){
       const progressBar=qs('[data-benefit-progress]',memberState);progressBar.setAttribute('aria-valuemax',String(progress.threshold));progressBar.setAttribute('aria-valuenow',String(progress.meter));progressBar.querySelector('i').style.width=`${Math.min(100,progress.meter/progress.threshold*100)}%`;
     qs('[data-benefit-next]',memberState).textContent=progress.remaining?`Ještě ${progress.remaining} ${progress.remaining===1?'bod':'bodů'} do United Merch odměny.`:'United Merch odměna je odemčená.';
       qs('[data-benefit-perk]',memberState).textContent=progress.remaining?'United Member':'United Merch odměna';
-      qs('[data-benefit-perk-count]',memberState).textContent=`MEMBER RATING: ${progress.rating}`;
     }catch(error){if(generation===benefitRequestGeneration){renderError();console.debug('United member benefit could not be loaded.',error)}}
   };
   renderLoading();
