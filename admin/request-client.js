@@ -48,7 +48,8 @@ export function createAdminApiClient({baseUrl,getContext,fetchRequest=fetch,time
     if(options.method&&options.method!=='GET')return performRequest(path,options);
     const context=getContext(),key=JSON.stringify([context.generation,context.user?.uid,context.eventId,path,options.consume||'json',options.headers||{}]);
     const existing=reads.get(key);
-    if(existing&&!existing.signal?.aborted)return existing.promise;
+    // Confirmed LIVE writes need a new read, never an older in-flight snapshot.
+    if(existing&&!options.fresh&&!existing.signal?.aborted)return existing.promise;
     const entry={signal:options.signal,promise:null};
     entry.promise=performRequest(path,options).finally(()=>{if(reads.get(key)===entry)reads.delete(key)});
     reads.set(key,entry);return entry.promise;

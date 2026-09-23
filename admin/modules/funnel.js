@@ -1,6 +1,6 @@
-import { apiRequest } from '../api.js?v=20260922-live5';
-import { adminState } from '../state.js?v=20260922-live5';
-import { $, escapeHtml as esc, formatDate, numeric } from '../ui.js?v=20260922-live5';
+import { apiRequest } from '../api.js?v=20260923-live6';
+import { adminState } from '../state.js?v=20260923-live6';
+import { $, escapeHtml as esc, formatDate, numeric } from '../ui.js?v=20260923-live6';
 
 let sequence=0;
 function planSummary(row){

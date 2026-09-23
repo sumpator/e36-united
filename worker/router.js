@@ -13,7 +13,7 @@ import { getAdminFunnel, trackOnboarding, trackPlannerHandoff } from './domains/
 import { getAdminHistoryCounts } from './domains/club/history.js';
 import { handleSmtp2goWebhook } from './domains/mailing/tracking.js';
 import { getPreliminaryReservation, putPreliminaryReservation, cancelPreliminaryReservation, listAdminPreliminaryReservations, savePreliminarySettings } from './domains/reservations/preliminary.js';
-import { assignLiveJudge, controlLive, createEvent, createLiveEntry, deleteProgramItem, getAdminLive, getLiveState, getMemberLive, judgePhotoMedia, liveEntryMedia, resolveLiveQr, saveJudgeScore, saveLiveVote, saveProgramItem, searchLiveMembers, setAdminLiveEnabled, setLivePresence, startLiveEntry, uploadJudgePhoto, uploadLivePhoto } from './domains/live.js';
+import { createCompetitionCar, competitionCarMedia, assignLiveJudge, controlLive, createEvent, createLiveEntry, deleteProgramItem, getAdminLive, getLiveState, getMemberLive, judgePhotoMedia, liveEntryMedia, resolveLiveQr, saveJudgeScore, saveLiveVote, saveProgramItem, searchLiveMembers, setAdminLiveEnabled, setLivePresence, startLiveEntry, uploadJudgePhoto, uploadLivePhoto } from './domains/live.js';
 
 const PROTECTED_MEMBER_EXACT_ROUTES = new Set([
   'GET /api/preliminary-reservations/current',
@@ -104,6 +104,14 @@ export async function routeRequest({ request, env, url, origin }) {
     const auth = await verifyFirebaseRequest(request);
     if (!auth) return json({ ok: false, authenticated: false, error: "Unauthorized" }, 401, origin);
 
+    // This release is installed before the controlled LIVE table rebuild.
+    // Fail closed only for LIVE until its final schema marker is committed.
+    const liveRoute=/^\/api\/live(?:\/|$)/.test(url.pathname)||/^\/api\/admin\/(?:live$|events\/[^/]+\/live(?:\/|$))/.test(url.pathname);
+    if(liveRoute){
+      const ready=await env.DB.prepare("SELECT MAX(id='2026-09-23-live-competition-cars') readable,MAX(id='2026-09-23-live-writes-enabled') writable FROM schema_migrations WHERE id IN ('2026-09-23-live-competition-cars','2026-09-23-live-writes-enabled')").first();
+      if(!ready?.readable||(request.method!=='GET'&&!ready?.writable))return json({ok:false,error:'live_schema_upgrading',message:'UNITED LIVE se právě aktualizuje. Zkus to za chvíli.'},503,origin);
+    }
+
     if (url.pathname.startsWith("/api/admin/")) {
       const admin = await requireAdmin(env, auth);
       if (!admin) {
@@ -126,6 +134,10 @@ export async function routeRequest({ request, env, url, origin }) {
       if(liveQr&&request.method==='POST')return resolveLiveQr(request,env,decodeURIComponent(liveQr[1]),origin);
       const livePresence=url.pathname.match(/^\/api\/admin\/events\/([^/]+)\/live\/members\/([^/]+)\/presence$/);
       if(livePresence&&request.method==='PUT')return setLivePresence(request,env,auth,decodeURIComponent(livePresence[1]),decodeURIComponent(livePresence[2]),origin);
+      const liveCarCreate=url.pathname.match(/^\/api\/admin\/events\/([^/]+)\/live\/members\/([^/]+)\/cars$/);
+      if(liveCarCreate&&request.method==='POST')return createCompetitionCar(request,env,auth,decodeURIComponent(liveCarCreate[1]),decodeURIComponent(liveCarCreate[2]),origin);
+      const liveCarMedia=url.pathname.match(/^\/api\/admin\/events\/([^/]+)\/live\/cars\/([^/]+)\/media$/);
+      if(liveCarMedia&&request.method==='GET')return competitionCarMedia(env,decodeURIComponent(liveCarMedia[1]),decodeURIComponent(liveCarMedia[2]),origin);
       const liveEntries=url.pathname.match(/^\/api\/admin\/events\/([^/]+)\/live\/entries$/);
       if(liveEntries&&request.method==='POST')return createLiveEntry(request,env,auth,decodeURIComponent(liveEntries[1]),origin);
       const liveStart=url.pathname.match(/^\/api\/admin\/events\/([^/]+)\/live\/start$/);

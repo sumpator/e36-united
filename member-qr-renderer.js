@@ -1,4 +1,4 @@
-import qrcode from './vendor/qrcode-generator.mjs?v=20260922-live5';
+import qrcode from './vendor/qrcode-generator.mjs?v=20260923-live6';
 
 const MEMBER_QR_PATTERN=/^E36U1:[a-f0-9]{48}$/;
 

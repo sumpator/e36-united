@@ -1,4 +1,4 @@
-import {QUICK_LINK_IDS} from './destinations.js?v=20260922-live5';
+import {QUICK_LINK_IDS} from './destinations.js?v=20260923-live6';
 export const COMPOSITIONS=Object.freeze({preparation:'Příprava srazu',onsite:'Na srazu'});
 export const WIDGETS=Object.freeze({
   reservations:{label:'Registrace',kind:'kpi',sizes:['compact'],definition:'Pending + approved · registrace',destination:'active'},

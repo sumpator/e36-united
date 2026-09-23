@@ -83,7 +83,7 @@ test('admin LIVE is one compact workflow and keeps global state changes in setti
   assert.match(live, /function settingsView\(\)/);
   assert.match(live, /data-admin-live-toggle/);
   assert.doesNotMatch(live, /data-live-judge-assign|\/live\/judges/);
-  assert.ok(live.indexOf('modeActive=true;setMode(true);render();if(setAdminView') > 0);
+  assert.ok(live.indexOf("modeActive=true;render();if(loadState==='error'){setMode(false);return false}setMode(true);if(setAdminView") > 0);
   assert.equal((html.match(/data-admin-live-toggle/g) || []).length, 0);
   assert.match(main, /await refreshCoordinator\.trigger\('startup'\);await adminLive\.startup\(\)/);
   assert.match(shell, /new CustomEvent\('admin:liveentryrequest',\{cancelable:true/);
@@ -92,14 +92,14 @@ test('admin LIVE is one compact workflow and keeps global state changes in setti
   assert.ok(command.indexOf('liveButton()') < command.indexOf('logoutButton()'));
 });
 
-test('admin member selection prioritizes the chosen body category and preserves cancellable dirty judge drafts', () => {
+test('admin member selection prioritizes the registered car and preserves cancellable dirty judge drafts', () => {
   const live = read('admin/modules/live.js');
 
-  assert.match(live, /selectedCarId=\(member\?\.cars\|\|\[\]\)\.find\(car=>car\.body===selectedCategory\)\?\.id\|\|member\?\.registeredCarId\|\|member\?\.cars\?\.\[0\]\?\.id/);
+  assert.match(live, /selectedCarId=member\?\.registeredCarId\|\|member\?\.cars\?\.\[0\]\?\.id/);
   assert.match(live, /car\.photoId/);
   assert.match(live, /\/api\/admin\/members\/\$\{encodeURIComponent\(member\.memberId\)\}\/media\/cars\/\$\{encodeURIComponent\(car\.id\)\}\/\$\{encodeURIComponent\(car\.photoId\)\}/);
   assert.match(live, /judgeDrafts\.set\(form\.dataset\.liveJudgeForm,judgeValues\(form\)\)/);
-  assert.match(live, /if\(signature!==lastStateSignature&&!hasUnsavedJudge\(\)\)/);
+  assert.match(live, /if\(signature!==lastStateSignature\)/);
   assert.match(live, /confirmLeaveJudge\(\)/);
   assert.match(live, /data-live-cancel-judge/);
   assert.match(live, /Poslední uložená verze zůstane zachovaná/);

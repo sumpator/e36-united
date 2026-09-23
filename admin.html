@@ -17,7 +17,7 @@
   <link href="admin/command-center.css?v=20260912-reservation-compact-r1" rel="stylesheet"/>
   <link href="admin/command-polish.css?v=20260920-registration-ui-r1" rel="stylesheet"/>
   <link href="admin/compact-overviews.css?v=20260920-registration-ui-r1" rel="stylesheet"/>
-  <link href="admin/live.css?v=20260922-live5" rel="stylesheet"/>
+  <link href="admin/live.css?v=20260923-live6" rel="stylesheet"/>
 </head>
 <body class="admin-page">
   <header class="site-header scrolled admin-header">
@@ -215,7 +215,7 @@
 
           <section class="admin-event-settings admin-view-panel" data-admin-panel="event" hidden>
             <div class="admin-section-head"><div><span class="admin-kicker">EVENT SETTINGS</span><h2>United <span data-event-settings-year>—</span>.</h2><p>Změny platí jen pro vybraný ročník a zapisují se do admin auditu.</p></div><span class="admin-view-label">EVENT</span></div>
-            <p class="dashboard-settings-context" data-settings-context></p><div class="admin-view-body" id="admin-settings-content"><form class="admin-config-card admin-config-form" data-event-settings-form>
+            <p class="dashboard-settings-context" data-settings-context></p><section class="admin-config-card"><h3>UNITED LIVE</h3><p data-event-live-context>Ověř stav vybraného ročníku.</p><button class="admin-button" data-event-live-refresh type="button">Obnovit stav LIVE</button><button class="admin-button" data-event-live-toggle disabled type="button">Načítám…</button></section><div class="admin-view-body" id="admin-settings-content"><form class="admin-config-card admin-config-form" data-event-settings-form>
               <label class="admin-field"><span>Registrace</span><select name="registrationStatus"><option value="open">Otevřené</option><option value="closed">Uzavřené</option></select></label>
               <label class="admin-field"><span>Kapacita registrací</span><input min="0" name="reservationCapacity" required type="number"/></label>
               <label class="admin-field"><span>Nocí · full weekend</span><input max="14" min="0" name="fullWeekendNights" required type="number"/></label>
@@ -346,6 +346,6 @@
     </aside>
   </div>
   <div aria-live="polite" class="admin-toast" data-toast role="status"></div>
-  <script src="admin.js?v=20260922-live5" type="module"></script>
+  <script src="admin.js?v=20260923-live6" type="module"></script>
 </body>
 </html>

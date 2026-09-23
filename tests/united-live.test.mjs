@@ -90,8 +90,8 @@ test('public vote is one editable 1-10 score, rejects own car and closes authori
     assert.equal((await saveLiveVote(request({ score: 11 }), runtime.env, member, 'entry-n', origin)).status, 400);
     assert.equal((await saveLiveVote(request({ score: 7 }), runtime.env, other, 'entry-n', origin)).status, 403);
     const unregistered = await saveLiveVote(request({ score: 7 }), runtime.env, admin, 'entry-n', origin);
-    assert.equal(unregistered.status, 403);
-    assert.equal((await body(unregistered)).error, 'approved_registration_required');
+    assert.equal(unregistered.status, 200);
+    assert.equal((await body(unregistered)).score, 7);
     runtime.db.exec("UPDATE live_competition_state SET status='closed' WHERE event_id='e' AND discipline='show_shine'");
     assert.equal((await saveLiveVote(request({ score: 8 }), runtime.env, member, 'entry-n', origin)).status, 409);
   } finally {
@@ -208,7 +208,8 @@ test('member organization search is event-scoped by default and loads cars witho
     const queries = runtime.queries.slice(start);
     assert.equal(queries.length, 1);
     assert.equal(queries[0].sql.includes('json_group_array'), true);
-    assert.equal(queries[0].sql.includes('FROM car_photos cp WHERE cp.car_id=c2.id'), true);
+    assert.equal(queries[0].sql.includes('FROM live_vehicle_catalog c2'), true);
+    assert.equal(queries[0].sql.includes('c2.event_id=r.event_id'), true);
 
     const searched = await body(await searchLiveMembers(runtime.env, 'e', new URL('https://api.e36united.cz/api/admin/live/members?eventId=e&q=Second'), origin));
     assert.deepEqual(searched.members.map(item => item.memberId), ['n']);
