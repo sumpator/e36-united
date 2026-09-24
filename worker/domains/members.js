@@ -46,7 +46,8 @@ async function bootstrapMember(request, env, auth, origin) {
 
 async function getMember(env, auth, origin) {
   const member = await env.DB.prepare(`
-    SELECT id, member_code, email, name, nickname, phone, role, status, email_verified, hide_on_club, created_at, updated_at
+    SELECT id, member_code, email, name, nickname, phone, role, status, email_verified, hide_on_club, created_at, updated_at,
+      (SELECT token FROM member_qr_identities WHERE member_id = members.id) AS qr_token
     FROM members WHERE id = ? LIMIT 1
   `).bind(auth.uid).first();
 
@@ -76,6 +77,7 @@ function publicMember(member) {
   return {
     id: member.id,
     memberCode: member.member_code,
+    qrPayload: member.qr_token ? `E36U1:${member.qr_token}` : null,
     email: member.email,
     name: member.name,
     nickname: member.nickname || "",

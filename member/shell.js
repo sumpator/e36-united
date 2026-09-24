@@ -2,7 +2,7 @@ import { deriveMemberHeroState } from '../member-portal-state.js?v=20260921-memb
 import { initPortalNavigation } from '../portal-navigation.js?v=20260924-merch2';
 import { $, $$ } from './ui.js?v=20260924-merch2';
 import { memberSection } from './deep-links.js?v=20260924-merch2';
-import { initScrollAffordance } from '../scroll-affordance.js?v=20260907-mobile';
+import { initMobileNavigation } from '../mobile-navigation.js?v=20260925-portal2';
 
 export function createMemberShell({
   renderApp,
@@ -16,8 +16,8 @@ export function createMemberShell({
   onLiveEntry,
 }) {
   const menuBtn=$('.menu-btn'),nav=$('.nav-links');
-  let memberHeroPhotoId='',liveModeActive=false;
-  initScrollAffordance(document.querySelector('.member-sidebar[data-portal-tablist]'));
+  let memberHeroPhotoId='',liveModeActive=false,currentSection=null;
+  const mobileNavigation=initMobileNavigation({member:true,onSelect:id=>openSection(id),beforeOpen:()=>beforePortalAction?.()});
 
   function closeMainMenu(){document.body.classList.remove('menu-open');menuBtn?.setAttribute('aria-expanded','false');nav?.classList.remove('open')}
   function setMode(text){
@@ -68,19 +68,24 @@ export function createMemberShell({
     if(appView){appView.hidden=active;appView.inert=active;appView.setAttribute('aria-hidden',String(active))}
     if(active)closeMainMenu();
   }
-  function openSection(id,{liveConfirmed=false}={}){
+  function openSection(id,{liveConfirmed=false,fromHistory=false}={}){
     if(beforePortalAction?.()===false)return false;
     id=memberSection(id);
     if(id==='live'&&!liveConfirmed){void onLiveEntry?.();return false}
     const url=new URL(window.location.href);url.searchParams.set('section',id);url.searchParams.delete('panel');
     if(id!=='club'){url.searchParams.delete('profile');url.searchParams.delete('members')}
-    window.history.replaceState(null,'',url);
+    const changed=currentSection!==id,wasInitialized=currentSection!==null;
+    if(!fromHistory){if(changed&&wasInitialized)window.history.pushState(null,'',url);else window.history.replaceState(window.history.state,'',url)}
+    currentSection=id;document.body.dataset.memberSection=id;
+    mobileNavigation?.sync(id);
     $$('.member-nav-item[data-member-section]').forEach(button=>button.classList.toggle('is-active',button.dataset.memberSection===id));
     $$('[data-main-member-section]').forEach(button=>button.classList.toggle('is-active',button.dataset.mainMemberSection===id));
     $$('[data-member-panel]').forEach(panel=>panel.classList.toggle('is-active',panel.dataset.memberPanel===id));
     window.dispatchEvent(new CustomEvent('member:sectionchange',{detail:{section:id}}));
-    memberPortalNavigation?.sync(id);if(innerWidth<700)window.scrollTo({top:82,behavior:'smooth'});return true;
+    memberPortalNavigation?.sync(id,{scroll:false});
+    if(changed)requestAnimationFrame(()=>{const panel=$(`[data-member-panel="${id}"]`);if(!panel)return;const title=panel.querySelector('h2');if(title){title.tabIndex=-1;title.focus({preventScroll:true})}if(wasInitialized)panel.scrollIntoView({block:'start',behavior:'instant'})});return true;
   }
+  window.addEventListener('popstate',()=>{if(!history.state?.unitedMobileMenu&&!document.querySelector('.united-mobile-menu[open]'))openSection(new URL(location.href).searchParams.get('section')||'overview',{fromHistory:true})});
   function focusReservationEntry(){
     requestAnimationFrame(()=>requestAnimationFrame(()=>{const modalTitle=$('[data-member-planner-modal]:not([hidden]) [data-member-planner-title]'),target=modalTitle||$('[data-reservation-section-entry]');if(!target)return;if(!modalTitle)target.scrollIntoView({behavior:'smooth',block:'start'});target.focus({preventScroll:true})}));
   }
@@ -107,7 +112,7 @@ export function createMemberShell({
   }
 
   function bindMainNavigation(){
-    if(menuBtn&&nav)menuBtn.addEventListener('click',()=>{if(beforePortalAction?.()===false)return;const open=document.body.classList.toggle('menu-open');menuBtn.setAttribute('aria-expanded',String(open));nav.classList.toggle('open',open)});
+    // The mobile menu is owned by initMobileNavigation.
     $('[data-member-entry]')?.addEventListener('click',event=>{if(!isAuthenticated())return;event.preventDefault();openSection('overview');closeMainMenu()});
     $$('[data-main-member-section]').forEach(button=>button.addEventListener('click',()=>{openSection(button.dataset.mainMemberSection);closeMainMenu()}));
   }

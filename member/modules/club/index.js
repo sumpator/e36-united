@@ -1,5 +1,5 @@
 import { createMemberHistory } from './history.js?v=20260903-phase4d';
-import { createMemberPoints } from './points.js?v=20260924-workspace1';
+import { createMemberPoints } from './points.js?v=20260925-portal2';
 import { createClubMembers } from './members.js?v=20260921-member-ux-r2';
 
 export function createMemberClub({
@@ -34,7 +34,7 @@ export function createMemberClub({
   }
   async function refreshClub(){const club=await loadUnitedClub();setClub(club);return club}
 
-  const memberPoints=createMemberPoints({getData,renderOverviewPoints,renderFeaturedAchievements});
+  const memberPoints=createMemberPoints({getData,apiRequest,renderOverviewPoints,renderFeaturedAchievements});
   const memberHistory=createMemberHistory({apiRequest,apiRequestForm,apiRequestBlob,getCurrentUser,getData,refreshClub,renderAll,formatApiError});
   const clubMembers=createClubMembers({apiBaseUrl,apiRequest,apiRequestBlob,getData,openSection});
 

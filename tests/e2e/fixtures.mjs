@@ -213,6 +213,10 @@ export async function prepareE2ePage(page, {
     const url = new URL(request.url());
     observations.requests.push(`${request.method()} ${url.pathname}`);
 
+    if (url.pathname === '/api/merch/catalog' && request.method() === 'GET') {
+      await jsonResponse(route, {products:[],settings:{paused:true,discountBasisPoints:null,rewardThreshold:12},ready:false});return;
+    }
+
     if (request.method() === 'OPTIONS') {
       await route.fulfill({
         status: 204,

@@ -1,15 +1,17 @@
 import { $, $$, esc } from '../../ui.js?v=20260902-phase3';
+import {rewardProgress} from '../../reward-progress.js?v=20260925-portal2';
 
 export const pictogram=body=>`<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${body}</svg>`;
 export const achievementIcon=type=>type==='show-shine'?pictogram('<path d="M8 4h8v4a4 4 0 0 1-8 0V4Z"/><path d="M12 12v6m-3 2h6"/>'):type==='community'?pictogram('<rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 15-5-4L5 19"/>'):type==='history'?pictogram('<circle cx="12" cy="12" r="8"/><path d="M12 7v5l3 2"/>'):pictogram('<path d="M12 3 19 6v5c0 4.5-2.8 8-7 10-4.2-2-7-5.5-7-10V6l7-3Z"/><path d="m9 12 2 2 4-5"/>');
 
-export function createMemberPoints({getData,renderOverviewPoints,renderFeaturedAchievements}){
+export function createMemberPoints({getData,apiRequest,renderOverviewPoints,renderFeaturedAchievements}){
+  let rewardSettings=null,settingsLoading=false;
   const memberHelpContent={
     since:{kicker:'UNITED OD',title:'Začátek tvé United stopy',intro:'Nejstarší ročník, který máš ve své ověřené historii účastí.'},
     verified:{kicker:'OVĚŘENÉ UNITED',title:'Potvrzené účasti',intro:'Počítají se jen ročníky ověřené United týmem.'},
-    points:{kicker:'UNITED POINTS',title:'Aktuální zůstatek',intro:'Body získáváš za ověřené United aktivity. Samostatný metr ukazuje postup k odměně na hranici 12 bodů.'},
+    points:{kicker:'UNITED POINTS',title:'Tvoje United Points',intro:'Každých 12 bodů znamená další dosažený odměnový milník. Počet milníků není evidence nevyčerpaných odměn.'},
     verification:{kicker:'MOJE STOPA',title:'Proč ověření?',intro:'Účast můžeš přidat hned. Body a související Achievements se započítají až po potvrzení United týmem.'},
-    'points-system':{kicker:'UNITED POINTS',title:'Jak fungují body?',intro:'Body odměňují ověřenou účast a přínos komunitě.',sections:[{label:'ODMĚNA',rows:[['12 bodů','United Merch reward','U']]}]},
+    'points-system':{kicker:'UNITED POINTS',title:'Jak fungují body?',intro:'Body odměňují ověřenou účast a přínos komunitě. Odměnové milníky přicházejí každých 12 bodů. Merch nyní používá jednu nastavenou členskou slevu od 12 bodů; body se nákupem neodečítají a sleva se nenásobí.',sections:[{label:'MILNÍKY',rows:[['12 / 24 / 36 bodů','1 / 2 / 3 milníky','U']]}]},
     'earn-attendance':{kicker:'ÚČAST NA SRAZU',title:'Ověřené United',sections:[{label:'BODY ZA ÚČAST',rows:[['Každý ověřený sraz','+1 bod','•'],['3 ověřené srazy','+3 body navíc','3'],['5 ověřených srazů','+3 body navíc','5']]}]},
     'earn-showshine':{kicker:'SHOW & SHINE',title:'Ověřené umístění',sections:[{label:'UMÍSTĚNÍ',rows:[['3. místo','+1 bod','3'],['2. místo','+2 body','2'],['1. místo','+3 body','1']]},{label:'BONUSY',rows:[['Best of the Best','+1 bod','◆'],['Nej zvuk výfuku','+1 bod','◈']]}]},
     'earn-photos':{kicker:'NAHRÁVÁNÍ FOTEK',title:'Schválené komunitní fotky',sections:[{label:'MILNÍKY',rows:[['5 schválených fotek','+1 bod','5'],['25 schválených fotek','+1 bod','25'],['50 schválených fotek','+3 body','50']]}],note:'Po 50 schválených fotkách už další United Points nepřibývají.'},
@@ -70,17 +72,23 @@ export function createMemberPoints({getData,renderOverviewPoints,renderFeaturedA
     if(catalog)catalog.innerHTML=achievements.length?achievements.map(achievement=>`<button aria-expanded="false" class="achievement-card is-unlocked" data-achievement-id="${esc(achievement.id)}" type="button"><span class="achievement-icon">${achievementIcon(achievement.type)}</span><div class="achievement-copy"><b>${esc(achievement.name)}</b><p>${esc(achievement.condition)}</p></div><span class="achievement-status">${esc(achievement.tier||'ODEMČENO')}</span></button>`).join(''):'<article class="achievement-empty">Ověřená historie postupně odemkne tvoji sbírku.</article>';
   }
   function renderRewards(){
-    const data=getData(),p=points(),threshold=Number(data.club?.rewardThreshold||12),remaining=Math.max(0,threshold-p);
+    if(!rewardSettings&&!settingsLoading&&apiRequest){settingsLoading=true;void apiRequest('/api/merch/catalog').then(result=>{rewardSettings=result.settings||{};renderRewards()}).catch(()=>{rewardSettings={};renderRewards()}).finally(()=>{settingsLoading=false})}
+    const data=getData(),p=points(),threshold=Number(rewardSettings?.rewardThreshold??data.club?.rewardThreshold??12),remaining=Math.max(0,threshold-p);
+    const cycle=rewardProgress(p),progressHost=$('[data-reward-progress]');
+    if(progressHost)progressHost.innerHTML=`<div class="reward-cycle${cycle.justReached?' is-milestone':''}"><strong>Odměna každých 12 bodů</strong><div class="reward-segments" role="img" aria-label="${cycle.cycle} z 12 bodů do dalšího milníku">${Array.from({length:12},(_,i)=>`<i class="${i<cycle.cycle?'is-on':''}"></i>`).join('')}</div><p><b>${cycle.milestones}</b> dosažených odměnových milníků${cycle.justReached?' <span class="reward-achieved">✓ Nový milník dosažen</span>':''}</p><p>Do ${cycle.milestones?'další':'první'} odměny ${pointsRemainingVerb(cycle.remaining)} <b>${formatPoints(cycle.remaining)}</b>.</p></div>`;
+    const rewardName=$('[data-reward-name]'),rate=rewardSettings?.discountBasisPoints;
+    if(rewardName)rewardName.textContent=Number.isInteger(rate)?`Členská sleva ${new Intl.NumberFormat('cs-CZ').format(rate/100)} % na Merch`:'Členská výhoda v Merchi';
+    const rewardTerms=$('[data-reward-terms]');if(rewardTerms)rewardTerms.textContent=Number.isInteger(rate)?'Uplatní se v rekapitulaci podle nastavení obchodu.':'Výši výhody obchod zatím nepotvrdil.';
     const thresholdLabel=$('[data-club-reward-threshold]');if(thresholdLabel)thresholdLabel.textContent=String(threshold);
     const rewardState=$('[data-points-reward-state]'),rewardRemaining=$('[data-reward-remaining]');if(rewardState)rewardState.classList.toggle('is-unlocked',p>=threshold);if(rewardRemaining)rewardRemaining.textContent=p>=threshold?'ODMĚNA ODEMČENA':`${formatPoints(remaining)} ${pointsRemainingVerb(remaining)}`;
     const journey=$('[data-points-journey]'),journeyScore=$('[data-points-journey-score]'),journeyCopy=$('[data-points-journey-copy]'),journeyMarker=$('[data-points-journey-marker]'),progress=Math.min(100,p/threshold*100);
     if(journey){journey.setAttribute('aria-valuemax',String(threshold));journey.setAttribute('aria-valuenow',String(p));journey.setAttribute('aria-label',`Postup k United Merch reward: ${formatPoints(p)}; hranice odměny ${formatPoints(threshold)}`);journey.style.setProperty('--points-progress',`${progress}%`)}if(journeyScore)journeyScore.textContent=p;if(journeyCopy)journeyCopy.textContent=p>=threshold?'United Merch reward je odemčený.':`Do odměny ${pointsRemainingVerb(remaining)} ${formatPoints(remaining)}.`;if(journeyMarker)journeyMarker.textContent=String(p);
     const earnStrip=$('[data-earn-strip]');if(earnStrip)earnStrip.innerHTML=[
-      ['earn-attendance',pictogram('<path d="M5 12.5 9.5 17 19 7.5"/>'),'01','Účast na srazu'],
+      ['earn-attendance',pictogram('<path d="M5 12.5 9.5 17 19 7.5"/>'),'+1 / sraz','Účast na srazu','Jednorázové bonusy +3 za 3. a 5. účast'],
       ['earn-showshine',pictogram('<path d="M8 4h8v4a4 4 0 0 1-8 0V4Z"/><path d="M12 12v6m-3 2h6"/>'),'02','Umístění v Show & Shine'],
       ['earn-photos',pictogram('<rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 15-5-4L5 19"/>'),'03','Nahrávání fotek'],
       ['earn-profile',pictogram('<path d="M12 3 19 6v5c0 4.5-2.8 8-7 10-4.2-2-7-5.5-7-10V6l7-3Z"/><path d="m9 12 2 2 4-5"/>'),'04','Doplnění profilu'],
-    ].map(([help,icon,index,label])=>`<button aria-controls="member-card-help" aria-expanded="false" class="earn-card" data-member-help="${help}" type="button"><i>${icon}</i><span><small>${index}</small><b>${label}</b></span><em>ⓘ DETAIL</em></button>`).join('');
+    ].map(([help,icon,index,label,note])=>{const details={'earn-showshine':['+1 až +3','Za ověřené umístění; zvláštní ceny +1'],'earn-photos':['+1 / +1 / +3','Jednou za 5 / 25 / 50 schválených fotek'],'earn-profile':['+1 bod','Jednorázově po splnění všech podmínek']};const [gain,copy]=details[help]||[index,note];return `<button aria-controls="member-card-help" aria-expanded="false" class="earn-card" data-member-help="${help}" type="button"><i>${icon}</i><span><small>${gain}</small><b>${label}</b><span class="earn-description">${copy}</span></span><em>Podmínky →</em></button>`}).join('');
   }
   function bind(){
     if(bound)return;bound=true;

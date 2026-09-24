@@ -12,15 +12,16 @@ const publicMemberStateListeners=new Set();
 let publicMemberState={status:'loading',authenticated:false,hasWaitingPlan:false,hasReservation:false,showJoinCta:false};
 const publishPublicMemberState=state=>{
 publicMemberState={...publicMemberState,...state};
-qsa('.nav-cta').forEach(cta=>{cta.hidden=!publicMemberState.showJoinCta});
+qsa('.nav-cta').forEach(cta=>{cta.hidden=true});
 qsa('.nav-member').forEach(link=>{
   const authenticated=publicMemberState.authenticated===true;
-  link.textContent=authenticated?'Můj United':'Registrace do Můj United';
-  link.href=authenticated?'member.html':'member.html?mode=register';
+  link.textContent=authenticated?'Můj United':'Přihlásit se';
+  link.href=authenticated?'member.html':`member.html?returnTo=${encodeURIComponent(location.pathname+location.search+location.hash)}`;
 });
 for(const listener of publicMemberStateListeners)listener(publicMemberState);
 };
 const subscribePublicMemberState=listener=>{publicMemberStateListeners.add(listener);listener(publicMemberState);return()=>publicMemberStateListeners.delete(listener)};
+document.addEventListener('click',event=>{const link=event.target.closest('.nav-member');if(link&&!publicMemberState.authenticated)link.href=`member.html?returnTo=${encodeURIComponent(location.pathname+location.search+location.hash)}`},true);
 qsa('.nav-cta').forEach(cta=>{cta.hidden=true});
 void (async()=>{
 try{
@@ -43,11 +44,7 @@ const updateHeader = () => header?.classList.toggle('scrolled', window.scrollY >
 updateHeader();
 window.addEventListener('scroll', updateHeader, { passive: true });
 
-menuBtn?.addEventListener('click', () => {
-document.body.classList.toggle('menu-open');
-const open = document.body.classList.contains('menu-open');
-menuBtn.setAttribute('aria-expanded', String(open));
-});
+void import('./mobile-navigation.js?v=20260925-portal2').then(({initMobileNavigation})=>initMobileNavigation());
 navLinks.forEach(a => a.addEventListener('click', () => {
 document.body.classList.remove('menu-open');
 menuBtn?.setAttribute('aria-expanded', 'false');
@@ -316,16 +313,9 @@ if (currentYear) currentYear.textContent = year;
 if (currentTitle) currentTitle.textContent = title;
 };
 
-if ('IntersectionObserver' in window) {
-const historyObserver = new IntersectionObserver(items => {
-const visible = items.filter(item => item.isIntersecting).sort((a,b) => b.intersectionRatio - a.intersectionRatio);
-if (visible[0]) setHistoryEntry(visible[0].target);
-}, { rootMargin:'-28% 0px -48% 0px', threshold:[0,.15,.35,.6] });
-entries.forEach(entry => historyObserver.observe(entry));
-}
-setHistoryEntry(entries[0]);
-
 const updateHistoryProgress = () => {
+const probe=(header?.getBoundingClientRect().bottom||0)+70;
+setHistoryEntry(entries.filter(entry=>entry.getBoundingClientRect().top<=probe).at(-1)||entries[0]);
 if (!progress) return;
 const rect = historySection.getBoundingClientRect();
 const total = Math.max(1, rect.height - window.innerHeight * .72);
@@ -335,6 +325,9 @@ progress.style.width = `${Math.round((travelled / total) * 100)}%`;
 updateHistoryProgress();
 window.addEventListener('scroll', updateHistoryProgress, {passive:true});
 window.addEventListener('resize', updateHistoryProgress, {passive:true});
+window.addEventListener('hashchange',updateHistoryProgress);
+historySection.addEventListener('load',updateHistoryProgress,true);
+if('ResizeObserver' in window)new ResizeObserver(updateHistoryProgress).observe(historySection);
 }
 
 /* 3D tilt media */

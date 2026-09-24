@@ -12,6 +12,7 @@ export function normalizeMember(payload, user = null) {
   return {
     id: source.id || source.uid || user?.uid || '',
     memberCode: source.memberCode || source.member_code || '',
+    qrPayload: source.qrPayload || null,
     name: source.name || user?.displayName || user?.email?.split('@')[0] || 'United Member',
     nickname: source.nickname || source.name?.split(' ')[0] || user?.displayName?.split(' ')[0] || 'Driver',
     email: source.email || user?.email || '',
