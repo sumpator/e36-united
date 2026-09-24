@@ -87,12 +87,14 @@ test.describe('desktop member portal', () => {
 
     await page.locator('.member-sidebar [data-member-section="club"]').click();
     await expect(page.locator('[data-points-journey-score]')).toHaveText('7');
+    await page.locator('[data-club-tab=achievements]').click();
     await expect(page.locator('[data-achievement-catalog]')).toContainText('UNITED PÓDIUM');
     await page.locator('[data-achievement-catalog] [data-achievement-id="sns-top3-2024"]').click();
     await expect(page.locator('[data-achievement-popover]')).toBeVisible();
     await expect(page.locator('[data-achievement-title]')).toHaveText('UNITED PÓDIUM');
     await page.locator('[data-achievement-close]').click();
 
+    await page.locator('[data-club-tab=history]').click();
     const historyYear = page.locator('[data-open-history-year="united-2024"]');
     await expect(historyYear).toContainText('ČEKÁ NA KONTROLU');
     await expect(historyYear).toContainText('S&S ČEKÁ NA KONTROLU');

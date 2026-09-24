@@ -71,6 +71,7 @@ export function createMemberPoints({getData,renderOverviewPoints,renderFeaturedA
   }
   function renderRewards(){
     const data=getData(),p=points(),threshold=Number(data.club?.rewardThreshold||12),remaining=Math.max(0,threshold-p);
+    const thresholdLabel=$('[data-club-reward-threshold]');if(thresholdLabel)thresholdLabel.textContent=String(threshold);
     const rewardState=$('[data-points-reward-state]'),rewardRemaining=$('[data-reward-remaining]');if(rewardState)rewardState.classList.toggle('is-unlocked',p>=threshold);if(rewardRemaining)rewardRemaining.textContent=p>=threshold?'ODMĚNA ODEMČENA':`${formatPoints(remaining)} ${pointsRemainingVerb(remaining)}`;
     const journey=$('[data-points-journey]'),journeyScore=$('[data-points-journey-score]'),journeyCopy=$('[data-points-journey-copy]'),journeyMarker=$('[data-points-journey-marker]'),progress=Math.min(100,p/threshold*100);
     if(journey){journey.setAttribute('aria-valuemax',String(threshold));journey.setAttribute('aria-valuenow',String(p));journey.setAttribute('aria-label',`Postup k United Merch reward: ${formatPoints(p)}; hranice odměny ${formatPoints(threshold)}`);journey.style.setProperty('--points-progress',`${progress}%`)}if(journeyScore)journeyScore.textContent=p;if(journeyCopy)journeyCopy.textContent=p>=threshold?'United Merch reward je odemčený.':`Do odměny ${pointsRemainingVerb(remaining)} ${formatPoints(remaining)}.`;if(journeyMarker)journeyMarker.textContent=String(p);

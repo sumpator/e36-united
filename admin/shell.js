@@ -1,4 +1,4 @@
-import { allowAdminNavigation } from './editors.js?v=20260924-merch2';
+import { allowAdminNavigation } from './editors.js?v=20260924-workspace1';
 import { initPortalNavigation } from '../portal-navigation.js?v=20260924-merch2';
 import { ADMIN_VIEW_IDS } from '../admin-view-model.js?v=20260924-merch2';
 import {ADMIN_AREAS,VIEW_LABELS,areaFor} from './destinations.js?v=20260924-merch2';

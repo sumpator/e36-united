@@ -1,8 +1,8 @@
 import {adminState} from './state.js?v=20260924-merch2';
-import {adminCommand,bindCurrentEditors,forgetAdminEditor,editorProtected,allowAdminNavigation,adminEditorDirty} from './editors.js?v=20260924-merch2';
+import {adminCommand,bindCurrentEditors,forgetAdminEditor,editorProtected,allowAdminNavigation,adminEditorDirty} from './editors.js?v=20260924-workspace1';
 import {COMPOSITIONS,validatePreferences} from './dashboard-model.js?v=20260924-merch2';
 import {COMMAND_WIDGETS as WIDGETS,commandDefaults as factoryPreferences,commandLayout,commandBadges} from './command-model.js?v=20260924-merch2';
-import {commandCard,metricInfo} from './command-cards.js?v=20260924-merch2';
+import {commandCard,metricInfo} from './command-cards.js?v=20260924-workspace1';
 import {commandIcon} from './command-icons.js?v=20260924-merch2';
 import {renderCommandShell} from './command-shell.js?v=20260924-merch2';
 import {DESTINATIONS,QUICK_LINK_IDS,destination,drillLabel} from './destinations.js?v=20260924-merch2';

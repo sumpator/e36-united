@@ -11,7 +11,7 @@ export function adminRoute(search,fallback='dashboard'){
   if(Object.hasOwn(ADMIN_AREAS,requested))section=ADMIN_AREAS[requested].views.includes(params.get('view'))?params.get('view'):ADMIN_AREAS[requested].views[0];
   const galleryMode=section==='club'?'history':params.get('mode')==='history'?'history':'community';if(section==='club')section='gallery';
   if(section==='united-club')section='members';
-  return {section,galleryMode,drill:cleanDrill(Object.fromEntries(params)),composition:params.get('composition')==='onsite'?'onsite':'preparation',range:['7','30','all'].includes(params.get('range'))?params.get('range'):'all',
+  return {section,galleryMode,paymentKind:params.get('payment')==='merch'?'merch':'sraz',merchOrder:id(params.get('order')),merchReturn:params.get('from')==='merch-payments',drill:cleanDrill(Object.fromEntries(params)),composition:params.get('composition')==='onsite'?'onsite':'preparation',range:['7','30','all'].includes(params.get('range'))?params.get('range'):'all',
     queueMember:id(params.get('queueMember')),eventId:id(params.get('event')),reservationId:id(params.get('reservation')),memberId:id(params.get('member')),memberTab:['overview','event','reservations','garage','photos','club','history','points','mailing','qr','merch'].includes(params.get('tab'))?params.get('tab'):'overview'};
 }
 export function adminRouteUrl(route){
@@ -22,6 +22,9 @@ export function adminRouteUrl(route){
   if(['7','30'].includes(route.range))params.set('range',route.range);
   if(['reservations','payments'].includes(section))for(const[key,value]of Object.entries(cleanDrill(route.drill)))params.set(key,value);
   if(id(route.eventId))params.set('event',route.eventId);
+  if(section==='payments'&&route.paymentKind==='merch')params.set('payment','merch');
+  if(section==='merch'&&id(route.merchOrder))params.set('order',route.merchOrder);
+  if(section==='merch'&&route.merchReturn)params.set('from','merch-payments');
   if(id(route.queueMember))params.set('queueMember',route.queueMember);
   if(id(route.reservationId))params.set('reservation',route.reservationId);
   if(id(route.memberId)){params.set('member',route.memberId);if(['event','reservations','garage','photos','club','history','points','mailing','qr','merch'].includes(route.memberTab))params.set('tab',route.memberTab)}
@@ -35,12 +38,13 @@ export function initializeAdminNavigation({state,setView,openReservation,openMem
   history.scrollRestoration='manual';
   const initial=adminRoute(location.search,state.activeAdminView);
   state.activeAdminView=initial.section;if(initial.eventId)state.selectedEventId=initial.eventId;
+  state.paymentKind=initial.paymentKind;state.merchOrder=initial.merchOrder;state.merchReturn=initial.merchReturn;
   if(Object.keys(initial.drill).length){state.reservationFilter='all';state.reservationDetailFilters=new Set();state.paymentFilter='all';state.reservationPage=1;}
   state.galleryMode=initial.galleryMode;state.dashboardDrill=initial.drill;state.dashboardComposition=initial.composition;state.dashboardRange=initial.range;
   state.requestedReservationId=initial.reservationId;state.pendingMemberRoute=initial.memberId?initial:null;
   const applyQueue=target=>{state.queueMember=target.queueMember||null;if(state.queueMember){state.reservationFilter='all';state.reservationDetailFilters=new Set(['pending']);state.reservationSearch='';state.reservationPage=1;state.galleryFilter='pending';state.galleryPage=1;state.historyYear='all';state.historyFilter='pending';state.historyClaimType='all';state.historySearch='';state.historyPagination.page=1;}};
   applyQueue(initial);
-  const route=()=>({section:state.activeAdminView,eventId:state.selectedEventId,reservationId:state.selectedReservationId||state.requestedReservationId,memberId:state.memberId,memberTab:state.memberTab,galleryMode:state.galleryMode,queueMember:state.queueMember,drill:state.dashboardDrill,composition:state.dashboardComposition,range:state.dashboardRange});
+  const route=()=>({section:state.activeAdminView,paymentKind:state.paymentKind,merchOrder:state.merchOrder,merchReturn:state.merchReturn,eventId:state.selectedEventId,reservationId:state.selectedReservationId||state.requestedReservationId,memberId:state.memberId,memberTab:state.memberTab,galleryMode:state.galleryMode,queueMember:state.queueMember,drill:state.dashboardDrill,composition:state.dashboardComposition,range:state.dashboardRange});
   // Back already points at the target history entry: never overwrite it with the outgoing view.
   function rememberScroll(){if(restoring||state.restoringRoute)return;prepared=true;history.replaceState({...history.state,admin:true,filters:{reservationFilter:state.reservationFilter,details:[...state.reservationDetailFilters],paymentFilter:state.paymentFilter,reservationPage:state.reservationPage,galleryFilter:state.galleryFilter,galleryPage:state.galleryPage,galleryMode:state.galleryMode,historyYear:state.historyYear,historyFilter:state.historyFilter,historyClaimType:state.historyClaimType,historyPage:state.historyPagination.page},scrollY:window.scrollY},'',location.href)}
   function write({replace=false,detail=false}={}){
@@ -57,6 +61,7 @@ export function initializeAdminNavigation({state,setView,openReservation,openMem
     restoring=true;state.restoringRoute=true;
     try{
       const target=adminRoute(location.search);closeOverlays();
+      state.paymentKind=target.paymentKind;state.merchOrder=target.merchOrder;state.merchReturn=target.merchReturn;
       applyQueue(target);
       if(target.eventId)state.selectedEventId=target.eventId;
       state.dashboardDrill=target.drill;state.dashboardComposition=target.composition;state.dashboardRange=target.range;state.galleryMode=target.galleryMode;
@@ -65,6 +70,7 @@ export function initializeAdminNavigation({state,setView,openReservation,openMem
       if(filters){state.historyYear=filters.historyYear||'all';state.historyFilter=filters.historyFilter||'pending';state.historyClaimType=filters.historyClaimType||'all';state.historyPagination.page=filters.historyPage||1;}
       if(filters){state.reservationFilter=['all','action','active','complete'].includes(filters.reservationFilter)?filters.reservationFilter:'all';state.reservationDetailFilters=new Set((filters.details||[]).filter(f=>['pending','approved','payment','underpaid','paid','overpaid','rejected','cancelled'].includes(f)));state.paymentFilter=['attention','all','unpaid','underpaid','paid','overpaid'].includes(filters.paymentFilter)?filters.paymentFilter:'attention';state.reservationPage=Math.max(1,Number(filters.reservationPage)||1);state.galleryFilter=['all','pending','approved','rejected'].includes(filters.galleryFilter)?filters.galleryFilter:'pending';state.galleryPage=Math.max(1,Number(filters.galleryPage)||1);state.galleryMode=filters.galleryMode==='history'?'history':'community'}
       setView(target.section,{focus:false});state.requestedReservationId=target.reservationId;
+      if(target.section==='payments')window.dispatchEvent(new Event('admin:paymentrestore'));
       await refresh();
       if(target.reservationId)openReservation(target.reservationId);
       if(target.memberId)openMember(target.memberId,null,{tab:target.memberTab,route:false});
@@ -88,6 +94,7 @@ export function initializeAdminNavigation({state,setView,openReservation,openMem
   window.addEventListener('admin:membertab',()=>write({replace:true,detail:true}));
   window.addEventListener('admin:memberclosed',()=>{if(restoring||state.restoringRoute||!state.currentUser||state.denied)return;if(history.state?.detail)history.back();else write({replace:true})});
   window.addEventListener('admin:eventchanged',()=>write());
+  window.addEventListener('admin:paymentkind',()=>write());
   window.addEventListener('admin:dashboardchoice',()=>write({replace:true}));
   return{write,restore};
 }

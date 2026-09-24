@@ -95,6 +95,7 @@ function capture(event){const bound=recordFor(event.target);if(!bound||event.tar
 }
 
 export function allowAdminNavigation(){
+  if(!window.dispatchEvent(new Event('admin:merch-beforeleave',{cancelable:true})))return false;
   const edited=[...roots].filter(([root,record])=>root.isConnected&&(record.dirty||root.dataset.localFile==='true'));
   if(!edited.length)return true;
   if(!window.confirm('Zahodit rozepsané změny a opustit formulář? Již odeslaná operace může být dokončena; její výsledek zůstane dohledatelný.'))return false;

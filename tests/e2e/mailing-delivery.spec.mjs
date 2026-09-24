@@ -26,6 +26,7 @@ async function fixture(page,{state='not_configured',status='draft',testError=fal
   await page.goto('/admin.html');await expect(page.locator('[data-admin-view]')).toBeVisible();
   await page.locator('.admin-section-nav [data-portal-target="mailing"]').click();await page.locator('[data-mailing-tab="campaigns"]').click();
   await page.locator('[data-mailing-campaign-open="delivery-fixture"]').click();
+  await page.locator('details').filter({has:page.locator('[data-mailing-delivery]')}).locator(':scope>summary').click();
   await expect(page.locator('[data-delivery-count]')).toHaveText('2');
   return {observations,writes,provider};
 }

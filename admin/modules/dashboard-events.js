@@ -1,8 +1,8 @@
-import { adminCommand, editorProtected, changedFields, forgetAdminEditor } from '../editors.js?v=20260924-merch2';
+import { adminCommand, editorProtected, changedFields, forgetAdminEditor } from '../editors.js?v=20260924-workspace1';
 import { adminActionCountState, adminModerationCounts, paymentNeedsAttention, reservationMatchesFilter } from '../../admin-view-model.js?v=20260924-merch2';
 import { apiRequest } from '../api.js?v=20260924-merch2';
 import { adminState } from '../state.js?v=20260924-merch2';
-import { setDenied } from '../shell.js?v=20260924-merch2';
+import { setDenied } from '../shell.js?v=20260924-workspace1';
 import { $, $$, escapeHtml, formatDate, formatMoney, numeric, toast } from '../ui.js?v=20260924-merch2';
 
 
@@ -51,7 +51,7 @@ export function renderOverview(payload){
   $('[data-event-year]').textContent=event?.year||'—';
   $('[data-event-state]').textContent=event?`${event.isCurrent?'Aktuální event · ':''}Registrace: ${event.registrationStatus==='open'?'otevřené':'uzavřené'}`:'Žádný event v databázi';
   const current=adminState.events.find(item=>item.isCurrent);
-  $('[data-settings-context]').textContent=`Upravuješ vybraný ročník United ${event?.year||'—'}. Veřejný CURRENT: United ${current?.year||'—'}. Přepnutí vybraného ročníku nemění veřejný event.`;
+  $('[data-settings-context]').innerHTML=`<span>Upravuješ <b>United ${escapeHtml(event?.year||'—')}</b></span><span>Aktuálně na webu <b>United ${escapeHtml(current?.year||'—')}</b></span><span>Potvrzené registrace <b>${numeric(statuses.approved)}</b></span><span>Plánované osoby (čekající + schválené) <b>${numeric(overview.people)}</b></span>`;
   renderEventSettings(event);
   const accommodationCapacity=accommodation.hasUnlimited?0:numeric(accommodation.limitedUnitsTotal);
   const commitment=numeric(event?.bookingCommitmentCzk);

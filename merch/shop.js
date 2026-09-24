@@ -1,6 +1,6 @@
 import {imageSource,productImages,missingCommerce,money} from './catalog.js?v=20260924-merch2';
 import {CART_KEY,addToCart,priceCart,readCart,writeCart} from './cart.js?v=20260924-merch2';
-import {createCheckout} from './checkout.js?v=20260924-merch2';
+import {createCheckout} from './checkout.js?v=20260924-workspace1';
 import {createMemberApiClient} from '../member/api.js?v=20260907-feedback';
 import {portalConfig} from '../firebase-config.js?v=20260924-merch2';
 

@@ -1,10 +1,10 @@
-import { refreshStoredMailingDelivery } from './delivery.js?v=20260924-merch2';
-import { renderMailingCampaigns, campaignPage } from './campaigns.js?v=20260924-merch2';
+import { refreshStoredMailingDelivery } from './delivery.js?v=20260924-workspace1';
+import { renderMailingCampaigns, campaignPage } from './campaigns.js?v=20260924-workspace1';
 import { apiRequest } from '../../api.js?v=20260924-merch2';
 import { adminState } from '../../state.js?v=20260924-merch2';
 import { $, $$, numeric, toast } from '../../ui.js?v=20260924-merch2';
-import { loadMailingContacts } from './contacts.js?v=20260924-merch2';
-import { initializeMailingCampaigns, loadMailingCampaigns, resetMailingCampaigns } from './campaigns.js?v=20260924-merch2';
+import { loadMailingContacts } from './contacts.js?v=20260924-workspace1';
+import { initializeMailingCampaigns, loadMailingCampaigns, resetMailingCampaigns } from './campaigns.js?v=20260924-workspace1';
 import { defaultMailingSegment, previewMailingSegment } from './segments.js?v=20260924-merch2';
 
 let initialized=false,overviewLoaded=false,overviewPromise=null,lastSegment=defaultMailingSegment;
@@ -48,7 +48,7 @@ export function resetMailingCenter(){overviewLoaded=false;overviewPromise=null;l
 export function initializeMailingCenter(){
   if(initialized)return;initialized=true;
   initializeMailingCampaigns({getSegment:()=>lastSegment,onSaved:()=>{overviewLoaded=false}});
-  window.addEventListener('admin:viewchange',event=>{if(event.detail?.view==='mailing')safely(()=>showMailingTab('overview'),'Mailing přehled se nepodařilo načíst.')});
+  window.addEventListener('admin:viewchange',event=>{if(event.detail?.view==='mailing')safely(()=>showMailingTab('campaigns'),'Mailing přehled se nepodařilo načíst.')});
   document.addEventListener('click',event=>{const tab=event.target.closest('[data-mailing-tab]');if(tab)safely(()=>showMailingTab(tab.dataset.mailingTab),'Mailing data se nepodařilo načíst.')});
   document.addEventListener('submit',event=>{
     const contacts=event.target.closest('[data-mailing-contact-form]');if(contacts){event.preventDefault();safely(()=>loadMailingContacts(contacts),'Kontakty se nepodařilo načíst.');return}

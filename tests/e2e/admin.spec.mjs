@@ -47,8 +47,8 @@ test.describe('desktop Admin portal', () => {
     const observations=await prepareAdminE2ePage(page);const photos=[{id:'cover',role:'cover',imageUrl:'/api/events/united-2026/accommodation/cabin-premium/photo?v=1'},{id:'p2',role:'additional',imageUrl:'/api/events/united-2026/accommodation/cabin-premium/gallery/p2?v=2',sortOrder:1},{id:'p3',role:'additional',imageUrl:'/api/events/united-2026/accommodation/cabin-premium/gallery/p3?v=3',sortOrder:2},{id:'p4',role:'additional',imageUrl:'/api/events/united-2026/accommodation/cabin-premium/gallery/p4?v=4',sortOrder:3},{id:'p5',role:'additional',imageUrl:'/api/events/united-2026/accommodation/cabin-premium/gallery/p5?v=5',sortOrder:4}];
     await page.route('https://api.e36united.cz/api/admin/accommodation**',async route=>{const request=route.request();if(request.method()==='OPTIONS')return route.fulfill({status:204,headers:{'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'Authorization, Content-Type','Access-Control-Allow-Methods':'GET, POST, OPTIONS'}});if(request.method()==='GET')return route.fulfill({status:200,headers:{'Access-Control-Allow-Origin':'*','Content-Type':'application/json'},body:JSON.stringify({options:[{...accommodationOptions[1],photos,approvedUnits:1,pendingUnits:0,pendingConflictUnits:0},{...accommodationOptions[0],photos:accommodationOptions[0].photos.slice(0,1),approvedUnits:0,pendingUnits:0,pendingConflictUnits:0}]})});return route.fulfill({status:503,headers:{'Access-Control-Allow-Origin':'*','Content-Type':'application/json'},body:JSON.stringify({message:'Testovací chyba uploadu'})})});
     await page.goto('/admin.html');await page.locator('.admin-section-nav [data-portal-target="reservations"]').click();await page.locator('[data-admin-jump="accommodation"]').click();
-    const card=page.locator('[data-accommodation-id="cabin-premium"]');await expect(card.locator('.admin-accommodation-gallery-head>strong')).toHaveText('5 / 5');await expect(card.locator('[data-accommodation-gallery-input]')).toBeDisabled();await expect(card.locator('[data-accommodation-gallery-photo]')).toHaveCount(4);await page.screenshot({path:'test-results/accommodation-gallery-admin.png',fullPage:false});
-    const uploadCard=page.locator('[data-accommodation-id="cabin-standard"]');await uploadCard.locator('[data-accommodation-gallery-input]').setInputFiles({name:'failure.jpg',mimeType:'image/jpeg',buffer:Buffer.from('fixture-image')});await uploadCard.locator('[data-accommodation-gallery-upload]').click();await expect(uploadCard.locator('[data-accommodation-gallery-status]')).toHaveText('Testovací chyba uploadu');
+    const card=page.locator('[data-accommodation-id="cabin-premium"]');await card.locator('[data-accommodation-disclosure=photos]>summary').click();await expect(card.locator('.admin-accommodation-gallery-head>strong')).toHaveText('5 / 5');await expect(card.locator('[data-accommodation-gallery-input]')).toBeDisabled();await expect(card.locator('[data-accommodation-gallery-photo]')).toHaveCount(4);await page.screenshot({path:'test-results/accommodation-gallery-admin.png',fullPage:false});
+    const uploadCard=page.locator('[data-accommodation-id="cabin-standard"]');await uploadCard.locator('[data-accommodation-disclosure=photos]>summary').click();await uploadCard.locator('[data-accommodation-gallery-input]').setInputFiles({name:'failure.jpg',mimeType:'image/jpeg',buffer:Buffer.from('fixture-image')});await uploadCard.locator('[data-accommodation-gallery-upload]').click();await expect(uploadCard.locator('[data-accommodation-gallery-status]')).toHaveText('Testovací chyba uploadu');
     expect(observations.campaignWrites).toHaveLength(0);expect(observations.pageErrors).toEqual([]);expect(observations.consoleErrors.every(entry=>entry.text.includes('503'))).toBe(true);
   });
 
@@ -85,6 +85,7 @@ test.describe('desktop Admin portal', () => {
     await expect(page.locator('[data-admin-view]')).toBeVisible();
     await page.locator('.admin-section-nav [data-portal-target="mailing"]').click();
     await expect(page.locator('[data-admin-panel="mailing"]')).toHaveClass(/is-active/);
+    await page.locator('[data-mailing-tab="overview"]').click();
     await expect(page.locator('[data-mailing-kpi="total"]')).toHaveText('4');
     await expect(page.locator('[data-mailing-kpi="eligible"]')).toHaveText('1');
 
@@ -110,6 +111,7 @@ test.describe('desktop Admin portal', () => {
     await page.locator('.admin-section-nav [data-portal-target="mailing"]').click();
     await page.locator('[data-mailing-tab="campaigns"]').click();
 
+    await page.locator('[data-mailing-campaign-new]').click();
     const form=page.locator('[data-mailing-campaign-form]');
     await expect(form.locator('[name="internalName"]')).toHaveValue('United 2026 — Zbraslavice feedback');
     await expect(form.locator('[name="subject"]')).toHaveValue('Jak to vidíš se Zbraslavicemi?');
@@ -120,6 +122,7 @@ test.describe('desktop Admin portal', () => {
     await expect(page.locator('[data-mailing-preview-stage]')).toHaveAttribute('data-device','mobile');
     await expect(page.locator('[data-mailing-preview-device="mobile"]')).toHaveAttribute('aria-pressed','true');
 
+    await page.locator('[data-block-type="rich_text"] details>summary').click();
     const richText=page.locator('[data-block-type="rich_text"] textarea');
     await richText.fill('Nový odstavec pro **United komunitu**.');
     await expect(page.frameLocator('[data-mailing-preview-frame]').locator('body')).toContainText('Nový odstavec pro United komunitu');
@@ -148,11 +151,13 @@ test.describe('desktop Admin portal', () => {
     await expect(page.locator('[data-admin-view]')).toBeVisible();
     await page.locator('.admin-section-nav [data-portal-target="mailing"]').click();
     await page.locator('[data-mailing-tab="campaigns"]').click();
+    await page.locator('[data-mailing-campaign-new]').click();
     const form=page.locator('[data-mailing-campaign-form]');
     await form.locator('[name="internalName"]').fill('E2E Zbraslavice draft');
     await form.locator('[name="subject"]').fill('První uložený předmět');
+    await page.locator('[data-block-type="rich_text"] details>summary').click();
     await page.locator('[data-block-type="rich_text"] textarea').fill('Obsah, který musí přežít reload.');
-    await form.locator('[data-mailing-save]').click();
+    await page.locator('[data-mailing-save]').click();
     await expect(page.locator('[data-mailing-save-state]')).toHaveText('Uloženo');
     await expect(page.locator('[data-mailing-campaign-list]')).toContainText('E2E Zbraslavice draft');
 
@@ -166,7 +171,7 @@ test.describe('desktop Admin portal', () => {
     await expect(page.locator('[data-block-type="rich_text"] textarea')).toHaveValue('Obsah, který musí přežít reload.');
 
     await form.locator('[name="subject"]').fill('Upravený předmět');
-    await form.locator('[data-mailing-save]').click();
+    await page.locator('[data-mailing-save]').click();
     await expect(page.locator('[data-mailing-save-state]')).toHaveText('Uloženo');
     expect(observations.campaignWrites.map(write=>write.method)).toEqual(['POST','PATCH']);
     expect(observations.campaignWrites[0].body.content.template).toBe('e36-default-v1');

@@ -1,13 +1,14 @@
-import { adminCommand, editorProtected, adminEditorDirty } from '../editors.js?v=20260924-merch2';
+import { adminCommand, editorProtected, adminEditorDirty } from '../editors.js?v=20260924-workspace1';
 import { accommodationVisualMarkup, bindAccommodationVisualFallbacks } from '../../accommodation-visual.js?v=20260924-merch2';
 import { selectImageFiles } from '../../image-upload.js?v=20260924-merch2';
 import { apiBaseUrl, apiRequest, apiUpload } from '../api.js?v=20260924-merch2';
 import { adminState } from '../state.js?v=20260924-merch2';
-import { setDenied } from '../shell.js?v=20260924-merch2';
+import { setDenied } from '../shell.js?v=20260924-workspace1';
 import { $, escapeHtml, formatMoney, numeric, toast } from '../ui.js?v=20260924-merch2';
 
 const accommodationPhotoSelections=new Map();
 const accommodationGallerySelections=new Map();
+const accommodationDisclosureState=new Map();
 export function resetAccommodationMedia(){for(const selection of [...accommodationPhotoSelections.values(),...accommodationGallerySelections.values()])URL.revokeObjectURL(selection.url);accommodationPhotoSelections.clear();accommodationGallerySelections.clear();document.querySelectorAll('[data-local-file]').forEach(node=>delete node.dataset.localFile)}
 window.addEventListener('admin:discardfiles',resetAccommodationMedia);
 let previewDialog;
@@ -32,7 +33,7 @@ function accommodationCard(item){
     <div class="admin-accommodation-head"><div><span class="admin-kicker">${item.kind==='cabin'?'CHATKA':'STAN'}${item.active?'':' · NEAKTIVNÍ'}</span><h3>${escapeHtml(item.name)}</h3></div><div class="admin-accommodation-availability">${accommodationAvailability(item)}</div></div>
     <div class="admin-accommodation-summary"><span>max. <b>${numeric(item.capacityPerUnit)}</b> osob / jednotku</span><span><b>${escapeHtml(formatMoney(item.unitPriceCzk))}</b> / jednotku / noc</span><span><b>${escapeHtml(formatMoney(item.personPriceCzk))}</b> / osobu</span></div>
     ${conflict?`<p class="admin-capacity-warning"><b>${conflict} pending</b> ${conflict===1?'požadavek již nebude možné schválit':'požadavky již nebude možné schválit'} bez uvolnění kapacity.</p>`:''}
-    <div class="admin-accommodation-photo">
+    <details data-accommodation-disclosure="photos"><summary>Fotografie · ${photoCount} / 5</summary><div class="admin-accommodation-photo">
       <div><span class="admin-kicker">HLAVNÍ FOTOGRAFIE</span><p>${hasPhoto?'Cover je první fotografií galerie. Jeho nahrazení se projeví ve všech rozhraních.':additional.length?'Cover chybí; jako náhled se používá první doplňková fotografie.':'Používá se generovaný přehled z aktuálních parametrů.'}</p></div>
       <label class="admin-photo-picker"><input accept="image/jpeg,image/png,image/webp" data-accommodation-photo-input hidden type="file"/><span>${hasPhoto?'Vybrat náhradu':'Vybrat fotografii'}</span><small>JPG, PNG nebo WebP · max. 8 MB</small></label>
       <div class="admin-accommodation-photo-preview" data-accommodation-photo-preview hidden></div>
@@ -47,8 +48,8 @@ function accommodationCard(item){
         <button class="admin-button admin-button--primary" data-accommodation-gallery-upload disabled type="button">Nahrát další fotografii</button>
         <p aria-live="polite" class="admin-accommodation-gallery-status" data-accommodation-gallery-status>${atLimit?'Pro další upload nejdřív odeber jednu doplňkovou fotografii.':''}</p>
       </div>
-    </section>
-    <details><summary>Upravit konfiguraci</summary>
+    </section></details>
+    <details data-accommodation-disclosure="configuration"><summary>Upravit konfiguraci</summary>
       <form class="admin-config-form" data-accommodation-edit-form>
         <label class="admin-field admin-field--wide"><span>Název</span><input maxlength="80" name="name" required value="${escapeHtml(item.name)}"/></label>
         <label class="admin-field"><span>Druh</span><select name="kind"><option value="cabin" ${item.kind==='cabin'?'selected':''}>Chatka</option><option value="tent" ${item.kind==='tent'?'selected':''}>Stan</option></select></label>
@@ -74,7 +75,10 @@ export function renderAccommodation(payload){
   adminState.accommodationItems=Array.isArray(payload.options)?payload.options:[];
   $('[data-accommodation-option-count]').textContent=`${adminState.accommodationItems.length} ${adminState.accommodationItems.length===1?'možnost':'možností'}`;
   const list=$('[data-accommodation-list]');
+  list.querySelectorAll('[data-accommodation-disclosure]').forEach(detail=>accommodationDisclosureState.set(`${list.dataset.eventId}:${detail.closest('[data-accommodation-id]').dataset.accommodationId}:${detail.dataset.accommodationDisclosure}`,detail.open));
+  list.dataset.eventId=adminState.selectedEventId;
   list.innerHTML=adminState.accommodationItems.length?adminState.accommodationItems.map(accommodationCard).join(''):'<div class="admin-empty">Pro tento event zatím nejsou nastavené žádné typy ubytování.</div>';
+  list.querySelectorAll('[data-accommodation-disclosure]').forEach(detail=>{detail.open=accommodationDisclosureState.get(`${list.dataset.eventId}:${detail.closest('[data-accommodation-id]').dataset.accommodationId}:${detail.dataset.accommodationDisclosure}`)===true;});
   bindAccommodationVisualFallbacks(list);
 }
 

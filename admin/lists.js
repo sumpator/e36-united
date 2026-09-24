@@ -1,5 +1,5 @@
 import {adminState} from './state.js?v=20260924-merch2';
-import {allowAdminNavigation} from './editors.js?v=20260924-merch2';
+import {allowAdminNavigation} from './editors.js?v=20260924-workspace1';
 import {cleanDrill} from './destinations.js?v=20260924-merch2';
 export function reservationRequestPath(detailId=null){
  const s=adminState,payment=s.activeAdminView==='payments';
