@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg">
+  <!-- Display the original U in opaque white while keeping its transparent cutouts. -->
+  <filter id="white" color-interpolation-filters="sRGB">
+    <feColorMatrix type="matrix" values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 1 0"/>
+    <feComponentTransfer><feFuncA type="linear" slope="4"/></feComponentTransfer>
+  </filter>
+</svg>
