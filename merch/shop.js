@@ -54,7 +54,7 @@ export function initShop(){
   history.pushState({...history.state,merchProduct:true},'',productURL(p,v));readDetailURL();
  });
  function renderFilters(){
- const host=$('[data-catalog-filters]');host.innerHTML='<div class="shop-filters" role="group" aria-label="Střih">'+[['all','Vše'],['men','Pánské'],['women','Dámské']].map(([id,label])=>'<button type="button" data-gender="'+id+'" aria-pressed="'+(gender===id)+'">'+label+'</button>').join('')+'</div><div class="shop-filters" role="group" aria-label="Kategorie">'+['all',...new Set(catalog.map(p=>p.category))].map(id=>'<button type="button" data-merch-filter="'+escape(id)+'" aria-pressed="'+(filter===id)+'">'+(id==='all'?'Všechny kategorie':escape(id))+'</button>').join('')+'</div>';
+ const host=$('[data-catalog-filters]');host.innerHTML='<div class="shop-filters" role="group" aria-label="Pro koho"><span class="shop-filter-label">Pro koho</span>'+[['all','Vše'],['men','Pánské'],['women','Dámské']].map(([id,label])=>'<button type="button" data-gender="'+id+'" aria-pressed="'+(gender===id)+'">'+label+'</button>').join('')+'</div><div class="shop-filters" role="group" aria-label="Kategorie"><span class="shop-filter-label">Kategorie</span>'+['all',...new Set(catalog.map(p=>p.category))].map(id=>'<button type="button" data-merch-filter="'+escape(id)+'" aria-pressed="'+(filter===id)+'">'+(id==='all'?'Všechny kategorie':escape(id))+'</button>').join('')+'</div>';
  }
  $('[data-catalog-filters]').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;if(b.dataset.gender)gender=b.dataset.gender;if(b.dataset.merchFilter)filter=b.dataset.merchFilter;renderFilters();renderCatalog();});
  function renderImages(){

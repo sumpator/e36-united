@@ -1,5 +1,5 @@
 import { $, $$, esc } from '../../ui.js?v=20260902-phase3';
-import {rewardProgress} from '../../reward-progress.js?v=20260925-portal2';
+import {rewardProgress} from '../../reward-progress.js?v=20260926-portal3';
 
 export const pictogram=body=>`<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${body}</svg>`;
 export const achievementIcon=type=>type==='show-shine'?pictogram('<path d="M8 4h8v4a4 4 0 0 1-8 0V4Z"/><path d="M12 12v6m-3 2h6"/>'):type==='community'?pictogram('<rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 15-5-4L5 19"/>'):type==='history'?pictogram('<circle cx="12" cy="12" r="8"/><path d="M12 7v5l3 2"/>'):pictogram('<path d="M12 3 19 6v5c0 4.5-2.8 8-7 10-4.2-2-7-5.5-7-10V6l7-3Z"/><path d="m9 12 2 2 4-5"/>');
@@ -75,14 +75,14 @@ export function createMemberPoints({getData,apiRequest,renderOverviewPoints,rend
     if(!rewardSettings&&!settingsLoading&&apiRequest){settingsLoading=true;void apiRequest('/api/merch/catalog').then(result=>{rewardSettings=result.settings||{};renderRewards()}).catch(()=>{rewardSettings={};renderRewards()}).finally(()=>{settingsLoading=false})}
     const data=getData(),p=points(),threshold=Number(rewardSettings?.rewardThreshold??data.club?.rewardThreshold??12),remaining=Math.max(0,threshold-p);
     const cycle=rewardProgress(p),progressHost=$('[data-reward-progress]');
-    if(progressHost)progressHost.innerHTML=`<div class="reward-cycle${cycle.justReached?' is-milestone':''}"><strong>Odměna každých 12 bodů</strong><div class="reward-segments" role="img" aria-label="${cycle.cycle} z 12 bodů do dalšího milníku">${Array.from({length:12},(_,i)=>`<i class="${i<cycle.cycle?'is-on':''}"></i>`).join('')}</div><p><b>${cycle.milestones}</b> dosažených odměnových milníků${cycle.justReached?' <span class="reward-achieved">✓ Nový milník dosažen</span>':''}</p><p>Do ${cycle.milestones?'další':'první'} odměny ${pointsRemainingVerb(cycle.remaining)} <b>${formatPoints(cycle.remaining)}</b>.</p></div>`;
+    if(progressHost)progressHost.innerHTML=`<div class="reward-cycle"><div class="reward-metrics"><span>Do další odměny</span><b>${formatPoints(cycle.remaining)}</b></div><div class="reward-segments" role="progressbar" aria-label="Postup k další odměně" aria-valuemin="0" aria-valuemax="12" aria-valuenow="${cycle.cycle}">${Array.from({length:12},(_,i)=>`<i class="${i<cycle.cycle?'is-on':''}"></i>`).join('')}</div><p class="reward-scale"><span>${cycle.milestones*12} bodů</span><span>${(cycle.milestones+1)*12} bodů</span></p></div>`;
     const rewardName=$('[data-reward-name]'),rate=rewardSettings?.discountBasisPoints;
     if(rewardName)rewardName.textContent=Number.isInteger(rate)?`Členská sleva ${new Intl.NumberFormat('cs-CZ').format(rate/100)} % na Merch`:'Členská výhoda v Merchi';
-    const rewardTerms=$('[data-reward-terms]');if(rewardTerms)rewardTerms.textContent=Number.isInteger(rate)?'Uplatní se v rekapitulaci podle nastavení obchodu.':'Výši výhody obchod zatím nepotvrdil.';
+    const rewardTerms=$('[data-reward-terms]');if(rewardTerms)rewardTerms.textContent=Number.isInteger(rate)?'Uplatní se v rekapitulaci podle nastavení obchodu.':'Podmínky najdeš v nabídce Merche.';
     const thresholdLabel=$('[data-club-reward-threshold]');if(thresholdLabel)thresholdLabel.textContent=String(threshold);
-    const rewardState=$('[data-points-reward-state]'),rewardRemaining=$('[data-reward-remaining]');if(rewardState)rewardState.classList.toggle('is-unlocked',p>=threshold);if(rewardRemaining)rewardRemaining.textContent=p>=threshold?'ODMĚNA ODEMČENA':`${formatPoints(remaining)} ${pointsRemainingVerb(remaining)}`;
+    const rewardState=$('[data-points-reward-state]'),rewardRemaining=$('[data-reward-remaining]');if(rewardState)rewardState.classList.toggle('is-unlocked',p>=threshold);if(rewardRemaining)rewardRemaining.textContent=p>=threshold?'BODOVÁ HRANICE SPLNĚNA':`${formatPoints(remaining)} ${pointsRemainingVerb(remaining)}`;
     const journey=$('[data-points-journey]'),journeyScore=$('[data-points-journey-score]'),journeyCopy=$('[data-points-journey-copy]'),journeyMarker=$('[data-points-journey-marker]'),progress=Math.min(100,p/threshold*100);
-    if(journey){journey.setAttribute('aria-valuemax',String(threshold));journey.setAttribute('aria-valuenow',String(p));journey.setAttribute('aria-label',`Postup k United Merch reward: ${formatPoints(p)}; hranice odměny ${formatPoints(threshold)}`);journey.style.setProperty('--points-progress',`${progress}%`)}if(journeyScore)journeyScore.textContent=p;if(journeyCopy)journeyCopy.textContent=p>=threshold?'United Merch reward je odemčený.':`Do odměny ${pointsRemainingVerb(remaining)} ${formatPoints(remaining)}.`;if(journeyMarker)journeyMarker.textContent=String(p);
+    if(journey){journey.setAttribute('aria-valuemax',String(threshold));journey.setAttribute('aria-valuenow',String(p));journey.setAttribute('aria-label',`Postup k United Merch reward: ${formatPoints(p)}; hranice odměny ${formatPoints(threshold)}`);journey.style.setProperty('--points-progress',`${progress}%`)}if(journeyScore)journeyScore.textContent=p;const word=$('[data-points-word]');if(word)word.textContent=pointWord(p);if(journeyCopy)journeyCopy.textContent=p>=threshold?'United Merch reward je odemčený.':`Do odměny ${pointsRemainingVerb(remaining)} ${formatPoints(remaining)}.`;if(journeyMarker)journeyMarker.textContent=String(p);
     const earnStrip=$('[data-earn-strip]');if(earnStrip)earnStrip.innerHTML=[
       ['earn-attendance',pictogram('<path d="M5 12.5 9.5 17 19 7.5"/>'),'+1 / sraz','Účast na srazu','Jednorázové bonusy +3 za 3. a 5. účast'],
       ['earn-showshine',pictogram('<path d="M8 4h8v4a4 4 0 0 1-8 0V4Z"/><path d="M12 12v6m-3 2h6"/>'),'02','Umístění v Show & Shine'],
@@ -92,6 +92,20 @@ export function createMemberPoints({getData,apiRequest,renderOverviewPoints,rend
   }
   function bind(){
     if(bound)return;bound=true;
+    const guide=$('#points-guide');let guideOpener=null;
+    function closeGuide(restore=true){if(!guide?.open)return;guide.close();document.body.classList.remove('points-guide-open');if(restore)guideOpener?.focus({preventScroll:true})}
+    $('[data-points-guide-open]')?.addEventListener('click',event=>{
+      guideOpener=event.currentTarget;
+      $('[data-points-guide-content]',guide).innerHTML=`<div class="points-guide-milestones" aria-label="Odměnové milníky"><b>12</b><span>→</span><b>24</b><span>→</span><b>36</b><span>→ … bodů</span></div><div class="points-guide-steps">${[
+        ['history','history','Doplň účast na minulých United.','Za každý ověřený sraz +1 bod, při 3. a 5. účasti jednorázově +3 body navíc. Účast nejdřív potvrdí United tým.','Moje účasti'],
+        ['community','photos','Nahraj svoje fotky.','Za 5 / 25 / 50 schválených komunitních fotek postupně +1 / +1 / +3 body. Po 50 fotkách další body nepřibývají.','Nahrát fotky'],
+        ['profile','account','Vyplň profil.','+1 bod jednou: kompletní registrace, zkontrolovaná historie, alespoň jedno auto a 5 schválených fotek. Newsletter není podmínkou.','Upravit profil']
+      ].map(([icon,target,title,copy,action])=>`<article><i>${achievementIcon(icon)}</i><div><h3>${title}</h3><p>${copy}</p><button class="member-secondary" type="button" data-points-guide-target="${target}">${action} →</button></div></article>`).join('')}</div><p class="points-guide-note">${achievementIcon('show-shine')} Ověřené Show &amp; Shine: 3. / 2. / 1. místo = +1 / +2 / +3 body. Best of the Best a Nej zvuk výfuku přidávají po +1 bodu.</p>`;
+      closeMemberHelp();guide.showModal();document.body.classList.add('points-guide-open');
+    });
+    guide?.addEventListener('click',event=>{if(event.target===guide||event.target.closest('[data-points-guide-close]'))return closeGuide();const action=event.target.closest('[data-points-guide-target]');if(action){const target=action.dataset.pointsGuideTarget;closeGuide(false);$('.member-sidebar [data-member-section="'+(target==='history'?'club':target)+'"]')?.click();if(target==='history')$('[data-club-tab="history"]')?.click()}});
+    guide?.addEventListener('cancel',event=>{event.preventDefault();closeGuide()});
+    window.addEventListener('member:sectionchange',()=>closeGuide(false));
     document.addEventListener('click',event=>{const button=event.target.closest('[data-member-help]');if(button)openMemberHelp(button)});
     $('[data-member-help-close]')?.addEventListener('click',()=>closeMemberHelp({restoreFocus:true}));
     document.addEventListener('keydown',event=>{if(event.key==='Escape')closeMemberHelp({restoreFocus:true})});

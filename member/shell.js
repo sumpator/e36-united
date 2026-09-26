@@ -2,7 +2,7 @@ import { deriveMemberHeroState } from '../member-portal-state.js?v=20260921-memb
 import { initPortalNavigation } from '../portal-navigation.js?v=20260924-merch2';
 import { $, $$ } from './ui.js?v=20260924-merch2';
 import { memberSection } from './deep-links.js?v=20260924-merch2';
-import { initMobileNavigation } from '../mobile-navigation.js?v=20260925-portal2';
+import { initMobileNavigation } from '../mobile-navigation.js?v=20260926-portal3';
 
 export function createMemberShell({
   renderApp,
@@ -77,13 +77,16 @@ export function createMemberShell({
     const changed=currentSection!==id,wasInitialized=currentSection!==null;
     if(!fromHistory){if(changed&&wasInitialized)window.history.pushState(null,'',url);else window.history.replaceState(window.history.state,'',url)}
     currentSection=id;document.body.dataset.memberSection=id;
+    const titles={reservation:'Registrace',garage:'Garáž',payments:'Platby',club:'United Club',photos:'Moje fotky',merch:'United Merch',account:'Účet'};
+    const greeting=$('[data-member-greeting]'),sectionTitle=$('[data-member-section-title]');
+    if(id!=='live'){if(greeting)greeting.hidden=id!=='overview';if(sectionTitle){sectionTitle.hidden=id==='overview';sectionTitle.textContent=titles[id]||''}}
     mobileNavigation?.sync(id);
     $$('.member-nav-item[data-member-section]').forEach(button=>button.classList.toggle('is-active',button.dataset.memberSection===id));
     $$('[data-main-member-section]').forEach(button=>button.classList.toggle('is-active',button.dataset.mainMemberSection===id));
     $$('[data-member-panel]').forEach(panel=>panel.classList.toggle('is-active',panel.dataset.memberPanel===id));
     window.dispatchEvent(new CustomEvent('member:sectionchange',{detail:{section:id}}));
     memberPortalNavigation?.sync(id,{scroll:false});
-    if(changed)requestAnimationFrame(()=>{const panel=$(`[data-member-panel="${id}"]`);if(!panel)return;const title=panel.querySelector('h2');if(title){title.tabIndex=-1;title.focus({preventScroll:true})}if(wasInitialized)panel.scrollIntoView({block:'start',behavior:'instant'})});return true;
+    if(changed)requestAnimationFrame(()=>{const panel=$(`[data-member-panel="${id}"]`);if(!panel)return;const title=id==='overview'?panel.querySelector('h2'):$('[data-member-page-title]');if(title){title.tabIndex=-1;title.focus({preventScroll:true})}if(wasInitialized)(id==='overview'?panel:$('[data-member-hero]')).scrollIntoView({block:'start',behavior:'instant'})});return true;
   }
   window.addEventListener('popstate',()=>{if(!history.state?.unitedMobileMenu&&!document.querySelector('.united-mobile-menu[open]'))openSection(new URL(location.href).searchParams.get('section')||'overview',{fromHistory:true})});
   function focusReservationEntry(){

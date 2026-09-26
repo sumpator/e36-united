@@ -44,8 +44,8 @@ test('member navigation, milestones, account QR and compact layouts',async({page
  const errors=await setup(page,{authenticated:true,member:{qrPayload:'E36U1:'+'a'.repeat(48)},clubPayload:{points:{available:24,lifetime:24}},cars:[{id:'car-001',nickname:'Estoril',model:'328i',body:'Coupé',primary:true,photos:[{id:'photo-1'}]}]});
  await page.setViewportSize({width:1440,height:1000});await page.goto('/member.html?section=club');
  await expect(page.locator('[data-club-anchor=points]')).toBeVisible();await expect(page.locator('[data-reward-name]')).toContainText('10 %');
- await expect(page.locator('.reward-ledger-note')).toContainText('nejsou počet nevyčerpaných');await capture(page,'club-desktop');
- await expect(page.locator('.reward-achieved')).toBeVisible();await expect(page.locator('[data-reward-progress]')).toContainText('2 dosažených');
+ await expect(page.locator('.reward-ledger-note')).toHaveCount(0);await capture(page,'club-desktop');
+ await expect(page.locator('.reward-achieved')).toHaveCount(0);await expect(page.locator('[data-reward-progress]')).toContainText('Do další odměny');
  await page.locator('[data-earn-strip]').scrollIntoViewIfNeeded();await capture(page,'club-activities-desktop');
  await page.locator('[data-club-tab=history]').click();await expect(page.locator('[data-history-grid]')).toBeVisible();await page.locator('[data-club-tab=achievements]').click();await expect(page.locator('[data-achievement-catalog]')).toBeVisible();
  await page.setViewportSize({width:1366,height:768});await page.locator('.member-sidebar [data-member-section=overview]').click();await expect(page.locator('[data-member-hero]')).toHaveJSProperty('offsetHeight',161);await page.evaluate(()=>scrollTo({top:0,behavior:'instant'}));await capture(page,'overview-notebook','dark');

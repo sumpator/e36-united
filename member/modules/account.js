@@ -34,9 +34,9 @@ export function createMemberAccount({
     window.addEventListener('popstate',()=>{if(dialog?.open&&!history.state?.accountQr)finishQr()});
     $('[data-account-form]')?.addEventListener('submit',async event=>{
       event.preventDefault();const currentUser=getCurrentUser();if(!currentUser)return toast('Nejdřív se přihlas.');
-      const form=event.currentTarget,button=form.querySelector('button[type="submit"]'),fd=new FormData(form);setButtonBusy(button,true,'Ukládám profil…');
-      try{const payload=await apiRequest('/api/bootstrap',{method:'POST',body:{name:String(fd.get('name')||'').trim(),nickname:String(fd.get('nickname')||'').trim(),phone:String(fd.get('phone')||'').trim(),hideOnClub:fd.get('hideOnClub')==='on'}});setProfile(normalizeMember(payload,getCurrentUser()));await refreshClub();renderProfile();renderAccount();renderPoints();renderAchievements();toast('Profil byl uložen.')}
-      catch(error){console.error('Member profile update failed',error);toast(formatApiError(error))}
+      const form=event.currentTarget,button=form.querySelector('button[type="submit"]'),fd=new FormData(form);const status=$('[data-account-save-status]',form);if(status)status.textContent='Ukládám…';setButtonBusy(button,true,'Ukládám profil…');
+      try{const payload=await apiRequest('/api/bootstrap',{method:'POST',body:{name:String(fd.get('name')||'').trim(),nickname:String(fd.get('nickname')||'').trim(),phone:String(fd.get('phone')||'').trim(),hideOnClub:fd.get('hideOnClub')==='on'}});setProfile(normalizeMember(payload,getCurrentUser()));await refreshClub();renderProfile();renderAccount();renderPoints();renderAchievements();if(status)status.textContent='Profil byl uložen.'}
+      catch(error){console.error('Member profile update failed',error);if(status)status.textContent=formatApiError(error)}
       finally{setButtonBusy(button,false)}
     });
   }

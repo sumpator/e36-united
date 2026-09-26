@@ -1,11 +1,11 @@
 import { firebaseConfig, portalConfig } from './firebase-config.js?v=20260924-merch2';
-import {initShop} from './merch/shop.js?v=20260924-workspace1';
+import {initShop} from './merch/shop.js?v=20260926-portal3';
+import {rewardProgress,pointWord} from './member/reward-progress.js?v=20260926-portal3';
 import { initUnitedAuth } from './united-auth.js?v=20260825-phase-a1';
 
 export function normalizeMemberBenefit(club={}){
-  const available=Math.max(0,Number(club.points?.available||0));
-  const threshold=Math.max(1,Number(club.rewardThreshold||12));
-  return {available,threshold,meter:Math.min(threshold,available),remaining:Math.max(0,threshold-available),rating:club.rating?.name||'316i'};
+  const cycle=rewardProgress(club.points?.available);
+  return {...cycle,available:cycle.total,threshold:12,meter:cycle.cycle};
 }
 
 (() => {
@@ -28,10 +28,9 @@ if(memberBenefit){
     try{
       const progress=normalizeMemberBenefit(await loadUnitedClub(user));if(generation!==benefitRequestGeneration)return;
       memberBenefit.dataset.benefitState='member';memberBenefit.removeAttribute('aria-busy');setVisible(memberState);
-      qs('[data-benefit-points]',memberState).textContent=progress.available;
+      qs('[data-benefit-points]',memberState).textContent=progress.available;qs('[data-benefit-word]',memberState).textContent=pointWord(progress.available);
       const progressBar=qs('[data-benefit-progress]',memberState);progressBar.setAttribute('aria-valuemax',String(progress.threshold));progressBar.setAttribute('aria-valuenow',String(progress.meter));progressBar.querySelector('i').style.width=`${Math.min(100,progress.meter/progress.threshold*100)}%`;
-    qs('[data-benefit-next]',memberState).textContent=progress.remaining?`Ještě ${progress.remaining} ${progress.remaining===1?'bod':'bodů'} do United Merch odměny.`:'United Merch odměna je odemčená.';
-      qs('[data-benefit-perk]',memberState).textContent=progress.remaining?'United Member':'United Merch odměna';
+    qs('[data-benefit-next]',memberState).textContent=`Do další odměny: ${progress.remaining} ${pointWord(progress.remaining)}`;
     }catch(error){if(generation===benefitRequestGeneration){renderError();console.debug('United member benefit could not be loaded.',error)}}
   };
   renderLoading();
