@@ -102,8 +102,8 @@ export function createMemberShell({
   function renderMemberHero(){
     const data=getData(),profile=data.profile||{},nickname=profile.nickname||profile.name?.split(' ')[0]||'Driver';
     const nicknameElement=$('[data-member-nickname]');if(nicknameElement)nicknameElement.textContent=nickname;
-    const hero=$('[data-member-hero]'),media=$('[data-member-hero-media]'),carCopy=$('[data-member-hero-car]'),cta=$('[data-member-hero-cta]'),sinceCopy=$('[data-member-hero-since]');if(!hero||!media||!carCopy||!cta)return;
-    const view=deriveMemberHeroState({cars:data.cars,memberSince:getMemberSince()}),car=view.car,attendedCopy=$('[data-member-hero-attended]');if(sinceCopy)sinceCopy.textContent=`UNITED OD ${view.since||'—'}`;if(attendedCopy)attendedCopy.textContent=`${getAttended()}× UNITED`;
+    const hero=$('[data-member-hero]'),media=$('[data-member-hero-media]'),carCopy=$('[data-member-hero-car]'),cta=$('[data-member-hero-cta]');if(!hero||!media||!carCopy||!cta)return;
+    const view=deriveMemberHeroState({cars:data.cars,memberSince:getMemberSince()}),car=view.car;
     media.replaceChildren();memberHeroPhotoId='';
     hero.dataset.heroState=view.state;carCopy.textContent=view.carText;cta.textContent=view.cta;cta.hidden=!view.cta;if(!car||!view.photoId)return;
     const photoId=view.photoId;memberHeroPhotoId=photoId;

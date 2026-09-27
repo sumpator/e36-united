@@ -15,7 +15,7 @@
 <link href="member/reliability.css?v=20260923-theme2" rel="stylesheet"/>
 <link href="mobile-feedback.css?v=20260923-theme2" rel="stylesheet"/>
 <link href="member/live.css?v=20260923-theme2" rel="stylesheet"/>
-<link rel="stylesheet" href="appearance.css?v=20260923-theme2"/><link rel="stylesheet" href="portal-workspace.css?v=20260924-workspace1"/><link rel="stylesheet" href="portal-next.css?v=20260926-portal3"/></head>
+<link rel="stylesheet" href="appearance.css?v=20260923-theme2"/><link rel="stylesheet" href="portal-workspace.css?v=20260924-workspace1"/><link rel="stylesheet" href="portal-next.css?v=20260926-portal3"/><link rel="stylesheet" href="ux-refinements.css?v=20260927-ux2"/></head>
 <body class="member-page">
 <header class="site-header scrolled member-header">
 <div class="container nav">
@@ -74,7 +74,7 @@
 <div class="member-logged-hero" data-member-hero="" data-hero-state="no-car">
 <div aria-hidden="true" class="member-logged-hero-bg" data-member-hero-media=""></div><div aria-hidden="true" class="member-logged-hero-shade"></div>
 <div class="container member-logged-hero-inner">
-<div class="member-logged-copy"><span class="member-kicker">UNITED MEMBER</span><h1 data-member-page-title tabindex="-1"><span data-member-greeting>Ahoj, <span data-member-nickname="">Driver</span>.</span><span data-member-section-title hidden></span></h1><p class="member-hero-car" data-member-hero-car="">Tvoje E36 sem patří.</p><div class="member-hero-meta"><span data-member-hero-since="">UNITED OD —</span><span data-member-hero-attended="">0× UNITED</span></div><button class="member-hero-cta" data-member-hero-cta="" type="button">Přidat první auto →</button></div>
+<div class="member-logged-copy"><span class="member-kicker">UNITED MEMBER</span><h1 data-member-page-title tabindex="-1"><span data-member-greeting>Ahoj, <span data-member-nickname="">Driver</span>.</span><span data-member-section-title hidden></span></h1><p class="member-hero-car" data-member-hero-car="">Tvoje E36 sem patří.</p><button class="member-hero-cta" data-member-hero-cta="" type="button">Přidat první auto →</button></div>
 </div>
 </div>
 <div class="container member-shell">
@@ -89,7 +89,7 @@
 <button class="member-nav-item" data-member-section="club" data-portal-target="club"><span>05</span><b>United Club</b></button>
 <button class="member-nav-item" data-member-section="photos" data-portal-target="photos"><span>06</span><b>Moje fotky</b></button>
 <button class="member-nav-item" data-member-section="account" data-portal-target="account"><span>07</span><b>Účet</b></button>
-<button class="member-nav-item member-nav-shop" data-member-section="merch" data-portal-target="merch" type="button"><b>United Merch</b></button>
+<button class="member-nav-item member-nav-shop" data-member-section="merch" data-portal-target="merch" type="button"><span aria-hidden="true">08</span><b>United Merch</b></button>
 <button class="member-nav-item member-nav-live" data-member-section="live" data-portal-target="live"><span aria-hidden="true">●</span><b class="member-nav-label"><span class="member-nav-live-title"><strong>UNITED LIVE</strong><i aria-hidden="true" class="member-live-indicator">LIVE</i></span><small data-live-nav-copy>Načítám stav…</small></b></button>
 </aside>
 </div>
@@ -99,11 +99,11 @@
 <section class="member-section is-active" data-member-panel="overview">
 <div data-merch-overview hidden></div>
 <article aria-label="United Member Card" class="member-card">
-<header class="member-card-identity"><small>UNITED MEMBER</small><strong data-summary-name="">United Member</strong><div class="member-card-meta"><span class="member-card-code" data-summary-member-code="">EU036</span></div></header>
+<header class="member-card-identity"><small>UNITED MEMBER</small><div class="member-identity-name"><strong data-summary-name="">United Member</strong><span class="member-profile-complete" data-profile-complete hidden>Profil kompletní ✓</span></div><div class="member-card-meta"><span class="member-card-code" data-summary-member-code="">EU036</span></div></header>
 <button aria-controls="member-card-help" aria-expanded="false" class="member-card-stat" data-member-help="since" type="button"><small>UNITED OD <i aria-hidden="true">i</i></small><b data-member-since="">—</b></button>
 <button aria-controls="member-card-help" aria-expanded="false" class="member-card-stat" data-member-help="verified" type="button"><small>OVĚŘENÉ UNITED <i aria-hidden="true">i</i></small><b><span data-attendance-count="">0</span>× UNITED</b></button>
 <button aria-controls="member-card-help" aria-expanded="false" class="member-card-stat member-card-stat--points" data-member-help="points" type="button"><small>UNITED POINTS <i aria-hidden="true">i</i></small><span class="member-card-points"><b data-overview-points="">0</b><em>bodů</em></span><span aria-hidden="true" class="member-card-points-track" title="Hranice konkrétní odměny: 12 bodů"><i data-overview-points-fill=""></i></span></button>
-<footer class="member-card-achievements"><span class="member-card-achievements-label">ACHIEVEMENTS</span><div class="featured-achievements" data-featured-achievements=""><span class="featured-achievement-empty">První Achievement čeká na odemčení.</span></div><span class="member-profile-complete" data-profile-complete hidden>Profil kompletní ✓</span></footer>
+<footer class="member-card-achievements"><span class="member-card-achievements-label">ACHIEVEMENTS</span><div class="featured-achievements" data-featured-achievements=""><span class="featured-achievement-empty">První Achievement čeká na odemčení.</span></div></footer>
 </article>
 <button class="overview-reservation-status is-status-none" data-jump="reservation" data-reservation-overview-card="" hidden="" type="button">
 <span class="overview-reservation-meta"><small data-reservation-overview-event="">UNITED 2026</small><span>AKTUÁLNÍ REGISTRACE</span></span>
@@ -124,7 +124,7 @@
 <section class="member-section" data-member-panel="live" hidden></section>
 <section class="member-section" data-member-panel="merch"><div class="member-section-head"><div><span class="member-kicker">TVOJE KOLEKCE UNITED</span></div><a class="member-primary member-primary--compact" href="merch.html">Prohlédnout nabídku →</a></div><div class="portal-tabs" role="group" aria-label="Objednávky"><button type="button" data-merch-filter="active" aria-pressed="true"><i aria-hidden="true">♧</i> Aktivní objednávky</button><button type="button" data-merch-filter="history" aria-pressed="false"><i aria-hidden="true">◷</i> Historie</button></div><div data-merch-orders></div><div class="merch-actions" data-merch-pagination hidden><button class="member-secondary" type="button" data-merch-prev>← Předchozí</button><button class="member-secondary" type="button" data-merch-next>Další →</button></div><div data-merch-detail hidden></div></section>
 <section class="member-section" data-member-panel="reservation" data-reservation-section="">
-<div class="member-section-head"><div><span class="member-kicker">UNITED 2026</span><span data-reservation-section-entry tabindex="-1" class="member-sr-only">Registrace</span></div><span class="member-chip">ÚČAST &amp; UBYTOVÁNÍ</span></div>
+<span data-reservation-section-entry tabindex="-1" class="member-sr-only">Registrace</span>
 <aside aria-live="polite" class="planner-handoff-banner" data-planner-handoff="" hidden="">
 <div class="planner-handoff-head"><span>WEEKEND PLANNER</span><h3 data-planner-handoff-title="">Výběr z Weekend Planneru máme.</h3><p data-planner-handoff-copy="">Příjezd, ubytování a posádku jsme přenesli. Zkontroluj detaily a registraci odešli.</p></div>
 <div class="planner-handoff-recap"><small>Výběr k ověření</small><div data-planner-handoff-recap=""></div></div>
@@ -189,7 +189,7 @@
 <div class="club-points-main"><div class="portal-club-score"><strong><span data-points-journey-score>0</span> <span data-points-word>bodů</span></strong><span class="member-kicker">UNITED POINTS</span></div>
 <div data-reward-progress></div></div>
 <div class="points-reward-state portal-benefit-card" data-points-reward-state><img src="assets/images/merch/polo-navy-card.webp" alt="United U polo"><div><span class="member-kicker">ČLENSKÁ VÝHODA</span><h3 data-reward-name>Výhoda v Merchi</h3><p data-reward-terms>Načítám podmínky…</p><strong data-reward-remaining></strong><a class="member-secondary" href="merch.html">Prohlédnout Merch →</a></div></div></div>
-<div class="earn-strip-head"><button aria-controls="points-guide" class="member-secondary points-guide-trigger" data-points-guide-open type="button"><span aria-hidden="true">✦</span> Jak body fungují <span aria-hidden="true">→</span></button></div>
+<div class="earn-strip-head"><button aria-controls="points-guide" class="member-secondary points-guide-trigger" data-points-guide-open type="button"><span aria-hidden="true">✦</span> Jak získat body? <span aria-hidden="true">→</span></button></div>
 <div class="earn-strip-head"><h3>Jak získáš body</h3><small>Ověřené aktivity a jejich podmínky</small></div>
 <section aria-label="Jak získáš United Points" class="earn-strip" data-earn-strip=""></section>
 </article>
@@ -201,8 +201,9 @@
 <div><span class="member-kicker">MEMBER PHOTOS</span><p>Nahraj svoje fotky z United. Ve veřejné galerii se objeví až po schválení United týmem.</p></div>
 <span class="member-chip">UNITED · SCHVALOVÁNÍ</span>
 </div>
+<div class="member-photo-upload-toolbar"><span>Fotografie z tvých United</span><button class="member-primary member-primary--compact" type="button" data-member-photo-toggle aria-expanded="false" aria-controls="member-photo-editor">Nahrát fotky <span aria-hidden="true">＋</span></button></div>
 <div class="member-photo-upload-grid">
-<form class="member-photo-upload" data-member-gallery-form="">
+<form class="member-photo-upload" id="member-photo-editor" data-member-gallery-form="" hidden>
 <label class="member-photo-dropzone" data-member-photo-dropzone="">
 <input accept="image/jpeg,image/png,image/webp" class="member-photo-input" data-member-photo-input="" multiple="" name="photos" required="" type="file"/>
 <span aria-hidden="true" class="member-photo-dropzone-icon">↥</span>
@@ -276,5 +277,5 @@
 <div class="member-gallery-lightbox" data-member-gallery-lightbox="" hidden=""><div class="member-gallery-lightbox-backdrop" data-member-gallery-close=""></div><div aria-label="Náhled fotografie" aria-modal="true" class="member-gallery-lightbox-dialog" role="dialog"><button aria-label="Zavřít náhled" class="member-gallery-lightbox-close" data-member-gallery-close="" type="button">×</button><button aria-label="Předchozí fotografie" class="member-gallery-lightbox-nav member-gallery-lightbox-prev" data-member-gallery-prev="" type="button">←</button><figure><img alt="" data-member-gallery-lightbox-image=""/><figcaption data-member-gallery-lightbox-caption=""></figcaption></figure><button aria-label="Další fotografie" class="member-gallery-lightbox-nav member-gallery-lightbox-next" data-member-gallery-next="" type="button">→</button></div></div>
 <div aria-live="polite" class="member-toast" data-toast="" role="status"></div>
 <script src="showshine-data.js?v=20260824"></script>
-<script src="member.js?v=20260926-portal3" type="module"></script>
+<script src="member.js?v=20260927-ux2" type="module"></script>
 </body></html>

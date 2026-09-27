@@ -1,3 +1,4 @@
+import {initPointsGuide} from './member/points-guide.js?v=20260927-ux2';
 import { firebaseConfig, portalConfig } from './firebase-config.js?v=20260924-merch2';
 import {initShop} from './merch/shop.js?v=20260926-portal3';
 import {rewardProgress,pointWord} from './member/reward-progress.js?v=20260926-portal3';
@@ -12,6 +13,7 @@ export function normalizeMemberBenefit(club={}){
 if(typeof document==='undefined')return;
 const qs=(s,r=document)=>r.querySelector(s), qsa=(s,r=document)=>[...r.querySelectorAll(s)];
 const shop=initShop();
+initPointsGuide();
 
 const memberBenefit=qs('[data-member-merch-benefit]');
 if(memberBenefit){

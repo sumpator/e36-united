@@ -1,8 +1,8 @@
 import { $, $$, esc } from '../../ui.js?v=20260902-phase3';
 import {rewardProgress} from '../../reward-progress.js?v=20260926-portal3';
 
-export const pictogram=body=>`<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${body}</svg>`;
-export const achievementIcon=type=>type==='show-shine'?pictogram('<path d="M8 4h8v4a4 4 0 0 1-8 0V4Z"/><path d="M12 12v6m-3 2h6"/>'):type==='community'?pictogram('<rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 15-5-4L5 19"/>'):type==='history'?pictogram('<circle cx="12" cy="12" r="8"/><path d="M12 7v5l3 2"/>'):pictogram('<path d="M12 3 19 6v5c0 4.5-2.8 8-7 10-4.2-2-7-5.5-7-10V6l7-3Z"/><path d="m9 12 2 2 4-5"/>');
+import {initPointsGuide,pictogram,achievementIcon} from '../../points-guide.js?v=20260927-ux2';
+export {pictogram,achievementIcon};
 
 export function createMemberPoints({getData,apiRequest,renderOverviewPoints,renderFeaturedAchievements}){
   let rewardSettings=null,settingsLoading=false;
@@ -92,20 +92,7 @@ export function createMemberPoints({getData,apiRequest,renderOverviewPoints,rend
   }
   function bind(){
     if(bound)return;bound=true;
-    const guide=$('#points-guide');let guideOpener=null;
-    function closeGuide(restore=true){if(!guide?.open)return;guide.close();document.body.classList.remove('points-guide-open');if(restore)guideOpener?.focus({preventScroll:true})}
-    $('[data-points-guide-open]')?.addEventListener('click',event=>{
-      guideOpener=event.currentTarget;
-      $('[data-points-guide-content]',guide).innerHTML=`<div class="points-guide-milestones" aria-label="Odměnové milníky"><b>12</b><span>→</span><b>24</b><span>→</span><b>36</b><span>→ … bodů</span></div><div class="points-guide-steps">${[
-        ['history','history','Doplň účast na minulých United.','Za každý ověřený sraz +1 bod, při 3. a 5. účasti jednorázově +3 body navíc. Účast nejdřív potvrdí United tým.','Moje účasti'],
-        ['community','photos','Nahraj svoje fotky.','Za 5 / 25 / 50 schválených komunitních fotek postupně +1 / +1 / +3 body. Po 50 fotkách další body nepřibývají.','Nahrát fotky'],
-        ['profile','account','Vyplň profil.','+1 bod jednou: kompletní registrace, zkontrolovaná historie, alespoň jedno auto a 5 schválených fotek. Newsletter není podmínkou.','Upravit profil']
-      ].map(([icon,target,title,copy,action])=>`<article><i>${achievementIcon(icon)}</i><div><h3>${title}</h3><p>${copy}</p><button class="member-secondary" type="button" data-points-guide-target="${target}">${action} →</button></div></article>`).join('')}</div><p class="points-guide-note">${achievementIcon('show-shine')} Ověřené Show &amp; Shine: 3. / 2. / 1. místo = +1 / +2 / +3 body. Best of the Best a Nej zvuk výfuku přidávají po +1 bodu.</p>`;
-      closeMemberHelp();guide.showModal();document.body.classList.add('points-guide-open');
-    });
-    guide?.addEventListener('click',event=>{if(event.target===guide||event.target.closest('[data-points-guide-close]'))return closeGuide();const action=event.target.closest('[data-points-guide-target]');if(action){const target=action.dataset.pointsGuideTarget;closeGuide(false);$('.member-sidebar [data-member-section="'+(target==='history'?'club':target)+'"]')?.click();if(target==='history')$('[data-club-tab="history"]')?.click()}});
-    guide?.addEventListener('cancel',event=>{event.preventDefault();closeGuide()});
-    window.addEventListener('member:sectionchange',()=>closeGuide(false));
+    initPointsGuide({beforeOpen:closeMemberHelp,onNavigate:target=>{ $('.member-sidebar [data-member-section="'+(target==='history'?'club':target)+'"]')?.click();if(target==='history')$('[data-club-tab="history"]')?.click() }});
     document.addEventListener('click',event=>{const button=event.target.closest('[data-member-help]');if(button)openMemberHelp(button)});
     $('[data-member-help-close]')?.addEventListener('click',()=>closeMemberHelp({restoreFocus:true}));
     document.addEventListener('keydown',event=>{if(event.key==='Escape')closeMemberHelp({restoreFocus:true})});

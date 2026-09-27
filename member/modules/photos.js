@@ -8,6 +8,9 @@ export function createMemberPhotos({apiRequest,apiRequestForm,apiRequestBlob,get
   let memberGalleryObserver=null,activeMemberGalleryIndex=-1;
   const memberGalleryForm=$('[data-member-gallery-form]'),memberPhotoInput=$('[data-member-photo-input]'),memberPhotoDropzone=$('[data-member-photo-dropzone]');
   let memberPhotoPreview=null,memberPhotoSelection=[],bound=false;
+  const uploadToggle=$('[data-member-photo-toggle]');
+  function setUploadOpen(open){if(!memberGalleryForm)return;memberGalleryForm.hidden=!open;uploadToggle?.setAttribute('aria-expanded',String(open));if(uploadToggle)uploadToggle.innerHTML=open?'Sbalit formulář <span aria-hidden="true">−</span>':'Nahrát fotky <span aria-hidden="true">＋</span>'}
+  function syncPhotoInput(){if(!memberPhotoInput)return;const transfer=new DataTransfer();memberPhotoSelection.forEach(file=>transfer.items.add(file));memberPhotoInput.files=transfer.files;}
 
   function clearMemberGalleryObjectUrls(){memberGalleryRequestGeneration+=1;for(const url of memberGalleryObjectUrls.values())URL.revokeObjectURL(url);memberGalleryObjectUrls.clear();memberGalleryObjectUrlRequests.clear()}
   async function getPrivateMemberGalleryPhotoUrl(photoId){
@@ -68,7 +71,7 @@ export function createMemberPhotos({apiRequest,apiRequestForm,apiRequestBlob,get
 
   function renderMemberPhotoSelection(){
     const panel=$('[data-member-photo-selection]'),count=$('[data-member-photo-count]'),names=$('[data-member-photo-names]');if(!panel||!count||!names)return;
-    const total=memberPhotoSelection.length;panel.hidden=!total;memberPhotoPreview?.render(memberPhotoSelection);if(!total){count.textContent='';names.textContent='';return}
+    const total=memberPhotoSelection.length;panel.hidden=!total;memberPhotoPreview?.render(memberPhotoSelection);$$('[data-member-photo-previews] figure').forEach((figure,index)=>{const remove=document.createElement('button');remove.type='button';remove.className='member-photo-remove';remove.textContent='Odebrat';remove.setAttribute('aria-label',`Odebrat ${memberPhotoSelection[index].name}`);remove.addEventListener('click',()=>{memberPhotoSelection.splice(index,1);syncPhotoInput();renderMemberPhotoSelection();$('[data-member-photo-previews] button')?.focus()});figure.append(remove)});if(!total){count.textContent='';names.textContent='';return}
     const noun=total===1?'fotka připravená':total<=4?'fotky připravené':'fotek připravených';count.textContent=`${total} ${noun} k nahrání`;
     const visible=memberPhotoSelection.slice(0,2).map(file=>file.name),remaining=total-visible.length;names.textContent=`${visible.join(' · ')}${remaining?` · +${remaining} další`:''}`;
   }
@@ -82,7 +85,10 @@ export function createMemberPhotos({apiRequest,apiRequestForm,apiRequestBlob,get
   function clearMemberPhotoSelection(){memberPhotoSelection=[];if(memberPhotoInput)memberPhotoInput.value='';renderMemberPhotoSelection()}
 
   function bind(){
-    if(bound)return;bound=true;memberPhotoPreview=createImagePreviewController($('[data-member-photo-previews]'));
+    if(bound)return;bound=true;
+    uploadToggle?.addEventListener('click',()=>setUploadOpen(memberGalleryForm.hidden));
+    window.addEventListener('beforeunload',event=>{if(memberPhotoSelection.length||memberGalleryForm?.elements.caption?.value.trim()){event.preventDefault();event.returnValue=''}});
+    memberPhotoPreview=createImagePreviewController($('[data-member-photo-previews]'));
     $$('[data-member-gallery-close]').forEach(button=>button.addEventListener('click',closeMemberGalleryLightbox));
     $('[data-member-gallery-prev]')?.addEventListener('click',()=>stepMemberGalleryLightbox(-1));
     $('[data-member-gallery-next]')?.addEventListener('click',()=>stepMemberGalleryLightbox(1));
