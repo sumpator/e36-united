@@ -143,6 +143,7 @@ export async function routeRequest({ request, env, url, origin, ctx }) {
       if(liveCarCreate&&request.method==='POST')return createCompetitionCar(request,env,auth,decodeURIComponent(liveCarCreate[1]),decodeURIComponent(liveCarCreate[2]),origin);
       const liveCarMedia=url.pathname.match(/^\/api\/admin\/events\/([^/]+)\/live\/cars\/([^/]+)\/media$/);
       if(liveCarMedia&&request.method==='GET')return competitionCarMedia(env,decodeURIComponent(liveCarMedia[1]),decodeURIComponent(liveCarMedia[2]),origin);
+      if(liveCarMedia&&request.method==='POST')return saveCompetitionPhoto(request,env,auth,decodeURIComponent(liveCarMedia[1]),decodeURIComponent(liveCarMedia[2]),origin);
       const liveEntries=url.pathname.match(/^\/api\/admin\/events\/([^/]+)\/live\/entries$/);
       if(liveEntries&&request.method==='POST')return createLiveEntry(request,env,auth,decodeURIComponent(liveEntries[1]),origin);
       const liveStart=url.pathname.match(/^\/api\/admin\/events\/([^/]+)\/live\/start$/);
@@ -361,4 +362,4 @@ export async function routeRequest({ request, env, url, origin, ctx }) {
 
   return json({ ok: true, service: "E36 United API" }, 200, origin);
 }
-import { closeLiveEntry } from './domains/live.js';
+import { closeLiveEntry, saveCompetitionPhoto } from './domains/live.js';
