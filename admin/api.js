@@ -9,4 +9,4 @@ const client=createAdminApiClient({baseUrl:apiBaseUrl,
 });
 export const apiRequest=(path,options)=>client.request(path,options);
 export const apiMedia=(path,options={})=>client.request(path,{...options,consume:'blob'});
-export function apiUpload(path,file,options={}){const body=new FormData();body.append('file',file);return client.request(path,{...options,method:options.method||'PUT',body})}
+export function apiUpload(path,file,options={}){const {uploadId,...requestOptions}=options;const body=new FormData();body.append('file',file);if(uploadId)body.append('uploadId',uploadId);return client.request(path,{...requestOptions,method:options.method||'PUT',body})}

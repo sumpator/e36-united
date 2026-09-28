@@ -11,7 +11,7 @@ export function validatePlannerDraft(candidate,{now=Date.now()}={}){
   if(!UUID_PATTERN.test(draftId)||!Number.isFinite(createdAt)||!Number.isFinite(expiresAt)||createdAt>now+PLANNER_CLOCK_SKEW_MS||expiresAt<=now||expiresAt<=createdAt||now-createdAt>HANDOFF_LIFETIME||expiresAt-createdAt>HANDOFF_LIFETIME)return null;
   if(!Number.isInteger(eventYear)||eventYear<2000||eventYear>2100)return null;
   if(!attendanceByArrival[candidate.arrival]||candidate.attendanceType!==attendanceByArrival[candidate.arrival])return null;
-  if(!['Chatka','Stan','Bez ubytování'].includes(candidate.accommodation)||!Number.isInteger(crew)||crew<1||crew>MAX_RESERVATION_CREW||!Number.isInteger(units)||units<0||units>crew||!['Ano','Ne','Možná'].includes(candidate.showShine))return null;
+  if(!['Chatka','Stan','Apartmán','Bez ubytování'].includes(candidate.accommodation)||!Number.isInteger(crew)||crew<1||crew>MAX_RESERVATION_CREW||!Number.isInteger(units)||units<0||units>crew||!['Ano','Ne','Možná'].includes(candidate.showShine))return null;
   if((candidate.arrival==='Jen na otočku'||candidate.accommodation==='Bez ubytování')&&units!==0)return null;
   if(candidate.arrival!=='Jen na otočku'&&candidate.accommodation!=='Bez ubytování'&&units<1)return null;
   const eventId=candidate.eventId==null?null:String(candidate.eventId);if(eventId!==null&&!ID_PATTERN.test(eventId))return null;

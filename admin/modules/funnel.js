@@ -1,4 +1,4 @@
-import { apiRequest } from '../api.js?v=20260924-merch2';
+import { apiRequest } from '../api.js?v=20260928-flow1';
 import { adminState } from '../state.js?v=20260924-merch2';
 import { $, escapeHtml as esc, formatDate, numeric } from '../ui.js?v=20260924-merch2';
 

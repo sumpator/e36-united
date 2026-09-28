@@ -1,6 +1,6 @@
-import { canonicalMemberLink } from '../../member-detail.js?v=20260924-workspace1';
-import {renderListPagination} from '../../lists.js?v=20260924-workspace1';
-import { apiRequest } from '../../api.js?v=20260924-merch2';
+import { canonicalMemberLink } from '../../member-detail.js?v=20260928-flow1';
+import {renderListPagination} from '../../lists.js?v=20260928-flow1';
+import { apiRequest } from '../../api.js?v=20260928-flow1';
 import { $, escapeHtml, numeric } from '../../ui.js?v=20260924-merch2';
 
 let contactPage=1,contactSequence=0;

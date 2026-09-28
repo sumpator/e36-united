@@ -1,6 +1,6 @@
 export const IMAGE_ERROR_MESSAGE = 'Fotku se nepodařilo zpracovat. Zkus jinou fotku nebo ji nejdřív ulož jako JPG.';
 
-export async function compressImageBlob(file, max = 1800, quality = .82, { timeoutMs = 15_000 } = {}) {
+export async function compressImageBlob(file, max = 1800, quality = .82, { timeoutMs = 15_000, maxInputBytes = 12 * 1024 * 1024, maxPixels = 80_000_000, maxEdge = 16_384 } = {}) {
   return new Promise((resolve, reject) => {
     let image, reader, timer, settled = false;
     const finish = (error, blob) => {
@@ -15,7 +15,7 @@ export async function compressImageBlob(file, max = 1800, quality = .82, { timeo
       else resolve(blob);
     };
     try {
-      if (!file?.size || file.size > 12 * 1024 * 1024) throw new Error('invalid_image_input');
+      if (!file?.size || file.size > maxInputBytes) throw new Error('invalid_image_input');
       image = new Image(); reader = new FileReader();
       timer = setTimeout(() => finish(new Error('image_timeout')), timeoutMs);
       reader.onerror = reader.onabort = () => finish(new Error('image_read_failed'));
@@ -24,6 +24,7 @@ export async function compressImageBlob(file, max = 1800, quality = .82, { timeo
       image.onload = () => {
         try {
           if (!image.width || !image.height) throw new Error('invalid_image_dimensions');
+          if (image.width > maxEdge || image.height > maxEdge || image.width * image.height > maxPixels) throw new Error('unsafe_image_dimensions');
           const scale = Math.min(1, max / Math.max(image.width, image.height));
           const canvas = document.createElement('canvas');
           canvas.width = Math.max(1, Math.round(image.width * scale));

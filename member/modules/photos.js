@@ -1,5 +1,4 @@
-import { createImagePreviewController, selectImageFiles } from '../../image-upload.js?v=20260827-garage-photos';
-import { compressImageBlob } from '../media.js?v=20260907-feedback';
+import { createPhotoBatch, renderPhotoBatch } from '../../photo-batch.js?v=20260928-flow1';
 import { $, $$, esc, setButtonBusy, toast } from '../ui.js?v=20260902-phase3';
 
 export function createMemberPhotos({apiRequest,apiRequestForm,apiRequestBlob,getCurrentUser,formatApiError}){
@@ -7,10 +6,10 @@ export function createMemberPhotos({apiRequest,apiRequestForm,apiRequestBlob,get
   const memberGalleryObjectUrls=new Map(),memberGalleryObjectUrlRequests=new Map();
   let memberGalleryObserver=null,activeMemberGalleryIndex=-1;
   const memberGalleryForm=$('[data-member-gallery-form]'),memberPhotoInput=$('[data-member-photo-input]'),memberPhotoDropzone=$('[data-member-photo-dropzone]');
-  let memberPhotoPreview=null,memberPhotoSelection=[],bound=false;
+  let bound=false;
+  const photoBatch=createPhotoBatch({onChange:renderMemberPhotoSelection,onNotice:toast});
   const uploadToggle=$('[data-member-photo-toggle]');
   function setUploadOpen(open){if(!memberGalleryForm)return;memberGalleryForm.hidden=!open;uploadToggle?.setAttribute('aria-expanded',String(open));if(uploadToggle)uploadToggle.innerHTML=open?'Sbalit formulář <span aria-hidden="true">−</span>':'Nahrát fotky <span aria-hidden="true">＋</span>'}
-  function syncPhotoInput(){if(!memberPhotoInput)return;const transfer=new DataTransfer();memberPhotoSelection.forEach(file=>transfer.items.add(file));memberPhotoInput.files=transfer.files;}
 
   function clearMemberGalleryObjectUrls(){memberGalleryRequestGeneration+=1;for(const url of memberGalleryObjectUrls.values())URL.revokeObjectURL(url);memberGalleryObjectUrls.clear();memberGalleryObjectUrlRequests.clear()}
   async function getPrivateMemberGalleryPhotoUrl(photoId){
@@ -38,7 +37,7 @@ export function createMemberPhotos({apiRequest,apiRequestForm,apiRequestBlob,get
     }finally{memberGalleryLoading=false}
   }
   function handleLoadError(){memberGallery=[]}
-  function reset(){clearMemberGalleryObjectUrls();memberGallery=[];memberGalleryHasMore=false}
+  function reset(){clearMemberGalleryObjectUrls();memberGallery=[];memberGalleryHasMore=false;photoBatch.clear()}
 
   function loadMemberGalleryThumbnail(img){
     const id=img.dataset.memberGalleryImage;if(!id||img.dataset.loading)return;img.dataset.loading='true';
@@ -71,24 +70,19 @@ export function createMemberPhotos({apiRequest,apiRequestForm,apiRequestBlob,get
 
   function renderMemberPhotoSelection(){
     const panel=$('[data-member-photo-selection]'),count=$('[data-member-photo-count]'),names=$('[data-member-photo-names]');if(!panel||!count||!names)return;
-    const total=memberPhotoSelection.length;panel.hidden=!total;memberPhotoPreview?.render(memberPhotoSelection);$$('[data-member-photo-previews] figure').forEach((figure,index)=>{const remove=document.createElement('button');remove.type='button';remove.className='member-photo-remove';remove.textContent='Odebrat';remove.setAttribute('aria-label',`Odebrat ${memberPhotoSelection[index].name}`);remove.addEventListener('click',()=>{memberPhotoSelection.splice(index,1);syncPhotoInput();renderMemberPhotoSelection();$('[data-member-photo-previews] button')?.focus()});figure.append(remove)});if(!total){count.textContent='';names.textContent='';return}
-    const noun=total===1?'fotka připravená':total<=4?'fotky připravené':'fotek připravených';count.textContent=`${total} ${noun} k nahrání`;
-    const visible=memberPhotoSelection.slice(0,2).map(file=>file.name),remaining=total-visible.length;names.textContent=`${visible.join(' · ')}${remaining?` · +${remaining} další`:''}`;
+    panel.hidden=!photoBatch.items.length;renderPhotoBatch($('[data-member-photo-previews]'),photoBatch);
+    const saved=photoBatch.items.filter(item=>item.status==='uploaded').length;
+    count.textContent=`Výběr: ${photoBatch.items.length} · uloženo: ${saved}`;names.textContent=photoBatch.pending?'Odesílají se jen dosud neuložené fotografie.':'Všechny fotografie jsou uložené. Stav schválení najdeš v přehledu.';
+    if(memberPhotoInput)memberPhotoInput.disabled=photoBatch.busy;
+    if($('[data-member-photo-clear]'))$('[data-member-photo-clear]').disabled=photoBatch.busy;
   }
-  function selectMemberPhotos(fileList,{notify=true,updateInput=false}={}){
-    const selection=selectImageFiles(fileList,{maxFiles:8});memberPhotoSelection=selection.files;
-    if(notify&&(selection.invalidType||selection.tooLarge))toast(selection.tooLarge?'Každá fotka může mít nejvýše 12 MB.':'Vyber fotky ve formátu JPG, PNG nebo WebP.');
-    else if(notify&&selection.truncated)toast('Najednou můžeš nahrát maximálně 8 fotek.');
-    if(updateInput&&memberPhotoInput){try{const transfer=new DataTransfer();for(const file of memberPhotoSelection)transfer.items.add(file);memberPhotoInput.files=transfer.files}catch(error){console.debug('Dropped photos stay in the upload selection.',error)}}
-    renderMemberPhotoSelection();
-  }
-  function clearMemberPhotoSelection(){memberPhotoSelection=[];if(memberPhotoInput)memberPhotoInput.value='';renderMemberPhotoSelection()}
+  function selectMemberPhotos(files){photoBatch.add(files);if(memberPhotoInput)memberPhotoInput.value=''}
+  function clearMemberPhotoSelection(){if(!photoBatch.busy)photoBatch.clear()}
 
   function bind(){
     if(bound)return;bound=true;
     uploadToggle?.addEventListener('click',()=>setUploadOpen(memberGalleryForm.hidden));
-    window.addEventListener('beforeunload',event=>{if(memberPhotoSelection.length||memberGalleryForm?.elements.caption?.value.trim()){event.preventDefault();event.returnValue=''}});
-    memberPhotoPreview=createImagePreviewController($('[data-member-photo-previews]'));
+    window.addEventListener('beforeunload',event=>{if(photoBatch.pending||memberGalleryForm?.elements.caption?.value.trim()){event.preventDefault();event.returnValue=''}});
     $$('[data-member-gallery-close]').forEach(button=>button.addEventListener('click',closeMemberGalleryLightbox));
     $('[data-member-gallery-prev]')?.addEventListener('click',()=>stepMemberGalleryLightbox(-1));
     $('[data-member-gallery-next]')?.addEventListener('click',()=>stepMemberGalleryLightbox(1));
@@ -103,17 +97,24 @@ export function createMemberPhotos({apiRequest,apiRequestForm,apiRequestBlob,get
     }
     memberGalleryForm?.addEventListener('submit',async event=>{
       event.preventDefault();if(!getCurrentUser())return toast('Nejdřív se přihlas.');
-      const form=event.currentTarget,input=form.elements.photos;if(!memberPhotoSelection.length&&input.files.length)selectMemberPhotos(input.files,{notify:false});
-      const files=[...memberPhotoSelection],caption=String(form.elements.caption?.value||'').trim(),button=form.querySelector('button[type="submit"]');
-      if(!files.length)return toast('Vyber alespoň jednu fotku.');
-      setButtonBusy(button,true,`Nahrávám 0 / ${files.length}…`);
+      if(photoBatch.busy)return;
+      const form=event.currentTarget,caption=String(form.elements.caption?.value||'').trim(),button=form.querySelector('button[type="submit"]'),actor=getCurrentUser()?.uid;
+      if(!photoBatch.pending)return toast('Vyber alespoň jednu dosud neuloženou fotku.');
+      setButtonBusy(button,true,'Nahrávám…');
       try{
-        for(let i=0;i<files.length;i++){
-          button.textContent=`Nahrávám ${i+1} / ${files.length}…`;
-          const blob=await compressImageBlob(files[i],1800,.82),upload=new FormData();upload.append('file',blob,`${files[i].name.replace(/\.[^.]+$/,'')||'united'}.jpg`);upload.append('caption',caption);
-          await apiRequestForm('/api/gallery/submissions',upload);
-        }
-        form.reset();clearMemberPhotoSelection();await loadMemberGallery();toast('Fotky jsou nahrané a čekají na schválení United týmem.');
+        const result=await photoBatch.send(async(blob,item)=>{
+          if(actor!==getCurrentUser()?.uid)throw new Error('Přihlášení se změnilo.');
+          const upload=new FormData();upload.append('file',blob,'united.jpg');upload.append('caption',caption);upload.append('uploadId',item.id);
+          const receipt=await apiRequestForm('/api/gallery/submissions',upload);
+          if(!receipt?.submission?.id)throw new Error('Server nepotvrdil fotografii.');return receipt;
+        },(receipt,selection)=>{
+          if(actor!==getCurrentUser()?.uid)return;
+          const item=receipt.submission;if(!memberGallery.some(photo=>photo.id===item.id))memberGallery.unshift(item);
+          if(!memberGalleryObjectUrls.has(String(item.id)))memberGalleryObjectUrls.set(String(item.id),URL.createObjectURL(selection.blob));
+          renderMemberGallery();
+        });
+        if(!photoBatch.pending)form.elements.caption.value='';
+        toast(result?.failed?'Část fotografií se neodeslala. Opakování odešle pouze neúspěšné.':'Fotky jsou uložené. Schválení se řídí United týmem.');
       }catch(error){console.error('Gallery upload failed',error);toast(error?.status===429?'Dnešní limit nahrávání byl dosažen.':formatApiError(error))}
       finally{setButtonBusy(button,false)}
     });

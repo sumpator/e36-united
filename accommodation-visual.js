@@ -36,9 +36,9 @@ function silhouette(kind) {
 }
 
 export function accommodationFallbackSvg(option = {}, { nights = null } = {}) {
-  const kind = option.kind === 'tent' ? 'tent' : 'cabin';
+  const kind = option.kind === 'apartment' ? 'apartment' : option.kind === 'tent' ? 'tent' : 'cabin';
   const name = escapeXml(safeName(option.name));
-  const type = kind === 'tent' ? 'STAN' : 'CHATKA';
+  const type = kind === 'apartment' ? 'APARTMÁN' : kind === 'tent' ? 'STAN' : 'CHATKA';
   const chips = visualChips(option, nights);
   const chipMarkup = chips.map((chip, index) => {
     const x = 58 + (index % 2) * 230;
@@ -53,7 +53,7 @@ export function accommodationFallbackDataUrl(option = {}, settings = {}) {
 }
 
 export function accommodationImageFallbackSvg(option = {}) {
-  const kind = option.kind === 'tent' ? 'tent' : 'cabin';
+  const kind = option.kind === 'apartment' ? 'apartment' : option.kind === 'tent' ? 'tent' : 'cabin';
   const detail = kind === 'tent'
     ? '<path d="M480 136 652 374H308L480 136Z"/><path d="m480 136 58 238M480 136l-58 238M376 280h208M480 374V274l58 100"/>'
     : '<path d="M286 267 480 139l194 128v151H286V267Z"/><path d="m246 281 234-155 234 155M330 418V293h112v125M502 293h112v84H502z"/><path d="M298 230v-77h63v38"/>';

@@ -1,11 +1,11 @@
-import { accommodationVisualMarkup, bindAccommodationVisualFallbacks } from '../../../accommodation-visual.js?v=20260912-reservation-detail-ux-r1';
+import { accommodationVisualMarkup, bindAccommodationVisualFallbacks } from '../../../accommodation-visual.js?v=20260928-flow1';
 import { accommodationGalleryCue, accommodationPhotos, bindAccommodationGalleryTrigger } from '../../../accommodation-gallery.js?v=20260912-reservation-detail-ux-r1';
-import { MAX_RESERVATION_CREW, newerPlannerDraft, validatePlannerDraft } from '../../../planner-state.js?v=20260827-reservation-limits';
+import { MAX_RESERVATION_CREW, newerPlannerDraft, validatePlannerDraft } from '../../../planner-state.js?v=20260928-flow1';
 import { $, esc, setButtonBusy, toast } from '../../ui.js?v=20260902-phase3';
 import { createReservationPayments, formatCzk } from './payments.js?v=20260912-member-reservation-panels-r1';
-import { normalizeAccommodationOption, normalizeReservation } from './reservation.js?v=20260911-reservation-flow-r1';
+import { normalizeAccommodationOption, normalizeReservation } from './reservation.js?v=20260928-flow1';
 import { isAuthorizationFailure } from '../../refresh.js?v=20260907-feedback';
-import { createMemberPlannerExperience } from './experience.js?v=20260921-member-ux-r2';
+import { createMemberPlannerExperience } from './experience.js?v=20260928-flow1';
 
 const plannerHandoffPrefix='e36UnitedPlannerHandoff:v1:';
 
@@ -209,7 +209,7 @@ export function createMemberPlanner({
   }
 
   function clampReservationNumber(value,min,max,fallback){const number=Math.trunc(Number(value));return Number.isFinite(number)?Math.max(min,Math.min(max,number)):fallback}
-  function memberAccommodationKind(){return sleepSelect?.value==='Chatka'?'cabin':sleepSelect?.value==='Stan'?'tent':null}
+  function memberAccommodationKind(){return sleepSelect?.value==='Apartmán'?'apartment':sleepSelect?.value==='Chatka'?'cabin':sleepSelect?.value==='Stan'?'tent':null}
   function currentApprovedAccommodationOption(){
     const reservation=getData().reservation,snapshot=reservation?.accommodationSnapshot;if(reservation?.status!=='approved'||!snapshot?.optionId)return null;
     const configured=reservationState.accommodationOptions.find(option=>option.id===snapshot.optionId);
@@ -222,7 +222,7 @@ export function createMemberPlanner({
   function currentPreliminaryAccommodationOption(){
     const preferences=preliminary?.status==='active'?preliminary.preferences:null;if(!preferences?.accommodationOptionId)return null;
     const configured=reservationState.accommodationOptions.find(option=>option.id===preferences.accommodationOptionId);if(configured)return configured;
-    return normalizeAccommodationOption({id:preferences.accommodationOptionId,eventId:preliminary.eventId,name:'Dříve vybraná varianta už není dostupná',kind:preferences.accommodation==='Stan'?'tent':'cabin',inventoryMode:'limited',unitsTotal:0,freeUnits:0,capacityPerUnit:Math.max(1,preferences.accommodationUnits||preferences.crew||1),unitPriceCzk:0,active:false,soldOut:true,photos:[]});
+    return normalizeAccommodationOption({id:preferences.accommodationOptionId,eventId:preliminary.eventId,name:'Dříve vybraná varianta už není dostupná',kind:preferences.accommodation==='Apartmán'?'apartment':preferences.accommodation==='Stan'?'tent':'cabin',inventoryMode:'limited',unitsTotal:0,freeUnits:0,capacityPerUnit:Math.max(1,preferences.accommodationUnits||preferences.crew||1),unitPriceCzk:0,active:false,soldOut:true,photos:[]});
   }
   function matchingAccommodationOptions(){
     const kind=memberAccommodationKind(),options=reservationState.accommodationOptions.filter(option=>option.active&&option.kind===kind),current=approvedChangeMode?currentApprovedAccommodationOption():plannerModalMode==='plan'?currentPreliminaryAccommodationOption():null;
@@ -245,7 +245,7 @@ export function createMemberPlanner({
     const prompt=options.length>1?'<option value="">Vyber konkrétní možnost</option>':'';
     accommodationOptionSelect.innerHTML=prompt+options.map(option=>{
       const availability=option.inventoryMode==='unlimited'?'bez omezení':option.soldOut?'VYPRODÁNO':`k dispozici: ${numericValue(option.freeUnits)}`,capacity=numericValue(option.capacityPerUnit),peopleWord=capacity===1?'osoba':capacity<=4?'osoby':'osob';
-      const place=option.kind==='tent'?'jeden stan':'jednu chatku';
+      const place=option.kind==='apartment'?'jeden apartmán':option.kind==='tent'?'jeden stan':'jednu chatku';
       const retainedCurrent=approvedChangeMode&&option.id===current?.id&&!approvedCurrentOptionReleased;
       const requestableSoldOut=option.active&&option.soldOut&&(approvedChangeMode||preliminaryMode());
       const disabled=!retainedCurrent&&(!option.active||(option.soldOut&&!requestableSoldOut));
@@ -269,7 +269,7 @@ export function createMemberPlanner({
     const stored=option.approvedSnapshot,pricingPeople=option.configurationMissing&&stored?stored.peopleCount:people;
     const pricing=option.configurationMissing&&stored?{unitCount:stored.unitCount,nights:stored.nights,baseTotalCzk:stored.baseTotalCzk,personTotalCzk:stored.personTotalCzk,beddingTotalCzk:stored.beddingTotalCzk,cityTaxTotalCzk:stored.cityTaxTotalCzk,totalCzk:stored.totalCzk}:priceAccommodation(option,people),free=option.freeUnits,hasCapacity=option.inventoryMode==='unlimited'||free>=pricing.unitCount;
     accommodationAvailability.classList.toggle('is-warning',option.configurationMissing||!hasCapacity);
-    const place=option.kind==='tent'?'jeden stan':'jednu chatku',capacity=numericValue(option.capacityPerUnit),peopleWord=capacity===1?'osoba':capacity<=4?'osoby':'osob';
+    const place=option.kind==='apartment'?'jeden apartmán':option.kind==='tent'?'jeden stan':'jednu chatku',capacity=numericValue(option.capacityPerUnit),peopleWord=capacity===1?'osoba':capacity<=4?'osoby':'osob';
     const availabilityCopy=option.configurationMissing
       ? 'Původní schválená varianta. Aktuální dostupnost nelze ověřit; při změně pobytu vyber možnost ze současné nabídky.'
       : option.inventoryMode==='unlimited'
@@ -314,7 +314,7 @@ export function createMemberPlanner({
     accommodationUnitsInput.min=withoutAccommodation?'0':'1';accommodationUnitsInput.max=String(crew);accommodationUnitsInput.disabled=!partial||!editable;
     const options=matchingAccommodationOptions(),singleUsableOption=options.length===1&&!options[0].soldOut;
     if(accommodationOptionField)accommodationOptionField.hidden=withoutAccommodation||singleUsableOption;
-    if(accommodationOptionLabel)accommodationOptionLabel.textContent=sleepSelect.value==='Chatka'?'Typ chatky':'Typ stanu';
+    if(accommodationOptionLabel)accommodationOptionLabel.textContent=sleepSelect.value==='Apartmán'?'Typ apartmánu':sleepSelect.value==='Chatka'?'Typ chatky':'Typ stanu';
     if(accommodationPartialField)accommodationPartialField.hidden=withoutAccommodation;
     if(accommodationPeopleField)accommodationPeopleField.hidden=!partial;
     accommodationOptionSelect.disabled=withoutAccommodation||!editable||!options.length;

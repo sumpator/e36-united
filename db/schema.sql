@@ -144,7 +144,7 @@ CREATE TABLE event_accommodation_options (
   id TEXT PRIMARY KEY,
   event_id TEXT NOT NULL,
   name TEXT NOT NULL,
-  kind TEXT NOT NULL CHECK (kind IN ('cabin', 'tent')),
+  kind TEXT NOT NULL CHECK (kind IN ('cabin', 'tent', 'apartment')),
   inventory_mode TEXT NOT NULL CHECK (inventory_mode IN ('limited', 'unlimited')),
   units_total INTEGER NOT NULL DEFAULT 0 CHECK (units_total >= 0),
   capacity_per_unit INTEGER NOT NULL CHECK (capacity_per_unit > 0),
@@ -179,7 +179,7 @@ CREATE TABLE reservation_accommodation (
   reservation_id TEXT PRIMARY KEY,
   option_id TEXT NOT NULL,
   option_name TEXT NOT NULL,
-  kind TEXT NOT NULL CHECK (kind IN ('cabin', 'tent')),
+  kind TEXT NOT NULL CHECK (kind IN ('cabin', 'tent', 'apartment')),
   people_count INTEGER NOT NULL CHECK (people_count > 0),
   unit_count INTEGER NOT NULL CHECK (unit_count > 0),
   unit_price_czk INTEGER NOT NULL CHECK (unit_price_czk >= 0),
@@ -1350,4 +1350,7 @@ CREATE TRIGGER reservation_merch_vs_update BEFORE UPDATE OF payment_vs ON reserv
 CREATE TRIGGER merch_snapshot_immutable BEFORE UPDATE OF snapshot,member_id,payment_vs,created_at,request_key,request_hash ON merch_orders
  BEGIN SELECT RAISE(ABORT,'immutable_order_snapshot'); END;
 INSERT INTO schema_migrations(id,description) VALUES('2026-09-24-merch','Separate member merchandise orders, immutable snapshots, ledger and outbox');
+ALTER TABLE live_entries ADD COLUMN voting_closed INTEGER NOT NULL DEFAULT 0 CHECK(voting_closed IN (0,1));
+INSERT INTO schema_migrations(id,description) VALUES('2026-09-28-live-entry-close','Explicit per-car voting closure');
+INSERT INTO schema_migrations(id,description) VALUES('2026-09-28-accommodation-apartment','Apartment accommodation kind');
 COMMIT;

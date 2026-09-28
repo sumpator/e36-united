@@ -56,19 +56,19 @@ async function normalizeProposal(env,row,body){
   const accommodationUnits=wantsAccommodation?Number(body.accommodationUnits):0;
   if(!['Pátek','Sobota','Jen na otočku'].includes(arrival))throw Object.assign(new Error('Vyber platný příjezd.'),{code:'invalid_arrival'});
   if(!Number.isInteger(crew)||crew<1||crew>MAX_CREW)throw Object.assign(new Error(`Posádka musí mít 1 až ${MAX_CREW} osob.`),{code:'invalid_crew'});
-  if(!['Chatka','Stan','Bez ubytování'].includes(requestedAccommodation))throw Object.assign(new Error('Vyber platné ubytování.'),{code:'invalid_accommodation'});
+  if(!['Chatka','Stan','Apartmán','Bez ubytování'].includes(requestedAccommodation))throw Object.assign(new Error('Vyber platné ubytování.'),{code:'invalid_accommodation'});
   if(!['Ne','Možná','Ano'].includes(showShine))throw Object.assign(new Error('Vyber platnou možnost Show & Shine.'),{code:'invalid_show_shine'});
   if(!Number.isInteger(accommodationUnits)||accommodationUnits<(wantsAccommodation?1:0)||accommodationUnits>crew)throw Object.assign(new Error('Počet ubytovaných musí být celé číslo od 1 do počtu členů posádky.'),{code:'invalid_accommodation_units'});
   let option=null,pricing=null,accommodation='Bez ubytování',retainsApproved=false,configurationMissing=false;
   if(wantsAccommodation){
     if(!optionId)throw Object.assign(new Error('Vyber konkrétní typ ubytování.'),{code:'accommodation_option_required'});
-    const kind=requestedAccommodation==='Chatka'?'cabin':'tent';
+    const kind=requestedAccommodation==='Apartmán'?'apartment':requestedAccommodation==='Chatka'?'cabin':'tent';
     const stored=storedAccommodationSnapshot(row);retainsApproved=!!stored&&stored.optionId===optionId;
     option=await env.DB.prepare('SELECT * FROM event_accommodation_options WHERE id=? AND event_id=? LIMIT 1').bind(optionId,row.event_id).first();
     if(!option&&!retainsApproved)throw Object.assign(new Error('Vybrané ubytování už není dostupné.'),{code:'accommodation_option_not_found',status:409});
     if(option&&option.active!==1&&!retainsApproved)throw Object.assign(new Error('Vybrané ubytování už není dostupné.'),{code:'accommodation_option_not_found',status:409});
     if((option?.kind||stored?.kind)!==kind)throw Object.assign(new Error('Vybraný typ neodpovídá zvolenému ubytování.'),{code:'invalid_accommodation_option'});
-    accommodation=kind==='cabin'?'Chatka':'Stan';
+    accommodation=kind==='apartment'?'Apartmán':kind==='cabin'?'Chatka':'Stan';
     configurationMissing=!option;
     if(!option){
       if(attendanceType!==row.attendance_type||accommodationUnits!==Number(row.accommodation_units||0))throw Object.assign(new Error('Původní ubytování už není v konfiguraci. Pro změnu pobytu nebo počtu ubytovaných vyber aktuální variantu.'),{code:'retained_accommodation_change_unsupported',status:409});

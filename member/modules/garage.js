@@ -1,5 +1,5 @@
 import { createImagePreviewController, selectImageFiles } from '../../image-upload.js?v=20260827-garage-photos';
-import { compressImageBlob, IMAGE_ERROR_MESSAGE } from '../media.js?v=20260907-feedback';
+import { compressImageBlob, IMAGE_ERROR_MESSAGE } from '../media.js?v=20260928-flow1';
 import { $, $$, esc, setButtonBusy, toast } from '../ui.js?v=20260902-phase3';
 
 export function createMemberGarage({

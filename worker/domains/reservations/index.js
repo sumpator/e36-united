@@ -329,7 +329,7 @@ async function putCurrentReservation(request, env, auth, origin) {
 
   if (!carId) return json({ ok: false, error: "car_required", message: "Vyber auto z garáže." }, 400, origin);
   if (!["Pátek", "Sobota", "Jen na otočku"].includes(arrival)) return json({ ok: false, error: "invalid_arrival", message: "Vyber platný příjezd." }, 400, origin);
-  if (!["Chatka", "Stan", "Bez ubytování"].includes(requestedAccommodation)) return json({ ok: false, error: "invalid_accommodation", message: "Vyber platné ubytování." }, 400, origin);
+  if (!["Chatka", "Stan", "Apartmán", "Bez ubytování"].includes(requestedAccommodation)) return json({ ok: false, error: "invalid_accommodation", message: "Vyber platné ubytování." }, 400, origin);
   if (!["Ne", "Možná", "Ano"].includes(showShine)) return json({ ok: false, error: "invalid_show_shine", message: "Vyber platnou možnost Show & Shine." }, 400, origin);
   if (!Number.isInteger(crew) || crew < 1 || crew > MAX_RESERVATION_CREW) return json({ ok: false, error: "invalid_crew", message: `Posádka musí mít 1 až ${MAX_RESERVATION_CREW} osob.` }, 400, origin);
   if (!attendanceType) return json({ ok: false, error: "invalid_attendance_type", message: "Vyber platný typ účasti." }, 400, origin);
@@ -357,9 +357,9 @@ async function putCurrentReservation(request, env, auth, origin) {
       LIMIT 1
     `).bind(accommodationOptionId, event.id).first();
     if (!option) return json({ ok: false, error: "accommodation_option_not_found", message: "Vybrané ubytování už není dostupné." }, 409, origin);
-    const expectedKind = requestedAccommodation === "Chatka" ? "cabin" : "tent";
+    const expectedKind = requestedAccommodation === "Apartmán" ? "apartment" : requestedAccommodation === "Chatka" ? "cabin" : "tent";
     if (option.kind !== expectedKind) return json({ ok: false, error: "invalid_accommodation_option", message: "Vybraný typ neodpovídá zvolenému ubytování." }, 400, origin);
-    accommodation = option.kind === "cabin" ? "Chatka" : "Stan";
+    accommodation = option.kind === "apartment" ? "Apartmán" : option.kind === "cabin" ? "Chatka" : "Stan";
     pricing = calculateAccommodationPricing(event, option, accommodationUnits, attendanceType);
   }
 

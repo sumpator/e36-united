@@ -30,4 +30,12 @@
     preference = valid(event.newValue) ? event.newValue : 'dark';
     apply();
   });
+  // A restored/frozen document can miss storage and device-change events.
+  // Reconcile the preference, resolved palette and native controls together.
+  function reconcile() {
+    try { const saved=localStorage.getItem(key); preference=valid(saved)?saved:'dark'; } catch {}
+    apply();
+  }
+  window.addEventListener('pageshow', reconcile);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) reconcile(); });
 })();

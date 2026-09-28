@@ -173,7 +173,7 @@ export async function getAdminSummary(env, url, origin, now = new Date()) {
       attendance:{fullWeekend:n('attendance_full_weekend'),saturdayOnly:n('attendance_saturday_only'),dayVisit:n('attendance_day_visit')},
       showShine:{yes:n('show_yes'),no:n('show_no'),maybe:n('show_maybe')},
       accommodation:{units:sum('confirmedUnits'),pendingUnits:sum('pendingUnits'),confirmedPeople:sum('confirmedPeople'),
-        none:n('no_accommodation'),cabin:sum('confirmedUnits','cabin'),tent:sum('confirmedUnits','tent'),legacyUnclassified:n('legacy_allocations'),
+        none:n('no_accommodation'),cabin:sum('confirmedUnits','cabin'),tent:sum('confirmedUnits','tent'),apartment:sum('confirmedUnits','apartment'),legacyUnclassified:n('legacy_allocations'),
         limitedUnitsTotal:occupancy.filter(item=>item.unitsTotal!==null).reduce((total,item)=>total+item.unitsTotal,0),
         hasUnlimited:occupancy.some(item=>item.unitsTotal===null),options:occupancy},
       payments,gallery,history},

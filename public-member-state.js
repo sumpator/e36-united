@@ -1,5 +1,5 @@
 import { initUnitedAuth } from './united-auth.js?v=20260825-phase-a1';
-import { shouldShowJoinCta } from './planner-state.js?v=20260826-planner-sync';
+import { shouldShowJoinCta } from './planner-state.js?v=20260928-flow1';
 
 export function initPublicMemberState({config,apiBaseUrl,onStateChange,authFactory=initUnitedAuth,fetchImpl=fetch}){
   let revision=0;

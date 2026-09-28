@@ -1,8 +1,8 @@
-import { adminCommand, editorProtected, changedFields, forgetAdminEditor } from '../editors.js?v=20260924-workspace1';
+import { adminCommand, editorProtected, changedFields, forgetAdminEditor } from '../editors.js?v=20260928-flow1';
 import { adminActionCountState, adminModerationCounts, paymentNeedsAttention, reservationMatchesFilter } from '../../admin-view-model.js?v=20260924-merch2';
-import { apiRequest } from '../api.js?v=20260924-merch2';
+import { apiRequest } from '../api.js?v=20260928-flow1';
 import { adminState } from '../state.js?v=20260924-merch2';
-import { setDenied } from '../shell.js?v=20260924-workspace1';
+import { setDenied } from '../shell.js?v=20260928-flow1';
 import { $, $$, escapeHtml, formatDate, formatMoney, numeric, toast } from '../ui.js?v=20260924-merch2';
 
 

@@ -1,4 +1,4 @@
-import { apiRequest } from '../../api.js?v=20260924-merch2';
+import { apiRequest } from '../../api.js?v=20260928-flow1';
 import { $, escapeHtml, numeric } from '../../ui.js?v=20260924-merch2';
 
 export const defaultMailingSegment=Object.freeze({match:'all',rules:[{type:'mailing_eligible'}],exclusions:[]});

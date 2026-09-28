@@ -1,13 +1,13 @@
 <!DOCTYPE html>
 
 <html lang="cs">
-<head><script src="appearance.js?v=20260923-theme2"></script>
+<head><script src="appearance.js?v=20260928-flow1"></script>
 <meta charset="utf-8"/>
 <meta content="width=device-width,initial-scale=1" name="viewport"/>
 <title>Můj United | E36 United Member Portal</title>
 <meta content="noindex,nofollow" name="robots"/>
 <meta content="#090a0c" name="theme-color"/>
-<link href="styles.css?v=20260923-theme2" rel="stylesheet"/>
+<link href="styles.css?v=20260928-flow1" rel="stylesheet"/>
 <link href="accommodation-visual.css?v=20260923-theme2" rel="stylesheet"/>
 <link href="member.css?v=20260923-theme2" rel="stylesheet"/>
 <link href="merch/connected.css?v=20260926-portal3" rel="stylesheet"/>
@@ -15,7 +15,7 @@
 <link href="member/reliability.css?v=20260923-theme2" rel="stylesheet"/>
 <link href="mobile-feedback.css?v=20260923-theme2" rel="stylesheet"/>
 <link href="member/live.css?v=20260923-theme2" rel="stylesheet"/>
-<link rel="stylesheet" href="appearance.css?v=20260923-theme2"/><link rel="stylesheet" href="portal-workspace.css?v=20260924-workspace1"/><link rel="stylesheet" href="portal-next.css?v=20260926-portal3"/><link rel="stylesheet" href="ux-refinements.css?v=20260927-ux2"/><link rel="stylesheet" href="mobile-ux.css?v=20260928-mobile1"/></head>
+<link rel="stylesheet" href="appearance.css?v=20260923-theme2"/><link rel="stylesheet" href="portal-workspace.css?v=20260924-workspace1"/><link rel="stylesheet" href="portal-next.css?v=20260926-portal3"/><link rel="stylesheet" href="ux-refinements.css?v=20260927-ux2"/><link rel="stylesheet" href="mobile-ux.css?v=20260928-mobile1"/><link rel="stylesheet" href="photo-batch.css?v=20260928-flow1"/></head>
 <body class="member-page">
 <header class="site-header scrolled member-header">
 <div class="container nav">
@@ -154,7 +154,7 @@
 <label data-reservation-edit-field data-reservation-form-car><span>Auto z garáže</span><select data-car-select="" name="carId"></select></label>
 <div aria-live="polite" class="reservation-car-required-inline" data-reservation-car-error="" hidden=""><strong>Nejdřív přidej auto.</strong><p>Potřebujeme vědět, se kterým E36 přijedeš. Fotku můžeš doplnit později.</p><button class="member-primary member-primary--compact" data-reservation-add-car="" type="button">+ Přidat auto</button></div>
 <div class="reservation-form-row" data-reservation-edit-field><label><span>Příjezd</span><select data-member-arrival="" name="arrival"><option>Pátek</option><option>Sobota</option><option>Jen na otočku</option></select></label><label><span>Posádka</span><input max="5" min="1" name="crew" type="number" value="2"/><small class="reservation-field-note">Maximálně 5 osob.</small><small class="reservation-field-note reservation-field-warning" data-legacy-crew-warning="" hidden></small></label></div>
-<div class="reservation-form-row" data-reservation-edit-field><label data-member-sleep-field=""><span>Ubytování</span><select name="sleep"><option>Chatka</option><option>Stan</option><option>Bez ubytování</option></select></label><label data-accommodation-option-field="" hidden=""><span data-accommodation-option-label="">Typ ubytování</span><select name="accommodationOptionId"></select><small class="reservation-availability" data-accommodation-availability=""></small></label></div>
+<div class="reservation-form-row" data-reservation-edit-field><label data-member-sleep-field=""><span>Ubytování</span><select name="sleep"><option>Chatka</option><option>Stan</option><option>Apartmán</option><option>Bez ubytování</option></select></label><label data-accommodation-option-field="" hidden=""><span data-accommodation-option-label="">Typ ubytování</span><select name="accommodationOptionId"></select><small class="reservation-availability" data-accommodation-availability=""></small></label></div>
 <div class="reservation-form-row reservation-form-row--choices" data-reservation-edit-field><div class="reservation-partial-stack"><label class="reservation-partial-toggle" data-accommodation-partial-field="" hidden=""><input name="partialAccommodation" type="checkbox"/><span>Ubytování potřebuje jen část posádky</span></label><label data-accommodation-people-field="" hidden=""><span>Počet ubytovaných osob</span><input max="5" min="1" name="accommodationUnits" required="" type="number" value="2"/><small class="reservation-field-note">Maximálně podle velikosti posádky.</small></label></div><label><span>Show &amp; Shine</span><select name="showshine"><option value="Ne">Ne</option><option value="Možná">Možná</option><option value="Ano">Ano</option></select></label></div>
 <div aria-live="polite" class="reservation-price-preview" data-accommodation-preview="" data-reservation-edit-field hidden=""></div>
 <label data-reservation-edit-field><span>Poznámka pro tým</span><textarea name="note" placeholder="Příjezd později, speciální požadavek…" rows="3"></textarea></label>
@@ -205,7 +205,7 @@
 <div class="member-photo-upload-grid">
 <form class="member-photo-upload" id="member-photo-editor" data-member-gallery-form="" hidden>
 <label class="member-photo-dropzone" data-member-photo-dropzone="">
-<input accept="image/jpeg,image/png,image/webp" class="member-photo-input" data-member-photo-input="" multiple="" name="photos" required="" type="file"/>
+<input accept="image/jpeg,image/png,image/webp" class="member-photo-input" data-member-photo-input="" multiple="" name="photos" type="file"/>
 <span aria-hidden="true" class="member-photo-dropzone-icon">↥</span>
 <strong>Nahraj fotky z United</strong>
 <span class="member-photo-dropzone-copy member-photo-dropzone-copy--desktop">Přetáhni je sem, nebo je vyber z počítače.</span>
@@ -250,13 +250,13 @@
 </div>
 </section>
 <section aria-hidden="true" class="member-live member-live-mode" data-member-live-mode hidden inert>
-<header class="member-live-mode-bar"><a class="member-live-brand" href="index.html"><img alt="" src="united-logo-blue-silver-transparent.png"><span><strong>UNITED LIVE</strong><small data-live-event-copy>Načítám aktuální ročník…</small></span></a><div class="member-live-tools"><i aria-label="Online · živý stav" data-live-connection data-state="online" title="Online · živý stav"></i><button aria-expanded="false" data-live-more-toggle type="button">Více <span aria-hidden="true">•••</span></button><div class="member-live-more" data-live-more-menu hidden><label class="appearance-control"><span>Vzhled</span><select aria-label="Vzhled tohoto prohlížeče" data-appearance-select><option value="light">Světlý</option><option value="dark" selected>Tmavý</option><option value="system">Podle zařízení</option></select></label><button data-live-exit type="button">Zpět do portálu</button></div></div></header>
+<header class="member-live-mode-bar"><a class="member-live-brand" href="index.html"><img alt="" src="united-logo-blue-silver-transparent.png"><span><strong data-live-section-title>Program</strong><small data-live-event-copy>Načítám aktuální ročník…</small></span></a><div class="member-live-tools"><i aria-label="Online · živý stav" data-live-connection data-state="online" title="Online · živý stav"></i><button aria-expanded="false" data-live-more-toggle type="button">Více <span aria-hidden="true">•••</span></button><div class="member-live-more" data-live-more-menu hidden><label class="appearance-control"><span>Vzhled</span><select aria-label="Vzhled tohoto prohlížeče" data-appearance-select><option value="light">Světlý</option><option value="dark" selected>Tmavý</option><option value="system">Podle zařízení</option></select></label><button data-live-exit type="button">Zpět do portálu</button></div></div></header>
 <div class="member-live-mode-main">
 <div class="member-live-error" data-live-error hidden><span aria-hidden="true">!</span><h2>LIVE se nepodařilo načíst.</h2><p>Ověř připojení a zkus potvrzený serverový stav znovu.</p><button class="live-primary" data-live-retry type="button">Zkusit znovu</button></div>
 <div class="member-live-app" data-live-app hidden>
 <div class="member-live-view is-active" data-live-view="program"><div data-live-program></div></div>
 <div class="member-live-view" data-live-view="showshine" hidden><div data-live-showshine></div></div>
-<div class="member-live-view" data-live-view="photos" hidden><div class="member-live-section-head"><span>LIVE GALERIE</span><h2>Fotky ze srazu.</h2></div><form class="member-live-upload" data-live-upload><label><input accept="image/jpeg,image/png,image/webp" capture="environment" multiple name="photos" type="file"><span>＋</span><b>Přidat fotky</b><small>Vyfotit nebo vybrat · popisek je volitelný</small></label><input maxlength="240" name="caption" placeholder="Krátký popisek (volitelné)"><button class="member-primary member-primary--compact" type="submit">Odeslat ke schválení</button><div class="live-upload-previews" data-live-upload-previews></div><p data-live-upload-state role="status"></p></form><div class="member-live-gallery" data-live-gallery></div></div>
+<div class="member-live-view" data-live-view="photos" hidden><div class="member-live-section-head"><span>LIVE GALERIE</span><h2>Fotky ze srazu.</h2></div><form class="member-live-upload" data-live-upload><label><input accept="image/jpeg,image/png,image/webp" capture="environment" name="photos" type="file"><span>＋</span><b>Vyfotografovat</b><small>Postupně přidej více fotografií</small></label><label class="live-gallery-picker">Vybrat z galerie<input accept="image/jpeg,image/png,image/webp" multiple name="gallery" type="file"></label><input maxlength="240" name="caption" placeholder="Krátký popisek (volitelné)"><button class="member-primary member-primary--compact" type="submit">Odeslat ke schválení</button><div class="live-upload-previews" data-live-upload-previews></div><p data-live-upload-state role="status"></p></form><div class="member-live-gallery" data-live-gallery></div></div>
 <nav aria-label="UNITED LIVE" class="member-live-tabs"><button aria-current="page" class="is-active" data-live-tab="program" type="button"><span>▤</span>Program</button><button aria-current="false" data-live-tab="showshine" type="button"><span>★</span>Show &amp; Shine</button><button aria-current="false" data-live-tab="photos" type="button"><span>▧</span>Fotky</button></nav>
 </div>
 </div>
@@ -277,5 +277,5 @@
 <div class="member-gallery-lightbox" data-member-gallery-lightbox="" hidden=""><div class="member-gallery-lightbox-backdrop" data-member-gallery-close=""></div><div aria-label="Náhled fotografie" aria-modal="true" class="member-gallery-lightbox-dialog" role="dialog"><button aria-label="Zavřít náhled" class="member-gallery-lightbox-close" data-member-gallery-close="" type="button">×</button><button aria-label="Předchozí fotografie" class="member-gallery-lightbox-nav member-gallery-lightbox-prev" data-member-gallery-prev="" type="button">←</button><figure><img alt="" data-member-gallery-lightbox-image=""/><figcaption data-member-gallery-lightbox-caption=""></figcaption></figure><button aria-label="Další fotografie" class="member-gallery-lightbox-nav member-gallery-lightbox-next" data-member-gallery-next="" type="button">→</button></div></div>
 <div aria-live="polite" class="member-toast" data-toast="" role="status"></div>
 <script src="showshine-data.js?v=20260824"></script>
-<script src="member.js?v=20260927-ux2" type="module"></script>
+<script src="member.js?v=20260928-flow1" type="module"></script>
 </body></html>

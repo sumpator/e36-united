@@ -1,6 +1,6 @@
 export function normalizeAccommodationOption(source){
   return {
-    id:String(source?.id||''),eventId:String(source?.eventId||''),name:String(source?.name||''),kind:source?.kind==='tent'?'tent':'cabin',
+    id:String(source?.id||''),eventId:String(source?.eventId||''),name:String(source?.name||''),kind:source?.kind==='apartment'?'apartment':source?.kind==='tent'?'tent':'cabin',
     inventoryMode:source?.inventoryMode==='unlimited'?'unlimited':'limited',unitsTotal:Number(source?.unitsTotal||0),blockedUnits:Number(source?.blockedUnits||0),approvedUnits:Number(source?.approvedUnits||source?.blockedUnits||0),pendingUnits:Number(source?.pendingUnits||0),
     freeUnits:source?.freeUnits==null?null:Number(source.freeUnits),capacityPerUnit:Math.max(1,Number(source?.capacityPerUnit||1)),unitPriceCzk:Number(source?.unitPriceCzk||0),
     personPriceCzk:Number(source?.personPriceCzk||0),beddingFeePerPersonCzk:Number(source?.beddingFeePerPersonCzk||0),cityTaxPerPersonPerNightCzk:Number(source?.cityTaxPerPersonPerNightCzk||0),

@@ -2,39 +2,47 @@ import { cors } from "../http/cors.js";
 import { json } from "../http/responses.js";
 import { clean } from "../utils/text.js";
 import { extensionFor, validateImageFile } from "./media.js";
+import { uploadIdentity, cleanupFailedUpload } from './upload-identity.js';
 
 const MAX_GALLERY_DAILY = 24;
 
 async function uploadGallerySubmission(request, env, auth, origin) {
+  const form = await request.formData();
+  let id;
+  try { id = await uploadIdentity(form, `member-gallery:${auth.uid}`); }
+  catch { return json({ok:false,error:'invalid_upload_id'},400,origin); }
+  const receipt = () => env.DB.prepare('SELECT id,caption,status,created_at AS createdAt FROM gallery_submissions WHERE id=? AND member_id=?').bind(id,auth.uid).first();
+  const existing = await receipt();
+  if (existing) return json({ok:true,submission:existing,replayed:true},200,origin);
   const daily = await env.DB.prepare(`
     SELECT COUNT(*) AS count FROM gallery_submissions
     WHERE member_id = ? AND created_at >= datetime('now', '-1 day')
   `).bind(auth.uid).first();
   if (Number(daily?.count || 0) >= MAX_GALLERY_DAILY) return json({ ok: false, error: "Daily upload limit reached" }, 429, origin);
 
-  const form = await request.formData();
   const file = form.get("file");
   const validation = validateImageFile(file);
   if (validation) return json({ ok: false, error: validation }, 400, origin);
   const caption = clean(form.get("caption") || "").slice(0, 240);
 
-  const id = crypto.randomUUID();
   const ext = extensionFor(file.type);
-  const key = `gallery/${auth.uid}/${id}.${ext}`;
+  // Each concurrent attempt owns its object; a losing retry cannot delete the winner.
+  const key = `gallery/${auth.uid}/${id}-${crypto.randomUUID()}.${ext}`;
   await env.MEDIA.put(key, file.stream(), {
     httpMetadata: { contentType: file.type },
     customMetadata: { owner: auth.uid, kind: "gallery", submissionId: id },
   });
   try {
-    await env.DB.prepare(`
+    const result = await env.DB.prepare(`
       INSERT INTO gallery_submissions (id, member_id, r2_key, caption, status)
-      VALUES (?, ?, ?, ?, 'pending')
+      VALUES (?, ?, ?, ?, 'pending') ON CONFLICT(id) DO NOTHING
     `).bind(id, auth.uid, key, caption || null).run();
+    if (!result.meta?.changes) await env.MEDIA.delete(key);
   } catch (error) {
-    await env.MEDIA.delete(key);
+    await cleanupFailedUpload(env,key,'gallery_submissions',id);
     throw error;
   }
-  return json({ ok: true, submission: { id, caption, status: "pending", createdAt: new Date().toISOString() } }, 201, origin);
+  return json({ ok: true, submission: await receipt() }, 201, origin);
 }
 
 async function listMyGallery(env, auth, url, origin) {

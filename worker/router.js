@@ -296,6 +296,8 @@ export async function routeRequest({ request, env, url, origin, ctx }) {
     if(liveVote&&request.method==='PUT')return saveLiveVote(request,env,auth,decodeURIComponent(liveVote[1]),origin);
     const liveJudgeScore=url.pathname.match(/^\/api\/live\/judge\/scores\/([^/]+)$/);
     if(liveJudgeScore&&request.method==='PUT')return saveJudgeScore(request,env,auth,decodeURIComponent(liveJudgeScore[1]),origin);
+    const liveJudgeClose=url.pathname.match(/^\/api\/live\/judge\/entries\/([^/]+)\/close$/);
+    if(liveJudgeClose&&request.method==='POST')return closeLiveEntry(request,env,auth,decodeURIComponent(liveJudgeClose[1]),origin);
     const liveJudgeUpload=url.pathname.match(/^\/api\/live\/judge\/entries\/([^/]+)\/photos$/);
     if(liveJudgeUpload&&request.method==='POST')return uploadJudgePhoto(request,env,auth,decodeURIComponent(liveJudgeUpload[1]),origin);
     const liveJudgeMedia=url.pathname.match(/^\/api\/live\/judge\/photos\/([^/]+)$/);
@@ -359,3 +361,4 @@ export async function routeRequest({ request, env, url, origin, ctx }) {
 
   return json({ ok: true, service: "E36 United API" }, 200, origin);
 }
+import { closeLiveEntry } from './domains/live.js';

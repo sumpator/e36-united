@@ -229,7 +229,7 @@ function readAccommodationConfig(body, current = null) {
     sortOrder: Number(value("sortOrder", current?.sort_order ?? 0)),
   };
   if (config.name.length < 2) return { error: "Název ubytování musí mít alespoň 2 znaky." };
-  if (!["cabin", "tent"].includes(config.kind)) return { error: "Vyber platný druh ubytování." };
+  if (!["cabin", "tent", "apartment"].includes(config.kind)) return { error: "Vyber platný druh ubytování." };
   if (!["limited", "unlimited"].includes(config.inventoryMode)) return { error: "Vyber platný režim kapacity." };
   for (const key of ["unitsTotal", "capacityPerUnit", "unitPriceCzk", "personPriceCzk", "beddingFeePerPersonCzk", "cityTaxPerPersonPerNightCzk", "sortOrder"]) {
     if (!Number.isInteger(config[key])) return { error: "Číselné hodnoty musí být celá čísla." };
@@ -715,7 +715,7 @@ function validatePlannerDraft(candidate, now = Date.now()) {
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(draftId) || !Number.isFinite(createdAt) || !Number.isFinite(expiresAt) || createdAt > now + PLANNER_CLOCK_SKEW_MS || expiresAt <= now || expiresAt <= createdAt || now - createdAt > lifetime || expiresAt - createdAt > lifetime) return null;
   if (!Number.isInteger(eventYear) || eventYear < 2000 || eventYear > 2100) return null;
   if (!attendanceByArrival[candidate.arrival] || candidate.attendanceType !== attendanceByArrival[candidate.arrival]) return null;
-  if (!["Chatka", "Stan", "Bez ubytování"].includes(candidate.accommodation) || !Number.isInteger(crew) || crew < 1 || crew > MAX_RESERVATION_CREW || !Number.isInteger(units) || units < 0 || units > crew || !["Ano", "Ne", "Možná"].includes(candidate.showShine)) return null;
+  if (!["Chatka", "Stan", "Apartmán", "Bez ubytování"].includes(candidate.accommodation) || !Number.isInteger(crew) || crew < 1 || crew > MAX_RESERVATION_CREW || !Number.isInteger(units) || units < 0 || units > crew || !["Ano", "Ne", "Možná"].includes(candidate.showShine)) return null;
   if ((candidate.arrival === "Jen na otočku" || candidate.accommodation === "Bez ubytování") && units !== 0) return null;
   if (candidate.arrival !== "Jen na otočku" && candidate.accommodation !== "Bez ubytování" && units < 1) return null;
   const eventId = candidate.eventId == null ? null : String(candidate.eventId);

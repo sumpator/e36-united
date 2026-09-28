@@ -1,3 +1,4 @@
+import { uploadIdentity, cleanupFailedUpload } from './upload-identity.js';
 import { cors } from "../http/cors.js";
 import { json } from "../http/responses.js";
 import { validateImageFile } from "./media.js";
@@ -179,8 +180,12 @@ async function postAdminAccommodationGalleryPhoto(request, env, auth, optionId, 
   if (validation) return json({ ok: false, error: "invalid_accommodation_photo", message: validation }, 400, origin);
   const cover = await env.MEDIA.head(accommodationPhotoKey(option.event_id, option.id));
   const maxAdditional = cover ? 4 : 5;
-  const photoId = crypto.randomUUID();
-  const key = accommodationGalleryPhotoKey(option.event_id, option.id, photoId);
+  let photoId;
+  try { photoId=await uploadIdentity(form,`accommodation:${auth.uid}:${optionId}`); }
+  catch { return json({ok:false,error:'invalid_upload_id'},400,origin); }
+  const exists=()=>env.DB.prepare('SELECT id FROM event_accommodation_photos WHERE id=? AND option_id=?').bind(photoId,optionId).first();
+  if(await exists())return json({ok:true,optionId,replayed:true,...await accommodationMediaMetadata(env,option.event_id,optionId)},200,origin);
+  const key = accommodationGalleryPhotoKey(option.event_id, option.id, photoId+'-'+crypto.randomUUID());
   await env.MEDIA.put(key, file.stream(), {
     httpMetadata: { contentType: file.type },
     customMetadata: { owner: auth.uid, kind: "accommodation-gallery", eventId: option.event_id, optionId: option.id, photoId },
@@ -191,14 +196,15 @@ async function postAdminAccommodationGalleryPhoto(request, env, auth, optionId, 
       SELECT ?, ?, ?, ?, ?, COALESCE(MAX(sort_order), 0) + 1
       FROM event_accommodation_photos
       WHERE option_id = ?
-      HAVING COUNT(*) < ?
+      HAVING COUNT(*) < ? ON CONFLICT(id) DO NOTHING
     `).bind(photoId, option.id, key, file.type, file.size, option.id, maxAdditional).run();
     if (!result?.meta?.changes) {
       await env.MEDIA.delete(key);
+      if(await exists())return json({ok:true,optionId,replayed:true,...await accommodationMediaMetadata(env,option.event_id,optionId)},200,origin);
       return json({ ok: false, error: "accommodation_photo_limit", message: "Galerie už obsahuje maximálně 5 fotografií." }, 409, origin);
     }
   } catch (error) {
-    await env.MEDIA.delete(key);
+    await cleanupFailedUpload(env,key,'event_accommodation_photos',photoId);
     throw error;
   }
   return json({ ok: true, optionId: option.id, ...(await accommodationMediaMetadata(env, option.event_id, option.id)) }, 201, origin);

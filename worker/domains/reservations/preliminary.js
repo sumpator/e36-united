@@ -37,13 +37,13 @@ async function validatePreferences(env,uid,event,body){
   if(carId!==null&&(typeof carId!=='string'||!await env.DB.prepare('SELECT id FROM cars WHERE id=? AND member_id=?').bind(carId,uid).first()))return 'Vyber vlastní auto z garáže.';
   const crewDetails=body.crewDetails??[];
   if(!Array.isArray(crewDetails)||crewDetails.length>body.crew||crewDetails.some(value=>typeof value!=='string'||value.length>100))return 'Údaje posádky nejsou platné.';
-  if(!['Chatka','Stan','Bez ubytování'].includes(body.accommodation))return 'Vyber ubytování.';
+  if(!['Chatka','Stan','Apartmán','Bez ubytování'].includes(body.accommodation))return 'Vyber ubytování.';
   const wants=body.arrival!=='Jen na otočku'&&body.accommodation!=='Bez ubytování';
   if(wants){
     if(!Number.isInteger(body.accommodationUnits)||body.accommodationUnits<1||body.accommodationUnits>body.crew)return 'Počet ubytovaných nesmí překročit posádku.';
     if(typeof body.accommodationOptionId!=='string')return 'Vyber typ ubytování.';
     const option=await env.DB.prepare('SELECT kind FROM event_accommodation_options WHERE id=? AND event_id=? AND active=1').bind(body.accommodationOptionId,event.id).first();
-    if(!option||option.kind!==(body.accommodation==='Chatka'?'cabin':'tent'))return 'Vybraný typ ubytování není v nabídce eventu.';
+    if(!option||option.kind!==(body.accommodation==='Apartmán'?'apartment':body.accommodation==='Chatka'?'cabin':'tent'))return 'Vybraný typ ubytování není v nabídce eventu.';
   }
   // Preferences deliberately contain neither price nor availability snapshots.
   return {carId,arrival:body.arrival,crew:body.crew,crewDetails,

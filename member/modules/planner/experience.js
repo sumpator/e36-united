@@ -49,7 +49,7 @@ export function createMemberPlannerExperience(form){
       <section class="planner-step planner-step--sleep planner-main-step">
         <div class="member-planner-step-controls">
           <div class="planner-step-head"><span>02</span><b>Kde chceš spát?</b></div>
-          <div class="choice-row choice-row--three choice-row--sleep" data-member-sleep-options>${['Chatka','Stan','Bez ubytování'].map((value,index)=>`<button class="choice" data-member-sleep="${value}" type="button"><span>${['⌂','△','→'][index]}</span>${value}</button>`).join('')}</div>
+          <div class="choice-row choice-row--three choice-row--sleep" data-member-sleep-options>${['Chatka','Stan','Apartmán','Bez ubytování'].map((value,index)=>`<button class="choice" data-member-sleep="${value}" type="button"><span>${['⌂','△','▤','→'][index]}</span>${value}</button>`).join('')}</div>
           <div class="member-planner-slot" data-member-accommodation-option-slot></div>
         </div>
         <div class="member-planner-slot" data-member-accommodation-preview-slot></div>

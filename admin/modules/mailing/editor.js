@@ -1,5 +1,5 @@
 import { $, $$, escapeHtml, toast } from '../../ui.js?v=20260924-merch2';
-import { resetMailingPreview, scheduleMailingPreview, setMailingPreviewDevice } from './preview.js?v=20260924-merch2';
+import { resetMailingPreview, scheduleMailingPreview, setMailingPreviewDevice } from './preview.js?v=20260928-flow1';
 
 const typeLabels={hero:'Úvod',heading:'Nadpis',rich_text:'Text',image:'Obrázek',cta:'Tlačítko',divider:'Oddělovač',highlight:'Zvýraznění',survey:'Anketa'};
 let initialized=false,currentCampaignId='',blocks=[],templateVersion='e36-default-v1',saveHandler=null,openHandler=()=>{},readOnly=false;

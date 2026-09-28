@@ -1,12 +1,12 @@
 import {adminState} from './state.js?v=20260924-merch2';
 import {$,$$,escapeHtml as esc,rememberSessionChoice} from './ui.js?v=20260924-merch2';
-import {apiRequest} from './api.js?v=20260924-merch2';
+import {apiRequest} from './api.js?v=20260928-flow1';
 import {esc as merchEscape,statusLabel} from '../merch/order-view.js?v=20260924-workspace1';
 import {money} from '../merch/catalog.js?v=20260924-merch2';
 import {ADMIN_REFRESH} from './refresh-policy.js?v=20260924-merch2';
 import {memberQrMarkup,memberQrSvg} from '../member-qr-renderer.js?v=20260924-merch2';
 import {MEMBER_TABS,memberIdentity,memberOverview,memberReservation,memberSection,memberEmpty} from './member-presentation.js?v=20260924-merch2';
-import {compactMemberDetails,compactMemberIdentity,compactMemberPhoto,createCardMedia} from './member-cards.js?v=20260924-merch2';
+import {compactMemberDetails,compactMemberIdentity,compactMemberPhoto,createCardMedia} from './member-cards.js?v=20260928-flow1';
 const cardsMedia=createCardMedia();
 let memberListMarkup=null;
 function clearCards(){cardsMedia.clear();memberListMarkup=null}
