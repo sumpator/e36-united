@@ -13,8 +13,8 @@ import {factoryPreferences} from '../../admin/dashboard-model.js';
 import {runAdminCommand} from '../../worker/admin/commands.js';
 import {patchAdminHistoryClaim,historyEvidenceMedia} from '../../worker/domains/club/history.js';
 const headers={'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'Authorization, Content-Type, If-Match, Idempotency-Key','Access-Control-Allow-Methods':'GET, PUT, OPTIONS'};
-export async function commandFixture(page,{legacy=false}={}){
- const observations=await prepareAdminE2ePage(page,{authUid:'a'}),r=memberRuntime(),calls=[],writes=[],failures=new Set();let mode='',tail=Promise.resolve();
+export async function commandFixture(page,{legacy=false,runtime=null}={}){
+ const observations=await prepareAdminE2ePage(page,{authUid:'a'}),r=runtime||memberRuntime(),calls=[],writes=[],failures=new Set();let mode='',tail=Promise.resolve();
  // Show the actual repository logo in NEW screenshots, not the generic baseline image stub.
  await page.route('https://e36united.cz/united-logo-blue-silver-transparent.png',route=>route.fulfill({status:200,contentType:'image/png',body:readFileSync(new URL('../../united-logo-blue-silver-transparent.png',import.meta.url))}));
  const batch=r.env.DB.batch;r.env.DB.batch=ss=>{const next=tail.then(()=>batch(ss));tail=next.catch(()=>{});return next};

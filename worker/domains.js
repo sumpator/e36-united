@@ -194,7 +194,7 @@ async function getPublicCurrentEvent(env, origin) {
     event: {
       id: event.id,
       year: Number(event.year || 0),
-      registrationStatus: event.registration_status || "closed",
+      registrationStatus: event.registration_status || "closed", admissionRegisteredCzk:event.admission_registered_czk,
       registrationOpen: event.registration_status === "open",
       startsOn: event.starts_on || null,
       endsOn: event.ends_on || null,
@@ -516,6 +516,8 @@ async function patchAdminReservation(request, env, auth, reservationId, origin) 
 }
 
 async function patchAdminReservationPayment(request, env, auth, reservationId, origin) {
+  const model=await env.DB.prepare('SELECT admission_czk FROM reservations WHERE id=?').bind(reservationId).first();
+  if(model?.admission_czk!=null)return json({ok:false,error:'payment_ledger_required',message:'Použij jednotlivé platební záznamy v Příjezdech / Platbách. Souhrn nové rezervace nelze ručně přepsat.'},409,origin);
   const parsed = await readJsonObject(request, origin);
   if (parsed.response) return parsed.response;
   const body = parsed.body;

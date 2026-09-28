@@ -1,8 +1,9 @@
-import { adminCommand, editorProtected, changedFields, forgetAdminEditor } from '../editors.js?v=20260928-flow1';
-import { adminActionCountState, adminModerationCounts, paymentNeedsAttention, reservationMatchesFilter } from '../../admin-view-model.js?v=20260924-merch2';
-import { apiRequest } from '../api.js?v=20260928-flow1';
-import { adminState } from '../state.js?v=20260924-merch2';
-import { setDenied } from '../shell.js?v=20260928-flow1';
+import { adminCommand, editorProtected, changedFields, forgetAdminEditor } from '../editors.js?v=20260930-arrivals2';
+import { renderAdmissionSettings } from './admission-settings.js?v=20260930-arrivals2';
+import { adminActionCountState, adminModerationCounts, paymentNeedsAttention, reservationMatchesFilter } from '../../admin-view-model.js?v=20260930-arrivals2';
+import { apiRequest } from '../api.js?v=20260930-arrivals2';
+import { adminState } from '../state.js?v=20260930-arrivals2';
+import { setDenied } from '../shell.js?v=20260930-arrivals2';
 import { $, $$, escapeHtml, formatDate, formatMoney, numeric, toast } from '../ui.js?v=20260924-merch2';
 
 
@@ -17,6 +18,7 @@ export function renderEventSelector(){
 export function selectedEvent(){return adminState.events.find(event=>event.id===adminState.selectedEventId)||null}
 
 export function renderEventSettings(event){
+  if(event?.id)void renderAdmissionSettings(event.id);
   const form=$('[data-event-settings-form]');
   if(!form||!event||editorProtected(form,event.revision,()=>renderEventSettings(event)))return;
   if(form.dataset.hydratedEvent===event.id&&form.dataset.hydratedRevision===String(event.revision??0))return;

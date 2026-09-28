@@ -1,7 +1,7 @@
 import {DatabaseSync} from 'node:sqlite';
 import {readFileSync} from 'node:fs';
-export function memberRuntime(){
- const db=new DatabaseSync(':memory:');db.exec(readFileSync(new URL('../../db/schema.sql',import.meta.url),'utf8'));
+export function memberRuntime({schema}={}){
+ const db=new DatabaseSync(':memory:');db.exec(schema||readFileSync(new URL('../../db/schema.sql',import.meta.url),'utf8'));
  const queries=[];let writes=0,mediaReads=0;
  const prepare=(sql,args=[])=>({bind:(...values)=>prepare(sql,values),first:async()=>{queries.push({sql,args});return db.prepare(sql).get(...args)||null},all:async()=>{queries.push({sql,args});return{results:db.prepare(sql).all(...args)}},run:async()=>{queries.push({sql,args});if(/^\s*(SELECT|WITH)/i.test(sql))return{results:db.prepare(sql).all(...args),meta:{changes:0}};const result=db.prepare(sql).run(...args);writes+=Number(result.changes);return{meta:{changes:Number(result.changes)}}}});
  const env={DB:{prepare,async batch(statements){db.exec('BEGIN');try{const rows=[];for(const s of statements)rows.push(await s.run());db.exec('COMMIT');return rows}catch(e){db.exec('ROLLBACK');throw e}}},MEDIA:{async get(){mediaReads++;return{body:'synthetic image',httpMetadata:{contentType:'image/jpeg'}}}}};

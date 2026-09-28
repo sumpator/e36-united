@@ -20,7 +20,7 @@ export function normalizeAccommodationSnapshot(source){
 export function normalizePayment(source){
   if(!source||typeof source!=='object')return null;
   return {
-    amountDueCzk:Number(source.amountDueCzk||0),amountPaidCzk:Number(source.amountPaidCzk||0),balanceCzk:Number(source.balanceCzk||0),remainingCzk:Number(source.remainingCzk||0),overpaymentCzk:Number(source.overpaymentCzk||0),
+    admissionCzk:source.admissionCzk??null,amountDueCzk:Number(source.amountDueCzk||0),amountPaidCzk:Number(source.amountPaidCzk||0),balanceCzk:Number(source.balanceCzk||0),remainingCzk:Number(source.remainingCzk||0),overpaymentCzk:Number(source.overpaymentCzk||0),
     status:String(source.status||'unpaid'),overdue:source.overdue===true,variableSymbol:source.variableSymbol?String(source.variableSymbol):'',
     recipientName:String(source.recipientName||''),accountDisplay:String(source.accountDisplay||''),iban:String(source.iban||''),currency:String(source.currency||'CZK'),
     message:String(source.message||''),deadline:String(source.deadline||''),testMode:source.testMode!==false,configurationReady:source.configurationReady===true,
@@ -58,7 +58,7 @@ export function normalizeReservation(source){
     changePending:source.changePending===true||(source.request?.status==='pending'&&source.request?.type==='change'),
     cancellationPending:source.cancellationPending===true||(source.request?.status==='pending'&&source.request?.type==='cancellation'),
     paymentStatus:source.paymentStatus||'unpaid',
-    amountDueCzk:Number(source.amountDueCzk||0),
+    admissionCzk:source.admissionCzk??null,amountDueCzk:Number(source.amountDueCzk||0),
     amountPaidCzk:Number(source.amountPaidCzk||0),
     payment:normalizePayment(source.payment),
     submittedAt:source.submittedAt||'',

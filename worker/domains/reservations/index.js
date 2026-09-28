@@ -1,4 +1,5 @@
 import { reservationListQuery, reservationFilterSql } from '../../admin/lists.js';
+import { reservationPrice } from '../arrivals.js';
 import { getCurrentEvent, getRequestedAdminEvent, publicAdminEvent } from "../events.js";
 import { json } from "../../http/responses.js";
 import { clean } from "../../utils/text.js";
@@ -46,7 +47,7 @@ async function getAdminReservations(env, url, origin) {
       r.id, r.member_id, r.event_id, r.car_id, r.car_model, r.car_body, r.car_year, r.car_color, r.car_nickname,
       r.attendance_type, r.arrival, r.crew, r.accommodation, r.accommodation_units,
       r.show_shine, r.note, r.status, r.payment_status, r.payment_vs, r.paid_at,
-      r.amount_due_czk, r.amount_paid_czk,
+      r.admission_czk, r.amount_due_czk, r.amount_paid_czk,
       ${workflowProjection?`rr.id AS request_id,rr.request_type,rr.status AS request_status,rr.original_json AS request_original_json,
       rr.proposed_json AS request_proposed_json,rr.member_note AS request_member_note,rr.admin_comment AS request_admin_comment,
       rr.created_at AS request_created_at,rr.updated_at AS request_updated_at,rr.decided_at AS request_decided_at,rr.decided_by AS request_decided_by,
@@ -167,7 +168,7 @@ function publicAdminReservation(reservation) {
     changePending: reservation.status === "pending" && !!reservation.reviewed_at || reservation.admin_requests?.some(item=>item.status==='pending'&&item.type==='change') || false,
     cancellationPending: reservation.admin_requests?.some(item=>item.status==='pending'&&item.type==='cancellation')||false,
     paymentStatus: paymentStatusFor(reservation.amount_due_czk, reservation.amount_paid_czk),
-    amountDueCzk: Number(reservation.amount_due_czk || 0),
+    admissionCzk: reservation.admission_czk, amountDueCzk: Number(reservation.amount_due_czk || 0),
     amountPaidCzk: Number(reservation.amount_paid_czk || 0),
     submittedAt: reservation.submitted_at || null,
     updatedAt: reservation.updated_at || null,
@@ -187,7 +188,7 @@ async function findCurrentReservation(env, memberId, eventId) {
       r.car_model, r.car_body, r.car_year, r.car_color, r.car_nickname,
       r.arrival, r.crew, r.accommodation, r.show_shine, r.note, r.status,
       r.attendance_type, r.accommodation_units,
-      r.amount_due_czk, r.amount_paid_czk, r.payment_status, r.payment_vs,
+      r.admission_czk, r.amount_due_czk, r.amount_paid_czk, r.payment_status, r.payment_vs,
       r.paid_at, r.submitted_at, r.created_at, r.updated_at, r.reviewed_at, r.review_note,
       e.year AS event_year, e.registration_status AS event_registration_status,
       e.currency AS payment_currency, e.payment_deadline,
@@ -225,7 +226,7 @@ async function findLatestReservation(env, memberId) {
       r.car_model, r.car_body, r.car_year, r.car_color, r.car_nickname,
       r.arrival, r.crew, r.accommodation, r.show_shine, r.note, r.status,
       r.attendance_type, r.accommodation_units,
-      r.amount_due_czk, r.amount_paid_czk, r.payment_status, r.payment_vs,
+      r.admission_czk, r.amount_due_czk, r.amount_paid_czk, r.payment_status, r.payment_vs,
       r.paid_at, r.submitted_at, r.created_at, r.updated_at, r.reviewed_at, r.review_note,
       e.year AS event_year, e.registration_status AS event_registration_status,
       e.currency AS payment_currency, e.payment_deadline,
@@ -363,7 +364,7 @@ async function putCurrentReservation(request, env, auth, origin) {
     pricing = calculateAccommodationPricing(event, option, accommodationUnits, attendanceType);
   }
 
-  const existing = await env.DB.prepare("SELECT id, status FROM reservations WHERE member_id = ? AND event_id = ? LIMIT 1").bind(auth.uid, event.id).first();
+  const existing = await env.DB.prepare("SELECT id, status, admission_czk FROM reservations WHERE member_id = ? AND event_id = ? LIMIT 1").bind(auth.uid, event.id).first();
   if(body.preliminaryId){
     const interest=await env.DB.prepare("SELECT id FROM preliminary_reservations WHERE id=? AND member_id=? AND event_id=? AND status='active' AND revision=?")
       .bind(String(body.preliminaryId),auth.uid,event.id,Number(body.preliminaryRevision)||0).first();
@@ -385,21 +386,23 @@ async function putCurrentReservation(request, env, auth, origin) {
   if(existing?.status==='approved')return json({ok:false,error:'reservation_change_request_required',message:'Schválenou rezervaci změň přes žádost o změnu.'},409,origin);
   const reservationId = existing?.id || crypto.randomUUID();
   const writeToken = createWriteToken();
-  const amountDueCzk = pricing?.totalCzk || 0;
+  const price = reservationPrice(existing ? existing.admission_czk : event.admission_registered_czk, pricing?.totalCzk || 0);
+  const amountDueCzk = price.total;
+  if(price.admission===null)return json({ok:false,error:'admission_not_configured',message:'Vstupné za auto zatím není nastavené. Registraci teď nelze odeslat.'},409,origin);
   const reservationStatement = env.DB.prepare(`
     INSERT INTO reservations (
       id, member_id, event_id, car_id,
       car_model, car_body, car_year, car_color, car_nickname,
       arrival, crew, accommodation, show_shine, note,
       status, attendance_type, accommodation_units,
-      amount_due_czk, amount_paid_czk, payment_status, submitted_at, updated_at
+      amount_due_czk, amount_paid_czk, payment_status, submitted_at, updated_at, admission_czk
     )
-    SELECT ?, ?, events.id, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, 0, 'unpaid', CURRENT_TIMESTAMP, ?
+    SELECT ?, ?, events.id, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, 0, 'unpaid', CURRENT_TIMESTAMP, ?, ?
     FROM events
     ${option ? "JOIN event_accommodation_options selected_option ON selected_option.id = ?" : ""}
     WHERE events.id = ?
       AND (events.is_current = 1 OR NOT EXISTS (SELECT 1 FROM events current_event WHERE current_event.is_current = 1))
-      AND events.registration_status = 'open'
+      AND events.registration_status = 'open' AND events.admission_registered_czk IS ?
       ${body.preliminaryId ? "AND EXISTS(SELECT 1 FROM preliminary_reservations p WHERE p.id=? AND p.member_id=? AND p.event_id=events.id AND p.status='active' AND p.revision=?) AND NOT EXISTS(SELECT 1 FROM reservations r WHERE r.member_id=? AND r.event_id=events.id)" : ''}
       ${option ? `AND selected_option.event_id = events.id AND selected_option.active = 1
         AND selected_option.name = ?
@@ -440,6 +443,7 @@ async function putCurrentReservation(request, env, auth, origin) {
       attendance_type = excluded.attendance_type,
       accommodation_units = excluded.accommodation_units,
       amount_due_czk = excluded.amount_due_czk,
+      admission_czk = excluded.admission_czk,
       submitted_at = CURRENT_TIMESTAMP,
       updated_at = excluded.updated_at
     WHERE reservations.id = excluded.id
@@ -448,7 +452,7 @@ async function putCurrentReservation(request, env, auth, origin) {
     reservationId, auth.uid, car.id,
     car.model, car.body, car.year || null, car.color || null, car.nickname || null,
     arrival, crew, accommodation, showShine, note || null,
-    attendanceType, accommodationUnits, amountDueCzk, writeToken,
+    attendanceType, accommodationUnits, amountDueCzk, writeToken, price.admission,
   ];
   const optionBindings = option ? [option.id] : [];
   const conditionBindings = option ? [
@@ -460,7 +464,7 @@ async function putCurrentReservation(request, env, auth, origin) {
     pricing.unitCount, auth.uid,
   ] : [];
   const preliminaryBindings=body.preliminaryId?[String(body.preliminaryId),auth.uid,Number(body.preliminaryRevision)||0,auth.uid]:[];
-  const statements = [reservationStatement.bind(...baseBindings, ...optionBindings, event.id, ...preliminaryBindings, ...conditionBindings)];
+  const statements = [reservationStatement.bind(...baseBindings, ...optionBindings, event.id, event.admission_registered_czk, ...preliminaryBindings, ...conditionBindings)];
   if (option) {
     statements.push(env.DB.prepare(`
       INSERT INTO reservation_accommodation (
@@ -587,7 +591,7 @@ function publicReservation(reservation) {
     attendanceType: reservation.attendance_type || "",
     accommodationUnits: Number(reservation.accommodation_units || 0),
     accommodationSnapshot: mapAccommodationSnapshot(reservation),
-    amountDueCzk: Number(reservation.amount_due_czk || 0),
+    admissionCzk: reservation.admission_czk, amountDueCzk: Number(reservation.amount_due_czk || 0),
     amountPaidCzk: Number(reservation.amount_paid_czk || 0),
     payment: reservationPayment(reservation),
     paymentStatus: paymentStatusFor(reservation.amount_due_czk, reservation.amount_paid_czk),
@@ -605,7 +609,7 @@ function publicMemberEvent(event) {
     id: event.id,
     year: Number(event.year || 0),
     registrationStatus: event.registration_status || "closed",
-    fullWeekendNights: Number(event.full_weekend_nights ?? 2),
+    admissionRegisteredCzk:event.admission_registered_czk, fullWeekendNights: Number(event.full_weekend_nights ?? 2),
     saturdayOnlyNights: Number(event.saturday_only_nights ?? 1),
   };
 }

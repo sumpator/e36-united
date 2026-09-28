@@ -1,9 +1,9 @@
-import { adminCommand, editorProtected, adminEditorDirty } from '../editors.js?v=20260928-flow1';
+import { adminCommand, editorProtected, adminEditorDirty } from '../editors.js?v=20260930-arrivals2';
 import { accommodationVisualMarkup, bindAccommodationVisualFallbacks } from '../../accommodation-visual.js?v=20260928-flow1';
 import { createPhotoBatch, renderPhotoBatch } from '../../photo-batch.js?v=20260928-flow1';
-import { apiBaseUrl, apiRequest, apiUpload } from '../api.js?v=20260928-flow1';
-import { adminState } from '../state.js?v=20260924-merch2';
-import { setDenied } from '../shell.js?v=20260928-flow1';
+import { apiBaseUrl, apiRequest, apiUpload } from '../api.js?v=20260930-arrivals2';
+import { adminState } from '../state.js?v=20260930-arrivals2';
+import { setDenied } from '../shell.js?v=20260930-arrivals2';
 import { $, escapeHtml, formatMoney, numeric, toast } from '../ui.js?v=20260924-merch2';
 
 const accommodationPhotoSelections=new Map();

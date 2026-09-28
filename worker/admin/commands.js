@@ -2,6 +2,7 @@ import { json } from '../http/responses.js';
 
 // Only the existing local JSON/D1 editors participate. Provider sends and R2 do not.
 export const COMMAND_RESOURCES = Object.freeze({
+  arrivals: { table: 'events', event: 'id', version: 'arrivals' },
   preferences: { table: 'admin_preferences', event: null, version: 'preferences' },
   reservation: { table: 'reservations', event: 'event_id', version: 'reservation' },
   'reservation-request': { table: 'reservations', event: 'event_id', version: 'reservation' },
@@ -83,7 +84,7 @@ export async function runAdminCommand(request, env, auth, operation, entityId, o
     batchCalled = true;
     const initializeVersion=operation==='preferences' ? [env.DB.prepare("INSERT OR IGNORE INTO admin_resource_versions(resource_type,resource_id,revision) VALUES('preferences',?,0)").bind(auth.uid)] : [];
     const prefix = [
-      env.DB.prepare('UPDATE admin_resource_versions SET revision = revision + 1 WHERE resource_type = ? AND resource_id = ? AND revision = ?').bind(resource.version, versionId, baseRevision),
+      env.DB.prepare('UPDATE admin_resource_versions SET revision = revision + 1 WHERE resource_type = ? AND resource_id = ? AND revision = ? AND EXISTS(SELECT 1 FROM members WHERE id=? AND role=\'admin\' AND status=\'active\')').bind(resource.version, versionId, baseRevision, auth.uid),
       env.DB.prepare(`INSERT INTO admin_operation_receipts
         (operation_id, actor_id, operation, entity_id, event_id, base_revision, payload_hash, http_status, cas_applied, primary_applied)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, changes(), 1)`)
@@ -113,13 +114,13 @@ export async function runAdminCommand(request, env, auth, operation, entityId, o
     batch: statements => {
       // Event switching first clears the old current marker. Both updates remain atomic.
       const primaryIndex = operation === 'event' && /SET is_current = 0/.test(statements[0]?.commandSql || '') ? 1 : 0;
-      return commit(statements.map(statement => statement.commandStatement), primaryIndex, operation === 'accommodation-create' ? statements[0]?.commandBindings[0] : null);
+      return commit(statements.map(statement => statement.commandStatement), primaryIndex, operation === 'accommodation-create' || operation === 'arrivals' && /^INSERT INTO event_arrivals/.test(statements[0]?.commandSql || '') ? statements[0]?.commandBindings[0] : null);
     },
   } };
   try {
     const response = await execute(commandEnv);
     if (!response.ok) return response;
-    if (!batchCalled) await commit([]); // A confirmed no-op also has a durable, revision-bound outcome.
+    if (!batchCalled) await commit([],0,operation==='arrivals'?(await response.clone().json()).arrival?.id||null:null); // Confirmed no-op keeps its actual arrival identity for recovery.
     const receipt = await lookup();
     return json({ ...await response.json(), operation: receiptOutcome(receipt) }, response.status, origin);
   } catch (error) {

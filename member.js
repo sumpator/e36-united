@@ -1,4 +1,5 @@
 import { firebaseConfig, portalConfig } from './firebase-config.js?v=20260924-merch2';
+import { showArrivalInvitation } from './member/arrival-invite.js?v=20260930-arrivals2';
 import { performMemberLogout } from './member-logout.js?v=20260826-predeploy-fix';
 import { createMemberApiClient } from './member/api.js?v=20260907-feedback';
 import { loadMemberSessionSnapshot } from './member/refresh.js?v=20260907-feedback';
@@ -9,12 +10,12 @@ import { createMemberShell } from './member/shell.js?v=20260927-ux2';
 import { createMemberOverview } from './member/modules/overview.js?v=20260921-member-ux-r2';
 import { createMemberGarage } from './member/modules/garage.js?v=20260928-flow1';
 import { createMemberPhotos } from './member/modules/photos.js?v=20260928-flow1';
-import { createMemberPlanner } from './member/modules/planner/index.js?v=20260928-flow1';
+import { createMemberPlanner } from './member/modules/planner/index.js?v=20260930-arrivals2';
 import { formatCzk } from './member/modules/planner/payments.js?v=20260924-merch2';
 import { createMemberClub } from './member/modules/club/index.js?v=20260927-ux2';
 import { achievementIcon, pictogram } from './member/modules/club/points.js?v=20260927-ux2';
 import { createMemberAccount } from './member/modules/account.js?v=20260926-portal3';
-import { createMemberLive } from './member/modules/live.js?v=20260928-live2';
+import { createMemberLive } from './member/modules/live.js?v=20260930-arrivals2';
 import { createMemberMerch } from './member/modules/merch.js?v=20260926-portal3';
 import './member/club-tabs.js?v=20260924-workspace1';
 import { requestedMemberSection } from './member/deep-links.js?v=20260924-merch2';
@@ -84,6 +85,7 @@ async function openAuthenticatedSession(user,{quiet=false}={}){
   renderMemberAvailability(startupErrors,retryMemberDomain,{hasHandoff:memberPlanner.hasActiveHandoff()});
   void trackOnboarding('portal');
   if(!quiet)toast(`Přihlášen jako ${member.nickname||member.name}.`);
+  if(await showArrivalInvitation({request:apiRequest,user,firebase:memberSession.firebase,openAccount:()=>openSection('account')}))return;
   const returnTo=memberUrlParams.get('returnTo');
   if(returnTo&&!memberUrlParams.has('draft')){try{const destination=new URL(returnTo,location.origin);if(destination.origin===location.origin&&!/\/member(?:\.html)?\/?$/.test(destination.pathname))location.replace(destination.href)}catch{/* Invalid return links leave the authenticated portal open. */}}
 }

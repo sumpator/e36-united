@@ -1382,4 +1382,347 @@ BEGIN
  ON CONFLICT(event_id) DO UPDATE SET revision=revision+1;
 END;
 INSERT INTO schema_migrations(id,description) VALUES('2026-09-29-live-official-scoring','One official jury set, versioned correction audit and separate competition photography');
+-- Local proposal only. No historical check-in/payment conversion and no data reset.
+ALTER TABLE events ADD COLUMN admission_registered_czk INTEGER CHECK(admission_registered_czk IS NULL OR admission_registered_czk>=0);
+ALTER TABLE events ADD COLUMN admission_onsite_czk INTEGER CHECK(admission_onsite_czk IS NULL OR admission_onsite_czk>=0);
+ALTER TABLE reservations ADD COLUMN admission_czk INTEGER CHECK(admission_czk IS NULL OR admission_czk>=0);
+
+CREATE TABLE event_arrivals (
+  id TEXT PRIMARY KEY,
+  event_id TEXT NOT NULL REFERENCES events(id) ON DELETE RESTRICT,
+  member_id TEXT REFERENCES members(id) ON DELETE RESTRICT,
+  reservation_id TEXT UNIQUE REFERENCES reservations(id) ON DELETE RESTRICT,
+  name TEXT NOT NULL DEFAULT '', nickname TEXT NOT NULL DEFAULT '', email TEXT NOT NULL DEFAULT '', phone TEXT NOT NULL DEFAULT '',
+  car_key TEXT NOT NULL,
+  garage_car_id TEXT REFERENCES cars(id) ON DELETE RESTRICT,
+  competition_car_id TEXT REFERENCES live_competition_cars(id) ON DELETE RESTRICT,
+  model TEXT NOT NULL CHECK(length(trim(model)) BETWEEN 1 AND 120),
+  body TEXT NOT NULL CHECK(body IN ('Sedan','Coupé','Touring','Cabrio','Compact','Z3')),
+  plate TEXT NOT NULL DEFAULT '',
+  crew INTEGER NOT NULL CHECK(crew BETWEEN 1 AND 99),
+  registered INTEGER NOT NULL CHECK(registered IN (0,1)),
+  admission_czk INTEGER NOT NULL CHECK(admission_czk>=0),
+  services_czk INTEGER NOT NULL DEFAULT 0 CHECK(services_czk>=0),
+  free_reason TEXT, free_by TEXT REFERENCES members(id), free_at TEXT,
+  arrived_at TEXT, confirmed_by TEXT REFERENCES members(id),
+  version INTEGER NOT NULL DEFAULT 1,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(event_id,car_key),
+  CHECK((free_reason IS NULL AND free_by IS NULL AND free_at IS NULL) OR (length(trim(free_reason))>0 AND free_by IS NOT NULL AND free_at IS NOT NULL))
+);
+CREATE UNIQUE INDEX arrivals_plate ON event_arrivals(event_id,plate) WHERE plate<>'';
+CREATE INDEX arrivals_member ON event_arrivals(event_id,member_id);
+
+-- One method-aware ledger for reservation and gate payments. No inferred opening balances.
+CREATE TABLE event_payments (
+  id TEXT PRIMARY KEY,
+  event_id TEXT NOT NULL REFERENCES events(id) ON DELETE RESTRICT,
+  reservation_id TEXT REFERENCES reservations(id) ON DELETE RESTRICT,
+  arrival_id TEXT REFERENCES event_arrivals(id) ON DELETE RESTRICT,
+  method TEXT NOT NULL CHECK(method IN ('cash','bank')),
+  amount_czk INTEGER NOT NULL CHECK(amount_czk<>0),
+  actor_id TEXT NOT NULL REFERENCES members(id) ON DELETE RESTRICT,
+  reason TEXT NOT NULL CHECK(length(trim(reason))>0),
+  reverses_id TEXT UNIQUE REFERENCES event_payments(id) ON DELETE RESTRICT,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CHECK(reservation_id IS NOT NULL OR arrival_id IS NOT NULL)
+);
+CREATE INDEX event_payments_reservation ON event_payments(reservation_id);
+CREATE INDEX event_payments_arrival ON event_payments(arrival_id);
+CREATE TRIGGER event_payment_relations BEFORE INSERT ON event_payments BEGIN
+  SELECT CASE WHEN NEW.reservation_id IS NOT NULL AND NOT EXISTS(SELECT 1 FROM reservations WHERE id=NEW.reservation_id AND event_id=NEW.event_id) THEN RAISE(ABORT,'payment_event_mismatch') END;
+  SELECT CASE WHEN NEW.arrival_id IS NOT NULL AND NOT EXISTS(SELECT 1 FROM event_arrivals WHERE id=NEW.arrival_id AND event_id=NEW.event_id AND reservation_id IS NEW.reservation_id) THEN RAISE(ABORT,'payment_arrival_mismatch') END;
+  SELECT CASE WHEN NEW.amount_czk<0 AND NOT EXISTS(SELECT 1 FROM event_payments p WHERE p.id=NEW.reverses_id AND p.amount_czk=-NEW.amount_czk AND p.method=NEW.method AND p.event_id=NEW.event_id AND p.reservation_id IS NEW.reservation_id AND (p.arrival_id IS NEW.arrival_id OR p.reservation_id IS NOT NULL) AND p.reverses_id IS NULL) THEN RAISE(ABORT,'invalid_payment_reversal') END;
+END;
+CREATE TRIGGER event_payment_snapshot AFTER INSERT ON event_payments WHEN NEW.reservation_id IS NOT NULL
+BEGIN
+  UPDATE reservations SET amount_paid_czk=(SELECT COALESCE(SUM(amount_czk),0) FROM event_payments WHERE reservation_id=NEW.reservation_id),payment_confirmed_by=NEW.actor_id,payment_confirmed_at=CURRENT_TIMESTAMP,updated_at=CURRENT_TIMESTAMP WHERE id=NEW.reservation_id;
+  UPDATE reservations SET payment_status=CASE WHEN amount_paid_czk>amount_due_czk THEN 'overpaid' WHEN amount_due_czk=0 THEN 'not_required' WHEN amount_paid_czk=amount_due_czk THEN 'paid' WHEN amount_paid_czk>0 THEN 'underpaid' ELSE 'unpaid' END,paid_at=CASE WHEN amount_paid_czk>=amount_due_czk AND amount_paid_czk>0 THEN COALESCE(paid_at,CURRENT_TIMESTAMP) ELSE NULL END WHERE id=NEW.reservation_id;
+END;
+CREATE TRIGGER event_payment_immutable_update BEFORE UPDATE ON event_payments BEGIN SELECT RAISE(ABORT,'payment_is_append_only'); END;
+CREATE TRIGGER event_payment_immutable_delete BEFORE DELETE ON event_payments BEGIN SELECT RAISE(ABORT,'payment_reset_requires_explicit_maintenance'); END;
+
+CREATE TABLE arrival_invitations (
+  id TEXT PRIMARY KEY,
+  arrival_id TEXT NOT NULL UNIQUE REFERENCES event_arrivals(id) ON DELETE RESTRICT,
+  token_hash TEXT NOT NULL UNIQUE,
+  email TEXT NOT NULL,
+  expires_at TEXT NOT NULL,
+  consumed_by TEXT REFERENCES members(id), consumed_at TEXT, claim_id TEXT UNIQUE,
+  outbox_id TEXT NOT NULL UNIQUE REFERENCES email_outbox(id) ON DELETE RESTRICT
+);
+ALTER TABLE email_outbox ADD COLUMN payload_json TEXT;
+
+-- Preserve legacy rows untouched, but stop using them as an independent check-in.
+ALTER TABLE event_member_presence RENAME TO legacy_event_member_presence;
+CREATE VIEW event_member_presence AS SELECT event_id,member_id,1 present,MAX(confirmed_by) confirmed_by,MIN(arrived_at) confirmed_at FROM event_arrivals WHERE arrived_at IS NOT NULL AND member_id IS NOT NULL GROUP BY event_id,member_id;
+CREATE TRIGGER arrivals_revision_insert AFTER INSERT ON event_arrivals BEGIN
+  INSERT INTO live_event_revisions(event_id,revision) VALUES(NEW.event_id,1) ON CONFLICT(event_id) DO UPDATE SET revision=revision+1;
+END;
+CREATE TRIGGER arrivals_revision_update AFTER UPDATE ON event_arrivals BEGIN
+  INSERT INTO live_event_revisions(event_id,revision) VALUES(NEW.event_id,1) ON CONFLICT(event_id) DO UPDATE SET revision=revision+1;
+END;
+CREATE TRIGGER arrival_reservation_price AFTER UPDATE OF amount_due_czk,admission_czk ON reservations WHEN NEW.admission_czk IS NOT NULL BEGIN
+  UPDATE event_arrivals SET services_czk=NEW.amount_due_czk-NEW.admission_czk,version=version+1 WHERE reservation_id=NEW.id;
+  UPDATE reservations SET payment_status=CASE WHEN amount_paid_czk>amount_due_czk THEN 'overpaid' WHEN amount_due_czk=0 THEN 'not_required' WHEN amount_paid_czk=amount_due_czk THEN 'paid' WHEN amount_paid_czk>0 THEN 'underpaid' ELSE 'unpaid' END WHERE id=NEW.id;
+END;
+INSERT OR IGNORE INTO admin_resource_versions(resource_type,resource_id,revision) SELECT 'arrivals',id,0 FROM events;
+CREATE TRIGGER arrivals_event_version AFTER INSERT ON events BEGIN
+  INSERT OR IGNORE INTO admin_resource_versions(resource_type,resource_id,revision) VALUES('arrivals',NEW.id,0);
+END;
+CREATE TRIGGER event_arrivals_write_guard_insert BEFORE INSERT ON event_arrivals
+WHEN NOT EXISTS(SELECT 1 FROM schema_migrations WHERE id='2026-09-23-live-writes-enabled')
+BEGIN SELECT RAISE(ABORT,'arrivals_schema_upgrading'); END;
+CREATE TRIGGER event_arrivals_write_guard_update BEFORE UPDATE ON event_arrivals
+WHEN NOT EXISTS(SELECT 1 FROM schema_migrations WHERE id='2026-09-23-live-writes-enabled')
+BEGIN SELECT RAISE(ABORT,'arrivals_schema_upgrading'); END;
+CREATE TRIGGER event_arrivals_write_guard_delete BEFORE DELETE ON event_arrivals
+WHEN NOT EXISTS(SELECT 1 FROM schema_migrations WHERE id='2026-09-23-live-writes-enabled')
+BEGIN SELECT RAISE(ABORT,'arrivals_schema_upgrading'); END;
+CREATE TRIGGER event_payments_write_guard_insert BEFORE INSERT ON event_payments
+WHEN NOT EXISTS(SELECT 1 FROM schema_migrations WHERE id='2026-09-23-live-writes-enabled')
+BEGIN SELECT RAISE(ABORT,'arrivals_schema_upgrading'); END;
+CREATE TRIGGER event_payments_write_guard_update BEFORE UPDATE ON event_payments
+WHEN NOT EXISTS(SELECT 1 FROM schema_migrations WHERE id='2026-09-23-live-writes-enabled')
+BEGIN SELECT RAISE(ABORT,'arrivals_schema_upgrading'); END;
+CREATE TRIGGER event_payments_write_guard_delete BEFORE DELETE ON event_payments
+WHEN NOT EXISTS(SELECT 1 FROM schema_migrations WHERE id='2026-09-23-live-writes-enabled')
+BEGIN SELECT RAISE(ABORT,'arrivals_schema_upgrading'); END;
+CREATE TRIGGER arrival_invitations_write_guard_insert BEFORE INSERT ON arrival_invitations
+WHEN NOT EXISTS(SELECT 1 FROM schema_migrations WHERE id='2026-09-23-live-writes-enabled')
+BEGIN SELECT RAISE(ABORT,'arrivals_schema_upgrading'); END;
+CREATE TRIGGER arrival_invitations_write_guard_update BEFORE UPDATE ON arrival_invitations
+WHEN NOT EXISTS(SELECT 1 FROM schema_migrations WHERE id='2026-09-23-live-writes-enabled')
+BEGIN SELECT RAISE(ABORT,'arrivals_schema_upgrading'); END;
+CREATE TRIGGER arrival_invitations_write_guard_delete BEFORE DELETE ON arrival_invitations
+WHEN NOT EXISTS(SELECT 1 FROM schema_migrations WHERE id='2026-09-23-live-writes-enabled')
+BEGIN SELECT RAISE(ABORT,'arrivals_schema_upgrading'); END;
+INSERT INTO schema_migrations(id,description) VALUES('2026-09-30-arrivals','Car arrivals, explicit admission snapshot and method-aware payments; no legacy conversion');
+-- Confirmed-arrival competition identity
+-- Approved explicit rebuild of the five competition tables; preserves all existing rows.
+-- Requires 2026-09-30-arrivals. Execute as one transaction under technical write protection.
+-- Existing IDs and values copied verbatim. No inferred arrival, member or car conversion.
+PRAGMA defer_foreign_keys=ON;
+CREATE TABLE _arrival_rebuild_live_entries AS SELECT * FROM live_entries;
+CREATE TABLE _arrival_rebuild_live_competition_state AS SELECT * FROM live_competition_state;
+CREATE TABLE _arrival_rebuild_live_public_votes AS SELECT * FROM live_public_votes;
+CREATE TABLE _arrival_rebuild_live_judge_scores AS SELECT * FROM live_judge_scores;
+CREATE TABLE _arrival_rebuild_live_judge_photos AS SELECT * FROM live_judge_photos;
+DROP TABLE live_judge_photos;
+DROP TABLE live_judge_scores;
+DROP TABLE live_public_votes;
+DROP TABLE live_competition_state;
+DROP TABLE live_entries;
+CREATE TABLE live_entries (
+  id TEXT PRIMARY KEY,
+  event_id TEXT NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+  discipline TEXT NOT NULL CHECK(discipline IN ('show_shine','best_exhaust')),
+  member_id TEXT REFERENCES members(id) ON DELETE CASCADE,
+  car_id TEXT REFERENCES cars(id) ON DELETE RESTRICT,
+  competition_car_id TEXT,
+  arrival_id TEXT REFERENCES event_arrivals(id) ON DELETE RESTRICT,
+  category TEXT,
+  original_m_confirmed_by TEXT REFERENCES members(id) ON DELETE RESTRICT,
+  presented_at TEXT,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, voting_closed INTEGER NOT NULL DEFAULT 0 CHECK(voting_closed IN (0,1)),
+  CHECK((car_id IS NOT NULL)+(competition_car_id IS NOT NULL)+(arrival_id IS NOT NULL)=1),
+  CHECK(member_id IS NOT NULL OR arrival_id IS NOT NULL),
+  FOREIGN KEY(competition_car_id,event_id,member_id)
+    REFERENCES live_competition_cars(id,event_id,member_id) ON DELETE RESTRICT,
+  UNIQUE(event_id,discipline,car_id),
+  UNIQUE(event_id,discipline,competition_car_id)
+);
+INSERT INTO live_entries(id,event_id,discipline,member_id,car_id,competition_car_id,category,original_m_confirmed_by,presented_at,created_at,voting_closed) SELECT id,event_id,discipline,member_id,car_id,competition_car_id,category,original_m_confirmed_by,presented_at,created_at,voting_closed FROM _arrival_rebuild_live_entries;
+CREATE TABLE live_competition_state (event_id TEXT NOT NULL REFERENCES events(id) ON DELETE CASCADE,discipline TEXT NOT NULL CHECK(discipline IN ('show_shine','best_exhaust')),status TEXT NOT NULL DEFAULT 'idle' CHECK(status IN ('idle','live','paused','closed','published')),current_entry_id TEXT REFERENCES live_entries(id) ON DELETE SET NULL,version INTEGER NOT NULL DEFAULT 1 CHECK(version>0),updated_by TEXT REFERENCES members(id) ON DELETE SET NULL,updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,PRIMARY KEY(event_id,discipline));
+INSERT INTO live_competition_state(event_id,discipline,status,current_entry_id,version,updated_by,updated_at) SELECT event_id,discipline,status,current_entry_id,version,updated_by,updated_at FROM _arrival_rebuild_live_competition_state;
+CREATE TABLE live_public_votes (id TEXT PRIMARY KEY,event_id TEXT NOT NULL REFERENCES events(id) ON DELETE CASCADE,discipline TEXT NOT NULL CHECK(discipline IN ('show_shine','best_exhaust')),entry_id TEXT NOT NULL REFERENCES live_entries(id) ON DELETE CASCADE,voter_id TEXT NOT NULL REFERENCES members(id) ON DELETE CASCADE,score INTEGER NOT NULL CHECK(score BETWEEN 1 AND 10),created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,UNIQUE(event_id,discipline,entry_id,voter_id));
+INSERT INTO live_public_votes(id,event_id,discipline,entry_id,voter_id,score,created_at,updated_at) SELECT id,event_id,discipline,entry_id,voter_id,score,created_at,updated_at FROM _arrival_rebuild_live_public_votes;
+CREATE TABLE live_judge_scores (id TEXT PRIMARY KEY,event_id TEXT NOT NULL REFERENCES events(id) ON DELETE CASCADE,entry_id TEXT NOT NULL REFERENCES live_entries(id) ON DELETE CASCADE,judge_id TEXT NOT NULL REFERENCES members(id) ON DELETE CASCADE,scores_json TEXT NOT NULL CHECK(json_valid(scores_json)),note TEXT,submitted INTEGER NOT NULL DEFAULT 0 CHECK(submitted IN (0,1)),created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, version INTEGER NOT NULL DEFAULT 1, updated_by TEXT REFERENCES members(id), correction_reason TEXT,UNIQUE(event_id,entry_id,judge_id));
+INSERT INTO live_judge_scores(id,event_id,entry_id,judge_id,scores_json,note,submitted,created_at,updated_at,version,updated_by,correction_reason) SELECT id,event_id,entry_id,judge_id,scores_json,note,submitted,created_at,updated_at,version,updated_by,correction_reason FROM _arrival_rebuild_live_judge_scores;
+CREATE TABLE live_judge_photos (id TEXT PRIMARY KEY,event_id TEXT NOT NULL REFERENCES events(id) ON DELETE CASCADE,entry_id TEXT NOT NULL REFERENCES live_entries(id) ON DELETE CASCADE,judge_id TEXT NOT NULL REFERENCES members(id) ON DELETE CASCADE,r2_key TEXT NOT NULL UNIQUE,mime_type TEXT NOT NULL,size_bytes INTEGER NOT NULL,gallery_submission_id TEXT REFERENCES gallery_submissions(id) ON DELETE SET NULL,created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
+INSERT INTO live_judge_photos(id,event_id,entry_id,judge_id,r2_key,mime_type,size_bytes,gallery_submission_id,created_at) SELECT id,event_id,entry_id,judge_id,r2_key,mime_type,size_bytes,gallery_submission_id,created_at FROM _arrival_rebuild_live_judge_photos;
+CREATE INDEX live_entries_event ON live_entries(event_id,discipline,presented_at,id);
+CREATE UNIQUE INDEX live_judge_one_official_set ON live_judge_scores(event_id,entry_id);
+CREATE INDEX live_judge_photos_entry ON live_judge_photos(event_id,entry_id,judge_id,created_at);
+CREATE INDEX live_judge_scores_results ON live_judge_scores(event_id,entry_id,submitted);
+CREATE INDEX live_public_votes_results ON live_public_votes(event_id,discipline,entry_id);
+CREATE TRIGGER live_competition_state_revision_delete AFTER DELETE ON live_competition_state
+BEGIN
+  INSERT INTO live_event_revisions(event_id,revision) SELECT OLD.event_id,1 WHERE EXISTS(SELECT 1 FROM events WHERE id=OLD.event_id)
+  ON CONFLICT(event_id) DO UPDATE SET revision=revision+1;
+END;
+CREATE TRIGGER live_competition_state_revision_insert AFTER INSERT ON live_competition_state
+BEGIN
+  INSERT INTO live_event_revisions(event_id,revision) SELECT NEW.event_id,1 WHERE EXISTS(SELECT 1 FROM events WHERE id=NEW.event_id)
+  ON CONFLICT(event_id) DO UPDATE SET revision=revision+1;
+END;
+CREATE TRIGGER live_competition_state_revision_update AFTER UPDATE ON live_competition_state
+BEGIN
+  INSERT INTO live_event_revisions(event_id,revision) SELECT NEW.event_id,1 WHERE EXISTS(SELECT 1 FROM events WHERE id=NEW.event_id)
+  ON CONFLICT(event_id) DO UPDATE SET revision=revision+1;
+END;
+CREATE TRIGGER live_competition_state_write_guard_delete BEFORE DELETE ON live_competition_state
+WHEN NOT EXISTS(SELECT 1 FROM schema_migrations WHERE id='2026-09-23-live-writes-enabled')
+BEGIN SELECT RAISE(ABORT,'live_schema_upgrading'); END;
+CREATE TRIGGER live_competition_state_write_guard_insert BEFORE INSERT ON live_competition_state
+WHEN NOT EXISTS(SELECT 1 FROM schema_migrations WHERE id='2026-09-23-live-writes-enabled')
+BEGIN SELECT RAISE(ABORT,'live_schema_upgrading'); END;
+CREATE TRIGGER live_competition_state_write_guard_update BEFORE UPDATE ON live_competition_state
+WHEN NOT EXISTS(SELECT 1 FROM schema_migrations WHERE id='2026-09-23-live-writes-enabled')
+BEGIN SELECT RAISE(ABORT,'live_schema_upgrading'); END;
+CREATE TRIGGER live_entries_revision_delete AFTER DELETE ON live_entries
+BEGIN
+  INSERT INTO live_event_revisions(event_id,revision) SELECT OLD.event_id,1 WHERE EXISTS(SELECT 1 FROM events WHERE id=OLD.event_id)
+  ON CONFLICT(event_id) DO UPDATE SET revision=revision+1;
+END;
+CREATE TRIGGER live_entries_revision_insert AFTER INSERT ON live_entries
+BEGIN
+  INSERT INTO live_event_revisions(event_id,revision) SELECT NEW.event_id,1 WHERE EXISTS(SELECT 1 FROM events WHERE id=NEW.event_id)
+  ON CONFLICT(event_id) DO UPDATE SET revision=revision+1;
+END;
+CREATE TRIGGER live_entries_revision_update AFTER UPDATE ON live_entries
+BEGIN
+  INSERT INTO live_event_revisions(event_id,revision) SELECT NEW.event_id,1 WHERE EXISTS(SELECT 1 FROM events WHERE id=NEW.event_id)
+  ON CONFLICT(event_id) DO UPDATE SET revision=revision+1;
+END;
+CREATE TRIGGER live_entries_write_guard_delete BEFORE DELETE ON live_entries
+WHEN NOT EXISTS(SELECT 1 FROM schema_migrations WHERE id='2026-09-23-live-writes-enabled')
+BEGIN SELECT RAISE(ABORT,'live_schema_upgrading'); END;
+CREATE TRIGGER live_entries_write_guard_insert BEFORE INSERT ON live_entries
+WHEN NOT EXISTS(SELECT 1 FROM schema_migrations WHERE id='2026-09-23-live-writes-enabled')
+BEGIN SELECT RAISE(ABORT,'live_schema_upgrading'); END;
+CREATE TRIGGER live_entries_write_guard_update BEFORE UPDATE ON live_entries
+WHEN NOT EXISTS(SELECT 1 FROM schema_migrations WHERE id='2026-09-23-live-writes-enabled')
+BEGIN SELECT RAISE(ABORT,'live_schema_upgrading'); END;
+CREATE TRIGGER live_judge_correction_audit AFTER UPDATE ON live_judge_scores
+WHEN OLD.submitted=1 AND NEW.version<>OLD.version
+BEGIN
+ INSERT INTO live_judge_score_audit(event_id,entry_id,author_id,changed_by,reason,before_scores,after_scores,before_note,after_note,from_version,to_version)
+ VALUES(OLD.event_id,OLD.entry_id,OLD.judge_id,NEW.updated_by,NEW.correction_reason,OLD.scores_json,NEW.scores_json,OLD.note,NEW.note,OLD.version,NEW.version);
+END;
+CREATE TRIGGER live_judge_photos_revision_delete AFTER DELETE ON live_judge_photos
+BEGIN
+  INSERT INTO live_event_revisions(event_id,revision) SELECT OLD.event_id,1 WHERE EXISTS(SELECT 1 FROM events WHERE id=OLD.event_id)
+  ON CONFLICT(event_id) DO UPDATE SET revision=revision+1;
+END;
+CREATE TRIGGER live_judge_photos_revision_insert AFTER INSERT ON live_judge_photos
+BEGIN
+  INSERT INTO live_event_revisions(event_id,revision) SELECT NEW.event_id,1 WHERE EXISTS(SELECT 1 FROM events WHERE id=NEW.event_id)
+  ON CONFLICT(event_id) DO UPDATE SET revision=revision+1;
+END;
+CREATE TRIGGER live_judge_photos_revision_update AFTER UPDATE ON live_judge_photos
+BEGIN
+  INSERT INTO live_event_revisions(event_id,revision) SELECT NEW.event_id,1 WHERE EXISTS(SELECT 1 FROM events WHERE id=NEW.event_id)
+  ON CONFLICT(event_id) DO UPDATE SET revision=revision+1;
+END;
+CREATE TRIGGER live_judge_photos_write_guard_delete BEFORE DELETE ON live_judge_photos
+WHEN NOT EXISTS(SELECT 1 FROM schema_migrations WHERE id='2026-09-23-live-writes-enabled')
+BEGIN SELECT RAISE(ABORT,'live_schema_upgrading'); END;
+CREATE TRIGGER live_judge_photos_write_guard_insert BEFORE INSERT ON live_judge_photos
+WHEN NOT EXISTS(SELECT 1 FROM schema_migrations WHERE id='2026-09-23-live-writes-enabled')
+BEGIN SELECT RAISE(ABORT,'live_schema_upgrading'); END;
+CREATE TRIGGER live_judge_photos_write_guard_update BEFORE UPDATE ON live_judge_photos
+WHEN NOT EXISTS(SELECT 1 FROM schema_migrations WHERE id='2026-09-23-live-writes-enabled')
+BEGIN SELECT RAISE(ABORT,'live_schema_upgrading'); END;
+CREATE TRIGGER live_judge_scores_revision_delete AFTER DELETE ON live_judge_scores
+BEGIN
+  INSERT INTO live_event_revisions(event_id,revision) SELECT OLD.event_id,1 WHERE EXISTS(SELECT 1 FROM events WHERE id=OLD.event_id)
+  ON CONFLICT(event_id) DO UPDATE SET revision=revision+1;
+END;
+CREATE TRIGGER live_judge_scores_revision_insert AFTER INSERT ON live_judge_scores
+BEGIN
+  INSERT INTO live_event_revisions(event_id,revision) SELECT NEW.event_id,1 WHERE EXISTS(SELECT 1 FROM events WHERE id=NEW.event_id)
+  ON CONFLICT(event_id) DO UPDATE SET revision=revision+1;
+END;
+CREATE TRIGGER live_judge_scores_revision_update AFTER UPDATE ON live_judge_scores
+BEGIN
+  INSERT INTO live_event_revisions(event_id,revision) SELECT NEW.event_id,1 WHERE EXISTS(SELECT 1 FROM events WHERE id=NEW.event_id)
+  ON CONFLICT(event_id) DO UPDATE SET revision=revision+1;
+END;
+CREATE TRIGGER live_judge_scores_write_guard_delete BEFORE DELETE ON live_judge_scores
+WHEN NOT EXISTS(SELECT 1 FROM schema_migrations WHERE id='2026-09-23-live-writes-enabled')
+BEGIN SELECT RAISE(ABORT,'live_schema_upgrading'); END;
+CREATE TRIGGER live_judge_scores_write_guard_insert BEFORE INSERT ON live_judge_scores
+WHEN NOT EXISTS(SELECT 1 FROM schema_migrations WHERE id='2026-09-23-live-writes-enabled')
+BEGIN SELECT RAISE(ABORT,'live_schema_upgrading'); END;
+CREATE TRIGGER live_judge_scores_write_guard_update BEFORE UPDATE ON live_judge_scores
+WHEN NOT EXISTS(SELECT 1 FROM schema_migrations WHERE id='2026-09-23-live-writes-enabled')
+BEGIN SELECT RAISE(ABORT,'live_schema_upgrading'); END;
+CREATE TRIGGER live_public_votes_revision_delete AFTER DELETE ON live_public_votes
+BEGIN
+  INSERT INTO live_event_revisions(event_id,revision) SELECT OLD.event_id,1 WHERE EXISTS(SELECT 1 FROM events WHERE id=OLD.event_id)
+  ON CONFLICT(event_id) DO UPDATE SET revision=revision+1;
+END;
+CREATE TRIGGER live_public_votes_revision_insert AFTER INSERT ON live_public_votes
+BEGIN
+  INSERT INTO live_event_revisions(event_id,revision) SELECT NEW.event_id,1 WHERE EXISTS(SELECT 1 FROM events WHERE id=NEW.event_id)
+  ON CONFLICT(event_id) DO UPDATE SET revision=revision+1;
+END;
+CREATE TRIGGER live_public_votes_revision_update AFTER UPDATE ON live_public_votes
+BEGIN
+  INSERT INTO live_event_revisions(event_id,revision) SELECT NEW.event_id,1 WHERE EXISTS(SELECT 1 FROM events WHERE id=NEW.event_id)
+  ON CONFLICT(event_id) DO UPDATE SET revision=revision+1;
+END;
+CREATE TRIGGER live_public_votes_write_guard_delete BEFORE DELETE ON live_public_votes
+WHEN NOT EXISTS(SELECT 1 FROM schema_migrations WHERE id='2026-09-23-live-writes-enabled')
+BEGIN SELECT RAISE(ABORT,'live_schema_upgrading'); END;
+CREATE TRIGGER live_public_votes_write_guard_insert BEFORE INSERT ON live_public_votes
+WHEN NOT EXISTS(SELECT 1 FROM schema_migrations WHERE id='2026-09-23-live-writes-enabled')
+BEGIN SELECT RAISE(ABORT,'live_schema_upgrading'); END;
+CREATE TRIGGER live_public_votes_write_guard_update BEFORE UPDATE ON live_public_votes
+WHEN NOT EXISTS(SELECT 1 FROM schema_migrations WHERE id='2026-09-23-live-writes-enabled')
+BEGIN SELECT RAISE(ABORT,'live_schema_upgrading'); END;
+
+CREATE UNIQUE INDEX live_entries_arrival ON live_entries(event_id,discipline,arrival_id);
+CREATE VIEW live_entry_vehicles AS
+SELECT e.id entry_id,e.event_id,COALESCE(a.member_id,e.member_id) member_id,
+  COALESCE(a.car_key,e.car_id,e.competition_car_id) car_id,
+  COALESCE(a.model,c.model) model,COALESCE(a.body,c.body) body,COALESCE(c.nickname,'') nickname,
+  COALESCE(NULLIF(m.nickname,''),NULLIF(a.nickname,''),NULLIF(m.name,''),NULLIF(a.name,''),'Účastník č. '||substr(a.id,-8)) participant_name,
+  c.photo_id,e.arrival_id
+FROM live_entries e
+LEFT JOIN event_arrivals a ON a.id=e.arrival_id AND a.event_id=e.event_id
+LEFT JOIN live_vehicle_catalog c ON c.id=COALESCE(e.car_id,e.competition_car_id,a.garage_car_id,a.competition_car_id) AND (c.event_id IS NULL OR c.event_id=e.event_id)
+LEFT JOIN members m ON m.id=COALESCE(a.member_id,e.member_id);
+CREATE TRIGGER live_entry_arrival_identity_insert BEFORE INSERT ON live_entries
+BEGIN
+ SELECT CASE WHEN NEW.arrival_id IS NOT NULL AND NOT EXISTS(
+  SELECT 1 FROM event_arrivals a WHERE a.id=NEW.arrival_id AND a.event_id=NEW.event_id
+    AND a.arrived_at IS NOT NULL AND (NEW.member_id IS NULL OR NEW.member_id=a.member_id)
+ ) THEN RAISE(ABORT,'confirmed_arrival_identity_required') END;
+ SELECT CASE WHEN EXISTS(
+  SELECT 1 FROM live_entry_vehicles v WHERE v.entry_id<>NEW.id AND v.event_id=NEW.event_id
+    AND v.car_id=COALESCE(NEW.car_id,NEW.competition_car_id,(SELECT car_key FROM event_arrivals WHERE id=NEW.arrival_id))
+    AND EXISTS(SELECT 1 FROM live_entries e WHERE e.id=v.entry_id AND e.discipline=NEW.discipline)
+ ) THEN RAISE(ABORT,'duplicate_physical_competition_car') END;
+END;
+CREATE TRIGGER live_entry_arrival_identity_update BEFORE UPDATE ON live_entries
+BEGIN
+ SELECT CASE WHEN NEW.arrival_id IS NOT NULL AND NOT EXISTS(
+  SELECT 1 FROM event_arrivals a WHERE a.id=NEW.arrival_id AND a.event_id=NEW.event_id
+    AND a.arrived_at IS NOT NULL AND (NEW.member_id IS NULL OR NEW.member_id=a.member_id)
+ ) THEN RAISE(ABORT,'confirmed_arrival_identity_required') END;
+ SELECT CASE WHEN EXISTS(
+  SELECT 1 FROM live_entry_vehicles v WHERE v.entry_id<>NEW.id AND v.event_id=NEW.event_id
+    AND v.car_id=COALESCE(NEW.car_id,NEW.competition_car_id,(SELECT car_key FROM event_arrivals WHERE id=NEW.arrival_id))
+    AND EXISTS(SELECT 1 FROM live_entries e WHERE e.id=v.entry_id AND e.discipline=NEW.discipline)
+ ) THEN RAISE(ABORT,'duplicate_physical_competition_car') END;
+END;
+CREATE TRIGGER live_arrival_car_immutable BEFORE UPDATE OF car_key,event_id ON event_arrivals
+WHEN (NEW.car_key<>OLD.car_key OR NEW.event_id<>OLD.event_id) AND EXISTS(SELECT 1 FROM live_entries WHERE arrival_id=OLD.id)
+BEGIN SELECT RAISE(ABORT,'competition_arrival_identity_locked'); END;
+CREATE TABLE _arrival_rebuild_assert(ok INTEGER CHECK(ok=1));
+INSERT INTO _arrival_rebuild_assert SELECT CASE WHEN NOT EXISTS(SELECT id,event_id,discipline,member_id,car_id,competition_car_id,category,original_m_confirmed_by,presented_at,created_at,voting_closed FROM live_entries EXCEPT SELECT id,event_id,discipline,member_id,car_id,competition_car_id,category,original_m_confirmed_by,presented_at,created_at,voting_closed FROM _arrival_rebuild_live_entries) AND NOT EXISTS(SELECT id,event_id,discipline,member_id,car_id,competition_car_id,category,original_m_confirmed_by,presented_at,created_at,voting_closed FROM _arrival_rebuild_live_entries EXCEPT SELECT id,event_id,discipline,member_id,car_id,competition_car_id,category,original_m_confirmed_by,presented_at,created_at,voting_closed FROM live_entries) THEN 1 ELSE 0 END;
+INSERT INTO _arrival_rebuild_assert SELECT CASE WHEN NOT EXISTS(SELECT event_id,discipline,status,current_entry_id,version,updated_by,updated_at FROM live_competition_state EXCEPT SELECT event_id,discipline,status,current_entry_id,version,updated_by,updated_at FROM _arrival_rebuild_live_competition_state) AND NOT EXISTS(SELECT event_id,discipline,status,current_entry_id,version,updated_by,updated_at FROM _arrival_rebuild_live_competition_state EXCEPT SELECT event_id,discipline,status,current_entry_id,version,updated_by,updated_at FROM live_competition_state) THEN 1 ELSE 0 END;
+INSERT INTO _arrival_rebuild_assert SELECT CASE WHEN NOT EXISTS(SELECT id,event_id,discipline,entry_id,voter_id,score,created_at,updated_at FROM live_public_votes EXCEPT SELECT id,event_id,discipline,entry_id,voter_id,score,created_at,updated_at FROM _arrival_rebuild_live_public_votes) AND NOT EXISTS(SELECT id,event_id,discipline,entry_id,voter_id,score,created_at,updated_at FROM _arrival_rebuild_live_public_votes EXCEPT SELECT id,event_id,discipline,entry_id,voter_id,score,created_at,updated_at FROM live_public_votes) THEN 1 ELSE 0 END;
+INSERT INTO _arrival_rebuild_assert SELECT CASE WHEN NOT EXISTS(SELECT id,event_id,entry_id,judge_id,scores_json,note,submitted,created_at,updated_at,version,updated_by,correction_reason FROM live_judge_scores EXCEPT SELECT id,event_id,entry_id,judge_id,scores_json,note,submitted,created_at,updated_at,version,updated_by,correction_reason FROM _arrival_rebuild_live_judge_scores) AND NOT EXISTS(SELECT id,event_id,entry_id,judge_id,scores_json,note,submitted,created_at,updated_at,version,updated_by,correction_reason FROM _arrival_rebuild_live_judge_scores EXCEPT SELECT id,event_id,entry_id,judge_id,scores_json,note,submitted,created_at,updated_at,version,updated_by,correction_reason FROM live_judge_scores) THEN 1 ELSE 0 END;
+INSERT INTO _arrival_rebuild_assert SELECT CASE WHEN NOT EXISTS(SELECT id,event_id,entry_id,judge_id,r2_key,mime_type,size_bytes,gallery_submission_id,created_at FROM live_judge_photos EXCEPT SELECT id,event_id,entry_id,judge_id,r2_key,mime_type,size_bytes,gallery_submission_id,created_at FROM _arrival_rebuild_live_judge_photos) AND NOT EXISTS(SELECT id,event_id,entry_id,judge_id,r2_key,mime_type,size_bytes,gallery_submission_id,created_at FROM _arrival_rebuild_live_judge_photos EXCEPT SELECT id,event_id,entry_id,judge_id,r2_key,mime_type,size_bytes,gallery_submission_id,created_at FROM live_judge_photos) THEN 1 ELSE 0 END;
+INSERT INTO _arrival_rebuild_assert SELECT CASE WHEN NOT EXISTS(SELECT 1 FROM pragma_foreign_key_check) THEN 1 ELSE 0 END;
+DROP TABLE _arrival_rebuild_assert;
+DROP TABLE _arrival_rebuild_live_judge_photos;
+DROP TABLE _arrival_rebuild_live_judge_scores;
+DROP TABLE _arrival_rebuild_live_public_votes;
+DROP TABLE _arrival_rebuild_live_competition_state;
+DROP TABLE _arrival_rebuild_live_entries;
+INSERT INTO schema_migrations(id,description) VALUES('2026-09-30-live-arrival-entries','Direct confirmed-arrival competition identity without synthetic member or copied car');
 COMMIT;

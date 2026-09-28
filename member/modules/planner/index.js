@@ -3,7 +3,7 @@ import { accommodationGalleryCue, accommodationPhotos, bindAccommodationGalleryT
 import { MAX_RESERVATION_CREW, newerPlannerDraft, validatePlannerDraft } from '../../../planner-state.js?v=20260928-flow1';
 import { $, esc, setButtonBusy, toast } from '../../ui.js?v=20260902-phase3';
 import { createReservationPayments, formatCzk } from './payments.js?v=20260912-member-reservation-panels-r1';
-import { normalizeAccommodationOption, normalizeReservation } from './reservation.js?v=20260928-flow1';
+import { normalizeAccommodationOption, normalizeReservation } from './reservation.js?v=20260930-arrivals2';
 import { isAuthorizationFailure } from '../../refresh.js?v=20260907-feedback';
 import { createMemberPlannerExperience } from './experience.js?v=20260928-flow1';
 
@@ -292,6 +292,7 @@ export function createMemberPlanner({
     const priceDetails=$('[data-reservation-price-details]',accommodationPreview);if(priceDetails)priceDetails.open=detailOpen;
   }
   function syncMemberSleep(source='form'){
+    queueMicrotask(renderAdmissionSummary);
     if(!reservationForm||!arrivalSelect||!sleepField||!crewInput||!accommodationUnitsInput||!sleepSelect||!accommodationOptionSelect||!accommodationPartialInput)return;
     const data=getData(),editable=reservationFormIsEditable(),dayPass=arrivalSelect.value==='Jen na otočku',rawCrew=Number(crewInput.value),aboveLimit=Number.isInteger(rawCrew)&&rawCrew>MAX_RESERVATION_CREW;
     let crew=aboveLimit?rawCrew:clampReservationNumber(crewInput.value,1,MAX_RESERVATION_CREW,1);
@@ -320,6 +321,14 @@ export function createMemberPlanner({
     accommodationOptionSelect.disabled=withoutAccommodation||!editable||!options.length;
     if(withoutAccommodation){accommodationOptionSelect.value='';if(accommodationPreview)accommodationPreview.hidden=true;if(accommodationAvailability)accommodationAvailability.textContent='';renderChangePlannerRecap();plannerExperience.sync();return}
     renderAccommodationPreview();renderChangePlannerRecap();plannerExperience.sync();
+  }
+  function renderAdmissionSummary(){
+    if(!reservationForm)return;
+    let box=reservationForm.querySelector('[data-admission-summary]');if(!box){box=document.createElement('p');box.dataset.admissionSummary='';box.setAttribute('aria-live','polite');reservationForm.querySelector('[data-reservation-submit]')?.before(box)}
+    const r=getData().reservation,admission=r?.admissionCzk??reservationState.event?.admissionRegisteredCzk;
+    const option=selectedAccommodationOption(),people=Number(accommodationUnitsInput?.value||0),without=arrivalSelect?.value==='Jen na otočku'||sleepSelect?.value==='Bez ubytování';
+    const services=without?0:option&&people?priceAccommodation(option,people).totalCzk:null;
+    box.textContent=admission==null?'Vstupné za auto zatím není nastavené. Nejde o nulovou cenu.':`Vstupné za auto: ${formatCzk(admission)}. `+(services==null?'Cenu ubytování doplní zvolená varianta.':`Ubytování a služby: ${formatCzk(services)}. Celkem: ${formatCzk(admission+services)}.`);
   }
   function setReservationCarError(visible){const panel=$('[data-reservation-car-error]');if(panel)panel.hidden=!visible}
   function reservationFormIsEditable(reservation=getData().reservation){

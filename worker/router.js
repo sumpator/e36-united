@@ -1,4 +1,6 @@
 import { publicMerch,routeMerch } from './domains/merch/index.js';
+import { routeArrivals } from './domains/arrivals.js';
+import { claimArrival, deliverArrivalInvitations } from './domains/arrival-invitations.js';
 import { listAdminMembers,getAdminMember,resolveAdminMemberQr,adminMemberMedia } from './admin/members.js';
 import { runAdminCommand, getAdminOperation } from './admin/commands.js';
 import { getAdminSummary } from './admin/summary.js';
@@ -111,7 +113,8 @@ export async function routeRequest({ request, env, url, origin, ctx }) {
     // This release is installed before the controlled LIVE table rebuild.
     // Fail closed only for LIVE until its final schema marker is committed.
     const liveRoute=/^\/api\/live(?:\/|$)/.test(url.pathname)||/^\/api\/admin\/(?:live$|events\/[^/]+\/live(?:\/|$))/.test(url.pathname);
-    if(liveRoute){
+    const arrivalWrite=request.method!=='GET'&&(/\/arrivals(?:\/|$)/.test(url.pathname)||/\/reservations(?:\/|$)/.test(url.pathname)||/^\/api\/admin\/events(?:\/|$)/.test(url.pathname));
+    if(liveRoute||arrivalWrite){
       const ready=await env.DB.prepare("SELECT MAX(id='2026-09-23-live-competition-cars') readable,MAX(id='2026-09-23-live-writes-enabled') writable FROM schema_migrations WHERE id IN ('2026-09-23-live-competition-cars','2026-09-23-live-writes-enabled')").first();
       if(!ready?.readable||(request.method!=='GET'&&!ready?.writable))return json({ok:false,error:'live_schema_upgrading',message:'UNITED LIVE se právě aktualizuje. Zkus to za chvíli.'},503,origin);
     }
@@ -123,6 +126,14 @@ export async function routeRequest({ request, env, url, origin, ctx }) {
       }
 
       if(url.pathname.startsWith('/api/admin/merch/'))return routeMerch({request,env,url,origin,auth,ctx},true);
+      if(/^\/api\/admin\/events\/[^/]+\/arrivals(?:\/|$)/.test(url.pathname)){
+        const response=await routeArrivals({request,env,url,origin,auth});
+        if(response?.ok&&request.method==='POST'){
+          const result=await response.clone().json();
+          if(result.arrival?.id)ctx.waitUntil(deliverArrivalInvitations(env,result.arrival.id));
+        }
+        return response;
+      }
       if(url.pathname==='/api/admin/dashboard'&&request.method==='GET')return getAdminDashboard(env,url,origin);
       if(url.pathname==='/api/admin/live'&&request.method==='GET')return getAdminLive(env,url,origin);
       if(url.pathname==='/api/admin/events'&&request.method==='POST')return createEvent(request,env,auth,origin);
@@ -336,6 +347,7 @@ export async function routeRequest({ request, env, url, origin, ctx }) {
     if(reservationRequestAcknowledgementMatch&&request.method==='POST')return domain.acknowledgeReservationRequest(env,auth,
       decodeURIComponent(reservationRequestAcknowledgementMatch[1]),decodeURIComponent(reservationRequestAcknowledgementMatch[2]),origin);
 
+    if (url.pathname === '/api/arrivals/claim' && request.method === 'POST') return claimArrival(request,env,auth,origin);
     if (url.pathname === "/api/cars" && request.method === "GET") return await domain.listCars(env, auth, origin);
     if (url.pathname === "/api/cars" && request.method === "POST") return await domain.createCar(request, env, auth, origin);
 

@@ -1,12 +1,12 @@
-import {adminState} from './state.js?v=20260924-merch2';
+import {adminState} from './state.js?v=20260930-arrivals2';
 import {$,$$,escapeHtml as esc,rememberSessionChoice} from './ui.js?v=20260924-merch2';
-import {apiRequest} from './api.js?v=20260928-flow1';
+import {apiRequest} from './api.js?v=20260930-arrivals2';
 import {esc as merchEscape,statusLabel} from '../merch/order-view.js?v=20260924-workspace1';
 import {money} from '../merch/catalog.js?v=20260924-merch2';
 import {ADMIN_REFRESH} from './refresh-policy.js?v=20260924-merch2';
 import {memberQrMarkup,memberQrSvg} from '../member-qr-renderer.js?v=20260924-merch2';
 import {MEMBER_TABS,memberIdentity,memberOverview,memberReservation,memberSection,memberEmpty} from './member-presentation.js?v=20260924-merch2';
-import {compactMemberDetails,compactMemberIdentity,compactMemberPhoto,createCardMedia} from './member-cards.js?v=20260928-flow1';
+import {compactMemberDetails,compactMemberIdentity,compactMemberPhoto,createCardMedia} from './member-cards.js?v=20260930-arrivals2';
 const cardsMedia=createCardMedia();
 let memberListMarkup=null;
 function clearCards(){cardsMedia.clear();memberListMarkup=null}
@@ -43,7 +43,7 @@ export function openMember(id,source,{tab='overview',route=true}={}){
   if(adminState.memberId!==id){document.querySelectorAll('[data-member-dialog] [data-domain-status]').forEach(node=>node.remove());delete adminState.resourceStates['member-header'];delete adminState.resourceStates['member-tab'];releaseMemberMedia();$('[data-member-identity]').innerHTML='<h2 id="admin-member-heading">Načítám člena…</h2>';$('[data-member-event]').replaceChildren();$('[data-member-tab-content]').replaceChildren();}
   opener=source||opener||document.activeElement;adminState.memberId=id;adminState.memberTab=Object.hasOwn(MEMBER_TABS,tab)?tab:'overview';adminState.memberPage=1;
   ensureProjectionContext();
-  const dialog=$('[data-member-dialog]');if(!dialog.open){scrollLock={x:window.scrollX,y:window.scrollY};document.documentElement.classList.add('admin-member-modal-open');dialog.showModal();}syncTabs();renderMemberReadState();
+  const dialog=$('[data-member-dialog]');if(!dialog.open){scrollLock={x:window.scrollX,y:window.scrollY};document.documentElement.classList.add('admin-member-modal-open');dialog.showModal();}for(const a of payload.arrivals||[])$('[data-member-event]').insertAdjacentHTML('beforeend',`<article><h3>${esc(a.model)}</h3><p>Příjezd ${esc(a.arrivedAt)} · ${a.crew} osob · celkem ${a.due} Kč · uhrazeno ${a.paid} Kč</p><button class="admin-button" data-gate-arrival="${esc(a.id)}" type="button">Příjezd a jednotlivé úhrady →</button></article>`);syncTabs();renderMemberReadState();
   if(route)window.dispatchEvent(new CustomEvent('admin:memberopened'));routeChange();
 }
 export function closeMember({route=true}={}){
@@ -73,7 +73,7 @@ export function renderMemberHeader(payload){
  ensureProjectionContext();headerData=payload;
  const identity=memberIdentity(payload.member,payload.heroCar);if($('[data-member-identity]').innerHTML!==identity)$('[data-member-identity]').innerHTML=identity;
  renderMemberHero(payload);
- $('[data-member-event]').innerHTML=payload.reservations?.length?payload.reservations.map(memberReservation).join(''):memberEmpty('Na tento ročník zatím nemá registraci.','reservations');syncTabs();renderMemberReadState();
+ $('[data-member-event]').innerHTML=payload.reservations?.length?payload.reservations.map(memberReservation).join(''):memberEmpty('Na tento ročník zatím nemá registraci.','reservations');for(const a of payload.arrivals||[])$('[data-member-event]').insertAdjacentHTML('beforeend',`<article><h3>${esc(a.model)}</h3><p>Příjezd ${esc(a.arrivedAt)} · ${a.crew} osob · celkem ${a.due} Kč · uhrazeno ${a.paid} Kč</p><button class="admin-button" data-gate-arrival="${esc(a.id)}" type="button">Příjezd a jednotlivé úhrady →</button></article>`);syncTabs();renderMemberReadState();
 }
 export function renderMembers(payload){
  const list=$('[data-member-list]'),markup=rows(payload.members,m=>`<article class="admin-member-card compact-member-card">${compactMemberIdentity(m)}${compactMemberPhoto(m)}${compactMemberDetails(m)}</article>`)+pagination(payload,'list');

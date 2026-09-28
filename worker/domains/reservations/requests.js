@@ -49,6 +49,7 @@ async function reservationRequestSource(env,reservationId,memberId=null){
 }
 
 async function normalizeProposal(env,row,body){
+  if(row.admission_czk==null)throw Object.assign(new Error('Stará testovací rezervace nemá nové cenové položky. Její vstupné ani úhrady neodhadujeme.'),{code:'legacy_price_snapshot_missing',status:409});
   const arrival=clean(body.arrival),crew=Number(body.crew),requestedAccommodation=clean(body.accommodation);
   const showShine=clean(body.showShine),note=clean(body.note).slice(0,1000),optionId=clean(body.accommodationOptionId);
   const attendanceType=({Pátek:'full_weekend',Sobota:'saturday_only','Jen na otočku':'day_visit'})[arrival]||'';
@@ -77,7 +78,7 @@ async function normalizeProposal(env,row,body){
     option=option||{id:stored.optionId,name:stored.optionName,kind:stored.kind,active:0};
   }
   return {arrival,attendanceType,crew,accommodation,accommodationOptionId:option?.id||null,
-    accommodationUnits,showShine,note,amountDueCzk:pricing?.totalCzk||0,
+    accommodationUnits,showShine,note,amountDueCzk:(pricing?.totalCzk||0)+(row.admission_czk||0),
     accommodationSnapshot:option?{optionId:option.id,optionName:option.name,kind:option.kind,
       peopleCount:accommodationUnits,...pricing,...(retainsApproved&&option.active!==1?{retainedApprovedOption:true,configurationMissing}:{})}:null};
 }
@@ -187,7 +188,7 @@ async function reviewReservationRequest(request,env,auth,reservationId,requestId
   const allowed=new Set(['decision','adminComment']);if(Object.keys(body).some(key=>!allowed.has(key)))return json({ok:false,error:'invalid_fields',message:'Lze změnit pouze rozhodnutí a komentář pro člena.'},400,origin);
   const decision=clean(body.decision),comment=clean(body.adminComment).slice(0,1000);
   if(!['approved','rejected'].includes(decision))return json({ok:false,error:'invalid_decision',message:'Vyber schválení nebo zamítnutí.'},400,origin);
-  const requestRow=await env.DB.prepare(`SELECT rr.*,r.status AS reservation_status,r.event_id,r.member_id,r.amount_paid_czk,r.amount_due_czk,
+  const requestRow=await env.DB.prepare(`SELECT rr.*,r.status AS reservation_status,r.event_id,r.member_id,r.amount_paid_czk,r.amount_due_czk,r.admission_czk,
     r.arrival,r.attendance_type,r.crew,r.accommodation,r.accommodation_units,r.show_shine,r.note,
     e.full_weekend_nights,e.saturday_only_nights,ra.option_id AS accommodation_option_id,ra.option_name AS accommodation_option_name,
     ra.kind AS accommodation_option_kind,ra.people_count AS accommodation_people_count,ra.unit_count AS accommodation_unit_count,

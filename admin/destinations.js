@@ -1,6 +1,6 @@
 // Presentation/navigation IDs only. Never execute commands or accept arbitrary URLs.
 export const ADMIN_AREAS = Object.freeze({
-  dashboard:{label:'Přehled',views:['dashboard']},
+  dashboard:{label:'Přehled',views:['dashboard']}, arrivals:{label:'Příjezdy',views:['arrivals']},
   merch:{label:'Merchandising',views:['merch']},
   live:{label:'UNITED LIVE',views:['live']},
   reservations:{label:'Registrace',views:['reservations','preliminary','accommodation']},
@@ -9,7 +9,7 @@ export const ADMIN_AREAS = Object.freeze({
   mailing:{label:'Mailing',views:['mailing']},
   settings:{label:'Nastavení',views:['event']},
 });
-export const VIEW_LABELS=Object.freeze({dashboard:'Přehled',live:'UNITED LIVE',reservations:'Registrace',preliminary:'Předběžné registrace',accommodation:'Ubytování',payments:'Platby',members:'Členové',gallery:'Fotky',club:'Historie & S&S','united-club':'United Club',mailing:'Mailing',event:'Nastavení ročníku'});
+export const VIEW_LABELS=Object.freeze({dashboard:'Přehled',arrivals:'Příjezdy',live:'UNITED LIVE',reservations:'Registrace',preliminary:'Předběžné registrace',accommodation:'Ubytování',payments:'Platby',members:'Členové',gallery:'Fotky',club:'Historie & S&S','united-club':'United Club',mailing:'Mailing',event:'Nastavení ročníku'});
 export const areaFor=(view,mode)=>view==='gallery'||view==='club'?'community':Object.keys(ADMIN_AREAS).find(key=>ADMIN_AREAS[key].views.includes(view))||'dashboard';
 export const DESTINATIONS=Object.freeze({
   members:{label:'Členové',view:'members',scope:'global'},

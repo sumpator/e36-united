@@ -1,30 +1,31 @@
-import {initializeDashboard,renderDashboard,receiveDashboardPreferences,dashboardWantsPlanner,dashboardWantsMailing,clearDashboard} from './admin/dashboard.js?v=20260928-flow1';
-import {initializeCommandShell} from './admin/command-shell.js?v=20260924-merch2';
-import {initializeMembers,openMember,closeMember,clearMemberPrivateState,memberContextKey,memberRefreshTasks,renderMemberReadState} from './admin/member-detail.js?v=20260928-flow1';
+import {initializeDashboard,renderDashboard,receiveDashboardPreferences,dashboardWantsPlanner,dashboardWantsMailing,clearDashboard} from './admin/dashboard.js?v=20260930-arrivals2';
+import {initializeCommandShell} from './admin/command-shell.js?v=20260930-arrivals2';
+import {initializeMembers,openMember,closeMember,clearMemberPrivateState,memberContextKey,memberRefreshTasks,renderMemberReadState} from './admin/member-detail.js?v=20260930-arrivals2';
 import {ADMIN_REFRESH,resourceDue} from './admin/refresh-policy.js?v=20260924-merch2';
-import {reservationRequestPath,galleryRequestPath} from './admin/lists.js?v=20260928-flow1';
-import { initializeAdminNavigation } from './admin/navigation.js?v=20260924-workspace1';
+import {reservationRequestPath,galleryRequestPath} from './admin/lists.js?v=20260930-arrivals2';
+import { initializeAdminNavigation } from './admin/navigation.js?v=20260930-arrivals2';
 import { createAdminRefresh } from './admin/refresh.js?v=20260924-merch2';
-import { initializeAdminEditors, bindCurrentEditors, forgetAdminEditor, allowAdminNavigation, clearAdminPrivateEdits, adminRenderPending } from './admin/editors.js?v=20260928-flow1';
+import { initializeAdminEditors, bindCurrentEditors, forgetAdminEditor, allowAdminNavigation, clearAdminPrivateEdits, adminRenderPending } from './admin/editors.js?v=20260930-arrivals2';
 import { firebaseConfig } from './firebase-config.js?v=20260924-merch2';
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js';
 import { getAuth, setPersistence, browserLocalPersistence, onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js';
 
-import { apiRequest } from './admin/api.js?v=20260928-flow1';
-import { adminState, resetAdminDomainState, resetAdminFiltersForEvent, resetAdminFiltersForLogin } from './admin/state.js?v=20260924-merch2';
-import { initializeAdminShell, setAdminSectionCollapsed, setAdminView, setDenied, setLoading, setView } from './admin/shell.js?v=20260928-flow1';
+import { apiRequest } from './admin/api.js?v=20260930-arrivals2';
+import { adminState, resetAdminDomainState, resetAdminFiltersForEvent, resetAdminFiltersForLogin } from './admin/state.js?v=20260930-arrivals2';
+import { initializeAdminShell, setAdminSectionCollapsed, setAdminView, setDenied, setLoading, setView } from './admin/shell.js?v=20260930-arrivals2';
 import { $, toast } from './admin/ui.js?v=20260924-merch2';
-import { renderEventSelector, renderEventSettings, renderOverview, saveEventSettings } from './admin/modules/dashboard-events.js?v=20260928-flow1';
-import { moveAccommodationGalleryPhoto, previewAccommodationGalleryPhoto, previewAccommodationPhoto, removeAccommodationGalleryPhoto, resetAccommodationMedia, removeAccommodationPhoto, renderAccommodation, saveAccommodation, uploadAccommodationGalleryPhoto, uploadAccommodationPhoto } from './admin/modules/accommodation.js?v=20260928-flow1';
-import { clearReservationDetailFilters, closeReservationDrawer, openReservationDrawer, renderReservations, renderReservationDetail, reviewReservationRequest, saveReservationNotes, setPaymentFilter, setPaymentSearch, setReservationFilter, setReservationSearch, setReservationViewMode, toggleReservationDetailFilter, toggleReservationFilters, updateReservation, updateReservationPayment } from './admin/modules/reservations-payments.js?v=20260928-flow1';
-import { changeHistoryPage, clearHistoryFilters, closeGalleryLightbox, closeHistoryEvidence, historyRequestPath, hydrateOpenHistoryCard, openGalleryLightbox, openHistoryEvidence, releaseGalleryMedia, releaseHistoryEvidence, renderGallery, renderHistoryClaims, reviewHistoryClaim, setGalleryFilter, setGalleryMode, setHistoryClaimType, setHistoryFilter, setHistorySearch, setHistoryYear, updateGallery } from './admin/modules/moderation.js?v=20260928-flow1';
-import { initializeMailingCenter, resetMailingCenter, refreshMailingCenter } from './admin/modules/mailing/index.js?v=20260928-flow1';
-import { renderAdminFunnel } from './admin/modules/funnel.js?v=20260928-flow1';
-import {releaseHistoryCardMedia} from './admin/modules/moderation.js?v=20260928-flow1';
-import { refreshHistoryAttention } from './admin/modules/dashboard-events.js?v=20260928-flow1';
-import {initializePreliminary,clearPreliminary,preliminaryContext,preliminaryTasks} from './admin/modules/preliminary.js?v=20260928-flow1';
-import {initializeAdminLive} from './admin/modules/live.js?v=20260928-live2';
-import {initializeMerch} from './admin/modules/merch.js?v=20260928-flow1';
+import { renderEventSelector, renderEventSettings, renderOverview, saveEventSettings } from './admin/modules/dashboard-events.js?v=20260930-arrivals2';
+import { moveAccommodationGalleryPhoto, previewAccommodationGalleryPhoto, previewAccommodationPhoto, removeAccommodationGalleryPhoto, resetAccommodationMedia, removeAccommodationPhoto, renderAccommodation, saveAccommodation, uploadAccommodationGalleryPhoto, uploadAccommodationPhoto } from './admin/modules/accommodation.js?v=20260930-arrivals2';
+import { clearReservationDetailFilters, closeReservationDrawer, openReservationDrawer, renderReservations, renderReservationDetail, reviewReservationRequest, saveReservationNotes, setPaymentFilter, setPaymentSearch, setReservationFilter, setReservationSearch, setReservationViewMode, toggleReservationDetailFilter, toggleReservationFilters, updateReservation, updateReservationPayment } from './admin/modules/reservations-payments.js?v=20260930-arrivals2';
+import { changeHistoryPage, clearHistoryFilters, closeGalleryLightbox, closeHistoryEvidence, historyRequestPath, hydrateOpenHistoryCard, openGalleryLightbox, openHistoryEvidence, releaseGalleryMedia, releaseHistoryEvidence, renderGallery, renderHistoryClaims, reviewHistoryClaim, setGalleryFilter, setGalleryMode, setHistoryClaimType, setHistoryFilter, setHistorySearch, setHistoryYear, updateGallery } from './admin/modules/moderation.js?v=20260930-arrivals2';
+import { initializeMailingCenter, resetMailingCenter, refreshMailingCenter } from './admin/modules/mailing/index.js?v=20260930-arrivals2';
+import { renderAdminFunnel } from './admin/modules/funnel.js?v=20260930-arrivals2';
+import {releaseHistoryCardMedia} from './admin/modules/moderation.js?v=20260930-arrivals2';
+import { refreshHistoryAttention } from './admin/modules/dashboard-events.js?v=20260930-arrivals2';
+import {initializePreliminary,clearPreliminary,preliminaryContext,preliminaryTasks} from './admin/modules/preliminary.js?v=20260930-arrivals2';
+import {initializeAdminLive} from './admin/modules/live.js?v=20260930-arrivals2';
+import { initializeArrivals } from './admin/modules/arrivals.js?v=20260930-arrivals2';
+import {initializeMerch} from './admin/modules/merch.js?v=20260930-arrivals2';
 
 const app=initializeApp(firebaseConfig);
 const auth=getAuth(app);
@@ -145,7 +146,7 @@ async function refreshResources({context,signal,isCurrent,reason}){
   return {failed:failed.length?failed:null};
 }
 const refreshCoordinator=createAdminRefresh({readContext:refreshContext,refresh:refreshResources,onState:freshness});
-async function loadEventData(){refreshCoordinator.invalidate();return refreshCoordinator.trigger('context')}
+async function loadEventData(){adminArrivals.load();refreshCoordinator.invalidate();return refreshCoordinator.trigger('context')}
 async function loadAdminData(){
   const generation=++startupGeneration;refreshCoordinator.invalidate();setLoading(true);
   try{
@@ -153,7 +154,7 @@ async function loadAdminData(){
     if(generation!==startupGeneration)return;
     adminState.events=payload.events||[];
     if(!adminState.events.some(event=>event.id===adminState.selectedEventId))adminState.selectedEventId=(adminState.events.find(event=>event.isCurrent)||adminState.events[0]||{}).id||'';
-    eventsReady=true;renderEventSelector();setView('admin');await refreshCoordinator.trigger('startup');await adminLive.startup();adminMerch.startup();
+    eventsReady=true;renderEventSelector();setView('admin');await refreshCoordinator.trigger('startup');await adminLive.startup();adminArrivals.load();adminMerch.startup();
     if(adminState.pendingMemberRoute){const target=adminState.pendingMemberRoute;adminState.pendingMemberRoute=null;openMember(target.memberId,null,{tab:target.memberTab,route:false})}
   }catch(error){if(!error.stale&&!adminState.denied)toast(error.message||'Admin data se nepodařilo načíst.')}
   finally{if(generation===startupGeneration)setLoading(false)}
@@ -194,7 +195,7 @@ initializeMembers({
 });
 initializeCommandShell();
 const adminMerch=initializeMerch();
-const adminLive=initializeAdminLive({setAdminView});
+const adminLive=initializeAdminLive({setAdminView}); const adminArrivals=initializeArrivals();
 initializePreliminary(()=>{
   // Explicit panel open/page/settings refresh invalidates only this resource.
   for(const key of resourceFreshness.keys())if(key.includes('/api/admin/preliminary-reservations?'))resourceFreshness.delete(key);

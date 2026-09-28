@@ -77,7 +77,8 @@ export async function getAdminMember(env,url,memberId,tab,origin){
     if(eventId&&!event)return json({error:'event_not_found'},404,origin);
     const reservations=eventId?await all(env,`SELECT ${reservationFields} FROM reservations r JOIN events e ON e.id=r.event_id LEFT JOIN reservation_accommodation ra ON ra.reservation_id=r.id WHERE r.member_id=? AND r.event_id=? ORDER BY r.created_at DESC,r.id LIMIT 20`,[memberId,eventId]):[];
     const heroCar=await memberHeroCar(env,memberId);
-    return response({context,member,event,reservations,heroCar},origin);
+    const arrivals=eventId?await all(env,`SELECT a.id,a.model,a.plate,a.arrived_at arrivedAt,a.crew,a.services_czk+CASE WHEN a.free_reason IS NULL THEN a.admission_czk ELSE 0 END due,COALESCE((SELECT SUM(p.amount_czk) FROM event_payments p WHERE (a.reservation_id IS NOT NULL AND p.reservation_id=a.reservation_id) OR (a.reservation_id IS NULL AND p.arrival_id=a.id)),0) paid FROM event_arrivals a WHERE a.member_id=? AND a.event_id=? ORDER BY a.arrived_at DESC`,[memberId,eventId]):[];
+    return response({context,member,event,reservations,heroCar,arrivals},origin);
   }
   if(tab==='reservations')data=await paged(env,reservationFields,'reservations r JOIN events e ON e.id=r.event_id LEFT JOIN reservation_accommodation ra ON ra.reservation_id=r.id','r.member_id=? ORDER BY e.year DESC,r.id',[memberId],page);
   else if(tab==='garage'){
