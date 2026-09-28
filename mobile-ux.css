@@ -1,0 +1,59 @@
+/* Mobile-only refinements; desktop layout and application state are unchanged. */
+@media(max-width:680px){
+ .home-page .experience-section .weekend-tabs{align-items:stretch}
+ .home-page .experience-section .weekend-tab{min-height:0;padding:6px 9px;display:flex;flex-direction:column;justify-content:flex-start;gap:3px}
+ .home-page .experience-section .weekend-tab span{margin:0;line-height:1.2}
+ .home-page .experience-section .weekend-tab b{margin:0;line-height:1.25}
+ .home-page .experience-section .weekend-tab small{display:block;margin:0;line-height:1.25}
+ .home-page .category-showcase-copy{height:160px!important;padding:12px 18px!important}
+ .home-page main>#experience{padding-bottom:32px}
+ .home-page main>#show-shine{padding-top:32px;padding-bottom:32px}
+ .home-page main>#planer{padding-top:42px}
+
+ .home-page #planer .stay-slider-options{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+ .home-page #planer .stay-slider-options button{padding:10px 8px;min-height:54px}
+ .home-page #planer .stay-slider-options b{font-size:14px;line-height:1.3;white-space:normal}
+ .home-page #planer .stay-slider-options small{font-size:12px;line-height:1.35;white-space:normal}
+ .home-page #planer .stay-slider-current small{font-size:13px;line-height:1.4}
+ .home-page #planer .choice-row .choice{font-size:13px!important;line-height:1.35;white-space:normal;min-width:0}
+ .home-page #planer :is(.people-picker>span,.planner-partial-toggle,.planner-substep-head>b,[data-planner-accommodation-availability]){font-size:13px;line-height:1.4}
+ .home-page #planer .planner-substep-head>span{font-size:12px;line-height:1.35}
+ .home-page #planer .planner-accommodation-card{gap:6px 10px}
+ .home-page #planer .planner-accommodation-card strong{font-size:15px;line-height:1.3}
+ .home-page #planer .planner-accommodation-card span{font-size:13px;line-height:1.4}
+ .home-page #planer .planner-accommodation-card b{grid-column:1/-1;font-size:14px;line-height:1.4}
+ .home-page #planer .planner-accommodation-card small{grid-row:1;max-width:100%;font-size:12px;line-height:1.2}
+ .home-page #planer .planner-price-preview{font-size:13px;line-height:1.4}
+ .home-page #planer .planner-price-preview :is(small,span){font-size:13px}
+
+ .home-page #planer .weekend-preview-grid--v8{grid-template-columns:minmax(0,1fr)!important;gap:10px!important}
+ .home-page #planer .preview-choice-card{display:grid;grid-template-columns:104px minmax(0,1fr);min-width:0}
+ .home-page #planer :is(.preview-choice-media,.preview-crew-stage){height:100%!important;min-height:116px;min-width:0;overflow:hidden}
+ .home-page #planer .preview-choice-media img{width:100%;height:100%;object-fit:cover}
+ .home-page #planer .preview-choice-copy{min-height:0!important;padding:12px;min-width:0;background:var(--appearance-surface,#14171c)}
+ .home-page #planer .preview-choice-copy>span{font-size:12px;line-height:1.3;letter-spacing:.06em;color:var(--appearance-action,#70bdff)}
+ .home-page #planer .preview-choice-copy b{font-size:15px;line-height:1.3;color:var(--appearance-ink,#f4f7fa)}
+ .home-page #planer .preview-choice-copy small{display:block;min-height:0;font-size:12px;line-height:1.4;-webkit-line-clamp:unset;overflow:visible;color:var(--appearance-muted,#afbdca)}
+ .home-page #planer .preview-choice-copy [data-preview-accommodation-units]{font-size:12px;line-height:1.35;letter-spacing:0}
+ .home-page #planer :is(.preview-choice-index,.preview-mode-badge,.accommodation-gallery-cue){color:#fff;background:rgba(5,12,20,.9);border-color:rgba(255,255,255,.5);font-size:12px;line-height:1.2;text-shadow:none}
+ .home-page #planer .preview-choice-index{top:6px;left:6px;width:auto;height:auto;min-width:28px;padding:5px}
+ .home-page #planer .preview-mode-badge{top:auto;bottom:6px;left:6px;right:auto;padding:5px;letter-spacing:0}
+ .home-page #planer .accommodation-gallery-cue{left:4px;right:4px;bottom:5px;padding:6px 4px;white-space:normal;text-align:center;letter-spacing:0}
+ .home-page #planer .accommodation-gallery-cue[hidden]{display:none!important}
+ .home-page #planer .crew-counter{right:6px;bottom:8px;top:auto}
+ .home-page #planer .crew-counter strong{font-size:30px}
+ .home-page #planer .preview-crew-stage .flow-people{height:auto;min-height:0;display:flex;gap:3px;padding:40px 6px 48px;flex-wrap:wrap;align-items:center}
+ .home-page #planer .weekend-timeline{display:none}
+
+ .member-page .reservation-saved-price{grid-template-columns:minmax(0,1fr);grid-template-areas:"visual" "head" "details";align-items:start}
+ .member-page .reservation-saved-price>.accommodation-gallery-trigger{grid-area:visual;position:relative;width:100%;min-width:0;max-width:100%;margin:0}
+ .member-page .reservation-saved-price .member-saved-accommodation-visual{position:relative;width:100%;height:auto;aspect-ratio:16/9;margin:0}
+ .member-page .reservation-saved-price .member-saved-accommodation-visual img{width:100%;height:100%;object-fit:cover}
+ .member-page .reservation-saved-price>.reservation-saved-price-head{min-width:0;gap:6px}
+ .member-page .reservation-saved-price-head span{font-size:12px;line-height:1.35}
+ .member-page .reservation-saved-price-head b{font-size:14px;line-height:1.4;overflow-wrap:anywhere}
+ .member-page .reservation-saved-price-details{min-width:0;width:100%}
+ .member-page .reservation-saved-price-details>summary{font-size:13px;min-height:44px}
+ .member-page .reservation-saved-price-details :is(small,strong){font-size:13px;align-items:start;line-height:1.4}
+ .member-page .reservation-saved-price-details b{flex-shrink:0}
+}
