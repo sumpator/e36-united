@@ -23,7 +23,7 @@ import { renderAdminFunnel } from './admin/modules/funnel.js?v=20260928-flow1';
 import {releaseHistoryCardMedia} from './admin/modules/moderation.js?v=20260928-flow1';
 import { refreshHistoryAttention } from './admin/modules/dashboard-events.js?v=20260928-flow1';
 import {initializePreliminary,clearPreliminary,preliminaryContext,preliminaryTasks} from './admin/modules/preliminary.js?v=20260928-flow1';
-import {initializeAdminLive} from './admin/modules/live.js?v=20260928-flow1';
+import {initializeAdminLive} from './admin/modules/live.js?v=20260928-judge1';
 import {initializeMerch} from './admin/modules/merch.js?v=20260928-flow1';
 
 const app=initializeApp(firebaseConfig);
