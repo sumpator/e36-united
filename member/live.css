@@ -54,3 +54,7 @@ body.member-live-mode-active{background:var(--appearance-page,#050b11);overflow-
  .live-vote-dialog{padding:16px}
  .live-vote-photo img{height:150px}
 }
+.live-vote-dialog{box-sizing:border-box;max-height:calc(100dvh - 24px);overflow-y:auto;overscroll-behavior:contain}
+@media(max-height:500px){.live-vote-dialog .live-vote-photo{max-height:100px}.live-vote-dialog .live-vote-photo img{height:100px;object-fit:contain}.live-vote-dialog h2{margin-block:6px}.live-vote-dialog p{margin-block:6px}}
+.live-exit-dialog{max-width:min(420px,calc(100vw - 32px));max-height:calc(100dvh - 32px);overflow:auto;border:1px solid var(--appearance-border,#31516a);border-radius:16px;padding:24px;background:var(--appearance-surface,#102331);color:var(--appearance-ink,#fff)}
+.live-exit-dialog::backdrop{background:#000a}.live-exit-dialog>div{display:flex;gap:12px}.live-exit-dialog button{min-height:44px;padding:10px 16px;border:1px solid var(--appearance-border,#31516a);border-radius:9px;background:var(--appearance-subtle,#173b57);color:inherit}
