@@ -68,3 +68,6 @@ body.admin-live-mode-active{background:var(--appearance-page,#050b11);overflow-x
  .admin-live-program-days label{padding:0 4px;font-size:12px}
  .admin-live-work-head nav{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
+/* Explicit participant selection stays inside the current category. */
+.admin-live-picker{display:grid;gap:14px;margin-top:16px}.admin-live-picker .admin-live-search{margin:0}.admin-live-picker>.admin-live-inline{justify-self:start}.admin-live-member-row small{font-weight:400}.admin-live-work-head nav .admin-live-inline{padding:8px 12px;min-height:40px}
+@media(max-width:680px){.admin-live-picker{gap:12px}.admin-live-picker .admin-live-member-row{margin:0;padding:10px 0}.admin-live-picker .admin-live-search{display:grid;grid-template-columns:minmax(0,1fr) auto}.admin-live-picker input{min-width:0}.admin-live-section{scroll-margin-bottom:100px}}

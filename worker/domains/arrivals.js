@@ -27,16 +27,28 @@ export async function getArrival(env,eventId,id) {
 export async function arrivalList(env,eventId) {
   const event=await one(env,'SELECT id,year,title,admission_registered_czk,admission_onsite_czk FROM events WHERE id=?',eventId);if(!event)bad('Ročník nebyl nalezen.',404);
   const list=(await rows(env,`SELECT a.*,EXISTS(SELECT 1 FROM live_car_photos f WHERE f.event_id=a.event_id AND f.car_id=a.car_key) hasPhoto,${paidSql} paid,o.status invitation_status FROM event_arrivals a LEFT JOIN arrival_invitations i ON i.arrival_id=a.id LEFT JOIN email_outbox o ON o.id=i.outbox_id WHERE a.event_id=? ORDER BY a.arrived_at DESC,a.id`,eventId)).map(arrivalView);
-  const expected=await rows(env,`SELECT r.id reservationId,r.member_id memberId,r.car_id carId,r.crew,r.status,m.name,m.nickname,r.car_model model,r.car_body body,r.amount_due_czk due,r.amount_paid_czk paid FROM reservations r JOIN members m ON m.id=r.member_id WHERE r.event_id=? AND r.status IN ('approved','pending') AND NOT EXISTS(SELECT 1 FROM event_arrivals a WHERE a.reservation_id=r.id AND a.arrived_at IS NOT NULL) ORDER BY m.name,r.id`,eventId);
+  const expected=await rows(env,`SELECT r.id reservationId,r.member_id memberId,r.car_id carId,r.crew,r.status,m.name,m.nickname,m.email,m.phone,r.car_model model,r.car_body body,r.amount_due_czk due,r.amount_paid_czk paid FROM reservations r JOIN members m ON m.id=r.member_id WHERE r.event_id=? AND r.status IN ('approved','pending') AND NOT EXISTS(SELECT 1 FROM event_arrivals a WHERE a.reservation_id=r.id AND a.arrived_at IS NOT NULL) ORDER BY m.name,r.id`,eventId);
   const cash=await one(env,"SELECT COALESCE(SUM(amount_czk),0) total FROM event_payments WHERE event_id=? AND method='cash' AND arrival_id IS NOT NULL",eventId);
   return {ok:true,event,revision:await resourceRevision(env,'arrivals',eventId),arrivals:list,expected,counts:{expected:expected.filter(r=>r.status==='approved').length,arrived:list.filter(a=>a.arrived_at).length,unregistered:list.filter(a=>a.arrived_at&&!a.registered).length,people:list.filter(a=>a.arrived_at).reduce((n,a)=>n+a.crew,0),cash:cash.total}};
 }
-export async function findArrivalMembers(env,eventId,q='',qr=null) {
-  const token=qr?parseMemberQr(qr):null;if(qr&&!token)bad('Neplatný členský QR.');
-  const needle='%'+clean(q,80).replace(/[\\%_]/g,'\\$&')+'%';
-  return rows(env,`SELECT m.id,m.name,m.nickname,m.email,m.phone,m.member_code memberCode,r.id reservationId,r.status reservationStatus,r.car_id registeredCarId,r.crew,r.accommodation,r.arrival,r.admission_czk,r.amount_due_czk due,r.amount_paid_czk paid,
-    (SELECT json_group_array(json_object('id',c.id,'model',c.model,'body',c.body,'source',c.source,'photoId',c.photo_id)) FROM live_vehicle_catalog c WHERE c.member_id=m.id AND (c.event_id IS NULL OR c.event_id=?)) carsJson
-    FROM members m LEFT JOIN reservations r ON r.member_id=m.id AND r.event_id=? WHERE m.status='active' AND ${token?'EXISTS(SELECT 1 FROM member_qr_identities qr WHERE qr.member_id=m.id AND qr.token=?)':`(m.name LIKE ? ESCAPE '\\' OR m.nickname LIKE ? ESCAPE '\\' OR m.email LIKE ? ESCAPE '\\' OR EXISTS(SELECT 1 FROM event_arrivals a WHERE a.member_id=m.id AND a.event_id=? AND a.plate LIKE ? ESCAPE '\\'))`} ORDER BY COALESCE(m.nickname,m.name) LIMIT 50`,eventId,eventId,...(token?[token]:[needle,needle,needle,eventId,needle]));
+export async function findArrivalMembers(env,eventId,q='',qr=null,{memberId='',offset=0}={}) {
+ const token=qr?parseMemberQr(qr):null;if(qr&&!token)bad('Neplatný členský QR.');
+ const needle='%'+clean(q,80).replace(/[\\%_]/g,'\\$&')+'%',page=Math.max(0,Math.min(100000,Number(offset)||0));
+ const list=await rows(env,`SELECT m.id,'member:'||m.id key,m.name,m.nickname,m.email,m.phone,m.member_code memberCode,r.id reservationId,r.status reservationStatus,r.car_id registeredCarId,r.crew,r.accommodation,r.arrival,r.admission_czk,r.amount_due_czk due,r.amount_paid_czk paid,
+ (SELECT json_group_array(json_object('id',c.id,'model',c.model,'body',c.body,'source',c.source,'photoId',c.photo_id)) FROM live_vehicle_catalog c WHERE c.member_id=m.id AND (c.event_id IS NULL OR c.event_id=?)) carsJson
+ FROM members m LEFT JOIN reservations r ON r.member_id=m.id AND r.event_id=? WHERE m.status='active'
+ AND (?='' OR m.id=?) AND (? IS NULL OR EXISTS(SELECT 1 FROM member_qr_identities qr WHERE qr.member_id=m.id AND qr.token=?))
+ AND (m.name LIKE ? ESCAPE '\\' OR m.nickname LIKE ? ESCAPE '\\' OR m.email LIKE ? ESCAPE '\\' OR m.member_code LIKE ? ESCAPE '\\'
+ OR EXISTS(SELECT 1 FROM live_vehicle_catalog c WHERE c.member_id=m.id AND (c.event_id IS NULL OR c.event_id=?) AND (c.model LIKE ? ESCAPE '\\' OR c.nickname LIKE ? ESCAPE '\\'))
+ OR EXISTS(SELECT 1 FROM event_arrivals a WHERE a.member_id=m.id AND a.event_id=? AND a.plate LIKE ? ESCAPE '\\'))
+ ORDER BY COALESCE(m.nickname,m.name),m.id LIMIT 51 OFFSET ?`,eventId,eventId,memberId,memberId,token,token,needle,needle,needle,needle,eventId,needle,needle,eventId,needle,page);
+ if(token||memberId)return list;
+ // Guests remain identified by the exact competition car, never by a guessed name match.
+ const guests=await rows(env,`SELECT NULL id,'car:'||c.id key,c.participant_name name,'' nickname,'' email,'' phone,NULL memberCode,NULL reservationStatus,
+ json_array(json_object('id',c.id,'model',c.model,'body',c.body,'source','competition','photoId',CASE WHEN c.r2_key IS NOT NULL THEN c.id END)) carsJson
+ FROM live_competition_cars c WHERE c.event_id=? AND c.member_id IS NULL AND NOT EXISTS(SELECT 1 FROM event_arrivals a WHERE a.event_id=c.event_id AND a.car_key=c.id)
+ AND (c.participant_name LIKE ? ESCAPE '\\' OR c.model LIKE ? ESCAPE '\\' OR c.id LIKE ? ESCAPE '\\') ORDER BY c.participant_name,c.id LIMIT 51 OFFSET ?`,eventId,needle,needle,needle,page);
+ return [...list,...guests];
 }
 
 // New reservation prices snapshot the admission separately. Unknown is never zero.
@@ -60,7 +72,7 @@ async function confirmArrival(env,auth,eventId,b) {
   const existing=reserved?await one(env,'SELECT id FROM event_arrivals WHERE reservation_id=?',reserved.id):null;
   if(existing)return {ok:true,alreadyArrived:true,arrival:await getArrival(env,eventId,existing.id)};
   const id=clean(b.id,128);if(!/^[a-z0-9_-]{8,128}$/i.test(id))bad('Chybí stabilní ID příjezdu.');
-  const carId=clean(b.carId,128),car=carId?await one(env,'SELECT * FROM live_vehicle_catalog WHERE id=? AND member_id=? AND (event_id IS NULL OR event_id=?)',carId,memberId,eventId):null;
+  const carId=clean(b.carId,128),car=carId?await one(env,'SELECT * FROM live_vehicle_catalog WHERE id=? AND member_id IS ? AND (event_id IS NULL OR event_id=?)',carId,memberId,eventId):null;
   if(carId&&!car)bad('Auto nepatří vybranému účastníkovi.');
   const model=car?.model||clean(b.model),body=car?.body||clean(b.body),plate=normalizePlate(b.plate);
   if(!model||!bodies.has(body))bad('Vyplň model a karoserii skutečného auta.');
@@ -71,7 +83,7 @@ async function confirmArrival(env,auth,eventId,b) {
   const free=b.free===true,reason=free?clean(b.freeReason,240):null;if(free&&!reason)bad('Uveď důvod FREE VSTUPU.');
   let admission=reserved?.admission_czk??event.admission_onsite_czk,services=0,paid=0;
   if(reserved){
-    if(reserved.admission_czk==null)bad('Tato stará testovací rezervace nemá nové cenové položky. Použij novou testovací sadu.',409);
+    if(reserved.admission_czk==null)bad('Rezervace nemá samostatně evidované vstupné. Otevři její detail; odbavení nelze bezpečně spočítat bez rozdělení ceny.',409);
     services=reserved.amount_due_czk-reserved.admission_czk;
     paid=Number((await one(env,'SELECT COALESCE(SUM(amount_czk),0) paid FROM event_payments WHERE reservation_id=?',reserved.id)).paid);
     if(services<0||paid!==reserved.amount_paid_czk)bad('Rezervace neodpovídá nové cenové a platební evidenci.',409);
@@ -110,7 +122,7 @@ async function correctArrival(env,auth,eventId,id,b) {
   let actual=null;
   if(b.car){
     if(await one(env,'SELECT 1 FROM live_entry_vehicles WHERE event_id=? AND car_id=?',eventId,old.car_key))bad('Auto už má soutěžní účast. Oprav ji samostatně; příjezd ji nesmí přepsat.',409);
-    const carId=clean(b.car.id,128),car=carId?await one(env,'SELECT * FROM live_vehicle_catalog WHERE id=? AND member_id=? AND (event_id IS NULL OR event_id=?)',carId,old.member_id,eventId):null;
+    const carId=clean(b.car.id,128),car=carId?await one(env,'SELECT * FROM live_vehicle_catalog WHERE id=? AND member_id IS ? AND (event_id IS NULL OR event_id=?)',carId,old.member_id,eventId):null;
     if(carId&&!car)bad('Auto nepatří účastníkovi.');
     actual={key:carId||old.car_key,garage:car?.source==='garage'?carId:null,competition:car?.source==='competition'?carId:null,model:car?.model||clean(b.car.model),body:car?.body||clean(b.car.body),plate:normalizePlate(b.car.plate)};
     if(!actual.model||!bodies.has(actual.body))bad('Vyplň skutečné auto a karoserii.');
@@ -143,7 +155,7 @@ export async function routeArrivals({request,env,url,origin,auth}) {
       return json({ok:false,error:'method_not_allowed'},405,origin);
     }
     if(request.method==='GET'){
-      if(part==='search')return json({ok:true,members:await findArrivalMembers(env,eventId,url.searchParams.get('q')||'')},200,origin);
+      if(part==='search')return json({ok:true,members:await findArrivalMembers(env,eventId,url.searchParams.get('q')||'',null,{memberId:url.searchParams.get('memberId')||'',offset:url.searchParams.get('offset')})},200,origin);
       if(part==='export'){const data=await arrivalList(env,eventId);return json({...data,exportedAt:new Date().toISOString()},200,origin)}
       if(part)return json({ok:true,arrival:await getArrival(env,eventId,part),revision:await resourceRevision(env,'arrivals',eventId)},200,origin);
       return json(await arrivalList(env,eventId),200,origin);

@@ -5,6 +5,7 @@ import { listAdminMembers,getAdminMember,resolveAdminMemberQr,adminMemberMedia }
 import { runAdminCommand, getAdminOperation } from './admin/commands.js';
 import { getAdminSummary } from './admin/summary.js';
 import {getAdminDashboard,getAdminPreferences,saveAdminPreferences} from './admin/dashboard.js';
+import { isEventJudge } from './auth/judge.js';
 import { requireAdmin } from "./auth/admin.js";
 import { verifyFirebaseRequest } from "./auth/firebase.js";
 import { ACTIVE_MEMBER_STATUS, activeMemberForbidden, findMemberAuthorizationRecord, requireActiveMember } from "./auth/member.js";
@@ -119,6 +120,26 @@ export async function routeRequest({ request, env, url, origin, ctx }) {
       if(!ready?.readable||(request.method!=='GET'&&!ready?.writable))return json({ok:false,error:'live_schema_upgrading',message:'UNITED LIVE se právě aktualizuje. Zkus to za chvíli.'},503,origin);
     }
 
+    // Assigned event judges can prepare Show & Shine, not enter the rest of Admin.
+    const jury=url.pathname.match(/^\/api\/admin\/events\/([^/]+)\/live\/(members|qr|start|cars|members\/[^/]+\/cars|cars\/[^/]+\/media)$/);
+    if(jury&&!await requireAdmin(env,auth)){
+      const eid=decodeURIComponent(jury[1]),action=jury[2];
+      if(!await isEventJudge(env,auth.uid,eid))return json({ok:false,error:'judge_forbidden'},403,origin);
+      if(action==='members'&&request.method==='GET'&&url.searchParams.get('discipline')==='show_shine')return searchLiveMembers(env,eid,url,origin);
+      if(['qr','start'].includes(action)&&request.method==='POST'){
+        const body=await request.clone().json();
+        if(body.discipline!=='show_shine')return json({ok:false,error:'judge_forbidden'},403,origin);
+        return action==='qr'?resolveLiveQr(request,env,eid,origin):startLiveEntry(request,env,auth,eid,origin);
+      }
+      if(request.method==='POST'&&(action==='cars'||/^members\//.test(action)))return createCompetitionCar(request,env,auth,eid,action==='cars'?null:decodeURIComponent(action.split('/')[1]),origin);
+      if(/^cars\/.+\/media$/.test(action)){
+        const id=decodeURIComponent(action.split('/')[1]);
+        if(request.method==='GET')return competitionCarMedia(env,eid,id,origin);
+        if(request.method==='POST')return saveCompetitionPhoto(request,env,auth,eid,id,origin);
+      }
+      return json({ok:false,error:'judge_forbidden'},403,origin);
+    }
+
     if (url.pathname.startsWith("/api/admin/")) {
       const admin = await requireAdmin(env, auth);
       if (!admin) {
@@ -150,6 +171,8 @@ export async function routeRequest({ request, env, url, origin, ctx }) {
       if(liveQr&&request.method==='POST')return resolveLiveQr(request,env,decodeURIComponent(liveQr[1]),origin);
       const livePresence=url.pathname.match(/^\/api\/admin\/events\/([^/]+)\/live\/members\/([^/]+)\/presence$/);
       if(livePresence&&request.method==='PUT')return setLivePresence(request,env,auth,decodeURIComponent(livePresence[1]),decodeURIComponent(livePresence[2]),origin);
+      const guestCarCreate=url.pathname.match(/^\/api\/admin\/events\/([^/]+)\/live\/cars$/);
+      if(guestCarCreate&&request.method==='POST')return createCompetitionCar(request,env,auth,decodeURIComponent(guestCarCreate[1]),null,origin);
       const liveCarCreate=url.pathname.match(/^\/api\/admin\/events\/([^/]+)\/live\/members\/([^/]+)\/cars$/);
       if(liveCarCreate&&request.method==='POST')return createCompetitionCar(request,env,auth,decodeURIComponent(liveCarCreate[1]),decodeURIComponent(liveCarCreate[2]),origin);
       const liveCarMedia=url.pathname.match(/^\/api\/admin\/events\/([^/]+)\/live\/cars\/([^/]+)\/media$/);

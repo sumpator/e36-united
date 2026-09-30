@@ -1,5 +1,5 @@
 import { requireAdmin } from '../auth/admin.js';
-import { startArrivedShowShine, arrivedParticipants } from './live-arrivals.js';
+import { startArrivedShowShine, participantList } from './live-arrivals.js';
 import { programDays, programTimes } from '../../live-program.js';
 import { JUDGE_SQL, isEventJudge } from '../auth/judge.js';
 import { uploadIdentity, cleanupFailedUpload } from './upload-identity.js';
@@ -324,7 +324,7 @@ export async function assignLiveJudge(request,env,auth,eventId,origin){
 }
 
 export async function searchLiveMembers(env,eventId,url,origin){
-  if(url.searchParams.get('discipline')==='show_shine')return json({ok:true,members:await arrivedParticipants(env,eventId,clean(url.searchParams.get('q')))},200,origin);
+  if(url.searchParams.get('discipline')==='show_shine')return json({ok:true,...await participantList(env,eventId,clean(url.searchParams.get('q')),{category:clean(url.searchParams.get('category')),offset:url.searchParams.get('offset')})},200,origin);
   const q=clean(url.searchParams.get('q')).slice(0,80);if(q&&q.replace(/\W/g,'').length<2)return json({ok:true,members:[]},200,origin);const needle=`%${q.replace(/[\\%_]/g,'\\$&')}%`,searchAll=q?1:0;
   const rows=await all(env,`SELECT m.id memberId,m.member_code memberCode,m.name,m.nickname,r.status,r.show_shine showShine,p.present,COALESCE((SELECT a.car_key FROM event_arrivals a WHERE a.event_id=p.event_id AND a.member_id=m.id ORDER BY a.arrived_at DESC,a.id LIMIT 1),r.car_id) registeredCarId,
     (SELECT COUNT(*) FROM live_entries le WHERE le.event_id=? AND le.member_id=m.id) competitionEntries,
@@ -337,7 +337,7 @@ export async function searchLiveMembers(env,eventId,url,origin){
 
 export async function resolveLiveQr(request,env,eventId,origin){
   const body=await readBody(request),token=parseMemberQr(clean(body.payload));if(!token)return json({ok:false,error:'invalid_qr'},400,origin);
-  if(body.discipline==='show_shine'){const owner=await one(env,'SELECT member_id FROM member_qr_identities WHERE token=?',[token]);const members=owner?await arrivedParticipants(env,eventId,'',owner.member_id):[];return members.length?json({ok:true,members,member:members[0]},200,origin):json({ok:false,error:'confirmed_arrival_required',message:'Pro tento QR není potvrzený příjezd auta.'},409,origin)}
+  if(body.discipline==='show_shine'){const owner=await one(env,'SELECT member_id FROM member_qr_identities WHERE token=?',[token]);const members=owner?(await participantList(env,eventId,'',{memberId:owner.member_id})).members:[];return members.length?json({ok:true,members,member:members[0]},200,origin):json({ok:false,error:'member_not_found',message:'Člen není dostupný pro výběr.'},409,origin)}
   const row=await one(env,`SELECT m.id memberId,m.member_code memberCode,m.name,m.nickname,r.status,r.show_shine showShine,COALESCE((SELECT a.car_key FROM event_arrivals a WHERE a.event_id=p.event_id AND a.member_id=m.id ORDER BY a.arrived_at DESC,a.id LIMIT 1),r.car_id) registeredCarId,p.present,
     (SELECT COUNT(*) FROM live_entries le WHERE le.event_id=? AND le.member_id=m.id) competitionEntries,
     (SELECT json_group_array(json_object('id',c2.id,'model',c2.model,'body',COALESCE(c2.body,''),'nickname',COALESCE(c2.nickname,''),'primary',c2.is_primary,'source',c2.source,'originalM',c2.original_m,'photoId',c2.photo_id,'livePhotoId',(SELECT lp.id FROM live_car_photos lp WHERE lp.event_id=COALESCE(r.event_id,p.event_id) AND lp.car_id=c2.id ORDER BY lp.rowid DESC LIMIT 1))) FROM live_vehicle_catalog c2 WHERE c2.member_id=m.id AND (c2.event_id IS NULL OR c2.event_id=COALESCE(r.event_id,p.event_id))) carsJson
@@ -367,7 +367,7 @@ export async function createLiveEntry(request,env,auth,eventId,origin){
 
 export async function startLiveEntry(request,env,auth,eventId,origin){
   const body=await readBody(request),discipline=clean(body.discipline),memberId=clean(body.memberId),carId=clean(body.carId),category=clean(body.category).slice(0,60),expected=Number(body.expectedVersion);
-  if(discipline==='show_shine'){if(!await requireAdmin(env,auth))return json({ok:false,error:'admin_forbidden'},403,origin);const result=await startArrivedShowShine(env,auth,eventId,body);return json({...result.body,...(result.body.ok?{states:await stateRows(env,eventId),categories:await categoryRows(env,eventId)}:{})},result.status,origin)}
+  if(discipline==='show_shine'){const result=await startArrivedShowShine(env,auth,eventId,body);return json({...result.body,...(result.body.ok?{states:await stateRows(env,eventId),categories:await categoryRows(env,eventId)}:{})},result.status,origin)}
   if(!DISCIPLINES.has(discipline)||![memberId,carId].every(validId)||!Number.isInteger(expected)||expected<1)return json({ok:false,error:'invalid_entry'},400,origin);
   const event=await eventById(env,eventId);if(!event?.live_enabled)return json({ok:false,error:'live_disabled'},409,origin);
   const car=await one(env,'SELECT * FROM live_vehicle_catalog WHERE id=? AND member_id=? AND (event_id IS NULL OR event_id=?)',[carId,memberId,eventId]);
@@ -435,18 +435,21 @@ export async function createCompetitionCar(request,env,auth,eventId,memberId,ori
   if(Number(request.headers.get('Content-Length')||0)>12_000_000)return json({ok:false,error:'file_too_large'},413,origin);
   const form=await request.formData(),id=clean(form.get('id')),model=clean(form.get('model')).slice(0,120),body=clean(form.get('body')),engine=clean(form.get('engine')).slice(0,120),originalM=form.get('originalM')==='true',file=form.get('file');
   if(!validId(id)||!model||!SHOW_SHINE_CATEGORY_SET.has(body)||body==='///M Power')return json({ok:false,error:'invalid_car'},400,origin);
-  const participant=await one(env,"SELECT id FROM reservations WHERE event_id=? AND member_id=? AND status='approved'",[eventId,memberId]);
-  if(!participant)return json({ok:false,error:'approved_registration_required'},409,origin);
+  if(!await isEventJudge(env,auth.uid,eventId))return json({ok:false,error:'judge_forbidden'},403,origin);
+  memberId=memberId||null;
+  const participantName=clean(form.get('participantName')).slice(0,120);
+  if(memberId&&!await one(env,"SELECT id FROM members WHERE id=? AND status='active'",[memberId]))return json({ok:false,error:'invalid_member'},409,origin);
+  if(!memberId&&!participantName)return json({ok:false,error:'participant_name_required'},400,origin);
   if(await one(env,'SELECT id FROM cars WHERE id=?',[id]))return json({ok:false,error:'car_identity_conflict'},409,origin);
   const existing=await one(env,'SELECT * FROM live_competition_cars WHERE id=?',[id]);
-  if(existing)return existing.event_id===eventId&&existing.member_id===memberId&&existing.model===model&&existing.body===body&&existing.engine===engine&&!!existing.original_m===originalM
+  if(existing)return existing.event_id===eventId&&existing.member_id===memberId&&existing.model===model&&existing.body===body&&existing.engine===engine&&!!existing.original_m===originalM&&existing.participant_name===participantName
     ?json({ok:true,carId:id,replayed:true},200,origin):json({ok:false,error:'car_identity_conflict'},409,origin);
   const photo=file&&Number(file.size)>0?file:null,validation=photo?validateImageFile(photo):null;
   if(validation)return json({ok:false,error:validation},400,origin);
   const key=photo?`live/cars/${eventId}/${id}/${crypto.randomUUID()}.${extensionFor(photo.type)}`:null;
-  if(photo)await env.MEDIA.put(key,photo.stream(),{httpMetadata:{contentType:photo.type},customMetadata:{owner:memberId,eventId,kind:'competition-car'}});
-  try{await env.DB.prepare('INSERT INTO live_competition_cars(id,event_id,member_id,model,body,engine,original_m,created_by,r2_key,mime_type,size_bytes) VALUES(?,?,?,?,?,?,?,?,?,?,?)').bind(id,eventId,memberId,model,body,engine,originalM?1:0,auth.uid,key,photo?.type||null,photo?.size||null).run()}
-  catch(error){if(key)await env.MEDIA.delete(key);throw error}
+  if(photo)await env.MEDIA.put(key,photo.stream(),{httpMetadata:{contentType:photo.type},customMetadata:{owner:memberId||'guest',eventId,kind:'competition-car'}});
+  try{const saved=await env.DB.prepare('INSERT INTO live_competition_cars(id,event_id,member_id,participant_name,model,body,engine,original_m,created_by,r2_key,mime_type,size_bytes) SELECT ?,?,?,?,?,?,?,?,?,?,?,? WHERE EXISTS('+JUDGE_SQL+')').bind(id,eventId,memberId,participantName,model,body,engine,originalM?1:0,auth.uid,key,photo?.type||null,photo?.size||null,auth.uid,eventId).run();if(!saved.meta?.changes){if(key)await env.MEDIA.delete(key);return json({ok:false,error:'judge_forbidden'},403,origin)}}
+  catch(error){if(key)await env.MEDIA.delete(key);const replay=await one(env,'SELECT * FROM live_competition_cars WHERE id=?',[id]);if(replay&&replay.event_id===eventId&&replay.member_id===memberId&&replay.model===model&&replay.body===body&&replay.engine===engine&&!!replay.original_m===originalM&&replay.participant_name===participantName)return json({ok:true,carId:id,replayed:true},200,origin);throw error}
   return json({ok:true,carId:id},201,origin);
 }
 
@@ -468,7 +471,7 @@ export async function saveCompetitionPhoto(request,env,auth,eventId,carId,origin
 }
 
 export async function competitionCarMedia(env,eventId,carId,origin){
-  const row=await one(env,'SELECT r2_key,mime_type FROM live_car_photos WHERE car_id=? AND event_id=? ORDER BY rowid DESC LIMIT 1',[carId,eventId])||await one(env,'SELECT r2_key,mime_type FROM live_competition_cars WHERE id=? AND event_id=?',[carId,eventId]);
+  const row=await one(env,'SELECT r2_key,mime_type FROM live_car_photos WHERE car_id=? AND event_id=? ORDER BY rowid DESC LIMIT 1',[carId,eventId])||await one(env,'SELECT r2_key,mime_type FROM live_competition_cars WHERE id=? AND event_id=? AND r2_key IS NOT NULL',[carId,eventId])||await one(env,'SELECT r2_key,mime_type FROM car_photos WHERE car_id=? ORDER BY sort_order,id LIMIT 1',[carId]);
   return serveLiveImage(env,row,origin);
 }
 async function serveLiveImage(env,row,origin){
