@@ -10,9 +10,10 @@ const origin='https://e36united.cz';
 const migration=readFileSync(new URL('../db/migrations/2026-09-08-admin-safe-operations.sql',import.meta.url),'utf8');
 const reservationRequestsMigration=readFileSync(new URL('../db/migrations/2026-09-11-reservation-requests.sql',import.meta.url),'utf8');
 const acknowledgementMigration=readFileSync(new URL('../db/migrations/2026-09-12-reservation-request-acknowledgement.sql',import.meta.url),'utf8');
-function runtime(){
+function runtime({predecessor=false}={}){
   const db=new DatabaseSync(':memory:');
-  db.exec(readFileSync(new URL('../db/schema.sql',import.meta.url),'utf8').split('-- Stage 1 only:')[0]+'\nCOMMIT;');
+  const schema=readFileSync(new URL('../db/schema.sql',import.meta.url),'utf8');
+  db.exec(predecessor?schema.split('-- Stage 1 only:')[0]+'\nCOMMIT;':schema);
   db.exec(`INSERT INTO members(id,member_code,email,name,role) VALUES
     ('a','A','a@example.invalid','Admin A','admin'),('b','B','b@example.invalid','Admin B','admin'),('m','M','m@example.invalid','Member','member');
     INSERT INTO events(id,year,title,is_current) VALUES('e',2027,'Synthetic',1),('old',2026,'Previous',0);
@@ -22,6 +23,8 @@ function runtime(){
   if(!db.prepare("SELECT 1 FROM schema_migrations WHERE id='2026-09-08-admin-safe-operations'").get())db.exec(migration);
   if(!db.prepare("SELECT 1 FROM schema_migrations WHERE id='2026-09-11-reservation-requests'").get())db.exec(reservationRequestsMigration);
   if(!db.prepare("SELECT 1 FROM schema_migrations WHERE id='2026-09-12-reservation-request-acknowledgement'").get())db.exec(acknowledgementMigration);
+  // This command suite exercises the retained legacy payment handler. Modern
+  // reservations use the ledger (covered by arrivals-local), never PATCH totals.
   const prepare=(sql,values=[])=>({bind:(...bindings)=>prepare(sql,bindings),
     first:async()=>db.prepare(sql).get(...values)||null,all:async()=>({results:db.prepare(sql).all(...values)}),
     run:async()=>/^\s*(SELECT|WITH)\b/i.test(sql)?{results:db.prepare(sql).all(...values),meta:{changes:0}}:({meta:{changes:Number(db.prepare(sql).run(...values).changes)}})});
@@ -39,7 +42,7 @@ function pay(env,amount,key,revision,actor='a'){
 }
 
 test('Admin migration preserves populated business records, creates no receipts and advances versions for every writer',async()=>{
-  const{db,env}=runtime();
+  const{db,env}=runtime({predecessor:true});
   assert.equal(db.prepare("SELECT amount_due_czk FROM reservations WHERE id='r'").get().amount_due_czk,1000);
   assert.equal(db.prepare('SELECT COUNT(*) n FROM admin_operation_receipts').get().n,0);
   const before=await resourceRevision(env,'reservation','r');

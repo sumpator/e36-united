@@ -5,12 +5,13 @@ import {readFileSync} from 'node:fs';
 import {fileURLToPath} from 'node:url';
 import {resolve,relative,isAbsolute} from 'node:path';
 
-export const ADMIN_RELEASE_TOKEN='20260924-merch2';
+import { ADMIN_MODULE_RELEASES } from './admin-module-releases.mjs';
+export const ADMIN_RELEASE_TOKEN='20260930-flow2';
 const origin='https://e36united.cz';
 const root=fileURLToPath(new URL('../',import.meta.url));
 const firebase=/^https:\/\/www\.gstatic\.com\/firebasejs\/[^/]+\/firebase-(app|auth)\.js$/;
 
-export function inspectAdminGraph(readSource,expected=ADMIN_RELEASE_TOKEN){
+export function inspectAdminGraph(readSource,expected=ADMIN_MODULE_RELEASES){
   if(!vm.SourceTextModule)throw new Error('Run with --experimental-vm-modules (parse only).');
   const errors=[],edges=[],external=[],modules=new Map(),urlsBySource=new Map();
   const html=readSource('admin.html').replace(/<!--[\s\S]*?-->/g,'');
@@ -34,8 +35,10 @@ export function inspectAdminGraph(readSource,expected=ADMIN_RELEASE_TOKEN){
     if(!/\.(m?js)$/.test(file)){errors.push(`Non-JS local module: ${file}`);return;}
     const versions=urlsBySource.get(file)||new Set();versions.add(url.href);urlsBySource.set(file,versions);
     const token=url.searchParams.get('v');
-    edges.push({from,specifier,to:file,token,classification:token===expected?'current':token?'different-token':'unversioned'});
-    if(url.search!==`?v=${expected}`||url.hash)errors.push(`${from} -> ${specifier}: expected exactly ?v=${expected}`);
+    const release=typeof expected==='string'?expected:expected[file];
+    edges.push({from,specifier,to:file,token,classification:token===release?'current':token?'different-token':'unversioned'});
+    if(!release)errors.push(`No approved release for ${file}`);
+    if(url.search!==`?v=${release}`||url.hash)errors.push(`${from} -> ${specifier}: expected exactly ?v=${release}`);
     // One traversal per source still checks every inbound URL, including split state instances.
     if(modules.has(file))return;
     modules.set(file,[]);
@@ -67,7 +70,7 @@ if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)){
     if(local.startsWith('..')||isAbsolute(local))throw new Error('Module escapes repository');
     return readFileSync(path,'utf8');
   };
-  const result=inspectAdminGraph(readSource);
+  const result=inspectAdminGraph(readSource,fixture?ADMIN_RELEASE_TOKEN:ADMIN_MODULE_RELEASES);
   console.log(JSON.stringify(result,null,2));
   if(result.errors.length&&!process.argv.includes('--audit'))process.exitCode=1;
 }

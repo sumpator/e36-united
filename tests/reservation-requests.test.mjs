@@ -20,7 +20,7 @@ function prepare(){
     VALUES('cab-premium','e','Chatka Premium','cabin','limited',2,3,700,0,50,25,1);
     INSERT INTO reservation_accommodation(reservation_id,option_id,option_name,kind,people_count,unit_count,unit_price_czk,person_price_czk,bedding_fee_per_person_czk,city_tax_per_person_per_night_czk,nights,base_total_czk,person_total_czk,bedding_total_czk,city_tax_total_czk,total_czk)
     VALUES('r','cab','Chatka A','cabin',2,1,500,0,50,25,2,1000,0,100,100,1200);
-    UPDATE reservations SET arrival='Pátek',attendance_type='full_weekend',accommodation='Chatka',accommodation_units=2,show_shine='Ne',note='Původní',amount_due_czk=1200,amount_paid_czk=200,payment_status='underpaid' WHERE id='r';`);
+    UPDATE reservations SET arrival='Pátek',attendance_type='full_weekend',accommodation='Chatka',accommodation_units=2,show_shine='Ne',note='Původní',admission_czk=0,amount_due_czk=1200,amount_paid_czk=200,payment_status='underpaid' WHERE id='r';`);
   return r;
 }
 const change={reservationId:'r',type:'change',memberNote:'Prosím upravit.',arrival:'Sobota',crew:3,accommodation:'Chatka',accommodationOptionId:'cab',accommodationUnits:3,showShine:'Ano',note:'Nový příjezd'};

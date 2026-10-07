@@ -29,7 +29,11 @@ test('member LIVE entry switches the whole portal immediately and restores per a
   assert.match(navigation, /if \(selected === false\) return;/);
   assert.match(main, /await memberLive\.startup\(\{requested:true\}\)/);
   assert.match(main, /void memberLive\.startup\(\)/);
-  assert.doesNotMatch(live, /sessionStorage/);
+  // LIVE uses session storage only to deduplicate notices; its account/event
+  // mode remains in localStorage and independent of transient notice state.
+  assert.match(live, /sessionStorage\.getItem\('live-notice:'\+key\)/);
+  assert.match(live, /sessionStorage\.setItem\('live-notice:'\+key,'1'\)/);
+  assert.doesNotMatch(live, /sessionStorage\.(?:getItem|setItem)\(storageKey/);
 });
 
 test('member LIVE exposes only Program, Show and Shine and Photos with QR and no reservation detail', () => {
@@ -50,7 +54,8 @@ test('member LIVE exposes only Program, Show and Shine and Photos with QR and no
   assert.match(live, /data-live-tab-direct="photos"/);
   assert.match(live, /getRegistrationCar\(\)/);
   assert.match(live, /payload\.me\?\.judge/);
-  assert.match(html, /multiple name="photos"/);
+  assert.match(html, /capture="environment" name="photos" type="file"/);
+  assert.match(html, /multiple name="gallery" type="file"/);
   assert.match(html, /data-live-upload-previews/);
   assert.doesNotMatch(live, /live-participation|Moje účast a pobyt|reservation\.accommodation/);
 });
@@ -63,7 +68,7 @@ test('admin LIVE is one compact workflow and keeps global state changes in setti
   const live = read('admin/modules/live.js');
 
   assert.match(html, /data-admin-live-mode hidden inert/);
-  assert.deepEqual([...html.matchAll(/data-admin-live-tab="([^"]+)"/g)].map(match => match[1]), ['showshine', 'members', 'program']);
+  assert.deepEqual([...html.matchAll(/data-admin-live-tab="([^"]+)"/g)].map(match => match[1]), ['showshine', 'arrivals', 'program']);
   assert.match(html, /data-admin-live-more-toggle/);
   assert.match(html, /data-admin-live-settings/);
   assert.match(html, /data-admin-live-exit/);
@@ -97,11 +102,12 @@ test('admin member selection prioritizes the registered car and preserves cancel
 
   assert.match(live, /selectedCarId=member\?\.registeredCarId\|\|member\?\.cars\?\.\[0\]\?\.id/);
   assert.match(live, /car\.photoId/);
-  assert.match(live, /\/api\/admin\/members\/\$\{encodeURIComponent\(member\.memberId\)\}\/media\/cars\/\$\{encodeURIComponent\(car\.id\)\}\/\$\{encodeURIComponent\(car\.photoId\)\}/);
+  // Competition media is keyed by event/car, including guests without accounts.
+  assert.match(live, /\/api\/admin\/events\/\$\{encodeURIComponent\(eventId\(\)\)\}\/live\/cars\/\$\{encodeURIComponent\(car\.id\)\}\/media/);
   assert.match(live, /judgeDrafts\.set\(form\.dataset\.liveJudgeForm,judgeValues\(form\)\)/);
   assert.match(live, /if\(signature!==lastStateSignature\)/);
   assert.match(live, /confirmLeaveJudge\(\)/);
   assert.match(live, /data-live-cancel-judge/);
-  assert.match(live, /Poslední uložená verze zůstane zachovaná/);
+  assert.match(live, /Zahodit pouze vlastní neuložené body, poznámku a fotografie\? Uložené hodnocení a hlasování ostatních zůstanou zachované/);
   assert.doesNotMatch(live, /waitForTimeout/);
 });

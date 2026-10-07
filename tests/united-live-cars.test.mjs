@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {memberRuntime} from './helpers/admin-member-runtime.mjs';
+import { seedConfirmedArrival } from './helpers/live-fixtures.mjs';
 import {createCompetitionCar,startLiveEntry,getAdminLive,getMemberLive,saveLiveVote,saveJudgeScore,searchLiveMembers,liveEntryMedia} from '../worker/domains/live.js';
 const origin='https://e36united.cz',auth={uid:'a'};
 const req=body=>new Request(origin,{method:'POST',body:JSON.stringify(body)});
@@ -8,7 +9,8 @@ test('event car is independent, stable and private; M category needs explicit co
  const r=memberRuntime(),objects=new Map();
  r.env.MEDIA={put:async(key,body)=>objects.set(key,body),delete:async key=>objects.delete(key),get:async key=>objects.has(key)?{body:'image',httpMetadata:{contentType:'image/jpeg'}}:null};
  try{
-  r.db.exec("UPDATE events SET live_enabled=1 WHERE id='e'; UPDATE reservations SET car_id='c',show_shine='Ano' WHERE id='r'; UPDATE cars SET body='Coupé' WHERE id='c'; INSERT INTO event_member_presence(event_id,member_id,present) VALUES('e','m',1)");
+  r.db.exec("UPDATE events SET live_enabled=1 WHERE id='e'; UPDATE reservations SET car_id='c',show_shine='Ano' WHERE id='r'; UPDATE cars SET body='Coupé' WHERE id='c'; ");
+  seedConfirmedArrival(r,'m','c');
   const garage=r.db.prepare('SELECT * FROM cars').all(),reservations=r.db.prepare('SELECT * FROM reservations').all();
   const create=async(id,model='M3')=>{const f=new FormData();for(const[k,v]of Object.entries({id,model,body:'Coupé',engine:'3.2',originalM:'true'}))f.set(k,v);f.set('file',new File(['photo'],'car.jpg',{type:'image/jpeg'}));return createCompetitionCar(new Request(origin,{method:'POST',body:f}),r.env,auth,'e','m',origin)};
   assert.equal((await create('c')).status,409);assert.equal(objects.size,0);
@@ -23,7 +25,7 @@ test('event car is independent, stable and private; M category needs explicit co
   assert.equal((await start({originalM:true})).status,200);
   assert.equal((await (await start({category:'Coupé',expectedVersion:2})).json()).error,'entry_category_conflict');
   assert.equal((await saveLiveVote(req({score:8}),r.env,{uid:'m'},entry,origin)).status,403);
-  assert.equal((await saveJudgeScore(req({scores:{overall:8,condition:8,cohesion:8,originality:8},submitted:true}),r.env,auth,entry,origin)).status,200);
+  assert.equal((await saveJudgeScore(req({scores:{overall:8,condition:8,cohesion:8,originality:8},submitted:true,expectedVersion:0}),r.env,auth,entry,origin)).status,200);
   assert.equal((await saveLiveVote(req({score:8}),r.env,{uid:'n'},entry,origin)).status,200);
   r.db.exec("UPDATE members SET status='inactive' WHERE id='n'");
   assert.equal((await saveLiveVote(req({score:9}),r.env,{uid:'n'},entry,origin)).status,403);
@@ -35,7 +37,7 @@ test('event car is independent, stable and private; M category needs explicit co
   const member=await(await getMemberLive(r.env,auth,origin)).json();assert.equal(member.judgeHistory[0].car.model,'M3');
   assert.deepEqual(r.db.prepare('SELECT * FROM cars').all(),garage);assert.deepEqual(r.db.prepare('SELECT * FROM reservations').all(),reservations);
   assert.deepEqual(r.db.prepare('PRAGMA foreign_key_check').all(),[]);
-  assert.throws(()=>r.db.exec("INSERT INTO live_entries(id,event_id,discipline,member_id,competition_car_id) VALUES('wrong-owner','e','best_exhaust','n','event-car')"),/FOREIGN KEY/);
+  assert.throws(()=>r.db.exec("INSERT INTO live_entries(id,event_id,discipline,member_id,competition_car_id) VALUES('wrong-owner','e','best_exhaust','n','event-car')"),/competition_car_owner_mismatch/);
   assert.equal(r.db.prepare('SELECT COUNT(*) n FROM live_entries').get().n,1);
  }finally{r.db.close()}
 });

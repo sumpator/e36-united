@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {currentBudgetSql,normalizeSql} from './helpers/admin-budget-current.mjs';
 import {commandCard,recentPaymentLabel} from '../admin/command-cards.js';
 import {commandBadges,commandDefaults,commandLayout} from '../admin/command-model.js';
 import {factoryPreferences,validatePreferences} from '../admin/dashboard-model.js';
@@ -19,7 +20,7 @@ test('NEW incremental budget reproduces executed SQL, plans and unchanged growth
  try {
   assert.equal(r.db.prepare('SELECT COUNT(*) n FROM members').get().n,500);
   assert.equal(r.db.prepare('SELECT COUNT(*) n FROM reservations').get().n,900);
-  for(const actual of report){const saved=profile.report.find(row=>row.name===actual.name);assert.deepEqual(actual.queries.map(q=>[q.sql,q.args,q.plan]),saved.queries.map(q=>[q.sql,q.args,q.plan]));}
+  for(const actual of report){const saved=profile.report.find(row=>row.name===actual.name);assert.deepEqual(actual.queries.map(q=>[normalizeSql(q.sql),q.args,q.plan]),saved.queries.map(q=>[currentBudgetSql(q.sql),q.args,q.plan]));}
   const result=commandIncrement(profile,{memberHours:24,dashboardHours:3,detailHours:6,explicitDetails:96});
   assert.equal(result.estimated,1266660);assert.equal(result.withRetries,1393326);assert.equal(result.actualCloudflareRowsRead,null);assert.equal(r.writes,0);
  } finally {r.db.close();}

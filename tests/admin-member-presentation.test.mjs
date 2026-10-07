@@ -3,12 +3,12 @@ import assert from 'node:assert/strict';
 import {MEMBER_TABS,memberIdentity,memberOverview,memberSection,memberLabel} from '../admin/member-presentation.js';
 import {adminRoute,adminRouteUrl} from '../admin/navigation.js';
 import {memberRefreshTasks} from '../admin/member-detail.js';
-import {adminState} from '../admin/state.js?v=20260923-live6';
+import {adminState} from '../admin/state.js?v=20260930-arrivals2';
 import {ADMIN_REFRESH} from '../admin/refresh-policy.js';
 const header={member:{memberId:'m',name:'Testovací člen',nickname:'Řidič',email:'example@example.invalid',memberCode:'EU-TEST',status:'active',role:'member',createdAt:'2026-01-01'},event:{id:'e',title:'United 2026'},reservations:[]};
 
 test('Member modal section contract defaults to overview and preserves every explicit deep link',()=>{
- assert.deepEqual(Object.keys(MEMBER_TABS),['overview','event','reservations','garage','photos','club','history','points','mailing','qr']);
+ assert.deepEqual(Object.keys(MEMBER_TABS),['overview','event','reservations','garage','photos','club','history','points','mailing','qr','merch']);
  globalThis.location={pathname:'/admin.html'};
  for(const tab of Object.keys(MEMBER_TABS)){const url=adminRouteUrl({section:'members',memberId:'m',eventId:'e',memberTab:tab});assert.equal(adminRoute(url.split('?')[1]).memberTab,tab);if(tab==='event')assert.match(url,/tab=event/);}
  assert.equal(adminRoute('?member=m').memberTab,'overview');assert.equal(adminRoute('?member=m&tab=__proto__').memberTab,'overview');assert.doesNotMatch(adminRouteUrl({memberId:'m',memberTab:'<unsafe>'}),/tab=/);

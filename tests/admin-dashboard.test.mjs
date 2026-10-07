@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {currentBudgetSql,normalizeSql} from './helpers/admin-budget-current.mjs';
 import {readFileSync} from 'node:fs';
 import {memberRuntime} from './helpers/admin-member-runtime.mjs';
 import {getAdminPreferences,saveAdminPreferences,getAdminDashboard} from '../worker/admin/dashboard.js';
@@ -50,7 +51,10 @@ test('first-save race has one winner; preference identity, revision, replay and 
  assert.equal((await data(getAdminOperation(r.env,{uid:'a'},'one',origin))).operation.state,'confirmed');
  assert.equal((await data(getAdminOperation(r.env,{uid:'m'},'one',origin))).operation.state,'outcome_unknown');
  assert.equal((await data(getAdminPreferences(r.env,{uid:'m'},origin))).stored,false);
- assert.equal((await save(r,two,'member-own',0,'m')).status,200); // Handler ownership; active-Admin routing is tested separately.
+ assert.equal((await save(r,two,'member-own',0,'m')).status,409);
+ assert.equal(r.db.prepare("SELECT COUNT(*) n FROM admin_preferences WHERE id='m'").get().n,0);
+ r.db.exec("UPDATE members SET role='admin' WHERE id='n'");
+ assert.equal((await save(r,two,'other-admin-own',0,'n')).status,200);
  assert.deepEqual((await data(getAdminPreferences(r.env,{uid:'a'},origin))).preferences,one);
  assert.equal((await save(r,two,'newer',first.revision)).status,200);
  assert.equal((await save(r,one,'stale',first.revision)).status,409);
@@ -100,7 +104,7 @@ test('incremental budget uses the unchanged growth fixture and current executed 
  const profile=JSON.parse(readFileSync(new URL('../docs/admin-stage3-budget.json',import.meta.url),'utf8'));
  const {runtime:r,report}=await captureDashboardBudget();
  assert.equal(r.db.prepare('SELECT COUNT(*) n FROM members').get().n,500);assert.equal(r.db.prepare('SELECT COUNT(*) n FROM reservations').get().n,900);
- for(const actual of report){const saved=profile.report.find(e=>e.name===actual.name);assert.ok(saved);assert.deepEqual(actual.queries.map(q=>[q.sql,q.args]),saved.queries.map(q=>[q.sql,q.args]));assert.match(saved.queries[0].sql,/FROM members/);assert.ok(saved.estimatedRows>0);}
+ for(const actual of report){const saved=profile.report.find(e=>e.name===actual.name);assert.ok(saved);assert.deepEqual(actual.queries.map(q=>[normalizeSql(q.sql),q.args]),saved.queries.map(q=>[currentBudgetSql(q.sql),q.args]));assert.match(saved.queries[0].sql,/FROM members/);assert.ok(saved.estimatedRows>0);}
  const value=dashboardBudget(profile);assert.equal(value.rows.find(r=>r.resource==='analytics').calls,36);assert.equal(value.rows.find(r=>r.resource==='analytics').perCall,1505);assert.equal(value.withRetries,Math.ceil(value.total*1.1));
  assert.equal(profile.explicit.localChanges,6);assert.equal(r.writes,0);r.db.close();
 });

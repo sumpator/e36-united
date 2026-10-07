@@ -43,17 +43,27 @@ test('LIVE rebuild preserves populated identities, dependent records, constraint
     assert.throws(() => db.exec("INSERT INTO live_entries(id,event_id,discipline,member_id,car_id) VALUES('missing-car','event','show_shine','owner','absent')"), /FOREIGN KEY/);
     assert.throws(() => db.exec("INSERT INTO live_public_votes(id,event_id,discipline,entry_id,voter_id,score) VALUES('duplicate','event','show_shine','entry','judge',9)"), /UNIQUE/);
     assert.throws(() => db.exec("INSERT INTO live_judge_scores(id,event_id,entry_id,judge_id,scores_json) VALUES('duplicate','event','entry','judge','{}')"), /UNIQUE/);
+    // The historical migration assertions above stay against its exact successor.
+    // Current Worker reads require the later vehicle views and official-score CAS.
+    const currentTail=schema.slice(schema.indexOf(migration.trim())+migration.trim().length);
+    db.exec("DELETE FROM schema_migrations WHERE id='2026-09-23-live-writes-enabled'; BEGIN;"+currentTail);
+    db.exec("UPDATE live_entries SET category='Coupé' WHERE id='entry'; INSERT INTO live_category_state(event_id,discipline,category,status) VALUES('event','show_shine','Coupé','live')");
     const prepare = (sql, args = []) => ({bind: (...values) => prepare(sql, values), first: async () => db.prepare(sql).get(...args), all: async () => ({results: db.prepare(sql).all(...args)}), run: async () => ({meta: {changes: Number(db.prepare(sql).run(...args).changes)}})});
     const env = {DB: {prepare}};
     const first = await (await getMemberLive(env, {uid:'judge'}, 'https://e36united.cz')).json();
     assert.equal(first.states.show_shine.entry.id, 'entry');
     assert.equal(first.judgeHistory[0].photos[0].id, 'jury-photo');
     assert.equal(first.judgeHistory[0].scores.overall, 8);
-    const response = await saveJudgeScore(new Request('https://example.invalid', {method:'PUT', body:JSON.stringify({scores:{overall:9,condition:9,cohesion:7,originality:8},note:'Edited',submitted:true})}), env, {uid:'judge'}, 'entry', 'https://e36united.cz');
+    const revision=db.prepare("SELECT revision FROM live_event_revisions WHERE event_id='event'").get().revision;
+    const response = await saveJudgeScore(new Request('https://example.invalid', {method:'PUT', body:JSON.stringify({scores:{overall:9,condition:9,cohesion:7,originality:8},note:'Edited',submitted:true,expectedVersion:1,correction:true,reason:'Isolated explicit correction'})}), env, {uid:'judge'}, 'entry', 'https://e36united.cz');
     assert.equal(response.status, 200);
     assert.deepEqual(db.prepare('SELECT id,note FROM live_judge_scores').get(), Object.assign(Object.create(null), {id:'score',note:'Edited'}));
-    assert.equal(db.prepare("SELECT revision FROM live_event_revisions WHERE event_id='event'").get().revision, 1);
+    assert.equal(db.prepare("SELECT revision FROM live_event_revisions WHERE event_id='event'").get().revision,revision+1);
+    assert.equal(db.prepare('SELECT COUNT(*) n FROM live_judge_score_audit').get().n,1);
+    const audit=db.prepare('SELECT * FROM live_judge_score_audit').get();
+    assert.equal(audit.from_version,1);assert.equal(audit.to_version,2);
+    assert.equal(audit.changed_by,'judge');assert.equal(audit.reason,'Isolated explicit correction');
     assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(), []);
-    assert.deepEqual(db.prepare('SELECT * FROM reservations').all(), before.get('reservations'));
+    assert.deepEqual(db.prepare('SELECT * FROM reservations').all(), before.get('reservations').map(row=>Object.assign(Object.create(null),row,{admission_czk:null})));
   } finally { db.close(); }
 });

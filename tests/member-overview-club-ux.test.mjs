@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { assertClubNavigation } from './helpers/club-navigation.mjs';
 
 const html = readFileSync(new URL('../member.html', import.meta.url), 'utf8');
 const css = readFileSync(new URL('../member.css', import.meta.url), 'utf8');
@@ -23,7 +24,7 @@ const overview = html.slice(html.indexOf('data-member-panel="overview"'), html.i
 const club = html.slice(html.indexOf('data-member-panel="club"'), html.indexOf('data-member-panel="photos"'));
 
 test('authenticated hero remains dominant and nickname-led while the Member Card uses real identity', () => {
-  assert.match(html, /<h1>Ahoj, <span data-member-nickname/);
+  assert.match(html, /<h1 data-member-page-title[^>]*><span data-member-greeting>Ahoj, <span data-member-nickname/);
   assert.match(html, /data-member-hero-media/);
   assert.match(overview, /aria-label="United Member Card"/);
   assert.match(overview, /member-card-identity[\s\S]*data-summary-name[\s\S]*data-summary-member-code/);
@@ -70,29 +71,35 @@ test('idle Action Center is compact while active reservation and Planner content
   assert.match(html, /data-planner-handoff/);
 });
 
-test('United Club is one vertical Points, Stopa and Achievements page', () => {
-  for (const label of ['UNITED POINTS', 'MOJE STOPA V UNITED', 'ACHIEVEMENTS']) assert.match(club, new RegExp(label, 'i'));
+test('United Club keeps Points, history and Achievements in the approved three-view navigation', () => {
+  assertClubNavigation(club);
+  for (const label of ['UNITED POINTS', 'Moje účasti', 'ACHIEVEMENTS']) assert.match(club, new RegExp(label, 'i'));
   assert.ok(club.indexOf('data-club-anchor="points"') < club.indexOf('data-club-anchor="history"'));
   assert.ok(club.indexOf('data-club-anchor="history"') < club.indexOf('data-club-anchor="achievements"'));
-  assert.doesNotMatch(club, /data-club-tab|data-club-panel|MILNÍKY|VÝHODY|data-perks-list/);
+  assert.doesNotMatch(club, /data-club-panel|data-perks-list/);
   assert.match(club, /data-earn-strip/);
   assert.match(club, /Proč ověření\?/);
 });
 
 test('United Points Command Panel consolidates the meter and Merch reward', () => {
-  assert.match(club, /points-command-panel[\s\S]*data-points-journey/);
-  assert.match(club, /<span data-points-journey-score="">0<\/span> <em>bodů<\/em>/);
+  assert.match(club, /points-command-panel[\s\S]*data-points-journey-score/);
+  assert.match(club, /<span data-points-journey-score>0<\/span> <span data-points-word>bodů<\/span>/);
   assert.doesNotMatch(club, /<span data-points-journey-score="">0<\/span> <em>\/ 12 bodů<\/em>/);
-  assert.match(club, /12 · HRANICE ODMĚNY/);
-  assert.match(club, /12 bodů odemyká United Merch reward/);
+  // portal-composition removes duplicate milestone counts; the twelve-segment
+  // progress and actual configured Merch benefit remain, without invented rewards.
+  assert.match(clubPointsJs, /aria-valuemax="12"/);
+  assert.match(clubPointsJs, /Do další odměny/);
+  assert.match(club, /data-reward-name[\s\S]*data-reward-terms[\s\S]*data-reward-remaining/);
   assert.match(club, /data-points-reward-state/);
   assert.doesNotMatch(club, /United Merch unlock|reward-main|data-reward-lock/);
 });
 
-test('Earn Strip keeps only four activity names and moves exact rules into help', () => {
+test('Earn Strip keeps four activities with approved concise gains and exact rules in help', () => {
   const rewards = clubPointsJs.slice(clubPointsJs.indexOf('function renderRewards()'), clubPointsJs.indexOf('function bind()'));
   for (const label of ['Účast na srazu','Umístění v Show & Shine','Nahrávání fotek','Doplnění profilu']) assert.match(rewards,new RegExp(label));
-  assert.doesNotMatch(rewards,/\+1|\+2|\+3|25 schválených|50 schválených/);
+  assert.equal((rewards.match(/\['earn-/g)||[]).length,4);
+  for(const gain of ['+1 / sraz','+1 až +3','+1 / +1 / +3','+1 bod'])assert.ok(rewards.includes(gain));
+  assert.match(rewards,/Jednou za 5 \/ 25 \/ 50 schválených fotek/);
   assert.match(js, /Každý ověřený sraz','\+1 bod'[\s\S]*3 ověřené srazy','\+3 body navíc'[\s\S]*5 ověřených srazů','\+3 body navíc'/);
   assert.match(js, /5 schválených fotek','\+1 bod'[\s\S]*25 schválených fotek','\+1 bod'[\s\S]*50 schválených fotek','\+3 body'/);
   assert.match(js, /Newsletter není podmínkou/);

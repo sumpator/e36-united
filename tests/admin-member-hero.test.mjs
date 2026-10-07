@@ -11,7 +11,7 @@ test('HERO header adds one owned primary car and stable first photo, without med
  const r=memberRuntime();r.db.exec("INSERT INTO car_photos(id,car_id,r2_key,sort_order) VALUES('p0','c','private/first',-1),('p1','c','private/tie',-1),('secondary','c2','private/secondary',-2)");
  const p=await header(r);assert.deepEqual(Object.keys(p.heroCar).sort(),['body','id','model','nickname','photo']);assert.equal(p.heroCar.id,'c');assert.equal(p.heroCar.photo.id,'p0');
  assert.equal(p.heroCar.photo.mediaPath,'/api/admin/members/m/media/cars/c/p0');assert.ok(p.heroCar.photo.version);assert.equal(p.member.memberId,'m');assert.equal(p.reservations[0].amountPaidCzk,200);
- assert.equal(r.queries.length,5);assert.equal(r.mediaReads,0);assert.equal(r.writes,0);assert.ok(!JSON.stringify(p).includes('r2_key'));
+ assert.equal(r.queries.length,6);assert.match(r.queries.at(-1).sql,/FROM event_arrivals a WHERE a.member_id=\? AND a.event_id=\?/);assert.deepEqual(r.queries.at(-1).args,['m','e']);assert.equal(r.mediaReads,0);assert.equal(r.writes,0);assert.ok(!JSON.stringify(p).includes('r2_key'));
  assert.equal((await adminMemberMedia(r.env,'n','cars','c','p0',origin)).status,404);assert.equal((await adminMemberMedia(r.env,'m','cars','cn','pn',origin)).status,404);r.db.close();
 });
 test('HERO primary without photo remains known, but never borrows another car photo',async()=>{
@@ -20,7 +20,7 @@ test('HERO primary without photo remains known, but never borrows another car ph
 });
 test('HERO no primary means null, not arbitrary secondary; skips photo query',async()=>{
  const r=memberRuntime();r.db.exec("UPDATE cars SET is_primary=0 WHERE member_id='m'");
- assert.equal((await header(r)).heroCar,null);assert.equal(r.queries.length,4);assert.ok(!r.queries.some(q=>q.sql===MEMBER_HERO_PHOTO_SQL));assert.equal(r.writes,0);r.db.close();
+ assert.equal((await header(r)).heroCar,null);assert.equal(r.queries.length,5);assert.ok(!r.queries.some(q=>q.sql===MEMBER_HERO_PHOTO_SQL));assert.equal(r.writes,0);r.db.close();
 });
 test('HERO legacy multiple-primary selection is deterministic and owner scoped',async()=>{
  const r=memberRuntime();r.db.exec("UPDATE cars SET is_primary=1,created_at='2020-01-01' WHERE id='c2'");

@@ -10,7 +10,7 @@ import {getAdminSummary} from '../worker/admin/summary.js';
 const origin='https://e36united.cz',auth={uid:'m'};
 const req=(body,method='PUT',path='/api/preliminary-reservations/current',token)=>new Request('https://api.e36united.cz'+path,{method,headers:{Origin:origin,'Content-Type':'application/json',...(token?{Authorization:'Bearer '+token}:{})},...(method==='GET'?{}:{body:JSON.stringify(body)})});
 const preference={eventId:'e',revision:0,carId:'c',arrival:'Pátek',crew:2,crewDetails:['Řidič','Doprovod'],accommodation:'Chatka',accommodationOptionId:'cab',accommodationUnits:2,showShine:'Možná',note:'Nezávazná preference'};
-function setup(){const r=memberRuntime();r.db.exec(`DELETE FROM reservations;UPDATE events SET registration_status='closed' WHERE id='e';
+function setup(){const r=memberRuntime();r.db.exec(`DELETE FROM reservations;UPDATE events SET registration_status='closed',admission_registered_czk=0 WHERE id='e';
  INSERT INTO event_preliminary_settings(event_id,enabled,write_token) VALUES('e',1,'fixture');
  INSERT INTO event_accommodation_options(id,event_id,name,kind,inventory_mode,units_total,capacity_per_unit,unit_price_czk,active) VALUES('cab','e','Chatka','cabin','limited',1,4,500,1);`);return r;}
 const save=(r,body=preference)=>putPreliminaryReservation(req(body),r.env,auth,origin);

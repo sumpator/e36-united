@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {validatePhotoInput,PHOTO_INPUT_MAX_BYTES,PHOTO_OUTPUT_MAX_BYTES} from '../photo-limits.js';
 import {createPhotoBatch} from '../photo-batch.js';
 import {memberRuntime} from './helpers/admin-member-runtime.mjs';
+import { seedConfirmedArrival } from './helpers/live-fixtures.mjs';
 import {saveLiveVote,startLiveEntry,searchLiveMembers,createCompetitionCar} from '../worker/domains/live.js';
 
 function jpeg(width=8000,height=6000,size=14*1024*1024){
@@ -48,7 +49,7 @@ test('batch accepts >12 MiB, keeps whole aspect ratio, checks final bytes, and n
 const origin='https://example.invalid',request=body=>new Request(origin,{method:'POST',body:JSON.stringify(body)});
 test('active public voter has no reservation or check-in; own car remains forbidden',async()=>{
  const r=memberRuntime();try{
-  r.db.exec("UPDATE events SET live_enabled=1 WHERE id='e'; INSERT INTO live_entries(id,event_id,discipline,member_id,car_id,category,presented_at) VALUES('entry','e','show_shine','m','c','Sedan',CURRENT_TIMESTAMP); INSERT INTO live_competition_state(event_id,discipline,status,current_entry_id) VALUES('e','show_shine','live','entry');");
+  r.db.exec("UPDATE events SET live_enabled=1 WHERE id='e'; INSERT INTO live_entries(id,event_id,discipline,member_id,car_id,category,presented_at) VALUES('entry','e','show_shine','m','c','Sedan',CURRENT_TIMESTAMP); INSERT INTO live_competition_state(event_id,discipline,status,current_entry_id) VALUES('e','show_shine','live','entry'); INSERT INTO live_category_state(event_id,discipline,category,status) VALUES('e','show_shine','Sedan','live');");
   assert.equal(r.db.prepare("SELECT COUNT(*) n FROM reservations WHERE member_id='n'").get().n,0);
   assert.equal(r.db.prepare("SELECT COUNT(*) n FROM event_member_presence WHERE member_id='n'").get().n,0);
   assert.equal((await saveLiveVote(request({score:8}),r.env,{uid:'n'},'entry',origin)).status,200);
@@ -57,13 +58,14 @@ test('active public voter has no reservation or check-in; own car remains forbid
 });
 test('Admin can present registered, alternate garage and standalone competition cars',async()=>{
  for(const carId of ['c','c2','standalone']){const r=memberRuntime();try{
-  r.db.exec("UPDATE events SET live_enabled=1 WHERE id='e'; UPDATE reservations SET car_id='c',show_shine='Ano'; UPDATE cars SET body='Sedan'; INSERT INTO event_member_presence(event_id,member_id,present) VALUES('e','m',1);");
+  r.db.exec("UPDATE events SET live_enabled=1 WHERE id='e'; UPDATE reservations SET car_id='c',show_shine='Ano'; UPDATE cars SET body='Sedan'; ");
+  seedConfirmedArrival(r,'m','c');
   const form=new FormData();form.set('id','standalone');form.set('model','Synthetic E36');form.set('body','Sedan');
   assert.equal((await createCompetitionCar(new Request(origin,{method:'POST',body:form}),r.env,{uid:'a'},'e','m',origin)).status,201);
   const found=await (await searchLiveMembers(r.env,'e',new URL(origin),origin)).json();
   assert.deepEqual(found.members.find(m=>m.memberId==='m').cars.map(c=>c.id).sort(),['c','c2','standalone']);
   const response=await startLiveEntry(request({discipline:'show_shine',memberId:'m',carId,category:'Sedan',expectedVersion:1}),r.env,{uid:'a'},'e',origin);
   assert.equal(response.status,201,JSON.stringify(await response.json()));
-  const entry=r.db.prepare('SELECT car_id,competition_car_id FROM live_entries').get();assert.equal(entry.car_id||entry.competition_car_id,carId);
+  const entry=r.db.prepare('SELECT car_id FROM live_entry_vehicles').get();assert.equal(entry.car_id,carId);
  }finally{r.db.close()}}
 });

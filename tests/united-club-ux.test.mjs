@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { assertClubNavigation } from './helpers/club-navigation.mjs';
 
 const read=name=>readFileSync(new URL(`../${name}`,import.meta.url),'utf8');
 const memberHtml=read('member.html'),memberEntryJs=read('member.js'),memberShellJs=read('member/shell.js'),memberOverviewJs=read('member/modules/overview.js'),memberClubIndexJs=read('member/modules/club/index.js'),memberClubPointsJs=read('member/modules/club/points.js'),memberClubHistoryJs=read('member/modules/club/history.js'),memberAccountJs=read('member/modules/account.js'),memberJs=[memberEntryJs,memberShellJs,memberOverviewJs,memberClubIndexJs,memberClubPointsJs,memberClubHistoryJs,memberAccountJs].join('\n'),memberCss=read('member.css');
@@ -16,15 +17,17 @@ const worker=[
 ].map(read).join('\n'),migration=read('D1-united-club-v1.sql');
 const club=memberHtml.slice(memberHtml.indexOf('data-member-panel="club"'),memberHtml.indexOf('data-member-panel="photos"'));
 
-test('United Club uses exact heading, explanation and four activity-only earning cards',()=>{
-  assert.match(club,/United Club\.[\s\S]*Tvoje historie, body a odměny v United\./);
+test('United Club uses the approved compact title, three views and four informative earning cards',()=>{
+  assert.match(memberShellJs,/club:'United Club'/);
+  assertClubNavigation(club);
   assert.doesNotMatch(club,/Body\. Historie\. Achievements\./);
-  assert.match(club,/United Points\. Tvoje odměny\./);
-  assert.match(club,/Buď členem United a čerpej výhody![\s\S]*TOP 3 Show &amp; Shine[\s\S]*přidávání fotek/);
+  assert.match(club,/UNITED POINTS/);
+  assert.match(club,/data-reward-terms[\s\S]*Jak získáš body[\s\S]*Ověřené aktivity a jejich podmínky/);
   const rewards=memberClubPointsJs.slice(memberClubPointsJs.indexOf('function renderRewards()'),memberClubPointsJs.indexOf('function bind()'));
   assert.equal((rewards.match(/\['earn-/g)||[]).length,4);
   for(const label of ['Účast na srazu','Umístění v Show & Shine','Nahrávání fotek','Doplnění profilu'])assert.match(rewards,new RegExp(label));
-  assert.doesNotMatch(rewards,/\+1|\+2|\+3/);
+  // portal-next explicitly adds concise gains; exact earning conditions remain.
+  for(const gain of ['+1 / sraz','+1 až +3','+1 / +1 / +3','+1 bod'])assert.ok(rewards.includes(gain));
 });
 
 test('member history editor only lists concluded server events and locks approved attendance',()=>{
@@ -92,7 +95,7 @@ test('history claim FormData stays compatible and omits unselected S&S defaults'
 
 test('history header drops its redundant UNITED OD block but keeps the secondary editor action',()=>{
   assert.doesNotMatch(club,/history-since|data-history-since/);
-  assert.match(club,/MOJE STOPA V UNITED[\s\S]*Tvoje United historie\.[\s\S]*history-edit-all/);
+  assert.match(club,/data-club-anchor="history" hidden[\s\S]*Proč ověření\?[\s\S]*history-edit-all/);
   assert.match(memberHtml,/data-member-since/);
 });
 
@@ -164,7 +167,7 @@ test('history cards expose readable unverified, pending, verified and separate S
   assert.match(memberJs,/sns\.status==='pending'\?'<span class="history-sns-state is-pending">/);
   assert.match(memberCss,/\.history-year-status b\{display:block[^}]*font-size:13px/);
   assert.match(memberCss,/\.history-year-status small\{display:block;margin-top:7px[^}]*font-size:12px/);
-  assert.match(memberCss,/\.history-year\.is-attended \.history-check\{[^}]*background:#69b8f8/);
+  assert.match(memberCss,/\.history-year\.is-attended \.history-check\{[^}]*background:var\(--appearance-action,#69b8f8\)/);
 });
 
 test('pending history summary contains only submitted attendance and S&S details',()=>{

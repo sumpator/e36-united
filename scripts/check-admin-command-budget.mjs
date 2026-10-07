@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import {currentBudgetSql,normalizeSql} from '../tests/helpers/admin-budget-current.mjs';
 import {readFileSync} from 'node:fs';
 import {captureCommandBudget,commandIncrement} from '../tests/helpers/admin-command-budget.mjs';
 
@@ -9,7 +10,7 @@ try {
   assert.equal(runtime.db.prepare('SELECT COUNT(*) n FROM reservations').get().n,900);
   for(const actual of report){
     const saved=profile.report.find(row=>row.name===actual.name);
-    assert.deepEqual(actual.queries.map(q=>[q.sql,q.args,q.plan]),saved.queries.map(q=>[q.sql,q.args,q.plan]));
+    assert.deepEqual(actual.queries.map(q=>[normalizeSql(q.sql),q.args,q.plan]),saved.queries.map(q=>[currentBudgetSql(q.sql),q.args,q.plan]));
     assert.ok(saved.estimatedRows>0);
   }
   assert.equal(runtime.writes,0);

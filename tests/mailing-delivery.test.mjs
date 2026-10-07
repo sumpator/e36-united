@@ -17,7 +17,8 @@ test('exact additive C migration applies to pre-C schema and retains fixtures / 
   db.exec(readFileSync(new URL('../db/migrations/2026-09-07-mailing-delivery.sql',import.meta.url),'utf8'));
   assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(),[]);assert.equal(db.prepare('SELECT COUNT(*) n FROM members').get().n,1);
   const existing=db.prepare("SELECT * FROM mailing_campaigns WHERE id='existing'").get();assert.equal(existing.status,'draft');assert.equal(existing.subject,'Existing subject');assert.equal(existing.prepared_html,null);assert.equal(existing.provider_request_id,null);
-  const canonical=new DatabaseSync(':memory:');canonical.exec(schema);
+  // Compare the exact Mailing C successor, before later LIVE/admission columns.
+  const canonical=new DatabaseSync(':memory:');canonical.exec(schema.slice(0,schema.indexOf('-- Stage 1 only:'))+'COMMIT;');
   for(const table of ['mailing_campaigns','mailing_campaign_recipients','mailing_delivery_events','events','member_onboarding','public_planner_handoffs']){
     assert.deepEqual(db.prepare(`PRAGMA table_info(${table})`).all(),canonical.prepare(`PRAGMA table_info(${table})`).all());
     assert.deepEqual(db.prepare(`PRAGMA foreign_key_list(${table})`).all(),canonical.prepare(`PRAGMA foreign_key_list(${table})`).all());

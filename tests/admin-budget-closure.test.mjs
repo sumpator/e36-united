@@ -14,6 +14,7 @@ import {resourceDue,ADMIN_REFRESH} from '../admin/refresh-policy.js';
 import {createAdminRefresh} from '../admin/refresh.js';
 import {MEMBER_HERO_CAR_SQL,MEMBER_HERO_PHOTO_SQL} from '../worker/admin/members.js';
 import {ADMIN_RESERVATION_APPROVALS_SQL} from '../worker/admin/summary.js';
+import {currentBudgetSql,MEMBER_ARRIVALS_SQL} from './helpers/admin-budget-current.mjs';
 const read=path=>readFileSync(new URL('../'+path,import.meta.url),'utf8');
 const before=JSON.parse(read('docs/admin-budget-before.json')),after=JSON.parse(read('docs/admin-budget-after.json'));
 const sql=source=>source.replace(/\s+/g,' ').trim();
@@ -34,11 +35,11 @@ test('budget evidence describes actual current authorized SQL and never prices a
   const {runtime,report}=await captureAdminBudget();
   for(const endpoint of report){
     const recorded=after.report.find(e=>e.name===endpoint.name);assert.ok(recorded);
-    // Keep the accepted Stage 2 evidence plus its explicit gallery amendment exact.
-    // The separately tested r5 header addon must be these two scoped lookups.
-    const addon=endpoint.name==='member-header'?[MEMBER_HERO_CAR_SQL,MEMBER_HERO_PHOTO_SQL]:endpoint.name==='summary'?[ADMIN_RESERVATION_APPROVALS_SQL]:[];
-    assert.deepEqual(endpoint.queries.map(q=>sql(q.sql)),[...recorded.queries.map(q=>sql(q.sql)),...addon.map(sql)],endpoint.name);
-    if(endpoint.name==='member-header')assert.deepEqual(endpoint.queries.slice(-2).map(q=>q.args),[['m'],['c']]);
+    // Keep accepted Stage 2 evidence frozen, with explicit approved projection
+    // additions and bounded header lookups for the hero car and arrivals.
+    const addon=endpoint.name==='member-header'?[MEMBER_HERO_CAR_SQL,MEMBER_HERO_PHOTO_SQL,MEMBER_ARRIVALS_SQL]:endpoint.name==='summary'?[ADMIN_RESERVATION_APPROVALS_SQL]:[];
+    assert.deepEqual(endpoint.queries.map(q=>sql(q.sql)),[...recorded.queries.map(q=>currentBudgetSql(q.sql)),...addon.map(sql)],endpoint.name);
+    if(endpoint.name==='member-header')assert.deepEqual(endpoint.queries.slice(-3).map(q=>q.args),[['m'],['c'],['m','e']]);
     if(endpoint.name==='summary'){
       const approval=endpoint.queries.at(-1);assert.equal(approval.args.length,2);assert.equal(approval.args[1],'e');
       assert.ok(approval.plan.some(step=>step.includes('idx_reservations_payment (event_id=?)')));
@@ -54,7 +55,7 @@ test('budget evidence describes actual current authorized SQL and never prices a
 
 test('reservation page fence preserves complete old payloads, totals, search, page order and cross-event option scope',async()=>{
   const r=adminGrowth(),env={...r.env,ADMIN_READ:true};
-  const old=before.report.find(e=>e.name==='reservation-list').queries[2].sql;
+  const old=currentBudgetSql(before.report.find(e=>e.name==='reservation-list').queries[2].sql);
   const pending=r.db.prepare("SELECT id FROM reservations WHERE status='pending' AND event_id='e' ORDER BY id LIMIT 1").get().id;
   // A historical allocation can refer to an option outside the selected event.
   r.db.prepare("UPDATE reservation_accommodation SET option_id='option-old' WHERE reservation_id=?").run(pending);

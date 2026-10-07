@@ -143,7 +143,7 @@ test('real reservation success records conversion even if public/client tracking
   const body={plannerDraftId:plan.draftId,carId:'car',arrival:'Jen na otočku',crew:2,attendanceType:'day_visit',accommodation:'Bez ubytování',accommodationUnits:0,showShine:'Ne'};
   assert.equal((await putCurrentReservation(post(body),env,user,origin)).status,409);
   assert.equal(db.prepare('SELECT COUNT(*) n FROM public_planner_handoffs').get().n,0);
-  db.exec("UPDATE events SET registration_status='open' WHERE id='event'");
+  db.exec("UPDATE events SET registration_status='open',admission_registered_czk=0 WHERE id='event'");
   const response=await putCurrentReservation(post(body),env,user,origin);assert.equal(response.status,200);
   const reservation=(await response.json()).reservation,row=db.prepare('SELECT * FROM public_planner_handoffs').get();
   assert.equal(row.member_id,'a');assert.equal(row.reservation_id,reservation.id);assert.ok(row.reservation_created_at);

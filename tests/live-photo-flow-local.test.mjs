@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {memberRuntime} from './helpers/admin-member-runtime.mjs';
+import { seedConfirmedArrival } from './helpers/live-fixtures.mjs';
 import {saveLiveVote,saveJudgeScore,closeLiveEntry,getMemberLive,startLiveEntry,controlLive,uploadLivePhoto,uploadJudgePhoto} from '../worker/domains/live.js';
 import {uploadGallerySubmission} from '../worker/domains/member-gallery.js';
 import {readFileSync} from 'node:fs';
@@ -20,21 +21,25 @@ test('own vote, exact judge scores, explicit close and replay; no other private 
  const r=setup();try{
   assert.equal((await saveLiveVote(request({score:8}),r.env,{uid:'m'},'entry',origin)).status,403);
   assert.equal((await saveLiveVote(request({score:8}),r.env,{uid:'n'},'entry',origin)).status,200);
-  const scores={overall:8,condition:7,cohesion:6,originality:9};assert.equal((await saveJudgeScore(request({scores,submitted:true}),r.env,{uid:'a'},'entry',origin)).status,200);
+  const scores={overall:8,condition:7,cohesion:6,originality:9};assert.equal((await saveJudgeScore(request({scores,submitted:true,expectedVersion:0}),r.env,{uid:'a'},'entry',origin)).status,200);
   const member=await (await getMemberLive(r.env,{uid:'n'},origin)).json();assert.equal(member.votes.length,1);assert.deepEqual(member.judgeHistory,[]);
   const judge=await (await getMemberLive(r.env,{uid:'a'},origin)).json();assert.deepEqual(judge.judgeHistory[0].scores,scores);
   assert.equal((await closeLiveEntry(request({expectedVersion:1}),r.env,{uid:'n'},'entry',origin)).status,403);
   assert.equal((await closeLiveEntry(request({expectedVersion:1}),r.env,{uid:'a'},'entry',origin)).status,200);
   assert.equal((await closeLiveEntry(request({expectedVersion:1}),r.env,{uid:'a'},'entry',origin)).status,200);
-  assert.equal((await saveLiveVote(request({score:9}),r.env,{uid:'n'},'entry',origin)).status,409);
-  assert.equal((await saveJudgeScore(request({scores,submitted:true}),r.env,{uid:'a'},'entry',origin)).status,409);
-  assert.equal(r.db.prepare('SELECT score FROM live_public_votes').get().score,8);
+  // live-next-local: existing votes remain editable while the category is live.
+  assert.equal((await saveLiveVote(request({score:9}),r.env,{uid:'n'},'entry',origin)).status,200);
+  assert.equal((await saveJudgeScore(request({scores,submitted:true,expectedVersion:1}),r.env,{uid:'a'},'entry',origin)).status,400);
+  assert.equal(r.db.prepare('SELECT score FROM live_public_votes').get().score,9);
+  await controlLive(request({action:'close_category',category:'Sedan',expectedCategoryVersion:1}),r.env,{uid:'a'},'e','show_shine',origin);
+  assert.equal((await saveLiveVote(request({score:10}),r.env,{uid:'n'},'entry',origin)).status,409);
+  assert.equal(r.db.prepare('SELECT score FROM live_public_votes').get().score,9);
  }finally{r.db.close()}
 });
 test('closure between preflight and write rejects public and judge mutations',async()=>{
  for(const judge of [false,true]){const r=setup();try{
   const prepare=r.env.DB.prepare;r.env.DB.prepare=sql=>{const statement=prepare(sql);if(sql.startsWith('INSERT INTO live_'+(judge?'judge_scores':'public_votes'))){r.db.exec("UPDATE live_entries SET voting_closed=1 WHERE id='entry'");}return statement;};
-  const response=judge?await saveJudgeScore(request({scores:{overall:8,condition:8,cohesion:8,originality:8},submitted:true}),r.env,{uid:'a'},'entry',origin):await saveLiveVote(request({score:8}),r.env,{uid:'n'},'entry',origin);
+  const response=judge?await saveJudgeScore(request({scores:{overall:8,condition:8,cohesion:8,originality:8},submitted:true,expectedVersion:0}),r.env,{uid:'a'},'entry',origin):await saveLiveVote(request({score:8}),r.env,{uid:'n'},'entry',origin);
   assert.equal(response.status,409);assert.equal(r.db.prepare('SELECT COUNT(*) n FROM '+(judge?'live_judge_scores':'live_public_votes')).get().n,0);
  }finally{r.db.close()}}
 });
@@ -46,7 +51,8 @@ test('upload retry is actor-scoped, pending, one row and one media object',async
 
 test('a second body category cannot start, including a category opened during preflight',async()=>{
  for(const concurrent of [false,true]){const r=setup();try{
-  r.db.exec("UPDATE reservations SET show_shine='Ano'; UPDATE cars SET body='Coupé' WHERE id='c2'; INSERT INTO event_member_presence(event_id,member_id,present) VALUES('e','m',1); UPDATE live_competition_state SET status='idle',current_entry_id=NULL;");
+  r.db.exec("UPDATE reservations SET show_shine='Ano'; UPDATE cars SET body='Coupé' WHERE id='c2';  UPDATE live_competition_state SET status='idle',current_entry_id=NULL;");
+  seedConfirmedArrival(r,'m','c');
   if(concurrent){r.db.exec("UPDATE live_category_state SET status='idle'");const batch=r.env.DB.batch;r.env.DB.batch=async statements=>{r.db.exec("UPDATE live_category_state SET status='live' WHERE category='Sedan'");return batch(statements)}}
   const response=await startLiveEntry(request({discipline:'show_shine',memberId:'m',carId:'c2',category:'Coupé',expectedVersion:1}),r.env,{uid:'a'},'e',origin);
   assert.equal(response.status,409);assert.equal(r.db.prepare("SELECT COUNT(*) n FROM live_category_state WHERE status='live'").get().n,1);assert.equal(r.db.prepare("SELECT COUNT(*) n FROM live_entries WHERE car_id='c2'").get().n,0);

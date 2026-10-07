@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 import {ADMIN_RELEASE_TOKEN as token} from '../scripts/check-admin-module-graph.mjs';
+import {ADMIN_MODULE_RELEASES} from '../scripts/admin-module-releases.mjs';
 
 const checker=fileURLToPath(new URL('../scripts/check-admin-module-graph.mjs',import.meta.url));
 const graph=fixture=>{
@@ -17,7 +18,7 @@ test('complete Admin browser graph has one release URL per source, no unversione
   const result=graph();assert.deepEqual(result.errors,[]);assert.deepEqual(result.cycles,[]);
   assert.ok(result.files.includes('admin/destinations.js'));assert.ok(result.files.includes('admin/modules/mailing/delivery.js'));
   assert.ok(result.files.includes('vendor/qrcode-generator.mjs'));
-  assert.ok(result.edges.every(e=>e.token===token));
+  assert.ok(result.edges.every(e=>e.token===ADMIN_MODULE_RELEASES[e.to]&&e.classification==='current'));
   assert.equal(new Set(result.edges.filter(e=>e.to==='admin/state.js').map(e=>e.specifier.split('?')[1])).size,1);
   assert.equal(result.external.length,2);
   assert.ok(result.files.every(f=>!f.startsWith('worker/')&&!f.startsWith('tests/')));

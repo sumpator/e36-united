@@ -18,7 +18,11 @@ function panel(name, nextName) {
 test('hero keeps identity and onboarding CTA without session controls', () => {
   const hero = html.slice(html.indexOf('data-member-hero='), html.indexOf('<div class="container member-shell">'));
   assert.match(hero, /UNITED MEMBER/);
-  assert.match(hero, /data-member-hero-attended/);
+  // public-member-ux removed duplicated attendance metadata from the greeting;
+  // authoritative attendance remains on the Member Card.
+  assert.match(hero, /data-member-greeting[\s\S]*data-member-nickname/);
+  assert.doesNotMatch(hero, /data-member-hero-attended/);
+  assert.match(panel('overview','reservation'), /data-attendance-count/);
   assert.doesNotMatch(hero, /data-logout|member-logged-actions|member-hero-logout/);
   assert.match(js, /cta\.hidden=!view\.cta/);
   assert.match(js, /cta\.hidden=false/);
@@ -87,7 +91,10 @@ test('Payments are driven only by approved reservation payment data', () => {
 test('Account renders real profile data, safe existing profile update and relocated logout', () => {
   const account = panel('account');
   for (const attribute of ['data-account-form', 'data-account-email', 'data-account-member-code', 'data-account-since', 'data-account-verification', 'data-logout']) assert.match(account, new RegExp(attribute));
-  assert.match(account, /Doručovací adresu bude možné uložit/);
+  // portal-composition provides a separate working address editor and QR card.
+  assert.match(account, /data-merch-address/);
+  assert.match(read('member/modules/merch.js'), /request\('\/api\/merch\/address'\)[\s\S]*renderMerchAddress/);
+  assert.match(account, /data-account-qr/);
   assert.doesNotMatch(account, /name="address|name="street|name="city/);
   assert.match(js, /apiRequest\('\/api\/bootstrap'/);
   assert.match(js, /setProfile\(normalizeMember\(payload,getCurrentUser\(\)\)\)/);

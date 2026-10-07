@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { assertClubNavigation } from './helpers/club-navigation.mjs';
 
 const read = name => readFileSync(new URL(`../${name}`, import.meta.url), 'utf8');
 const memberHtml = read('member.html');
@@ -20,20 +21,21 @@ const galleryHtml = read('galerie.html');
 const galleryJs = read('gallery.js');
 const authStatesCss = read('auth-states.css');
 
-test('main navigation contains exactly eight internal panels in target order', () => {
+test('main navigation contains the approved nine internal panels in target order', () => {
   const sidebar = memberHtml.slice(memberHtml.indexOf('<aside class="member-sidebar"'), memberHtml.indexOf('</aside>'));
   const labels = [...sidebar.matchAll(/data-member-section="([^"]+)"/g)].map(match => match[1]);
-  assert.deepEqual(labels, ['overview', 'reservation', 'garage', 'payments', 'club', 'photos', 'account', 'live']);
+  assert.deepEqual(labels, ['overview', 'reservation', 'garage', 'payments', 'club', 'photos', 'account', 'merch', 'live']);
   assert.match(sidebar, /data-member-section="reservation"[\s\S]*?<strong>Registrace<\/strong><small>Účast &amp; ubytování<\/small>/);
-  for (const panel of ['overview', 'live', 'reservation', 'garage', 'payments', 'club', 'photos', 'account']) assert.match(memberHtml, new RegExp(`data-member-panel="${panel}"`));
+  for (const panel of labels) assert.match(memberHtml, new RegExp(`data-member-panel="${panel}"`));
 });
 
-test('United Merch is a separated external destination, never an internal panel', () => {
+test('United Merch has a member order panel and a distinct public catalogue link', () => {
   const sidebar = memberHtml.slice(memberHtml.indexOf('<aside class="member-sidebar"'), memberHtml.indexOf('</aside>'));
-  assert.match(sidebar, /member-nav-external member-nav-shop" href="merch\.html"><b>United Merch<\/b>/);
-  assert.doesNotMatch(sidebar, /member-nav-external[^>]*>[\s\S]*?<span>\d{2}<\/span>/);
-  assert.doesNotMatch(memberHtml, /data-member-panel="merch"/);
-  assert.match(memberCss, /@media\(max-width:1050px\)[^\n]*member-portal-nav \.member-nav-external\{display:none\}/);
+  // Connected Merch and portal-next approve an internal orders destination.
+  assert.match(sidebar, /member-nav-shop" data-member-section="merch" data-portal-target="merch"/);
+  assert.doesNotMatch(sidebar, /member-nav-shop[^>]*href=/);
+  assert.match(memberHtml, /data-member-panel="merch"[\s\S]*href="merch.html"/);
+  assert.match(read('mobile-navigation.js'), /\['merch.html','♧','Merch'\]/);
 });
 
 test('authenticated main mobile menu contains all Member Portal sections', () => {
@@ -42,7 +44,7 @@ test('authenticated main mobile menu contains all Member Portal sections', () =>
   const labels = [...mobile.matchAll(/data-main-member-section="[^"]+"[^>]*>([^<]+)<\/button>/g)].map(match => match[1].replace('&amp;', '&'));
   assert.deepEqual(labels, ['Přehled', 'Registrace', 'Garáž', 'Platby', 'United Club', 'Moje fotky', 'Účet', 'UNITED LIVE']);
   assert.match(memberHtml, /data-member-main-mobile-nav="" hidden=""/);
-  assert.match(memberShellJs, /setMainMobileMemberNavigation\(true\)/);
+  assert.match(memberShellJs, /setMainMobileMemberNavigation\(!liveModeActive\)/);
   assert.match(memberShellJs, /setMainMobileMemberNavigation\(false\)/);
 });
 
@@ -72,8 +74,8 @@ test('desktop sidebar action, main mobile menu and Account expose shared logout 
   assert.doesNotMatch(sidebar, /data-logout/);
   assert.ok(nav.indexOf('member-sidebar-logout') > nav.indexOf('</aside>'));
   assert.doesNotMatch(nav, /data-portal-menu-open|data-portal-sheet/);
-  assert.match(account, /account-logout" data-logout=""/);
-  assert.equal((memberHtml.match(/data-logout=""/g)||[]).length,3);
+  assert.match(account, /account-logout" data-logout(?:="")? type="button"/);
+  assert.equal((memberHtml.match(/\bdata-logout(?:="")?(?=[\s>])/g)||[]).length,3);
   assert.match(memberCss, /\.member-sidebar-logout\{width:100%;min-height:44px;margin-top:10px/);
   assert.match(memberCss, /@media\(max-width:1050px\)\{\.member-sidebar-logout\{display:none\}\}/);
   assert.match(memberJs, /\$\$\('\[data-logout\]'\)\.forEach\(button=>button\.addEventListener\('click',logoutMember\)\)/);
@@ -84,7 +86,7 @@ test('duplicate internal mobile hamburger is removed while the horizontal scroll
   const nav = memberHtml.slice(navStart, memberHtml.indexOf('<div class="member-content">', navStart));
   assert.doesNotMatch(nav, /portal-menu-button|data-portal-menu-open|portal-nav-sheet|data-portal-sheet/);
   assert.match(nav, /portal-nav-viewport[\s\S]*?<aside class="member-sidebar" data-portal-tablist>/);
-  assert.equal((nav.match(/data-member-section="/g)||[]).length,8);
+  assert.equal((nav.match(/data-member-section="/g)||[]).length,9);
   assert.match(memberCss, /@media\(max-width:1050px\)\{\.member-portal-nav\{grid-template-columns:minmax\(0,1fr\)\}\}/);
   assert.match(portalNavigationJs, /scrollIntoView/);
 });
@@ -105,7 +107,7 @@ test('Můj United active underline belongs to its label, not the decorative mark
 test('authenticated entry keeps Overview fallback but applies a handoff before canonical navigation', () => {
   assert.match(memberHtml, /member-nav-item is-active" data-member-section="overview"/);
   assert.match(memberHtml, /member-section is-active" data-member-panel="overview"/);
-  assert.match(memberJs, /showApp\(\);\s*if\(!errors.reservation\)await memberPlanner\.applyPlannerDraft/);
+  assert.match(memberJs, /showApp\(\);\s*memberMerch.startup\(\);\s*if\(!errors.reservation\)await memberPlanner\.applyPlannerDraft/);
   assert.match(memberJs, /const initialSection=new URLSearchParams\(window.location.search\).has\('draft'\)&&memberPlanner.hasActiveHandoff\(\)\?'reservation':requestedMemberSection\(window.location.search\);\s*if\(initialSection==='live'\)\{\s*openSection\('overview'\);\s*await memberLive\.startup\(\{requested:true\}\);\s*\}else\{\s*openSection\(initialSection\);\s*void memberLive\.startup\(\);/);
   assert.doesNotMatch(memberJs, /requestedMemberPanel/);
   assert.match(memberPlannerJs, /applyPlannerHandoffToForm\(\{navigate:false\}\)/);
@@ -124,8 +126,8 @@ test('initial auth markup is loading, not anonymous', () => {
 
 test('all public member-aware pages use the shared auth bootstrap', () => {
   for (const source of [memberSessionJs, merchJs, galleryJs]) assert.match(source, /initUnitedAuth/);
-  assert.match(merchHtml, /auth-states\.css\?v=20260825-phase-a1/);
-  assert.match(galleryHtml, /auth-states\.css\?v=20260913-club-profiles-r1/);
+  assert.match(merchHtml, /auth-states\.css\?v=20260923-theme2/);
+  assert.match(galleryHtml, /auth-states\.css\?v=20260923-theme2/);
   assert.match(authStatesCss, /gallery-auth-state/);
   assert.match(authStatesCss, /member-benefit-loading\[hidden\].*display:none!important/);
   assert.match(authStatesCss, /data-benefit-retry\]\[hidden\].*display:none!important/);
@@ -185,10 +187,11 @@ test('community submissions keep the existing flow in their own main panel', () 
 test('United Club is one coherent Points, history and Achievements page on every viewport', () => {
   const clubStart = memberHtml.indexOf('data-member-panel="club"');
   const club = memberHtml.slice(clubStart, memberHtml.indexOf('data-member-panel="photos"', clubStart));
-  assert.doesNotMatch(club, /data-club-tab|data-club-panel/);
+  assertClubNavigation(club);
+  assert.doesNotMatch(club, /data-club-panel/);
   assert.ok(club.indexOf('data-club-anchor="points"') < club.indexOf('data-club-anchor="history"'));
   assert.ok(club.indexOf('data-club-anchor="history"') < club.indexOf('data-club-anchor="achievements"'));
-  assert.match(club, /MOJE STOPA V UNITED/);
+  assert.match(club, /Moje účasti/);
   assert.match(club, /ACHIEVEMENTS/);
   assert.doesNotMatch(club, /MILNÍKY|VÝHODY/);
   assert.doesNotMatch(memberJs, /mobileClubQuery|openClubTab/);

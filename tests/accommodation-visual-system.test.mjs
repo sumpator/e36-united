@@ -76,6 +76,8 @@ test('one shared visual module propagates through Planner, Member Portal and Adm
 
 test('Admin photo picker is styled, locally previews and supports replace/remove without exposing native input',()=>{
   const admin=read('admin/modules/accommodation.js'),css=read('admin.css');
-  assert.match(admin,/data-accommodation-photo-input hidden type="file"/);assert.match(admin,/URL\.createObjectURL\(file\)/);assert.match(admin,/data-accommodation-photo-upload/);assert.match(admin,/data-accommodation-photo-remove/);
+  // live-photo-theme / photo-live-release moved local processing and blob URLs
+  // into the shared batch; cover selection must still use that implementation.
+  assert.match(admin,/data-accommodation-photo-input hidden type="file"/);assert.match(admin,/import \{ createPhotoBatch, renderPhotoBatch \} from/);assert.match(admin,/createPhotoBatch\(\{maxFiles:cover\?1:5/);assert.match(read('photo-batch.js'),/URL\.createObjectURL\(file\)/);assert.match(admin,/data-accommodation-photo-upload/);assert.match(admin,/data-accommodation-photo-remove/);
   assert.match(css,/\.admin-photo-picker/);assert.match(css,/\.admin-accommodation-photo-preview/);
 });

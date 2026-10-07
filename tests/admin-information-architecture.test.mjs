@@ -56,7 +56,7 @@ const reservations = [
 test('admin has one persistent navigation target for each real agenda and one default active panel', () => {
   const panels = [...html.matchAll(/data-admin-panel="([^"]+)"/g)].map(match => match[1]);
   assert.deepEqual(panels.sort(), ADMIN_VIEW_IDS.filter(id=>id!=='united-club').sort()); // Club reuses the canonical Members panel.
-  assert.deepEqual(Object.keys(ADMIN_AREAS),['dashboard','live','reservations','payments','community','mailing','settings']);
+  assert.deepEqual(Object.keys(ADMIN_AREAS),['dashboard','arrivals','merch','live','reservations','payments','community','mailing','settings']);
   const shell=read('admin/command-shell.js');
   for(const area of ['dashboard','reservations','payments','mailing','settings'])assert.ok(shell.includes("navButton('"+area+"'"));
   assert.match(shell,/const liveButton = \(\) => `<button class="command-nav-live" data-portal-target="live"/);

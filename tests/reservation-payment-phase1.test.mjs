@@ -13,7 +13,9 @@ function database() {
   db.exec(`
     PRAGMA foreign_keys = ON;
     CREATE TABLE events (
-      id TEXT PRIMARY KEY, year INTEGER NOT NULL, registration_status TEXT NOT NULL,
+      id TEXT PRIMARY KEY, year INTEGER NOT NULL, title TEXT NOT NULL DEFAULT 'Isolated event', registration_status TEXT NOT NULL,
+      live_enabled INTEGER NOT NULL DEFAULT 0,
+      admission_registered_czk INTEGER DEFAULT 0, admission_onsite_czk INTEGER DEFAULT 0,
       currency TEXT NOT NULL DEFAULT 'CZK', payment_deadline TEXT,
       is_current INTEGER NOT NULL DEFAULT 0, accommodation_capacity INTEGER NOT NULL DEFAULT 0,
       reservation_capacity INTEGER NOT NULL DEFAULT 0, full_weekend_nights INTEGER NOT NULL DEFAULT 2,
@@ -24,6 +26,7 @@ function database() {
       id TEXT PRIMARY KEY, member_id TEXT NOT NULL, event_id TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending',
       car_id TEXT, crew INTEGER NOT NULL DEFAULT 1, attendance_type TEXT, show_shine TEXT,
       accommodation TEXT, accommodation_units INTEGER NOT NULL DEFAULT 0,
+      admission_czk INTEGER,
       amount_due_czk INTEGER NOT NULL DEFAULT 0, amount_paid_czk INTEGER NOT NULL DEFAULT 0,
       payment_status TEXT NOT NULL DEFAULT 'unpaid', paid_at TEXT,
       payment_confirmed_by TEXT, payment_confirmed_at TEXT, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,

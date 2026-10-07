@@ -2,6 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
+import { installReservationPayments } from './helpers/reservation-payments.mjs';
+import { paymentStatement } from '../worker/domains/arrivals.js';
 
 const migration = readFileSync(new URL('../D1-event-accommodation-v1.sql', import.meta.url), 'utf8');
 const paymentMigration = readFileSync(new URL('../D1-reservation-payments-v1.sql', import.meta.url), 'utf8');
@@ -18,7 +20,9 @@ function database(events = [{ id: 'event-2026', year: 2026, status: 'open' }]) {
   db.exec(`
     PRAGMA foreign_keys = ON;
     CREATE TABLE events (
-      id TEXT PRIMARY KEY, year INTEGER NOT NULL, registration_status TEXT NOT NULL,
+      id TEXT PRIMARY KEY, year INTEGER NOT NULL, title TEXT NOT NULL DEFAULT 'Isolated event', registration_status TEXT NOT NULL,
+      live_enabled INTEGER NOT NULL DEFAULT 0,
+      admission_registered_czk INTEGER DEFAULT 0, admission_onsite_czk INTEGER DEFAULT 0,
       accommodation_capacity INTEGER NOT NULL DEFAULT 0,
       reservation_capacity INTEGER NOT NULL DEFAULT 0,
       booking_commitment_czk INTEGER NOT NULL DEFAULT 0,
@@ -32,6 +36,7 @@ function database(events = [{ id: 'event-2026', year: 2026, status: 'open' }]) {
       car_id TEXT, car_model TEXT, car_body TEXT, car_year INTEGER, car_color TEXT, car_nickname TEXT,
       arrival TEXT, crew INTEGER NOT NULL DEFAULT 1, accommodation TEXT, show_shine TEXT, note TEXT,
       status TEXT NOT NULL DEFAULT 'pending', attendance_type TEXT, accommodation_units INTEGER NOT NULL DEFAULT 0,
+      admission_czk INTEGER DEFAULT 0,
       amount_due_czk INTEGER NOT NULL DEFAULT 0, amount_paid_czk INTEGER NOT NULL DEFAULT 0,
       payment_status TEXT NOT NULL DEFAULT 'unpaid', paid_at TEXT, submitted_at TEXT,
       created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -59,6 +64,7 @@ function database(events = [{ id: 'event-2026', year: 2026, status: 'open' }]) {
   db.exec(plannerMigration);
   db.exec(reservationRequestMigration);
   db.exec(accommodationGalleryMigration);
+  installReservationPayments(db);
   return db;
 }
 
@@ -183,11 +189,11 @@ async function setAdminReservationStatus(db, reservationId, status) {
   return workerModule.patchAdminReservation(request, { DB: d1Binding(db) }, { uid: 'admin' }, reservationId, 'https://e36united.cz');
 }
 
-async function setAdminPaidAmount(db, reservationId, amountPaidCzk) {
-  const request = new Request(`https://api.e36united.cz/api/admin/reservations/${reservationId}/payment`, {
-    method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ amountPaidCzk }),
-  });
-  return workerModule.patchAdminReservationPayment(request, { DB: d1Binding(db) }, { uid: 'admin' }, reservationId, 'https://e36united.cz');
+async function recordFixtureBankPayment(db, reservationId, amountPaidCzk) {
+  // These are new reservations with explicit admission. Seed their actual bank
+  // ledger entry; the old aggregate PATCH is intentionally forbidden for them.
+  db.prepare("INSERT OR IGNORE INTO members(id,name) VALUES('admin','Test Admin')").run();
+  return paymentStatement({ DB: d1Binding(db) }, { id: crypto.randomUUID(), eventId: 'event-2026', reservationId, amount: amountPaidCzk, method: 'bank', actorId: 'admin', reason: 'Isolated recorded payment' }).run();
 }
 
 async function submitChangeRequest(db,{memberId,reservationId,people,arrival='Pátek',accommodation='Chatka',optionId='cabin-a',accommodationUnits=people}){
@@ -621,7 +627,7 @@ test('29. paid reservations reconcile the four required edit scenarios without c
     assert.equal((await submitWorkerReservation(db, { memberId: 'm1', people: 4 })).status, 200);
     const created = db.prepare("SELECT id,payment_vs FROM reservations WHERE member_id='m1'").get();
     assert.equal((await setAdminReservationStatus(db, created.id, 'approved')).status, 200);
-    assert.equal((await setAdminPaidAmount(db, created.id, scenario.paid)).status, 200);
+    assert.equal((await recordFixtureBankPayment(db, created.id, scenario.paid)).meta.changes, 1);
     const beforeEdit = db.prepare('SELECT id,payment_vs,amount_paid_czk,paid_at FROM reservations WHERE id=?').get(created.id);
 
     db.prepare("UPDATE event_accommodation_options SET unit_price_czk=? WHERE id='cabin-a'").run(scenario.total / 2);

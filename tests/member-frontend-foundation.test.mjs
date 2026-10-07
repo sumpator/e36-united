@@ -96,6 +96,7 @@ test('Member state creates isolated defaults and preserves profile normalization
   assert.deepEqual(normalizeMember({ profile: { uid: 'uid-1', member_code: 'E36-1', email_verified: 1 } }, { email: 'driver@example.com' }), {
     id: 'uid-1',
     memberCode: 'E36-1',
+    qrPayload: null,
     name: 'driver',
     nickname: 'Driver',
     email: 'driver@example.com',
