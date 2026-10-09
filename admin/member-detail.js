@@ -43,7 +43,7 @@ export function openMember(id,source,{tab='overview',route=true}={}){
   if(adminState.memberId!==id){document.querySelectorAll('[data-member-dialog] [data-domain-status]').forEach(node=>node.remove());delete adminState.resourceStates['member-header'];delete adminState.resourceStates['member-tab'];releaseMemberMedia();$('[data-member-identity]').innerHTML='<h2 id="admin-member-heading">Načítám člena…</h2>';$('[data-member-event]').replaceChildren();$('[data-member-tab-content]').replaceChildren();}
   opener=source||opener||document.activeElement;adminState.memberId=id;adminState.memberTab=Object.hasOwn(MEMBER_TABS,tab)?tab:'overview';adminState.memberPage=1;
   ensureProjectionContext();
-  const dialog=$('[data-member-dialog]');if(!dialog.open){scrollLock={x:window.scrollX,y:window.scrollY};document.documentElement.classList.add('admin-member-modal-open');dialog.showModal();}for(const a of payload.arrivals||[])$('[data-member-event]').insertAdjacentHTML('beforeend',`<article><h3>${esc(a.model)}</h3><p>Příjezd ${esc(a.arrivedAt)} · ${a.crew} osob · celkem ${a.due} Kč · uhrazeno ${a.paid} Kč</p><button class="admin-button" data-gate-arrival="${esc(a.id)}" type="button">Příjezd a jednotlivé úhrady →</button></article>`);syncTabs();renderMemberReadState();
+  const dialog=$('[data-member-dialog]');if(!dialog.open){scrollLock={x:window.scrollX,y:window.scrollY};document.documentElement.classList.add('admin-member-modal-open');dialog.showModal();}syncTabs();renderMemberReadState();
   if(route)window.dispatchEvent(new CustomEvent('admin:memberopened'));routeChange();
 }
 export function closeMember({route=true}={}){
