@@ -18,7 +18,11 @@ const req=body=>new Request(origin+'/api/audit',{method:'POST',body:JSON.stringi
 const source=readFileSync(new URL('../admin/modules/live.js',import.meta.url),'utf8');
 function harness(payload){
   const document=new EventTarget(),window=new EventTarget();
-  const root={innerHTML:'',classList:{add(){},remove(){},toggle(){}},querySelector:()=>null,querySelectorAll:()=>[],replaceChildren(){this.innerHTML=''}};
+  const root={innerHTML:'',classList:{add(){},remove(){},toggle(){}},querySelector:()=>null,querySelectorAll:()=>[],replaceChildren(){this.innerHTML=''},
+    insertAdjacentHTML(position,html){
+      if(position!=='afterbegin')throw new Error('Unsupported test DOM insertion position: '+position);
+      this.innerHTML=String(html)+this.innerHTML;
+    }};
   document.querySelector=selector=>selector==='[data-admin-live-body]'?root:null;
   document.querySelectorAll=()=>[];document.body={classList:{toggle(){}}};
   const logs=[];
@@ -48,8 +52,17 @@ test('LIVE regression actual Admin load renders populated and empty states',asyn
     assert.equal((await fixed.app.load()).event.id,'e');
     assert.equal(fixed.logs.length,0,JSON.stringify(fixed.logs.map(row=>row.map(value=>value?.stack||String(value)))));
     assert.match(fixed.root.innerHTML,/Show &amp; Shine|Show & Shine/);
+    const rendered=fixed.root.innerHTML;
+    const notice='<p role="status">Přehled se nepodařilo obnovit.</p>';
+    fixed.root.insertAdjacentHTML('afterbegin',notice);
+    assert.equal(fixed.root.innerHTML,notice+rendered);
+    fixed.root.insertAdjacentHTML('afterbegin','');
+    assert.equal(fixed.root.innerHTML,notice+rendered);
     payload.states.show_shine.entry=null;
-    assert.equal((await harness(payload).app.load()).event.id,'e');
+    const empty=harness(payload);
+    assert.equal((await empty.app.load()).event.id,'e');
+    assert.equal(empty.logs.length,0,JSON.stringify(empty.logs.map(row=>row.map(value=>value?.stack||String(value)))));
+    assert.match(empty.root.innerHTML,/Show &amp; Shine|Show & Shine/);
   }finally{r.db.close()}
 });
 
