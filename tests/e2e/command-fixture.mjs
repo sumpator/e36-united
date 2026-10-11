@@ -1,4 +1,5 @@
 import {prepareAdminE2ePage} from './fixtures.mjs';
+import {ancillaryReads} from './ancillary-fixture.mjs';
 import {memberRuntime} from '../helpers/admin-member-runtime.mjs';
 import {getAdminDashboard,getAdminPreferences,saveAdminPreferences} from '../../worker/admin/dashboard.js';
 import {getAdminSummary} from '../../worker/admin/summary.js';
@@ -27,7 +28,7 @@ export async function commandFixture(page,{legacy=false,runtime=null}={}){
   if(q.method()==='OPTIONS')return route.fulfill({status:204,headers});
   if(!/\/(dashboard|preferences|summary|events|accommodation|reservations|members|operations|gallery|mailing\/overview|history\/(claims|evidence))(\/|$)/.test(path))return route.fallback();
   calls.push(q.method()+' '+url.pathname+url.search);
-  if(mode==='denied'||mode==='unavailable'&&path.endsWith('/dashboard')||mode==='summary-unavailable'&&path.endsWith('/summary')||mode==='preferences-unavailable'&&path.endsWith('/preferences')){failures.add(q.url());return route.fulfill({status:mode==='denied'?403:503,headers,json:{message:'Synthetic controlled failure'}});}
+  if(mode==='denied'||mode==='unavailable'&&path.endsWith('/dashboard')||mode==='summary-unavailable'&&path.endsWith('/summary')||mode==='preferences-unavailable'&&path.endsWith('/preferences')){failures.add(q.url());return route.fulfill({status:mode==='denied'?403:503,headers,json:{error:mode==='denied'?'admin_forbidden':'fixture_unavailable',message:'Synthetic controlled failure'}});}
   let response;
   if(path.endsWith('/preferences')){
    if(q.method()==='PUT'){
@@ -85,5 +86,6 @@ export async function commandFixture(page,{legacy=false,runtime=null}={}){
   return route.fulfill({status:response.status,headers,body:await response.text()});
  });
  const control={r,calls,writes,observations,failures,response:null,get mode(){return mode},set mode(v){mode=v},stored(){const row=r.db.prepare("SELECT * FROM admin_preferences WHERE id='a'").get();return row?{revision:row.revision,value:JSON.parse(row.configuration_json)}:null},otherDevice(value){const row=this.stored();r.db.prepare("INSERT INTO admin_preferences(id,schema_version,configuration_json,revision) VALUES('a',1,?,?) ON CONFLICT(id) DO UPDATE SET configuration_json=excluded.configuration_json,revision=excluded.revision").run(JSON.stringify(value),(row?.revision||0)+1);r.db.prepare("INSERT INTO admin_resource_versions(resource_type,resource_id,revision) VALUES('preferences','a',1) ON CONFLICT(resource_type,resource_id) DO UPDATE SET revision=revision+1").run();}};
+ await ancillaryReads(page,{runtime:r,uid:'a',admin:true});
  return control;
 }

@@ -59,7 +59,7 @@ test.describe('desktop member portal', () => {
 
     await page.locator('.member-sidebar [data-member-section="club"]').click();
     await expect(page.locator('[data-member-panel="club"]')).toHaveClass(/is-active/);
-    await expect(page.locator('[data-member-panel="club"]')).toContainText('United Points');
+    await expect(page.locator('[data-member-panel="club"]')).toContainText('UNITED POINTS');
 
     expectNoUnexpectedClientErrors(observations);
   });
@@ -167,14 +167,15 @@ test.describe('desktop member portal', () => {
     await page.locator('.member-sidebar [data-member-section="photos"]').click();
     await expect(page.locator('[data-member-gallery-list]')).toContainText('Zatím jsi neposlal žádné fotografie.');
 
+    await page.locator('[data-member-photo-toggle]').click();
     await page.locator('[data-member-photo-input]').setInputFiles({
       name: 'united.png',
       mimeType: 'image/png',
       buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64'),
     });
     await expect(page.locator('[data-member-photo-selection]')).toBeVisible();
-    await expect(page.locator('[data-member-photo-count]')).toHaveText('1 fotka připravená k nahrání');
-    await expect(page.locator('[data-member-photo-names]')).toHaveText('united.png');
+    await expect(page.locator('[data-member-photo-count]')).toHaveText('Výběr: 1 · uloženo: 0');
+    await expect(page.locator('[data-member-photo-previews] figcaption b')).toHaveText('united.png');
     await expect(page.locator('[data-member-photo-previews] img')).toHaveCount(1);
 
     await page.locator('[data-member-photo-clear]').click();
@@ -398,14 +399,15 @@ test.describe('desktop member portal', () => {
 test.describe('mobile member portal', () => {
   test.use({ viewport: { width: 390, height: 844 } });
 
-  test('mobile main navigation logout removes access to the protected member UI', async ({ page }) => {
+  test('mobile menu Account logout removes access to the protected member UI', async ({ page }) => {
     const observations = await prepareE2ePage(page, { authenticated: true });
 
     await page.goto('/member.html');
     await expectMemberOverview(page);
     await page.locator('.menu-btn').click();
-    await expect(page.locator('.member-main-mobile-logout')).toBeVisible();
-    await page.locator('.member-main-mobile-logout').click();
+    await page.locator('.united-mobile-menu [data-mobile-section="account"]').click();
+    await expect(page.locator('.account-logout')).toBeVisible();
+    await page.locator('.account-logout').click();
 
     await expect(page.locator('[data-auth-view]')).toBeVisible();
     await expect(page.locator('[data-app-view]')).toBeHidden();

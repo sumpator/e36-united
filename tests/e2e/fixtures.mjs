@@ -1,4 +1,5 @@
 import {factoryPreferences} from '../../admin/dashboard-model.js';
+import {ancillaryReads} from './ancillary-fixture.mjs';
 import { expect } from '@playwright/test';
 import { createMailingStarterDraft, renderMailingTemplate } from '../../worker/domains/mailing/template.js';
 
@@ -366,6 +367,7 @@ export async function prepareE2ePage(page, {
     await jsonResponse(route, { message: 'Unhandled E2E API fixture' }, 501);
   });
 
+  await ancillaryReads(page,{uid:()=>memberProfile.id});
   return observations;
 }
 
@@ -566,6 +568,7 @@ export async function prepareAdminE2ePage(page,{authUid=memberId}={}) {
     await jsonResponse(route, { message: 'Unhandled Admin E2E API fixture' }, 501);
   });
 
+  observations.ancillaryRuntime=await ancillaryReads(page,{uid:authUid,admin:true});
   return observations;
 }
 

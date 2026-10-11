@@ -67,10 +67,10 @@ async function verifyMemberAndGallery(page,label){
   const onboarding=page.locator('[data-united-onboarding]');await expect(onboarding).toBeVisible();await expect(onboarding).toContainText('Otevřít registraci');
   await page.reload();await expect(page.locator('[data-app-view]')).toBeVisible();await expect(intro).toBeHidden();
 
-  await page.locator('[data-member-section="club"]').click();const clubPanel=page.locator('[data-member-panel="club"]');await expect(clubPanel).toHaveClass(/is-active/);
+  if(label==='mobile'){await page.locator('.member-bottom-nav [data-mobile-menu]').click();await page.locator('.united-mobile-menu [data-mobile-section="club"]').click()}else await page.locator('.member-sidebar [data-member-section="club"]').click();const clubPanel=page.locator('[data-member-panel="club"]');await expect(clubPanel).toHaveClass(/is-active/);
   await expect(clubPanel.locator('.club-members-section')).toHaveCount(0);
-  const membersButton=page.locator('[data-open-club-members]');await expect(membersButton).toHaveText(/Zobrazit členy klubu/);
-  if(label==='desktop')await page.locator('.united-club-head').screenshot({path:'test-results/member-club-entry-desktop.png'});
+  const membersButton=page.locator('[data-open-club-members]');await expect(membersButton).toHaveText('Členové klubu');
+  if(label==='desktop')await page.locator('[data-member-page-title]').screenshot({path:'test-results/member-club-entry-desktop.png'});
   await membersButton.click();const membersModal=page.locator('[data-club-members-modal]');await expect(membersModal).toBeVisible();
   const card=membersModal.locator('.club-member-card').first();await expect(card).toContainText('Petr');await card.click();
   const profileModal=page.locator('[data-club-profile-modal]');await expect(profileModal).toBeVisible();const profile=profileModal.locator('[data-club-profile-content]');

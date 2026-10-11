@@ -1,7 +1,7 @@
 import {test,expect} from '@playwright/test';
 import {commandFixture} from './command-fixture.mjs';
 import {readFileSync} from 'node:fs';
-import {ADMIN_RELEASE_TOKEN} from '../../scripts/check-admin-module-graph.mjs';
+import {ADMIN_MODULE_RELEASES} from '../../scripts/admin-module-releases.mjs';
 
 for(const width of [1440,390])test('CACHE SAFE generated Reservations/Payments navigation, history and ordinary reload '+width,async({page})=>{
   await page.setViewportSize({width,height:900});const c=await commandFixture(page);
@@ -34,7 +34,7 @@ test('CACHE SAFE stale unversioned destination poison reproduces old failure but
   let legacyEdges=true;
   // Controlled stale module response, not a new cache/service worker. The browser fixture
   // routes disable HTTP caching; this tests URL identity and poisoned responses explicitly.
-  const stale=`export * from './destinations.js?v=${ADMIN_RELEASE_TOKEN}';
+  const stale=`export * from './destinations.js?v=${ADMIN_MODULE_RELEASES['admin/destinations.js']}';
     export const ADMIN_AREAS={dashboard:{views:['dashboard']},finance:{views:['reservations','accommodation','payments']},community:{views:['members','gallery','club']},mailing:{views:['mailing']},settings:{views:['event']}};
     export const areaFor=view=>Object.keys(ADMIN_AREAS).find(k=>ADMIN_AREAS[k].views.includes(view))||'dashboard';`;
   await page.route(url=>url.origin==='http://127.0.0.1:4173'&&/\.(m?js)$/.test(url.pathname),async route=>{
@@ -45,7 +45,7 @@ test('CACHE SAFE stale unversioned destination poison reproduces old failure but
     // Negative control: recreate precisely the two stable nested import edges from NEW.
     if(legacyEdges&&['/admin/shell.js','/admin/navigation.js'].includes(url.pathname)){
       const source=readFileSync(new URL('../..'+url.pathname,import.meta.url),'utf8');
-      return route.fulfill({contentType:'text/javascript',body:source.replace(`'./destinations.js?v=${ADMIN_RELEASE_TOKEN}'`,"'./destinations.js'")});
+      return route.fulfill({contentType:'text/javascript',body:source.replace(`'./destinations.js?v=${ADMIN_MODULE_RELEASES['admin/destinations.js']}'`,"'./destinations.js'")});
     }
     return route.fallback();
   });
@@ -67,7 +67,7 @@ test('CACHE SAFE stale unversioned destination poison reproduces old failure but
     await expect(page.locator('[data-admin-panel="dashboard"]')).toBeHidden();
     await expect(page).toHaveURL(/section=payments&view=payments/);
     expect(poisonHits).toEqual([]);expect(requests.length).toBeGreaterThan(30);
-    expect(requests.filter(value=>new URL(value).search!==`?v=${ADMIN_RELEASE_TOKEN}`)).toEqual([]);
+    for(const value of requests){const u=new URL(value);const token=({...ADMIN_MODULE_RELEASES,'appearance.js':'20260928-flow1'})[u.pathname.slice(1)];expect(token,u.pathname).toBeTruthy();expect(u.search).toBe(`?v=${token}`);}
     expect(requests.some(value=>new URL(value).pathname==='/admin/destinations.js')).toBe(true);
     const urls=new Map();for(const value of requests){const u=new URL(value);if(!urls.has(u.pathname))urls.set(u.pathname,new Set());urls.get(u.pathname).add(u.href);}
     expect([...urls.values()].every(values=>values.size===1)).toBe(true);
@@ -189,10 +189,10 @@ test('NEW separate history decisions converge badges without clearing the other 
  await expect(badge).toBeHidden();expect(c.writes.map(w=>w.component)).toEqual(['attendance','sns']);expect(c.writes[1].revision).not.toBe(c.writes[0].revision);clean(c);c.r.db.close();
 });
 function clean(c){expect(c.observations.pageErrors).toEqual([]);expect(c.observations.unhandledApi).toEqual([]);expect(c.observations.consoleErrors.filter(e=>!c.failures.has(e.url)||!/Failed to load resource|Fetch API cannot load|net::ERR/.test(e.text))).toEqual([]);}
-test('NEW six destinations, Community disclosure, legacy aliases and canonical Club tab',async({page},info)=>{
+test('NEW current destinations, Community disclosure, legacy aliases and canonical Club tab',async({page},info)=>{
  await page.setViewportSize({width:1440,height:900});
  const c=await commandFixture(page);await open(page);const rail=page.locator('.admin-section-nav');
- await expect(rail.locator(':scope > button')).toHaveCount(6);const before=page.url();await rail.locator('[data-community-toggle]').click();expect(page.url()).toBe(before);
+ expect(await rail.locator(':scope > button[data-portal-target]').evaluateAll(ns=>ns.map(n=>n.dataset.portalTarget))).toEqual(['dashboard','arrivals','reservations','payments','mailing','settings','merch','live']);await expect(rail.locator(':scope > button[data-community-toggle]')).toHaveCount(1);await expect(rail.locator(':scope > button[data-logout]')).toHaveCount(1);const before=page.url();await rail.locator('[data-community-toggle]').click();expect(page.url()).toBe(before);
  await expect(rail.locator('[data-community-links] button')).toHaveCount(3);await expect(rail.locator('[data-admin-jump="united-club"]')).toHaveCount(0);await page.screenshot({path:info.outputPath('NEW-community.png')});
  await page.goto('/admin.html?section=community&view=united-club&event=e');await expect(page).toHaveURL(/view=members/);await expect(page.locator('[data-admin-panel="members"] h2')).toHaveText('Členové');
  await page.locator('[data-member-list] [data-member-open="m"]').click();await page.locator('[data-member-tab="club"]').click();await expect(page.locator('[data-member-tab="club"]')).toHaveAttribute('aria-selected','true');await expect(page.locator('[data-member-tab-content]')).toContainText('Dostupné body');

@@ -7,7 +7,7 @@ import {resolve} from 'node:path';
 
 const shots=resolve('../portal-workspace-review');
 test('Final compact workspace layouts in both themes',async({page})=>{
- const runtime=await merchRuntime();try{
+ const runtime=await merchRuntime();runtime.db.exec("UPDATE events SET title='United 2026' WHERE id='united-2026'");try{
   const errors=await prepareAdminE2ePage(page,{authUid:'admin'});await bridge(page,runtime.env,'admin');
   for(const width of [1440,390]){
    await page.setViewportSize({width,height:960});await page.goto('/admin.html?section=merch');
@@ -20,7 +20,7 @@ test('Final compact workspace layouts in both themes',async({page})=>{
  }finally{runtime.close();}
 });
 test('Selected event is distinct from the public current year without activation',async({page})=>{
- const runtime=await merchRuntime();try{
+ const runtime=await merchRuntime();runtime.db.exec("UPDATE events SET title='United 2026' WHERE id='united-2026'");try{
   const errors=await prepareAdminE2ePage(page,{authUid:'admin'});await bridge(page,runtime.env,'admin');
   await page.route('**/api/admin/events',route=>route.fulfill({status:200,contentType:'application/json',headers:{'Access-Control-Allow-Origin':'*'},body:JSON.stringify({events:[{id:'united-2026',year:2026,title:'United 2026',isCurrent:false,registrationStatus:'closed'},{id:'united-2027',year:2027,title:'United 2027',isCurrent:true,registrationStatus:'closed'}]})}));
   await page.route(/\/api\/admin\/(summary|overview)(\?|$)/,route=>route.fulfill({status:200,contentType:'application/json',headers:{'Access-Control-Allow-Origin':'*'},body:JSON.stringify({event:{id:'united-2026',year:2026,title:'United 2026',isCurrent:false,registrationStatus:'closed'},attention:{reservations:0,payments:0,gallery:0,history:0},overview:{reservations:1,people:3,statuses:{approved:1}}})}));
@@ -46,7 +46,7 @@ async function capture(page,name){
 }
 for(const width of [1440,390])test(`Portal workspace product, payments and account ${width}`,async({page,context})=>{
  test.setTimeout(90000);
- const runtime=await merchRuntime();try{
+ const runtime=await merchRuntime();runtime.db.exec("UPDATE events SET title='United 2026' WHERE id='united-2026'");try{
   const errors=await prepareAdminE2ePage(page,{authUid:'admin'});await bridge(page,runtime.env,'admin');await page.setViewportSize({width,height:960});
   await page.goto('/admin.html?section=merch');await page.locator('[data-merch-admin-tab=products]').click();await expect(page.locator('[data-edit-product]')).toHaveCount(6);await capture(page,`products-${width}`);
   await page.locator('[data-edit-product=united-u-polo]').click();const form=page.locator('[data-product-edit]');await form.locator('[name=name]').fill('United U lokální koncept');await expect(page.locator('[data-product-preview]')).toContainText('United U lokální koncept');
@@ -66,7 +66,7 @@ for(const width of [1440,390])test(`Portal workspace product, payments and accou
  }finally{runtime.close();}
 });
 test('Portal workspace photo draft, required image and narrow payment tabs',async({page})=>{
- const runtime=await merchRuntime();try{
+ const runtime=await merchRuntime();runtime.db.exec("UPDATE events SET title='United 2026' WHERE id='united-2026'");try{
   const errors=await prepareAdminE2ePage(page,{authUid:'admin'});await bridge(page,runtime.env,'admin');await page.setViewportSize({width:360,height:800});let uploads=0;
   await page.route('**/api/admin/merch/media',route=>{uploads++;return route.fulfill({status:200,contentType:'application/json',headers:{'Access-Control-Allow-Origin':'*'},body:JSON.stringify({image:'polo-white'})});});
   await page.goto('/admin.html?section=merch');await page.locator('[data-merch-admin-tab=products]').click();await page.locator('[data-edit-product=united-u-polo]').click();const form=page.locator('[data-product-edit]'),variant=form.locator('[data-variant]').first();
@@ -80,7 +80,7 @@ test('Portal workspace photo draft, required image and narrow payment tabs',asyn
  }finally{runtime.close();}
 });
 for(const width of [1440,390])test(`Portal workspace accommodation, year and campaign ${width}`,async({page})=>{
- const runtime=await merchRuntime();try{
+ const runtime=await merchRuntime();runtime.db.exec("UPDATE events SET title='United 2026' WHERE id='united-2026'");try{
  const errors=await prepareAdminE2ePage(page,{authUid:'admin'});await bridge(page,runtime.env,'admin');await page.setViewportSize({width,height:960});
  await page.goto('/admin.html?section=accommodation');
  const card=page.locator('[data-accommodation-id]').first();await expect(card).toBeVisible();

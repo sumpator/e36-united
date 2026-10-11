@@ -10,7 +10,7 @@ async function fixture(page){
  const row=()=>({id,eventId:'united-2026',revision,memberId:'member-e2e',sourceType:'reservation',sourceId:id,member:{id:'member-e2e',name:'Synthetic Operator',email:'operator@example.invalid'},status:'approved',crew:2,attendanceType:'full_weekend',showShine:'Ne',reviewNote:'',payment:{amountDueCzk:4800,amountPaidCzk:paid,remainingCzk:4800-paid,balanceCzk:4800-paid,overpaymentCzk:0,status:'underpaid',overdue:false}});
  await page.route('https://api.e36united.cz/api/admin/reservations**',async route=>{
   const request=route.request();if(request.method()==='OPTIONS')return route.fallback();
-  if(denied){failedUrls.add(request.url());return reply(route,{message:'Admin access revoked'},403);}
+  if(denied){failedUrls.add(request.url());return reply(route,{error:'admin_forbidden',message:'Admin access revoked'},403);}
   if(request.method()==='GET'){
    if(readFailure){failedUrls.add(request.url());return reply(route,{message:'Synthetic unavailable'},503);}
    return reply(route,{reservations:[row()],pagination:{page:1,pageSize:50,total:1,totalPages:1}});
@@ -145,6 +145,7 @@ test('pagination uses full totals and a late previous reservation cannot replace
 });
 test('switching event during an unavailable read never relabels old records or enables stale settings',async({page})=>{
  const control=await fixture(page);
+ control.observations.ancillaryRuntime.db.exec("INSERT INTO events(id,year,title,is_current) VALUES('united-2027',2027,'United 2027',0)");
  const events=[{id:'united-2026',year:2026,isCurrent:true,revision:1,registrationStatus:'open',venueName:'Old venue'},{id:'united-2027',year:2027,isCurrent:false,revision:1,registrationStatus:'open',venueName:'New venue'}];
  await page.route('https://api.e36united.cz/api/admin/events',route=>reply(route,{events}));
  await page.route('https://api.e36united.cz/api/admin/summary**',route=>{

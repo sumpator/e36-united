@@ -9,7 +9,8 @@ const headers={'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':
 const origin='https://e36united.cz',auth={uid:'a'},keys=['overall','condition','cohesion','originality'];
 async function fixture(page){
  const c=await commandFixture(page),control={starts:0,closes:0,saves:0,uploads:0,startMode:'',closeMode:'',delay:0,qrDelay:0,readFailure:false,photoFailure:false,scoreLost:false,carPhotoFailure:false,carUploads:0};
- c.r.db.exec("UPDATE events SET live_enabled=1,starts_on='2026-06-19',ends_on='2026-06-21' WHERE id='e'; UPDATE cars SET body='Sedan'; UPDATE reservations SET car_id='c' WHERE id='r'; INSERT INTO event_member_presence(event_id,member_id,present) VALUES('e','m',1); INSERT INTO member_qr_identities(member_id,token) VALUES('m','123456789012345678901234567890123456789012345678')");
+ c.r.db.exec("UPDATE events SET live_enabled=1,starts_on='2026-06-19',ends_on='2026-06-21' WHERE id='e'; UPDATE cars SET body='Sedan'; UPDATE reservations SET car_id='c' WHERE id='r'; INSERT INTO member_qr_identities(member_id,token) VALUES('m','123456789012345678901234567890123456789012345678')");
+ seedConfirmedArrival(c.r,'m','c');
  const objects=new Map();c.r.env.MEDIA.put=async(key,stream)=>objects.set(key,await new Response(stream).arrayBuffer());c.r.env.MEDIA.delete=async key=>objects.delete(key);
  await page.route('https://api.e36united.cz/api/**',async route=>{
   const q=route.request(),url=new URL(q.url()),p=url.pathname;if(!p.includes('/live'))return route.fallback();
@@ -38,17 +39,17 @@ async function fixture(page){
   else if(p.includes('/live/cars/')&&q.method()==='POST'){control.carUploads++;if(control.carPhotoFailure)return route.fulfill({headers,status:503,json:{error:'synthetic_photo_failure'}});response=await live.saveCompetitionPhoto(req,c.r.env,auth,'e',p.split('/').at(-2),origin)}
   else if(p.endsWith('/control'))response=await live.controlLive(req,c.r.env,auth,'e','show_shine',origin);
   else if(p.includes('/live/program')&&q.method()!=='GET')response=await live.saveProgramItem(req,c.r.env,auth,'e',p.endsWith('/program')?null:p.split('/').at(-1),origin);
-  else return route.fulfill({headers,contentType:'image/webp',body:photo});
+  else if(q.method()==='GET'&&/^\/api\/live\/(?:entries\/[^/]+\/media|judge\/photos\/[^/]+)$/.test(url.pathname))return route.fulfill({headers,contentType:'image/webp',body:photo});else return route.fulfill({status:501,headers,json:{error:'unhandled_live_fixture',path:url.pathname}});
   return route.fulfill({headers,status:response.status,body:await response.text()});
  });
  await page.route('https://api.e36united.cz/api/admin/members/*/media/**',route=>route.fulfill({headers,contentType:'image/webp',body:photo}));
  const errors=[];page.on('pageerror',error=>errors.push(error.message));
- return {...c,control,errors,async open(){await page.goto('/admin.html?section=live&event=e');await page.locator('[data-admin-live-entry-confirm]').click();await expect(page.locator('[data-admin-live-mode]')).toBeVisible()},async finish(){expect(errors).toEqual([]);await page.close();c.r.db.close()}};
+ return {...c,control,errors,async open(){await page.goto('/admin.html?section=live&event=e');await page.locator('[data-admin-live-entry-confirm]').click();await expect(page.locator('[data-admin-live-mode]')).toBeVisible();await page.locator('[data-live-discipline="show_shine"]').click()},async finish(){expect(errors).toEqual([]);await page.close();c.r.db.close()}};
 }
 async function choose(page,qr=false){
  await page.locator('[data-live-select-category="Sedan"]').click();
  if(qr){await page.locator('.admin-live-manual summary').click();await page.locator('[data-live-qr] input').fill('E36U1:123456789012345678901234567890123456789012345678');await page.locator('[data-live-qr] button').click()}
- else{await page.locator('[data-live-choose-member]').click();await page.locator('[data-live-select-member="m"]').click()}
+ else{await page.locator('[data-live-choose-member]').click();await page.locator('[data-live-select-member="car:c"]').click()}
  await expect(page.locator('[data-live-flow-phase]')).toHaveAttribute('data-live-flow-phase','B');
  await expect(page.locator('[data-live-camera]')).toHaveCount(0);
 }
@@ -74,9 +75,9 @@ for(const width of [360,390,1024,1440])test('local Admin next workflow '+width,a
   await page.locator('[data-live-new-car-form] button[type=submit]').click();await expect(page.locator('[data-live-new-car-form]')).toHaveCount(0);
   await expect(page.locator('[data-live-start]')).toBeDisabled();await expect(page.locator('[data-live-switch-category]')).toHaveCount(0);
   expect(c.r.db.prepare('SELECT COUNT(*) n FROM live_car_photos').get().n).toBe(1);expect(c.r.db.prepare('SELECT COUNT(*) n FROM live_judge_photos').get().n).toBe(0);
-  await page.locator('[data-live-car-select]').selectOption('c');await start(page);await score(page);await page.locator('[data-live-judge-submit]').click();await expect(page.locator('[data-live-judge-summary]')).toBeVisible();
+  await page.locator('[data-live-cancel-selection]').click();await page.locator('[data-live-choose-member]').click();await page.locator('[data-live-select-member="car:c"]').click();await start(page);await score(page);await page.locator('[data-live-judge-submit]').click();await expect(page.locator('[data-live-judge-summary]')).toBeVisible();
   await page.locator('[data-live-close-next]').click();await page.locator('[data-live-overview]').click();await page.locator('[data-live-close-category=Sedan]').click();
-  await page.locator('[data-live-subview=results]').click();await expect(page.locator('[data-live-subview=history]')).toHaveCount(0);await page.locator('[data-live-edit-score]').click();
+  await page.locator('[data-admin-live-more-toggle]').click();await page.locator('[data-live-subview=results]').click();await expect(page.locator('[data-live-subview=history]')).toHaveCount(0);await page.locator('[data-live-edit-score]').click();
   await expect(page.locator('[data-live-judge-form]')).toHaveCount(0);await page.locator('[data-live-edit-own]').click();await expect(page.locator('[name=overall]')).toHaveValue('6');
   await expect(page.locator('.live-correction-warning')).toContainText('Kategorie je uzavřená');
   await page.locator('[name=reason]').fill('Oprava překlepu při společném rozhodnutí poroty');
@@ -104,7 +105,7 @@ async function memberFixture(page){
   else if(p==='/api/live/state')response=await live.getLiveState(r.env,{uid:'n'},url,origin);
   else if(p.includes('/judge/scores/'))response=await live.saveJudgeScore(req,r.env,{uid:'n'},p.split('/').at(-1),origin);
   else if(p.includes('/votes/')){control.writes++;if(control.closeOnWrite)r.db.exec("UPDATE live_category_state SET status='closed'");response=await live.saveLiveVote(req,r.env,{uid:'n'},'entry',origin);if(control.lost)return route.abort('failed')}
-  else return route.fulfill({headers,contentType:'image/webp',body:photo});
+  else if(q.method()==='GET'&&/^\/api\/live\/(?:entries\/[^/]+\/media|judge\/photos\/[^/]+)$/.test(url.pathname))return route.fulfill({headers,contentType:'image/webp',body:photo});else return route.fulfill({status:501,headers,json:{error:'unhandled_live_fixture',path:url.pathname}});
   return route.fulfill({headers,status:response.status,body:await response.text()});
  });
  return{r,control,errors,async open(){await page.goto('/member.html?section=live');await page.locator('[data-live-entry-confirm]').click();await page.locator('[data-live-tab=showshine]').click()}};
@@ -198,3 +199,4 @@ for(const width of [360,390])test('program content '+width+': all event days, un
   expect(c.errors).toEqual([]);
  }finally{await page.close();c.r.db.close()}
 });
+import {seedConfirmedArrival} from '../helpers/live-fixtures.mjs';

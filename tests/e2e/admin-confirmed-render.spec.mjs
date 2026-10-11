@@ -1,11 +1,11 @@
 import {test,expect} from '@playwright/test';
 import {commandFixture} from './command-fixture.mjs';
-import {ADMIN_RELEASE_TOKEN} from '../../scripts/check-admin-module-graph.mjs';
+import {ADMIN_MODULE_RELEASES} from '../../scripts/admin-module-releases.mjs';
 
 const state=page=>page.evaluate(async token=>{
   const {adminState:s}=await import(`/admin/state.js?v=${token}`);
   return {detail:s.reservationDetail,items:s.reservationItems,selected:s.selectedReservationId};
-},ADMIN_RELEASE_TOKEN);
+},ADMIN_MODULE_RELEASES['admin/state.js']);
 function barrier(){let release,arrive;return {gate:new Promise(r=>release=r),arrived:new Promise(r=>arrive=r),release:()=>release(),arrive:()=>arrive()};}
 async function open(page,c){
   c.r.db.exec("UPDATE reservations SET status='pending' WHERE id='r'; UPDATE gallery_submissions SET status='pending' WHERE id='g'; UPDATE united_history_claims SET attendance_status='pending' WHERE id='h'");
@@ -48,7 +48,7 @@ test('CONFIRMED dashboard empty list + delayed detail + clean focus keeps status
 test('CONFIRMED reservation request compares the proposal and records the public Admin decision',async({page})=>{
   const c=await commandFixture(page),original={arrival:'Pátek',attendanceType:'full_weekend',crew:2,accommodation:'Chatka',accommodationOptionId:'cab',accommodationUnits:2,showShine:'Ano',note:'',amountDueCzk:1000,amountPaidCzk:200},proposed={arrival:'Sobota',attendanceType:'saturday_only',crew:3,accommodation:'Chatka',accommodationOptionId:'cab',accommodationUnits:3,showShine:'Ne',note:'Změna',amountDueCzk:0};
   let hold=false;const b=holdResponse(c,request=>hold&&request.method()==='GET'&&new URL(request.url()).pathname.startsWith('/api/admin/'));
-  c.r.db.exec("UPDATE reservations SET arrival='Pátek',crew=2,accommodation='Chatka',show_shine='Ano',note=NULL,attendance_type='full_weekend',accommodation_units=2,amount_due_czk=1000,amount_paid_czk=200,status='approved' WHERE id='r'");
+  c.r.db.exec("UPDATE reservations SET arrival='Pátek',crew=2,accommodation='Chatka',show_shine='Ano',note=NULL,admission_czk=0,attendance_type='full_weekend',accommodation_units=2,amount_due_czk=1000,amount_paid_czk=200,status='approved' WHERE id='r'");
   c.r.db.prepare("INSERT INTO reservation_requests(id,reservation_id,member_id,request_type,status,original_json,proposed_json,member_note) VALUES('request-ui','r','m','change','pending',?,?,?)").run(JSON.stringify(original),JSON.stringify(proposed),'Prosím o změnu.');
   try{
     await page.goto('/admin.html?section=reservations&event=e');await expect(page.locator('[data-reservation-list]')).toBeVisible();
@@ -230,7 +230,7 @@ for(const area of ['accommodation','event'])test('CONFIRMED '+area+' retains lat
  try{
   await page.goto(`/admin.html?section=${area==='event'?'settings':'reservations'}&view=${area}&event=e`);
   const root=page.locator(area==='event'?'[data-event-settings-form]':'[data-accommodation-id="cab"]');
-  if(area==='accommodation')await root.locator('summary').click();
+  if(area==='accommodation')await root.locator('[data-accommodation-disclosure="configuration"] > summary').click();
   const field=root.locator(area==='event'?'[name="reservationCapacity"]':'[name="name"]');await expect(field).toBeEnabled();await field.click();
   const old=await field.inputValue();
   c.r.db.exec(area==='event'?"UPDATE events SET reservation_capacity=321 WHERE id='e'":"UPDATE event_accommodation_options SET name='Nejnovější Chatka' WHERE id='cab'");
@@ -277,7 +277,7 @@ test('CONFIRMED local accommodation photo remains protected during a read and is
 test('CONFIRMED a blocked accommodation list must not rebase another still-unrendered card',async({page})=>{
  const c=await commandFixture(page);
  try{
-  await page.goto('/admin.html?section=reservations&view=accommodation&event=e');const cab=page.locator('[data-accommodation-id="cab"]'),tent=page.locator('[data-accommodation-id="tent"]');await cab.locator('summary').click();await cab.locator('[name="name"]').fill('místní koncept');
+  await page.goto('/admin.html?section=reservations&view=accommodation&event=e');const cab=page.locator('[data-accommodation-id="cab"]'),tent=page.locator('[data-accommodation-id="tent"]');await cab.locator('[data-accommodation-disclosure="configuration"] > summary').click();await cab.locator('[name="name"]').fill('místní koncept');
   const before=await tent.getAttribute('data-base-revision');c.r.db.exec("UPDATE event_accommodation_options SET name='Novější serverový stan' WHERE id='tent'");await page.evaluate(()=>window.dispatchEvent(new Event('focus')));
   await expect(cab).toHaveAttribute('data-render-pending','true');await expect(page.locator('[data-admin-freshness]')).toHaveAttribute('data-state','fresh');
   await expect(tent.locator('[name="name"]')).toHaveValue('Stan');await expect(tent).toHaveAttribute('data-base-revision',before);expect(c.writes).toEqual([]);clean(c);

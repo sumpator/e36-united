@@ -16,7 +16,7 @@ for(const width of [1440,390])test(`appearance polish photo workflow ${width}`,a
  await page.locator('[data-member-gallery-open="0"]').click();await expect(page.locator('[data-member-gallery-lightbox]')).toBeVisible();
  await expect.poll(()=>page.locator('[data-member-gallery-lightbox-image]').evaluate(i=>i.complete&&i.naturalWidth>0)).toBe(true);await capture(page,`polish-lightbox-${width}`);
  await page.getByRole('button',{name:'Zavřít náhled',exact:true}).click();
- await page.locator('[data-member-photo-input]').setInputFiles({name:'visual.webp',mimeType:'image/webp',buffer:photo});
+ await page.locator('[data-member-photo-toggle]').click();await page.locator('[data-member-photo-input]').setInputFiles({name:'visual.webp',mimeType:'image/webp',buffer:photo});
  await expect(page.locator('[data-member-photo-selection]')).toBeVisible();await capture(page,`polish-selection-${width}`);
  expect(o.pageErrors).toEqual([]);expect(o.requests.filter(r=>r.startsWith('POST /api/gallery'))).toEqual([]);
 });
@@ -40,8 +40,8 @@ for(const width of [1440,390,360])test(`appearance polish Show Shine and Info ${
   expect(await card.locator('img').evaluate(img=>getComputedStyle(img).filter)).toBe('none');
  }
  await page.locator('.category-console').scrollIntoViewIfNeeded();await capture(page,`polish-categories-${width}`);
- await page.locator('.showshine-disclosure summary').click();await expect(page.locator('.showshine-disclosure')).toHaveAttribute('open','');
- await page.locator('.showshine-scorecard').scrollIntoViewIfNeeded();await capture(page,`polish-judging-${width}`);
+ if(width>680){await page.locator('.showshine-disclosure summary').click();await expect(page.locator('.showshine-disclosure')).toHaveAttribute('open','');
+ await page.locator('.showshine-scorecard').scrollIntoViewIfNeeded();await capture(page,`polish-judging-${width}`);}else await expect(page.locator('.showshine-disclosure')).toBeHidden();
  await page.locator('#info-hub').scrollIntoViewIfNeeded();await capture(page,`polish-info-${width}`);
  const route=page.locator('.route-input-row button');await expect(route).toHaveText('→');
  expect(await route.evaluate(b=>getComputedStyle(b).color)).not.toBe(await route.evaluate(b=>getComputedStyle(b).backgroundColor));
@@ -108,7 +108,7 @@ for(const width of [1440,390,360])for(const member of [true,false])test(`appeara
   await page.locator(member?'[data-live-entry-confirm]':'[data-admin-live-entry-confirm]').click();
   const prefix=member?'':'admin-';await expect(page.locator(`[data-${prefix}live-tab="showshine"]`)).toBeVisible();
   await capture(page,`live-${member?'member':'admin'}-program-${width}`);
-  await page.locator(`[data-${prefix}live-tab="showshine"]`).click();if(!member)await page.locator('[data-live-select-category="Sedan"]').click();await capture(page,`live-${member?'member':'admin'}-judging-${width}`);
+  await page.locator(`[data-${prefix}live-tab="showshine"]`).click();if(!member){await page.locator('[data-live-discipline=show_shine]').click();await page.locator('[data-live-resume]').click();}await capture(page,`live-${member?'member':'admin'}-judging-${width}`);
   await page.locator(`[data-${prefix}live-more-toggle]`).click();await page.locator(`[data-${prefix}live-more-menu] [data-appearance-select]`).selectOption('dark');await expect(page.locator('html')).toHaveAttribute('data-theme','dark');await capture(page,`live-${member?'member':'admin'}-dark-${width}`);
  }finally{await page.close();c.r.db.close()}
 });

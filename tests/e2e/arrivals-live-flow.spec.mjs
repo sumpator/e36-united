@@ -27,9 +27,9 @@ for(const width of [390,1024])for(const theme of ['light','dark'])test(`guest ju
  try{
   await page.setViewportSize({width,height:950});await page.emulateMedia({colorScheme:theme});await page.addInitScript(theme=>{if(window===window.top)localStorage.setItem('e36UnitedAppearance',theme)},theme);
   await page.goto('/admin.html?section=live&event='+EVENT);await page.locator('[data-admin-live-entry-confirm]').click();
-  await page.locator('[data-live-select-category=Touring]').click();await page.locator('[data-live-choose-member]').click();
-  await page.locator('[data-live-select-member=browser-guest]').click();await expect(page.locator('.admin-live-selected')).toContainText('Potvrzený příjezd');
-  await expect(page.locator('[data-live-new-car]')).toHaveCount(0);await page.screenshot({path:info.outputPath('selected.png'),fullPage:true});
+  await page.locator('[data-live-discipline=show_shine]').click();await page.locator('[data-live-select-category=Touring]').click();await page.locator('[data-live-choose-member]').click();
+  await page.locator('[data-live-select-member="car:'+r.db.prepare("SELECT car_key FROM event_arrivals WHERE id='browser-guest'").get().car_key+'"]').click();await expect(page.locator('.admin-live-selected')).toContainText('Dorazil');
+  await expect(page.locator('[data-live-new-car]')).toBeEnabled();await page.screenshot({path:info.outputPath('selected.png'),fullPage:true});
   await page.locator('[data-live-start]').click();await expect(page.locator('[data-live-judge-form]')).toBeVisible();await expect(page.locator('[data-toast]')).toContainText('Hlasování probíhá');
   for(const key of ['overall','condition','cohesion','originality'])await page.locator(`[data-live-judge-criterion=${key}][data-live-judge-score="8"]`).click();
   await page.locator('[data-live-judge-submit]').click();await expect(page.locator('[data-live-judge-summary]')).toContainText('Hodnocení potvrzeno');

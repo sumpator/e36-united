@@ -10,15 +10,15 @@ test('mobile homepage connects photo, selector and context; desktop/tablet retai
   const photo=page.locator('.category-showcase-media'),rail=page.locator('.category-selector'),copy=page.locator('.category-showcase-copy');
   await photo.scrollIntoViewIfNeeded();
   await expect(page.locator('.category-rail .scroll-hint')).toHaveText('Posuň →');
-  const p=await photo.boundingBox(),r=await rail.boundingBox(),c=await copy.boundingBox(),explanation=await page.locator('.showshine-rule-copy').boundingBox();
+  const p=await photo.boundingBox(),r=await rail.boundingBox(),c=await copy.boundingBox();await expect(page.locator('.showshine-rule-copy')).toBeHidden();
   expect(r.y).toBeGreaterThanOrEqual(p.y+p.height-1);expect(r.y-(p.y+p.height)).toBeLessThan(18);
-  expect(c.y).toBeGreaterThan(r.y+r.height);expect(explanation.y).toBeGreaterThan(c.y+c.height);
+  expect(c.y).toBeGreaterThan(r.y+r.height);
   await page.locator('[data-category="coupe"]').click();await expect(page.locator('[data-category-showcase-label]')).toContainText('COUPÉ');
   await rail.evaluate(el=>el.scrollTo({left:el.scrollWidth,behavior:'instant'}));
   await expect(page.locator('.category-rail .scroll-hint')).toHaveText('← Posuň');
   await expect(page.locator('.category-rail')).not.toHaveClass(/scroll-more-after/);
   for(const width of [820,1440]){await page.setViewportSize({width,height:1000});await expect(page.locator('.stats-strip')).toBeVisible();}
-  const desktopPhoto=await photo.boundingBox(),desktopCopy=await copy.boundingBox(),desktopRail=await rail.boundingBox();
+  await expect(page.locator('.showshine-rule-copy')).toBeVisible();const desktopPhoto=await photo.boundingBox(),desktopCopy=await copy.boundingBox(),desktopRail=await rail.boundingBox();
   expect(Math.abs(desktopCopy.y-desktopPhoto.y)).toBeLessThan(3);expect(desktopRail.y).toBeGreaterThan(desktopPhoto.y+desktopPhoto.height);
   expectNoUnexpectedClientErrors(observations);
 });
@@ -33,17 +33,17 @@ test('next United displays configured range and optional venue; no fallback fill
   await expect(page.locator('.hero-meta')).not.toContainText('Chci vědět jako první');expectNoUnexpectedClientErrors(observations);
 });
 
-test('mobile Member navigation and gallery rail have position-aware hints without changing selection',async({page})=>{
+test('mobile Member menu preserves selection and compact gallery navigation stays fully reachable',async({page})=>{
   const observations=await prepareE2ePage(page,{authenticated:true});await page.setViewportSize({width:390,height:844});
   await page.route('https://api.e36united.cz/api/gallery/approved?limit=72',route=>route.fulfill({json:{photos:[]}}));
   await page.goto('/member.html?section=overview');
-  const rail=page.locator('.member-sidebar[data-portal-tablist]'),hint=page.locator('.portal-nav-viewport .scroll-hint');
-  await expect(hint).toBeVisible();await expect(hint).toHaveText('Posuň →');
-  await rail.evaluate(el=>el.scrollTo({left:el.scrollWidth,behavior:'instant'}));await expect(hint).toHaveText('← Posuň');
-  await rail.locator('[data-portal-target="account"]').click();await expect(page.locator('[data-member-panel="account"]')).toBeVisible();
-  await page.goto('/galerie.html');await expect(page.locator('.gallery-media-nav-wrap .scroll-hint')).toHaveText('Posuň →');
-  await page.locator('.gallery-media-nav').evaluate(el=>el.scrollTo({left:el.scrollWidth,behavior:'instant'}));
-  await expect(page.locator('.gallery-media-nav-wrap .scroll-hint')).toHaveText('← Posuň');expectNoUnexpectedClientErrors(observations);
+  const rail=page.locator('.member-sidebar[data-portal-tablist]');await expect(rail).toBeHidden();
+  await expect(page.locator('.member-bottom-nav [data-mobile-section=overview]')).toBeVisible();await page.locator('.member-bottom-nav [data-mobile-menu]').click();
+  await expect(page.locator('[data-member-panel=overview]')).toBeVisible();await expect(page.locator('.united-mobile-menu')).toBeVisible();
+  await page.locator('.united-mobile-menu [data-mobile-section=account]').click();await expect(page.locator('[data-member-panel="account"]')).toBeVisible();
+  await page.goto('/galerie.html');await expect(page.locator('.gallery-media-nav a')).toHaveText(['01Videa','02Ofiko fotky','03User fotky','04Nahrát foto']);await expect(page.locator('.gallery-media-nav-wrap .scroll-hint')).toBeHidden();
+  expect(await page.locator('.gallery-media-nav').evaluate(el=>el.scrollWidth<=el.clientWidth+1)).toBe(true);
+  for(const link of await page.locator('.gallery-media-nav a').all())await expect(link).toBeInViewport();expectNoUnexpectedClientErrors(observations);
 });
 
 test('Admin event venue is optional and saved with existing settings',async({page})=>{

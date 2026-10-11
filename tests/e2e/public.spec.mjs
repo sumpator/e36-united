@@ -10,16 +10,16 @@ test('public homepage loads and opens a representative section', async ({ page }
   await expect(page).toHaveTitle(/E36 United/i);
   await expect(page.locator('.hero h1')).toContainText('E36');
   await expect(page.locator('.nav-links')).toContainText('Program');
-  await expect(page.locator('.nav-member')).toHaveText('Registrace do Můj United');
-  await expect(page.locator('.nav-member')).toHaveAttribute('href', 'member.html?mode=register');
+  await expect(page.locator('.nav-links .nav-member')).toHaveText('Přihlásit se');
+  await expect(page.locator('.nav-links .nav-member')).toHaveAttribute('href', 'member.html?returnTo=%2F');
   await expect(page.locator('.site-wip, .hero-badge')).toHaveCount(0);
 
   await page.locator('.nav-links a[href="#experience"]').click();
   await expect(page).toHaveURL(/#experience$/);
   await expect(page.locator('#experience')).toBeInViewport();
-  await page.locator('.nav-member').click();
-  await expect(page).toHaveURL(/member\.html\?mode=register$/);
-  await expect(page.locator('[data-auth-form="register"]')).toBeVisible();
+  await page.locator('.nav-links .nav-member').click();
+  await expect(page).toHaveURL(/member\.html\?returnTo=%2F%23experience$/);
+  await expect(page.locator('[data-auth-form="login"]')).toBeVisible();
 
   expectNoUnexpectedClientErrors(observations);
 });
@@ -31,9 +31,9 @@ for (const width of [390, 1440]) test(`public readability layout remains usable 
 
   if (width === 390) {
     await page.locator('.menu-btn').click();
-    await expect(page.locator('.nav-member')).toBeVisible();
-    await expect(page.locator('.nav-member')).toHaveAttribute('href', 'member.html?mode=register');
-    await page.locator('.menu-btn').click();
+    await expect(page.locator('.united-mobile-menu .nav-member')).toBeVisible();
+    await expect(page.locator('.united-mobile-menu .nav-member')).toHaveAttribute('href', 'member.html?returnTo=%2F');
+    await page.locator('.united-mobile-menu [data-menu-close]').click();
   }
 
   await expect(page.locator('#experience .section-title')).toHaveText('Pátek. Sobota. Neděle.');
@@ -43,9 +43,10 @@ for (const width of [390, 1440]) test(`public readability layout remains usable 
   await expect(page.locator('.showshine-judging-head')).toHaveCount(0);
   await expect(page.locator('#show-shine')).not.toContainText('8 věcí, které rozhodují');
   await expect(page.locator('#show-shine')).not.toContainText('SHOW & SHINE / HODNOCENÍ');
-  await page.locator('.showshine-disclosure-trigger').click();
+  await page.locator('#show-shine').scrollIntoViewIfNeeded();
+  if(width>680){await page.locator('.showshine-disclosure-trigger').click();
   await expect(page.locator('.showshine-disclosure')).toHaveAttribute('open', '');
-  await expect(page.locator('.judging-criterion')).toHaveCount(8);
+  await expect(page.locator('.judging-criterion')).toHaveCount(8);}else await expect(page.locator('.showshine-disclosure')).toBeHidden();
   if (width === 1440) {
     const disclosure = page.locator('.showshine-disclosure');
     await expect.poll(() => disclosure.evaluate(element => {

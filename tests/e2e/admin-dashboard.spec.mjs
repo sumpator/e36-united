@@ -12,7 +12,7 @@ function clean(c){expect(c.observations.pageErrors).toEqual([]);expect(c.observa
 
 for(const width of [1440,390])test('Stage 3 factory compositions, exact graphs, mobile navigation and screenshot '+width,async({page},info)=>{
  await page.setViewportSize({width,height:900});const c=await fixture(page);await open(page);
- await expect(page.locator('.admin-section-nav > button')).toHaveCount(6);await expect(page.locator('.dashboard-kpi')).toHaveCount(4);
+ expect(await page.locator('.admin-section-nav').locator(':scope > button[data-portal-target]').evaluateAll(ns=>ns.map(n=>n.dataset.portalTarget))).toEqual(['dashboard','arrivals','reservations','payments','mailing','settings','merch','live']);await expect(page.locator('.admin-section-nav').locator(':scope > button[data-community-toggle]')).toHaveCount(1);await expect(page.locator('.admin-section-nav').locator(':scope > button[data-logout]')).toHaveCount(1);await expect(page.locator('.dashboard-kpi')).toHaveCount(4);
  await expect(page.locator('[data-kpi-people]')).toHaveText('5');await expect(page.locator('[data-kpi-recorded]')).toContainText('1');
  await expect(page.locator('[data-admin-funnel]')).toBeHidden();expect(c.calls.some(p=>p.includes('/funnel'))).toBe(false);
  for(const id of ['trend','occupancy','finance','statuses','attendance','sns'])await expect(card(page,id).getByText('Zobrazit data',{exact:true})).toBeVisible();
@@ -27,8 +27,8 @@ for(const width of [1440,390])test('Stage 3 factory compositions, exact graphs, 
  await expect(page.locator('[data-member-search]')).toBeVisible();await page.evaluate(()=>window.scrollTo(0,0));await page.screenshot({path:info.outputPath('onsite-viewport-'+width+'.png')});await page.screenshot({path:info.outputPath('onsite-'+width+'.png'),fullPage:true});
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth+1)).toBe(true);
  if(width===390){await page.locator('[data-portal-menu-open]').click();await page.locator('.portal-nav-sheet [data-portal-target="settings"]').click();}else await page.locator('.admin-section-nav [data-portal-target="settings"]').click();
- await expect(page.locator('[data-admin-panel="event"]')).toBeVisible();await expect(page.locator('[data-settings-context]')).toContainText('CURRENT: United 2026');
- await page.locator('[data-event-select]').selectOption('old');await expect(page.locator('[data-settings-context]')).toContainText('vybraný ročník United 2025');await expect(page.locator('[data-settings-context]')).toContainText('CURRENT: United 2026');
+ await expect(page.locator('[data-admin-panel="event"]')).toBeVisible();await expect(page.locator('[data-settings-context]')).toContainText('Aktuálně na webu United 2026');
+ await page.locator('[data-event-select]').selectOption('old');await expect(page.locator('[data-settings-context]')).toContainText('Upravuješ United 2025');await expect(page.locator('[data-settings-context]')).toContainText('Aktuálně na webu United 2026');
  expect(c.writes).toEqual([]);expect(c.r.writes).toBe(0);clean(c);c.r.db.close();
 });
 test('Stage 3 exact finance drill, Member 360, Back restores range/composition/filter/scroll without writes',async({page})=>{

@@ -5,7 +5,8 @@ import {readFileSync} from 'node:fs';
 
 async function fixture(page){
  const c=await commandFixture(page),headers={'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'Authorization, Content-Type','Access-Control-Allow-Methods':'GET, POST, PUT, PATCH, OPTIONS'};
- c.r.db.exec("UPDATE events SET live_enabled=1 WHERE id='e'; UPDATE reservations SET car_id='c',show_shine='Ano' WHERE id='r'; UPDATE cars SET body='Sedan' WHERE id='c'; INSERT INTO event_member_presence(event_id,member_id,present) VALUES('e','m',1); INSERT INTO live_entries(id,event_id,discipline,member_id,car_id,presented_at) VALUES('legacy','e','show_shine','m','c',CURRENT_TIMESTAMP); INSERT INTO live_competition_state(event_id,discipline,status,current_entry_id,version) VALUES('e','show_shine','live','legacy',3)");
+ c.r.db.exec("UPDATE events SET live_enabled=1 WHERE id='e'; UPDATE reservations SET car_id='c',show_shine='Ano' WHERE id='r'; UPDATE cars SET body='Sedan' WHERE id='c'; INSERT INTO live_entries(id,event_id,discipline,member_id,car_id,presented_at) VALUES('legacy','e','show_shine','m','c',CURRENT_TIMESTAMP); INSERT INTO live_competition_state(event_id,discipline,status,current_entry_id,version) VALUES('e','show_shine','idle',NULL,3)");
+ seedConfirmedArrival(c.r,'m','c');
  c.liveWrites=[];c.failRefresh=false;
  c.r.env.MEDIA.put=async()=>{};c.r.env.MEDIA.delete=async()=>{};
  await page.route('https://api.e36united.cz/api/**',async route=>{
@@ -32,7 +33,7 @@ async function fixture(page){
  return c;
 }
 
-test('LIVE repaired entry, legacy category, score edit, failed refresh and independent settings',async({page})=>{
+test('LIVE legacy category, single official set, stale correction, failed refresh and independent settings',async({page})=>{
  const c=await fixture(page);
  page.on('dialog',dialog=>dialog.accept());
  try{
@@ -48,54 +49,57 @@ test('LIVE repaired entry, legacy category, score edit, failed refresh and indep
   await expect(page.locator('[data-admin-live-entry-confirm]')).toBeVisible();
   await page.locator('[data-admin-live-entry-confirm]').click();
   await expect(page.locator('[data-admin-live-mode]')).toBeVisible();
+  await page.locator('[data-live-discipline="show_shine"]').click();
   await page.locator('[data-live-select-category="Sedan"]').click();
   await page.locator('[data-live-choose-member]').click();
-  await page.locator('[data-live-select-member="m"]').click();
-  await expect(page.locator('[data-live-car-select]')).toHaveValue('c');
+  await page.locator('[data-live-select-member="car:c"]').click();
+  await expect(page.locator('[data-live-flow-phase]')).toHaveAttribute('data-live-flow-phase','B');
   await page.locator('[data-live-start]').click();
   await expect.poll(()=>c.r.db.prepare("SELECT category FROM live_entries WHERE id='legacy'").get().category).toBe('Sedan');
-  await page.locator('[data-admin-live-tab="showshine"]').click();
+  await expect(page.locator('[data-live-flow-phase]')).toHaveAttribute('data-live-flow-phase','C');
   const form=page.locator('[data-live-judge-form="legacy"]');
   for(const key of ['overall','condition','cohesion','originality'])await form.locator('[data-live-judge-criterion="'+key+'"][data-live-judge-score="8"]').click();
   await form.locator('[data-live-judge-submit]').click();
-  await expect(form.locator('.admin-live-success')).toBeVisible();
+  await expect(page.locator('[data-live-judge-summary]')).toContainText('Hodnocení potvrzeno');
   expect(c.r.db.prepare('SELECT COUNT(*) n FROM live_judge_scores').get().n).toBe(1);
-  await page.locator('[data-live-subview="history"]').click();
-  await page.locator('[data-live-edit-score="legacy"]').click();
+  await page.locator('[data-admin-live-more-toggle]').click();await page.locator('[data-live-subview="results"]').click();
+  await page.locator('[data-live-edit-score="legacy"]').click();await page.locator('[data-live-edit-own="legacy"]').click();await form.locator('[name=reason]').fill('Oprava po kontrole fotografie');
   await expect(form.locator('input[name=overall]')).toHaveValue('8');
   await form.locator('summary').click();
   await form.locator('[name=note]').fill('Keep draft across another judge update');
   c.r.db.exec("UPDATE members SET role='admin' WHERE id='n'");
-  await live.saveJudgeScore(new Request('https://example.invalid',{method:'PUT',body:JSON.stringify({scores:{overall:6,condition:6,cohesion:6,originality:6},submitted:true})}),c.r.env,{uid:'n'},'legacy','https://e36united.cz');
-  await expect(page.locator('.admin-live-history')).toContainText('2× porota');
+  const correction=await live.saveJudgeScore(new Request('https://example.invalid',{method:'PUT',body:JSON.stringify({scores:{overall:6,condition:6,cohesion:6,originality:6},submitted:true,expectedVersion:1,correction:true,reason:'Oprava z náhradního zařízení'})}),c.r.env,{uid:'n'},'legacy','https://e36united.cz');expect(correction.status).toBe(200);
+  expect(c.r.db.prepare('SELECT COUNT(*) n FROM live_judge_scores').get().n).toBe(1);
   await expect(form.locator('[name=note]')).toHaveValue('Keep draft across another judge update');
   await form.locator('[data-live-judge-criterion="overall"][data-live-judge-score="9"]').click();
-  c.failRefresh=true;
+  await form.locator('[data-live-judge-submit]').click();await expect(form.locator('[data-live-judge-error]')).toContainText('změn');expect(JSON.parse(c.r.db.prepare('SELECT scores_json FROM live_judge_scores').get().scores_json).overall).toBe(6);
+  await page.locator('[data-live-discard-judge="legacy"]').click();await page.reload();await page.locator('[data-admin-live-more-toggle]').click();await page.locator('[data-live-subview="results"]').click();await page.locator('[data-live-edit-score="legacy"]').click();await page.locator('[data-live-edit-own="legacy"]').click();await form.locator('[name=reason]').fill('Ověřená oprava po obnovení');await form.locator('[data-live-judge-criterion="overall"][data-live-judge-score="9"]').click();c.failRefresh=true;
   await form.locator('[data-live-judge-submit]').click();
+  await expect.poll(()=>c.r.db.prepare('SELECT version FROM live_judge_scores').get().version).toBe(3);expect(c.r.db.prepare('SELECT COUNT(*) n FROM live_judge_score_audit').get().n).toBe(2);
   await expect(page.locator('[data-admin-live-body]')).toContainText('Hodnocení je uložené. Přehled se nepodařilo obnovit.');
-  expect(c.liveWrites).toHaveLength(2);
+  expect(c.liveWrites).toHaveLength(3);
   expect(JSON.parse(c.r.db.prepare('SELECT scores_json FROM live_judge_scores').get().scores_json).overall).toBe(9);
   c.failRefresh=false;
   await page.locator('[data-admin-live-body] [data-admin-live-retry]').click();
-  await expect(form.locator('input[name=overall]')).toHaveValue('9');
-  expect(c.liveWrites).toHaveLength(2);
+  await expect(page.locator('[data-live-judge-summary]')).toContainText('9 / 10');
+  expect(c.liveWrites).toHaveLength(3);
   await page.reload();
   await expect(page.locator('[data-admin-live-mode]')).toBeVisible();
   await page.setViewportSize({width:390,height:844});
-  await page.locator('[data-admin-live-tab="members"]').click();
-  await expect(page.locator('[data-live-camera]')).toBeVisible();
-  await expect(page.locator('[data-live-qr]')).toHaveCount(1);
+  await page.locator('[data-live-discipline="show_shine"]').click();await page.locator('[data-live-resume]').click();
+  await expect(page.locator('[data-live-judge-summary]')).toContainText('9 / 10');
+  await expect(page.locator('[data-live-camera]')).toHaveCount(0);
   await page.locator('[data-admin-live-more-toggle]').click();
   await page.locator('[data-admin-live-exit]').click();
   await expect(page.locator('[data-admin-view]')).toBeVisible();
   expect(c.r.db.prepare("SELECT live_enabled FROM events WHERE id='e'").get().live_enabled).toBe(1);
   expect(c.observations.pageErrors).toEqual([]);
-  expect(c.observations.consoleErrors.every(error=>error.text.includes('503')||error.text.includes('Admin LIVE unavailable'))).toBe(true);
+  expect(c.observations.consoleErrors.every(error=>error.text.includes('503')||error.text.includes('Admin LIVE unavailable')||error.url.endsWith('/api/live/judge/scores/legacy')&&error.text.includes('409'))).toBe(true);
  }finally{await page.close();c.r.db.close()}
 });
 
 test('LIVE direct entry recovers failed read, creates only an explicitly saved event car and confirms original M',async({page})=>{
- const c=await fixture(page);c.failRefresh=true;
+ const c=await fixture(page);c.failRefresh=true;page.on('dialog',dialog=>dialog.accept());
  try{
   c.r.db.exec("UPDATE live_competition_state SET status='idle',current_entry_id=NULL WHERE event_id='e'");
   await page.goto('/admin.html?section=live&event=e');
@@ -104,9 +108,10 @@ test('LIVE direct entry recovers failed read, creates only an explicitly saved e
   c.failRefresh=false;
   await page.locator('[data-admin-live-entry-retry]').click();
   await page.locator('[data-admin-live-entry-confirm]').click();
+  await page.locator('[data-live-discipline="show_shine"]').click();
   await page.locator('[data-live-select-category="///M Power"]').click();
   await page.locator('[data-live-choose-member]').click();
-  await page.locator('[data-live-select-member="m"]').click();
+  await page.locator('[data-live-select-member="car:c"]').click();
   await page.locator('[data-live-new-car]').click();
   await page.locator('[data-live-new-car-form] [name=model]').fill('Cancelled');
   await page.locator('[data-live-cancel-car]').click();
@@ -125,9 +130,10 @@ test('LIVE direct entry recovers failed read, creates only an explicitly saved e
   await expect.poll(()=>c.r.db.prepare("SELECT COUNT(*) n FROM live_entries WHERE category='///M Power'").get().n).toBe(1);
   expect(c.r.db.prepare("SELECT car_id FROM reservations WHERE id='r'").get().car_id).toBe('c');
   expect(c.r.db.prepare('SELECT COUNT(*) n FROM cars').get().n).toBe(3);
-  await page.locator('[data-admin-live-tab="showshine"]').click();
+  await expect(page.locator('[data-live-flow-phase]')).toHaveAttribute('data-live-flow-phase','C');
   await expect(page.locator('[data-live-judge-form]')).toBeVisible();
   expect(c.observations.pageErrors).toEqual([]);
-  expect(c.observations.consoleErrors.every(error=>error.text.includes('503')||error.text.includes('Admin LIVE unavailable'))).toBe(true);
+  expect(c.observations.consoleErrors.every(error=>error.text.includes('503')||error.text.includes('Admin LIVE unavailable')||error.url.endsWith('/api/live/judge/scores/legacy')&&error.text.includes('409'))).toBe(true);
  }finally{await page.close();c.r.db.close()}
 });
+import {seedConfirmedArrival} from '../helpers/live-fixtures.mjs';

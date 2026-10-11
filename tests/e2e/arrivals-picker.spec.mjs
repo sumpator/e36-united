@@ -30,17 +30,17 @@ for(const width of [360,390,820,1440])for(const theme of ['light','dark'])test(`
  try{
   await page.setViewportSize({width,height:900});await page.emulateMedia({colorScheme:theme});await page.addInitScript(theme=>{if(window===window.top)localStorage.setItem('e36UnitedAppearance',theme)},theme);
   await page.goto('/admin.html?section=live&event='+EVENT);await page.locator('[data-admin-live-entry-confirm]').click();
-  await page.locator('[data-live-select-category=Sedan]').click();await page.locator('[data-live-choose-member]').click();
+  await page.locator('[data-live-discipline=show_shine]').click();await page.locator('[data-live-select-category=Sedan]').click();await page.locator('[data-live-choose-member]').click();
   await expect(page.locator('[data-live-select-member="car:car-paid"]')).toBeVisible();
   await expect(page.locator('[data-live-camera]')).toHaveCount(0);
-  await expect(page.locator('h2').filter({hasText:'Vybrat účastníka'})).toHaveCount(1);
+  await expect(page.getByRole('textbox',{name:'Hledat účastníka',exact:true})).toHaveCount(1);
   await page.screenshot({path:info.outputPath('participants.png'),fullPage:true});
   failList=true;await page.locator('[data-live-member-search] button').click();await expect(page.locator('[data-live-member-results]')).toContainText('Izolovaná chyba');failList=false;
   await page.locator('[data-live-choose-member]').click();await page.locator('[data-live-select-member="car:car-paid"]').click();
   await expect(page.locator('[data-live-start]')).toBeEnabled();await page.screenshot({path:info.outputPath('confirm-car.png'),fullPage:true});
   await page.locator('[data-live-start]').click();await expect(page.locator('[data-live-judge-form]')).toBeVisible();
   expect(r.db.prepare('SELECT COUNT(*) n FROM event_arrivals').get().n).toBe(0);
-  await page.locator('[data-live-subview=results]').click();await page.locator('[data-live-subview=workflow]').click();await expect(page.locator('[data-live-judge-form]')).toBeVisible();
+  await page.locator('[data-admin-live-more-toggle]').click();await page.locator('[data-live-subview=results]').click();await page.locator('[data-live-subview=workflow]').click();await expect(page.locator('[data-live-judge-form]')).toBeVisible();
   await page.locator('[data-admin-live-tab=arrivals]').click();await expect(page.locator('[data-gate-find]')).toBeVisible();
   await page.screenshot({path:info.outputPath('gate-overview.png'),fullPage:true});
   await page.locator('[data-gate-find]').click();await expect(page.locator('[data-gate-pick="member:fixture-paid"]')).toBeVisible();
@@ -80,7 +80,7 @@ test('guest creation, gate with LIVE off, errors and private exports',async({pag
  try{
   await page.setViewportSize({width:820,height:900});await page.addInitScript(()=>{if(window===window.top)localStorage.setItem('e36UnitedAppearance','dark')});
   await page.goto('/admin.html?section=live&event='+EVENT);await page.locator('[data-admin-live-entry-confirm]').click();
-  await page.locator('[data-live-select-category=Sedan]').click();await page.locator('[data-live-choose-member]').click();
+  await page.locator('[data-live-discipline=show_shine]').click();await page.locator('[data-live-select-category=Sedan]').click();await page.locator('[data-live-choose-member]').click();
   await page.locator('[data-live-new-car]').click();await page.locator('[name=participantName]').fill('Nový host bez účtu');
   await page.locator('[data-live-new-car-form] [name=model]').fill('BMW 328i samostatné auto');
   await page.locator('[data-live-new-car-form] button[type=submit]').click();await expect(page.locator('.admin-live-selected')).toContainText('Nový host bez účtu');
