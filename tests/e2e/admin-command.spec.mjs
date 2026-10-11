@@ -2,6 +2,7 @@ import {test,expect} from '@playwright/test';
 import {commandFixture} from './command-fixture.mjs';
 import {readFileSync} from 'node:fs';
 import {ADMIN_MODULE_RELEASES} from '../../scripts/admin-module-releases.mjs';
+import {getMemberLive} from '../../worker/domains/live.js';
 
 for(const width of [1440,390])test('CACHE SAFE generated Reservations/Payments navigation, history and ordinary reload '+width,async({page})=>{
   await page.setViewportSize({width,height:900});const c=await commandFixture(page);
@@ -146,7 +147,17 @@ test('POLISH pending reservation approval uses one existing command and converge
 });
 
 test('POLISH optional Mailing uses the shared coordinator only while enabled and visible',async({page})=>{
- await page.clock.install();const c=await commandFixture(page);await open(page);const count=()=>c.calls.filter(p=>p.includes('/mailing/overview')).length;
+ await page.clock.install();const c=await commandFixture(page),received=Promise.withResolvers(),release=Promise.withResolvers();
+ // Hold the actual judge read: the dashboard becomes editable before LIVE startup ends.
+ await page.route('https://api.e36united.cz/api/live',async route=>{
+  if(route.request().method()!=='GET')return route.fallback();
+  const response=await getMemberLive(c.r.env,{uid:'a'},'https://e36united.cz'),body=await response.text();received.resolve(response.status);
+  await release.promise;await route.fulfill({status:response.status,headers:{'Access-Control-Allow-Origin':'*','Content-Type':'application/json'},body});
+ });
+ try{
+ await open(page);expect(await received.promise).toBe(200);await expect(page.locator('[data-loading]')).toBeVisible();
+ release.resolve();await expect(page.locator('[data-loading]')).toBeHidden();await expect(page.locator('[data-admin-live-connection]')).toHaveAttribute('data-state','online');
+ const count=()=>c.calls.filter(p=>p.includes('/mailing/overview')).length;
  await page.clock.runFor(301000);await expect(page.locator('[data-admin-freshness]')).toHaveAttribute('data-state','fresh');expect(count()).toBe(0);
  await page.locator('[data-dashboard-edit]').click();await page.locator('[data-widget-toggle="mailing"]').check();await page.locator('[data-dashboard-save]').click();await expect(page.locator('.command-settings')).not.toBeVisible();
  await expect(page.locator('[data-widget="mailing"]')).toContainText('kontaktů');await expect(page.locator('[data-admin-freshness]')).toHaveAttribute('data-state','fresh');
@@ -154,7 +165,8 @@ test('POLISH optional Mailing uses the shared coordinator only while enabled and
  await page.clock.runFor(301000);await expect.poll(count).toBe(enabled+1);await expect(page.locator('[data-admin-freshness]')).toHaveAttribute('data-state','fresh');
  await page.locator('[data-dashboard-edit]').click();await page.locator('[data-widget-toggle="mailing"]').uncheck();await page.locator('[data-dashboard-save]').click();await expect(page.locator('.command-settings')).not.toBeVisible();
  const disabled=count();await page.clock.runFor(301000);await expect(page.locator('[data-admin-freshness]')).toHaveAttribute('data-state','fresh');expect(count()).toBe(disabled);
- expect(c.writes).toHaveLength(2);clean(c);c.r.db.close();
+ expect(c.writes).toHaveLength(2);clean(c);
+ }finally{release.resolve();await page.unrouteAll({behavior:'wait'});c.r.db.close()}
 });
 
 test('NEW empty-data dashboard is truthful and history evidence stays in its private review context',async({page},info)=>{

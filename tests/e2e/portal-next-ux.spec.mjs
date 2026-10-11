@@ -3,9 +3,11 @@ import {prepareE2ePage} from './fixtures.mjs';
 import {readFileSync,mkdirSync} from 'node:fs';
 import {resolve} from 'node:path';
 import {decodeMemberQrSvg} from '../helpers/decode-member-qr.mjs';
+import {installScreenshotReadiness,waitForScreenshotContent} from './screenshot-readiness.mjs';
 
 const shots=resolve('../portal-next-review');
 async function setup(page,options={}){
+ installScreenshotReadiness(page);
  const errors=await prepareE2ePage(page,options);
  await page.route('**/api/live/state',r=>r.fulfill({json:{active:false},headers:{'Access-Control-Allow-Origin':'*'}}));
  await page.route('**/api/merch/orders?**',r=>r.fulfill({json:{orders:[],hasMore:false},headers:{'Access-Control-Allow-Origin':'*'}}));
@@ -19,7 +21,7 @@ async function setup(page,options={}){
 }
 async function capture(page,name,theme='light'){
  mkdirSync(shots,{recursive:true});await page.evaluate(theme=>window.dispatchEvent(new StorageEvent('storage',{key:'e36UnitedAppearance',newValue:theme})),theme);
- await expect(page.locator('html')).toHaveAttribute('data-theme',theme);await page.evaluate(async()=>{await document.fonts.ready;await Promise.all([...document.images].filter(i=>{const r=i.getBoundingClientRect();return r.width>0&&r.height>0&&r.bottom>0&&r.top<innerHeight&&i.checkVisibility()}).map(i=>i.decode().catch(()=>{})))});
+ await expect(page.locator('html')).toHaveAttribute('data-theme',theme);await waitForScreenshotContent(page,{label:name});
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBe(true);await page.screenshot({path:resolve(shots,name+'.png'),animations:'disabled'});
 }
 test('history year follows visible section in both scroll directions',async({page})=>{
