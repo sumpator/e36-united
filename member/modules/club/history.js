@@ -1,5 +1,5 @@
 import { createImagePreviewController, selectImageFiles } from '../../../image-upload.js?v=20260827-garage-photos';
-import { $, $$, esc, setButtonBusy, toast } from '../../ui.js?v=20260902-phase3';
+import { $, $$, esc, setButtonBusy, toast } from '../../ui.js?v=20260924-merch2';
 
 export function createMemberHistory({apiRequest,apiRequestForm,apiRequestBlob,getCurrentUser,getData,refreshClub,renderAll,formatApiError}){
   const fallbackHistoryCategories=[['sedan','Sedan'],['coupe','Coupé'],['touring','Touring'],['cabrio','Cabrio'],['compact','Compact'],['z3','Z3'],['mpower','///M Power']];

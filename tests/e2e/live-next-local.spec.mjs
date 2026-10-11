@@ -200,3 +200,17 @@ for(const width of [360,390])test('program content '+width+': all event days, un
  }finally{await page.close();c.r.db.close()}
 });
 import {seedConfirmedArrival} from '../helpers/live-fixtures.mjs';
+
+test('public vote Back restores current action and closed-vote fallback without writing or extra history',async({page})=>{
+ const c=await memberFixture(page);
+ try{
+  await page.setViewportSize({width:390,height:900});await c.open();const action=page.locator('[data-live-edit-vote]');
+  await action.click();const voteIndex=await page.evaluate(()=>history.state.liveNavigation.index);
+  await page.goBack();await expect(page.locator('.live-vote-dialog')).toHaveCount(0);await expect(action).toBeFocused();
+  expect(await page.evaluate(()=>history.state.liveNavigation.index)).toBe(voteIndex-1);expect(c.control.writes).toBe(0);
+  await action.click();c.r.db.exec("UPDATE live_category_state SET status='closed',version=version+1; UPDATE live_entries SET voting_closed=1; UPDATE live_competition_state SET status='published',current_entry_id=NULL,version=version+1; UPDATE live_event_revisions SET revision=revision+1");
+  await expect(action).toHaveCount(0);await page.keyboard.press('Escape');
+  await expect(page.locator('.live-vote-dialog')).toHaveCount(0);await expect(page.locator('[data-live-showshine] h2')).toBeFocused();
+  expect(c.control.writes).toBe(0);expect(c.r.db.prepare('SELECT COUNT(*) n FROM live_public_votes').get().n).toBe(0);expect(c.errors).toEqual([]);
+ }finally{await page.close();c.r.db.close()}
+});

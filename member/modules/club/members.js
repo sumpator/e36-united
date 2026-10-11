@@ -1,5 +1,5 @@
 import { createClubProfileViewer } from '../../club-profile.js?v=20260921-member-ux-r2';
-import { $, esc } from '../../ui.js?v=20260902-phase3';
+import { $, esc } from '../../ui.js?v=20260924-merch2';
 
 const fallbackLogo = 'united-logo-blue-silver-transparent.png';
 

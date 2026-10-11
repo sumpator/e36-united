@@ -1,8 +1,8 @@
 import { accommodationVisualMarkup, bindAccommodationVisualFallbacks } from '../../../accommodation-visual.js?v=20260928-flow1';
 import { accommodationGalleryCue, accommodationPhotos, bindAccommodationGalleryTrigger } from '../../../accommodation-gallery.js?v=20260912-reservation-detail-ux-r1';
 import { MAX_RESERVATION_CREW, newerPlannerDraft, validatePlannerDraft } from '../../../planner-state.js?v=20260928-flow1';
-import { $, esc, setButtonBusy, toast } from '../../ui.js?v=20260902-phase3';
-import { createReservationPayments, formatCzk } from './payments.js?v=20260912-member-reservation-panels-r1';
+import { $, esc, setButtonBusy, toast } from '../../ui.js?v=20260924-merch2';
+import { createReservationPayments, formatCzk } from './payments.js?v=20260924-merch2';
 import { normalizeAccommodationOption, normalizeReservation } from './reservation.js?v=20260930-arrivals2';
 import { isAuthorizationFailure } from '../../refresh.js?v=20260907-feedback';
 import { createMemberPlannerExperience } from './experience.js?v=20260928-flow1';

@@ -16,7 +16,7 @@ async function fixture(page){
   c.calls.push(q.method()+' '+p+url.search);
   const request=new Request(q.url(),{method:q.method(),headers:q.headers(),...(q.postDataBuffer()?{body:q.postDataBuffer()}:{})}),auth={uid:'a'},env=c.r.env,origin='https://e36united.cz';
   let response;
-  if(p==='/api/admin/live')response=c.failRefresh?Response.json({error:'fixture_read_failure'},{status:503}):await live.getAdminLive(env,url,origin);
+  if(p==='/api/admin/live'){if(c.readGate)await c.readGate;response=c.failRefresh?Response.json({error:'fixture_read_failure'},{status:503}):await live.getAdminLive(env,url,origin);}
   else if(p==='/api/live')response=await live.getMemberLive(env,auth,origin);
   else if(p==='/api/live/state')response=await live.getLiveState(env,auth,url,origin);
   else if(p.endsWith('/live/members'))response=await live.searchLiveMembers(env,'e',url,origin);
@@ -79,15 +79,16 @@ test('LIVE legacy category, single official set, stale correction, failed refres
   await expect(page.locator('[data-admin-live-body]')).toContainText('Hodnocení je uložené. Přehled se nepodařilo obnovit.');
   expect(c.liveWrites).toHaveLength(3);
   expect(JSON.parse(c.r.db.prepare('SELECT scores_json FROM live_judge_scores').get().scores_json).overall).toBe(9);
-  c.failRefresh=false;
-  await page.locator('[data-admin-live-body] [data-admin-live-retry]').click();
-  await expect(page.locator('[data-live-judge-summary]')).toContainText('9 / 10');
+  const warning=page.locator('[data-live-judge-refresh="legacy"]');await expect(warning.getByRole('button',{name:'Zkusit načíst znovu',exact:true})).toBeVisible();const readsBefore=c.calls.filter(call=>call.startsWith('GET /api/admin/live')).length;await warning.getByRole('button',{name:'Zkusit načíst znovu',exact:true}).click();await expect.poll(()=>c.calls.filter(call=>call.startsWith('GET /api/admin/live')).length).toBeGreaterThan(readsBefore);await expect(warning).toBeVisible();expect(c.liveWrites).toHaveLength(3);for(const [width,theme] of [[1440,'light'],[390,'dark']]){await page.setViewportSize({width,height:900});await page.evaluate(value=>{const s=document.querySelector('[data-appearance-select]');s.value=value;s.dispatchEvent(new Event('change',{bubbles:true}))},theme);await expect(page.locator('html')).toHaveAttribute('data-theme',theme);await page.screenshot({path:'test-results/local-flow/ui-admin-refresh-'+width+'-'+theme+'.png',animations:'disabled'});}
+  let releaseRead;c.readGate=new Promise(resolve=>releaseRead=resolve);
+  await page.locator('[data-admin-live-body] [data-admin-live-retry]').click();c.failRefresh=false;c.readGate=null;releaseRead();
+  await expect(page.locator('[data-live-judge-summary]')).toContainText('9 / 10');await expect(page.locator('[data-live-judge-refresh]')).toHaveCount(0);
   expect(c.liveWrites).toHaveLength(3);
   await page.reload();
   await expect(page.locator('[data-admin-live-mode]')).toBeVisible();
   await page.setViewportSize({width:390,height:844});
   await page.locator('[data-live-discipline="show_shine"]').click();await page.locator('[data-live-resume]').click();
-  await expect(page.locator('[data-live-judge-summary]')).toContainText('9 / 10');
+  await expect(page.locator('[data-live-judge-summary]')).toContainText('9 / 10');await expect(page.locator('[data-live-judge-refresh]')).toHaveCount(0);
   await expect(page.locator('[data-live-camera]')).toHaveCount(0);
   await page.locator('[data-admin-live-more-toggle]').click();
   await page.locator('[data-admin-live-exit]').click();

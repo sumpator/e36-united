@@ -736,7 +736,15 @@ html.reservation-change-planner-open,body.reservation-change-planner-open{overfl
 .united-onboarding-club li{padding:11px 12px;border:1px solid var(--appearance-border,rgba(105,175,255,.16));border-radius:10px;background:var(--appearance-selected,rgba(77,163,255,.055));font-size:12px;line-height:1.35}
 .car-photo-add:hover,.car-photo-add:focus-visible{outline:0;border-color:var(--appearance-action,#70b8ff);background:var(--appearance-selected,rgba(77,163,255,.16));box-shadow:0 0 0 4px rgba(77,163,255,.1)}
 .reservation-change-planner-modal{align-items:start}
-.reservation-change-planner-dialog{margin:auto;min-height:0}
+.reservation-change-planner-dialog{margin:auto;min-height:0;min-width:0}
+.reservation-change-planner-host,.reservation-change-planner-host>.reservation-form>*{min-width:0}
+.reservation-change-planner-host label{grid-template-columns:minmax(0,1fr);min-width:0}
+.reservation-change-planner-host :is(input,select,textarea){min-width:0;max-width:100%}
+/* Native WebKit select text must not expand the dialog's scrollable grid. */
+.reservation-change-planner-host select{contain:inline-size layout}
+.reservation-change-planner-host .stay-slider-options b{white-space:normal}
+.reservation-change-planner-host .reservation-edit-actions>[data-admission-summary]{grid-column:1/-1;margin:0;overflow-wrap:anywhere}
+.reservation-change-planner-host .reservation-edit-actions button{min-width:0}
 .reservation-change-planner-host .reservation-edit-actions{position:sticky;z-index:4;bottom:0;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;padding:12px 0 0;background:linear-gradient(transparent,var(--appearance-glass,rgba(8,12,17,.98)) 18%)}
 .reservation-change-planner-host .reservation-edit-actions .member-primary{grid-column:auto}
 .reservation-change-planner-host [data-member-planner-close]{display:inline-flex;min-height:52px}
@@ -807,7 +815,7 @@ html.reservation-change-planner-open,body.reservation-change-planner-open{overfl
  .united-onboarding-club ul{grid-template-columns:1fr}
  .reservation-unified-card{padding:10px}
  .reservation-hero-strip{height:138px;padding:15px}
- .reservation-change-planner-host .reservation-edit-actions{grid-template-columns:1fr 1fr;padding-bottom:max(2px,env(safe-area-inset-bottom))}
+ .reservation-change-planner-host .reservation-edit-actions{position:static;grid-template-columns:repeat(2,minmax(0,1fr));padding-bottom:max(2px,env(safe-area-inset-bottom))}
  .member-weekend-planner .planner-controls--v8{padding:0 14px!important;border-radius:14px!important}
  .member-weekend-planner .planner-controls--v8 .planner-main-step{padding:15px 0}
  .member-weekend-planner .planner-context-preview--crew{min-height:132px}

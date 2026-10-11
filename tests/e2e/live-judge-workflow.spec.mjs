@@ -126,7 +126,7 @@ test('confirmed scores survive partial photo failure; only remaining photo retri
  try{await c.open();await choose(page);await start(page);await score(page);await page.locator('[data-live-judge-form] summary').click();
   await page.locator('[name=judgeGallery]').setInputFiles(['one.webp','two.webp'].map(name=>({name,mimeType:'image/webp',buffer:photo})));await page.locator('[data-live-judge-submit]').click();
   await expect(page.locator('[data-live-judge-summary]')).toContainText('Hodnocení potvrzeno');await expect(page.locator('fieldset')).toHaveCount(0);await expect(page.locator('[data-upload-state=error]')).toHaveCount(1);
-  await page.getByRole('button',{name:'Odeslat zbývající fotografie'}).click();await expect(page.locator('[data-live-judge-form]')).toHaveCount(0);expect(c.control.saves).toBe(1);expect(c.control.uploads).toBe(3);
+  await page.getByRole('button',{name:'Odeslat zbývající fotografie'}).click();await expect(page.locator('[data-live-judge-form]')).toHaveCount(0);expect(c.control.saves).toBe(1);expect(c.control.uploads).toBe(3);const official=c.r.db.prepare('SELECT scores_json,version FROM live_judge_scores').get();expect(official.version).toBe(1);expect(JSON.parse(official.scores_json)).toEqual({overall:6,condition:7,cohesion:8,originality:9});expect(c.r.db.prepare('SELECT COUNT(*) n FROM live_judge_score_audit').get().n).toBe(0);expect(c.r.db.prepare('SELECT COUNT(*) n FROM live_judge_photos').get().n).toBe(2);
  }finally{await c.finish()}
 });
 test('camera QR joins confirmation and delayed camera permission cannot reopen previous phase',async({page})=>{

@@ -1,5 +1,5 @@
 import { deriveOverviewState } from '../../member-portal-state.js?v=20260921-member-ux-r2';
-import { $, esc } from '../ui.js?v=20260902-phase3';
+import { $, esc } from '../ui.js?v=20260924-merch2';
 
 export function createMemberOverview({
   getData,

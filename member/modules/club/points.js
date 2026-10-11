@@ -1,4 +1,4 @@
-import { $, $$, esc } from '../../ui.js?v=20260902-phase3';
+import { $, $$, esc } from '../../ui.js?v=20260924-merch2';
 import {rewardProgress} from '../../reward-progress.js?v=20260926-portal3';
 
 import {initPointsGuide,pictogram,achievementIcon} from '../../points-guide.js?v=20260927-ux2';

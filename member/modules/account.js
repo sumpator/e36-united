@@ -1,4 +1,4 @@
-import { $, setButtonBusy, toast } from '../ui.js?v=20260902-phase3';
+import { $, setButtonBusy, toast } from '../ui.js?v=20260924-merch2';
 import {memberQrMarkup} from '../../member-qr-renderer.js?v=20260923-live6';
 
 export function createMemberAccount({
