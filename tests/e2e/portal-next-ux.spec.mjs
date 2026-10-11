@@ -23,22 +23,25 @@ async function capture(page,name,theme='light'){
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBe(true);await page.screenshot({path:resolve(shots,name+'.png'),animations:'disabled'});
 }
 test('history year follows visible section in both scroll directions',async({page})=>{
- await setup(page);await page.setViewportSize({width:1366,height:768});await page.goto('/o-nas.html');
+ const clientErrors=await setup(page);await page.setViewportSize({width:1366,height:768});await page.goto('/o-nas.html');
  await expect(page.locator('.timeline-entry').first()).toBeVisible();
- const errors=[];
- const positions=await page.locator('.timeline-entry').evaluateAll(nodes=>nodes.map(n=>n.getBoundingClientRect().top+scrollY));
- for(const y of [...positions,...positions.toReversed()]){
-  await page.evaluate(y=>scrollTo({top:y-160,behavior:'instant'}),y);
+ await page.evaluate(()=>document.fonts.ready);
+ const entries=page.locator('.timeline-entry'),count=await entries.count();
+ const indices=Array.from({length:count},(_,index)=>index);
+ for(const index of [...indices,...indices.toReversed()]){
+  const entry=entries.nth(index);
+  // An unrevealed entry crosses the reading line as its translateY settles.
+  await entry.evaluate(node=>{const probe=document.querySelector('.site-header').getBoundingClientRect().bottom+70;scrollTo({top:node.getBoundingClientRect().top+scrollY-probe-8,behavior:'instant'})});
   await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
-  const state=await page.evaluate(()=>{const probe=document.querySelector('.site-header').getBoundingClientRect().bottom+70;const entries=[...document.querySelectorAll('.timeline-entry')];const active=entries.filter(n=>n.getBoundingClientRect().top<=probe).at(-1)||entries[0];return {expected:active.querySelector('.timeline-year').textContent.trim(),actual:document.querySelector('[data-history-year]').textContent.trim()}});
-  if(state.expected!==state.actual)errors.push(state);
+  await entry.evaluate(async node=>{await Promise.all([...node.querySelectorAll('img')].map(image=>image.decode().catch(()=>{})));while(node.getAnimations().length)await Promise.all(node.getAnimations().map(animation=>animation.finished.catch(()=>{})))});
+  await expect.poll(()=>page.evaluate(()=>{const probe=document.querySelector('.site-header').getBoundingClientRect().bottom+70;const entries=[...document.querySelectorAll('.timeline-entry')];const active=entries.filter(n=>n.getBoundingClientRect().top<=probe).at(-1)||entries[0];return document.querySelector('[data-history-year]').textContent.trim()===active.querySelector('.timeline-year').textContent.trim()}),{message:`Active history year after settled entry ${index}`}).toBe(true);
  }
- expect(errors).toEqual([]);
  await page.locator('.timeline-entry').nth(2).scrollIntoViewIfNeeded();
  const directYear=await page.locator('.timeline-entry').nth(2).locator('.timeline-year').innerText();
  await page.locator('.timeline-entry').nth(2).evaluate(node=>scrollTo({top:node.getBoundingClientRect().top+scrollY-100,behavior:'instant'}));
  await expect(page.locator('[data-history-year]')).toHaveText(directYear);
  await capture(page,'history-notebook');
+ expect(clientErrors.pageErrors).toEqual([]);expect(clientErrors.unhandledApi).toEqual([]);
 });
 test('member navigation, milestones, account QR and compact layouts',async({page})=>{
  const errors=await setup(page,{authenticated:true,member:{qrPayload:'E36U1:'+'a'.repeat(48)},clubPayload:{points:{available:24,lifetime:24}},cars:[{id:'car-001',nickname:'Estoril',model:'328i',body:'Coupé',primary:true,photos:[{id:'photo-1'}]}]});

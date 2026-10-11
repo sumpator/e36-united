@@ -1,5 +1,7 @@
 /* Admin / member workspaces only; public catalog and checkout are unchanged. */
 [data-mailing-editor-workspace][hidden],[data-mailing-campaign-overview][hidden]{display:none!important}
+[data-mailing-editor-workspace] .admin-mailing-editor,[data-mailing-editor-workspace] .admin-mailing-block-list{grid-template-columns:minmax(0,1fr);min-width:0}
+[data-mailing-editor-workspace] .admin-mailing-editor-card,[data-mailing-editor-workspace] .admin-mailing-block{min-width:0}
 [data-mailing-editor-workspace] .admin-mailing-editor-head{position:sticky;top:var(--admin-header-height,112px);z-index:3;padding:12px 16px;background:var(--appearance-surface,#141a21);border:1px solid var(--appearance-border,#344351)}
 [data-mailing-editor-workspace] .admin-mailing-editor-head h3{font-size:22px;margin:8px 0}.admin-mailing-block>details>summary{padding:14px;min-height:44px;cursor:pointer;overflow-wrap:anywhere}.admin-mailing-block-actions button{min-width:44px;min-height:44px}
 [data-mailing-editor-workspace] .admin-mailing-preview-panel{overflow:hidden;max-height:none;position:sticky;top:200px;align-self:start}
@@ -39,4 +41,5 @@
 .admin-new-event>summary{font-weight:700;color:var(--appearance-accent,#79c4ff);min-height:44px;padding:14px}
 .admin-event-settings label:has(input[name=isCurrent]){padding:12px;border:1px solid var(--appearance-border,#344351);border-radius:9px}
 @media(max-width:850px){[data-mailing-editor-workspace] .admin-mailing-editor-head{gap:12px}[data-mailing-editor-workspace] .admin-mailing-editor-head>div:last-child{flex-direction:row;align-items:center;justify-content:space-between}[data-mailing-editor-workspace] .admin-mailing-editor-head h3{font-size:20px;margin:0}}
+@media(max-width:850px){[data-mailing-editor-workspace] .admin-mailing-block>header{flex-wrap:wrap}}
 @media(max-width:700px){.portal-product-layout{grid-template-columns:minmax(0,1fr)}.portal-product-preview{position:static}.portal-fields{gap:0 12px}.portal-card{padding:16px}.portal-fields>label:has(input[type=email]),.portal-fields>label:has(input[autocomplete=street-address]){grid-column:1/-1}}

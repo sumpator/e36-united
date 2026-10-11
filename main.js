@@ -327,6 +327,9 @@ window.addEventListener('scroll', updateHistoryProgress, {passive:true});
 window.addEventListener('resize', updateHistoryProgress, {passive:true});
 window.addEventListener('hashchange',updateHistoryProgress);
 historySection.addEventListener('load',updateHistoryProgress,true);
+historySection.addEventListener('transitionend',event=>{
+if(event.propertyName==='transform'&&event.target.matches('.timeline-entry'))updateHistoryProgress();
+});
 if('ResizeObserver' in window)new ResizeObserver(updateHistoryProgress).observe(historySection);
 }
 

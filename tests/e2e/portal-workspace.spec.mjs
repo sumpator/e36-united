@@ -14,7 +14,10 @@ test('Final compact workspace layouts in both themes',async({page})=>{
    await page.locator('[data-merch-admin-tab=settings]').click();await expect(page.locator('[data-merch-settings]')).toBeVisible();await page.evaluate(()=>scrollTo(0,0));await capture(page,`settings-${width}`);
    await page.locator('[data-merch-admin-tab=products]').click();await page.locator('[data-edit-product=united-u-polo]').click();await page.locator('[data-product-editor]').evaluate(node=>node.scrollIntoView({block:'start'}));await capture(page,`product-editor-${width}`);
    await page.goto('/admin.html?section=mailing');await page.locator('[data-mailing-campaign-new]').click();await capture(page,`mailing-editor-${width}`);
+   await page.locator('[data-block-type=highlight]>header').scrollIntoViewIfNeeded();await capture(page,`mailing-highlight-${width}`);
    if(width===390)await page.locator('[data-mailing-workspace-tab=preview]').click();await capture(page,`mailing-preview-${width}`);
+   await page.locator('[data-mailing-preview-device=mobile]').click();await expect(page.locator('[data-mailing-preview-device=mobile]')).toHaveAttribute('aria-pressed','true');await capture(page,`mailing-preview-mobile-${width}`);
+   await page.locator('[data-mailing-preview-device=desktop]').click();await expect(page.locator('[data-mailing-preview-device=desktop]')).toHaveAttribute('aria-pressed','true');
   }
   expectNoUnexpectedClientErrors(errors);
  }finally{runtime.close();}
@@ -41,6 +44,15 @@ async function capture(page,name){
   await expect(page.locator('html')).toHaveAttribute('data-theme',theme);
   await page.evaluate(async()=>{await document.fonts.ready;await Promise.all([...document.images].filter(image=>{const box=image.getBoundingClientRect();return box.top<innerHeight&&box.bottom>0;}).map(image=>image.decode().catch(()=>{})));});
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBe(true);
+  if(await page.locator('[data-mailing-editor-workspace]').isVisible()){
+   const layout=await page.evaluate(()=>{
+    const box=node=>{const r=node.getBoundingClientRect();return {className:node.className,left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:r.width,clientWidth:node.clientWidth,scrollWidth:node.scrollWidth}};
+    return {name:document.querySelector('[data-mailing-editor-mode]').textContent,theme:document.documentElement.dataset.theme,viewport:{width:innerWidth,height:innerHeight},containers:[...document.querySelectorAll('[data-mailing-editor-workspace] .admin-mailing-editor-layout,[data-mailing-editor-workspace] .admin-mailing-editor,[data-mailing-editor-workspace] .admin-mailing-block-list,[data-mailing-editor-workspace] .admin-mailing-preview-stage')].filter(n=>n.checkVisibility()).map(box),controls:[...document.querySelectorAll('[data-mailing-editor-workspace] .admin-mailing-block>header>div,[data-mailing-preview-frame]')].filter(n=>n.checkVisibility()).map(n=>({box:box(n),parent:box(n.parentElement)}))};
+   });
+   await test.info().attach(`${name}-${theme}-layout`,{body:JSON.stringify(layout,null,2),contentType:'application/json'});
+   for(const container of layout.containers)expect(container.scrollWidth,`${name} ${theme}: ${container.className}`).toBeLessThanOrEqual(container.clientWidth+1);
+   for(const control of layout.controls){expect(control.box.left).toBeGreaterThanOrEqual(control.parent.left);expect(control.box.right).toBeLessThanOrEqual(control.parent.right+1);}
+  }
   await page.screenshot({path:resolve(shots,`${name}-${theme}.png`),animations:'disabled'});
  }
 }
