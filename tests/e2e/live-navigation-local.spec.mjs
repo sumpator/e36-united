@@ -1,5 +1,5 @@
 import {test,expect} from '@playwright/test';
-import {prepareE2ePage} from './fixtures.mjs';
+import {prepareE2ePage,expectNoUnexpectedClientErrors} from './fixtures.mjs';
 import {memberRuntime} from '../helpers/admin-member-runtime.mjs';
 import {commandFixture} from './command-fixture.mjs';
 import * as live from '../../worker/domains/live.js';
@@ -212,4 +212,59 @@ test('visual final layouts and inputs without business writes',async({page})=>{
   await page.locator('[name=judgePhoto]').locator('..').scrollIntoViewIfNeeded();await page.screenshot({path:'test-results/live-navigation/final-photo-controls.png'});
   expect(c.control.saves+c.control.starts+c.control.closes+c.control.uploads).toBe(0);
  }finally{await c.finish()}
+});
+
+function cancelData(c){return Object.fromEntries(['cars','car_photos','live_entries','live_judge_scores','live_judge_photos','live_car_photos','live_public_votes','reservations','event_arrivals'].map(table=>[table,c.r.db.prepare('SELECT * FROM '+table+' ORDER BY id').all()]))}
+async function cancelChoice(page){
+ await expect(page.locator('[data-live-camera]')).toBeVisible();await expect(page.locator('[data-live-choose-member]')).toBeVisible();
+ await expect(page.locator('[data-live-member]')).toHaveCount(0);await expect(page.locator('[data-live-member-search]')).toHaveCount(0);
+ await expect.poll(()=>page.evaluate(()=>history.state?.liveNavigation?.view)).toMatchObject({phase:'choice',tab:'showshine',subview:'workflow',discipline:'show_shine',selectedCategory:'Sedan',selectedMemberId:'',selectedCarId:'',competitionRoot:false,workflowOverview:false,memberPicker:false});
+}
+async function cancelEntry(page,c,source){
+ c.r.db.prepare("UPDATE events SET starts_on='2026-06-19',ends_on='2026-06-21',event_start_at='2026-06-19',event_end_at='2026-06-21' WHERE id='e'").run();
+ if(source==='admin'){
+  await page.setViewportSize({width:1440,height:1000});await page.goto('/admin.html?section=members&event=e');
+  await page.locator('.command-nav-live:visible').click();await page.locator('[data-admin-live-entry-confirm]').click();
+ }else{await c.open();await page.locator('[data-admin-live-tab=program]').click();await expect(page.locator('[data-admin-live-section-title]')).toHaveText('Program');await expect.poll(()=>page.evaluate(()=>history.state?.liveNavigation?.view?.phase)).toBe('program');await page.locator('[data-admin-live-tab=showshine]').click()}
+ await page.setViewportSize({width:source==='admin'?820:390,height:1000});
+ await page.evaluate(mode=>{const s=document.querySelector('[data-appearance-select]');s.value=mode;s.dispatchEvent(new Event('change',{bubbles:true}))},source==='admin'?'light':'dark');
+ await page.locator('[data-live-discipline=show_shine]').click();await page.locator('[data-live-select-category=Sedan]').click();
+}
+for(const source of ['program','admin'])for(const method of ['list','qr'])test('explicit cancel selection stays in its category from '+source+' via '+method,async({page})=>{
+ const c=await fixture(page);try{
+  await cancelEntry(page,c,source);const stored=cancelData(c);
+  if(method==='list'){await page.locator('[data-live-choose-member]').click();await page.locator('[data-live-select-member="car:c"]').click()}
+  else{await page.locator('.admin-live-manual summary').click();await page.locator('[data-live-qr] input').fill('E36U1:123456789012345678901234567890123456789012345678');await page.locator('[data-live-qr] button').click();await expect(page.locator('[data-live-select-member="car:c2"]')).toBeVisible();await page.locator('[data-live-select-member="car:c"]').click()}
+  await expect(page.locator('[data-live-member="car:c"]')).toBeVisible();const index=await page.evaluate(()=>history.state.liveNavigation.index);
+  await page.getByRole('button',{name:'Zrušit výběr',exact:true}).click();await cancelChoice(page);expect(await page.evaluate(()=>history.state.liveNavigation.index)).toBe(index);
+  await page.screenshot({path:'test-results/live-cancel-reset/'+source+'-'+method+'.png'});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBe(true);
+  await page.goBack();await expect(page.locator('[data-live-select-category]')).toHaveCount(7);await page.goForward();await cancelChoice(page);
+  expect(cancelData(c)).toEqual(stored);expect(c.control.starts+c.control.closes+c.control.saves+c.control.uploads).toBe(0);expectNoUnexpectedClientErrors(c.observations);
+ }finally{await c.finish()}
+});
+
+test('explicit cancel selection preserves discard confirmation for car draft and unsent photograph',async({page})=>{
+ const c=await fixture(page);try{
+  await cancelEntry(page,c,'program');await page.locator('[data-live-choose-member]').click();await page.locator('[data-live-select-member="car:c"]').click();const stored=cancelData(c);
+  await page.locator('[data-live-new-car]').click();await page.locator('[data-live-new-car-form] [name=model]').fill('Local unsaved draft');
+  const rejected=page.waitForEvent('dialog').then(async first=>{try{expect(first.message()).toContain('rozepsané')}finally{await first.dismiss()}});await Promise.all([rejected,page.locator('[data-live-cancel-car]').click()]);await expect(page.locator('[data-live-new-car-form] [name=model]')).toHaveValue('Local unsaved draft');
+  const accepted=page.waitForEvent('dialog').then(dialog=>dialog.accept());await Promise.all([accepted,page.locator('[data-live-cancel-car]').click()]);await expect(page.locator('[data-live-new-car-form]')).toHaveCount(0);
+  await page.locator('[data-admin-live-body] label').filter({hasText:'Vybrat z galerie'}).locator('[data-live-car-file]').setInputFiles({name:'unsent.webp',mimeType:'image/webp',buffer:photo});await expect(page.locator('[data-live-car-previews] figure')).toHaveCount(1);
+  const rejectedPhoto=page.waitForEvent('dialog').then(async photoDialog=>{try{expect(photoDialog.message()).toContain('Uložená auta')}finally{await photoDialog.dismiss()}});await Promise.all([rejectedPhoto,page.getByRole('button',{name:'Zrušit výběr',exact:true}).click()]);await expect(page.locator('[data-live-member="car:c"]')).toBeVisible();await expect(page.locator('[data-live-car-previews] figure')).toHaveCount(1);
+  const acceptedPhoto=page.waitForEvent('dialog').then(dialog=>dialog.accept());await Promise.all([acceptedPhoto,page.getByRole('button',{name:'Zrušit výběr',exact:true}).click()]);await cancelChoice(page);
+  expect(cancelData(c)).toEqual(stored);expect(c.control.starts+c.control.closes+c.control.saves+c.control.uploads).toBe(0);expectNoUnexpectedClientErrors(c.observations);
+ }finally{await c.finish()}
+});
+
+test('explicit cancel selection fences late QR response and stops a late camera stream',async({page})=>{
+ const c=await fixture(page),qrReady=Promise.withResolvers(),releaseQr=Promise.withResolvers();
+ await page.addInitScript(()=>{window.__cameraStops=0;window.__cameraRequested=false;window.BarcodeDetector=class{async detect(){return []}};navigator.mediaDevices.getUserMedia=async()=>{window.__cameraRequested=true;await new Promise(resolve=>window.__releaseCamera=resolve);const canvas=document.createElement('canvas');canvas.width=100;canvas.height=100;const stream=canvas.captureStream(1);for(const track of stream.getTracks()){const stop=track.stop.bind(track);track.stop=()=>{window.__cameraStops++;stop()}}return stream;}});
+ await page.route('https://api.e36united.cz/api/admin/events/e/live/qr',async route=>{if(route.request().method()!=='POST')return route.fallback();qrReady.resolve();await releaseQr.promise;return route.fallback()});
+ try{
+  await cancelEntry(page,c,'admin');const stored=cancelData(c);await page.locator('.admin-live-manual summary').click();await page.locator('[data-live-qr] input').fill('E36U1:123456789012345678901234567890123456789012345678');await page.locator('[data-live-qr] button').click();await qrReady.promise;
+  await page.locator('[data-live-choose-member]').click();await page.locator('[data-live-cancel-selection]').click();await cancelChoice(page);
+  const finished=page.waitForResponse(r=>r.url().endsWith('/live/qr')&&r.request().method()==='POST');releaseQr.resolve();await(await finished).finished();await page.evaluate(()=>new Promise(requestAnimationFrame));await cancelChoice(page);
+  await page.locator('[data-live-camera]').click();await expect.poll(()=>page.evaluate(()=>window.__cameraRequested)).toBe(true);await page.locator('[data-live-choose-member]').click();await page.locator('[data-live-cancel-selection]').click();await page.evaluate(()=>window.__releaseCamera());await expect.poll(()=>page.evaluate(()=>window.__cameraStops)).toBe(1);await cancelChoice(page);await expect(page.locator('[data-live-camera-box]')).toBeHidden();
+  expect(cancelData(c)).toEqual(stored);expect(c.control.starts+c.control.closes+c.control.saves+c.control.uploads).toBe(0);expectNoUnexpectedClientErrors(c.observations);
+ }finally{releaseQr.resolve();await c.finish()}
 });
