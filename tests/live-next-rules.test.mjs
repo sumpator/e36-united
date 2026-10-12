@@ -1,4 +1,5 @@
 import test from 'node:test';
+import {jpegFixture} from './helpers/image-fixtures.mjs';
 import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
 import {readFileSync} from 'node:fs';
@@ -93,10 +94,10 @@ test('program event dates, optional times, overnight, chronological order and re
 }finally{r.db.close()}});
 test('competition photograph stays separate and retry does not duplicate upload',async()=>{const r=setup(),objects=new Map();try{
  r.env.MEDIA.put=async(key,stream)=>objects.set(key,await new Response(stream).arrayBuffer());r.env.MEDIA.delete=async key=>objects.delete(key);r.env.MEDIA.get=async key=>({body:objects.get(key)||'garage',httpMetadata:{contentType:'image/jpeg'}});
- const uploadId=crypto.randomUUID(),request=()=>{const f=new FormData();f.append('file',new Blob(['competition'],{type:'image/jpeg'}),'photo.jpg');f.append('uploadId',uploadId);return new Request(origin,{method:'POST',body:f})};
+ const uploadId=crypto.randomUUID(),request=()=>{const f=new FormData();f.append('file',new Blob([jpegFixture('competition')],{type:'image/jpeg'}),'photo.jpg');f.append('uploadId',uploadId);return new Request(origin,{method:'POST',body:f})};
  assert.equal((await saveCompetitionPhoto(request(),r.env,{uid:'a'},'e','c',origin)).status,201);
  assert.equal((await saveCompetitionPhoto(request(),r.env,{uid:'a'},'e','c',origin)).status,200);assert.equal(objects.size,1);
- assert.equal(await (await liveEntryMedia(r.env,{uid:'n'},'entry',origin)).text(),'competition');
+ assert.deepEqual(Buffer.from(await (await liveEntryMedia(r.env,{uid:'n'},'entry',origin)).arrayBuffer()),jpegFixture('competition'));
  assert.equal(r.db.prepare("SELECT r2_key FROM car_photos WHERE id='p'").get().r2_key,'private/m/p');
  assert.equal(r.db.prepare('SELECT COUNT(*) n FROM live_judge_photos').get().n,0);
 }finally{r.db.close()}});

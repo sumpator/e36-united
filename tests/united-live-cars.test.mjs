@@ -1,4 +1,5 @@
 import test from 'node:test';
+import {jpegFixture} from './helpers/image-fixtures.mjs';
 import assert from 'node:assert/strict';
 import {memberRuntime} from './helpers/admin-member-runtime.mjs';
 import { seedConfirmedArrival } from './helpers/live-fixtures.mjs';
@@ -12,7 +13,7 @@ test('event car is independent, stable and private; M category needs explicit co
   r.db.exec("UPDATE events SET live_enabled=1 WHERE id='e'; UPDATE reservations SET car_id='c',show_shine='Ano' WHERE id='r'; UPDATE cars SET body='Coupé' WHERE id='c'; ");
   seedConfirmedArrival(r,'m','c');
   const garage=r.db.prepare('SELECT * FROM cars').all(),reservations=r.db.prepare('SELECT * FROM reservations').all();
-  const create=async(id,model='M3')=>{const f=new FormData();for(const[k,v]of Object.entries({id,model,body:'Coupé',engine:'3.2',originalM:'true'}))f.set(k,v);f.set('file',new File(['photo'],'car.jpg',{type:'image/jpeg'}));return createCompetitionCar(new Request(origin,{method:'POST',body:f}),r.env,auth,'e','m',origin)};
+  const create=async(id,model='M3')=>{const f=new FormData();for(const[k,v]of Object.entries({id,model,body:'Coupé',engine:'3.2',originalM:'true'}))f.set(k,v);f.set('file',new File([jpegFixture()],'car.jpg',{type:'image/jpeg'}));return createCompetitionCar(new Request(origin,{method:'POST',body:f}),r.env,auth,'e','m',origin)};
   assert.equal((await create('c')).status,409);assert.equal(objects.size,0);
   assert.equal((await create('event-car','')).status,400);assert.equal(objects.size,0);
   assert.equal((await create('event-car')).status,201);

@@ -5,6 +5,7 @@ import { seedConfirmedArrival } from './helpers/live-fixtures.mjs';
 import {saveLiveVote,saveJudgeScore,closeLiveEntry,getMemberLive,startLiveEntry,controlLive,uploadLivePhoto,uploadJudgePhoto} from '../worker/domains/live.js';
 import {uploadGallerySubmission} from '../worker/domains/member-gallery.js';
 import {readFileSync} from 'node:fs';
+import {jpegFixture} from './helpers/image-fixtures.mjs';
 const origin='https://example.invalid',request=body=>new Request(origin,{method:'POST',body:JSON.stringify(body)});
 test('apartment migration preserves options, photos, allocations and revision records',()=>{
  const r=memberRuntime();try{
@@ -45,7 +46,7 @@ test('closure between preflight and write rejects public and judge mutations',as
 });
 test('upload retry is actor-scoped, pending, one row and one media object',async()=>{
  const r=memberRuntime(),objects=new Map();r.env.MEDIA.put=async(key,stream)=>objects.set(key,await new Response(stream).arrayBuffer());r.env.MEDIA.delete=async key=>objects.delete(key);
- const key=crypto.randomUUID(),upload=()=>{const f=new FormData();f.append('file',new Blob(['synthetic'],{type:'image/jpeg'}),'local.jpg');f.append('uploadId',key);return new Request(origin,{method:'POST',body:f})};
+ const key=crypto.randomUUID(),upload=()=>{const f=new FormData();f.append('file',new Blob([jpegFixture()],{type:'image/jpeg'}),'local.jpg');f.append('uploadId',key);return new Request(origin,{method:'POST',body:f})};
  try{const first=await (await uploadGallerySubmission(upload(),r.env,{uid:'m'},origin)).json();const retry=await (await uploadGallerySubmission(upload(),r.env,{uid:'m'},origin)).json();assert.equal(first.submission.id,retry.submission.id);assert.equal(retry.submission.status,'pending');assert.equal(objects.size,1);assert.equal(r.db.prepare('SELECT COUNT(*) n FROM gallery_submissions WHERE id=?').get(first.submission.id).n,1);const other=await (await uploadGallerySubmission(upload(),r.env,{uid:'n'},origin)).json();assert.notEqual(other.submission.id,first.submission.id)}finally{r.db.close()}
 });
 
@@ -61,9 +62,10 @@ test('a second body category cannot start, including a category opened during pr
 
 test('lost database acknowledgement preserves committed media and retry does not duplicate',async()=>{
  for(const kind of ['member','live','judge']){const r=setup(),objects=new Map();r.env.MEDIA.put=async(key,stream)=>objects.set(key,await new Response(stream).arrayBuffer());r.env.MEDIA.delete=async key=>objects.delete(key);const table=kind==='judge'?'live_judge_photos':'gallery_submissions',id=crypto.randomUUID();
-  const upload=()=>{const form=new FormData();form.append('uploadId',id);form.append('file',new Blob(['synthetic'],{type:'image/jpeg'}),'photo.jpg');const req=new Request(origin,{method:'POST',body:form});return kind==='member'?uploadGallerySubmission(req,r.env,{uid:'a'},origin):kind==='live'?uploadLivePhoto(req,r.env,{uid:'a'},origin):uploadJudgePhoto(req,r.env,{uid:'a'},'entry',origin)};
+  const upload=()=>{const form=new FormData();form.append('uploadId',id);form.append('file',new Blob([jpegFixture()],{type:'image/jpeg'}),'photo.jpg');const req=new Request(origin,{method:'POST',body:form});return kind==='member'?uploadGallerySubmission(req,r.env,{uid:'a'},origin):kind==='live'?uploadLivePhoto(req,r.env,{uid:'a'},origin):uploadJudgePhoto(req,r.env,{uid:'a'},'entry',origin)};
   const original=r.env.DB.prepare;let interrupted=false;const wrap=s=>({first:s.first,all:s.all,bind:(...args)=>wrap(s.bind(...args)),run:async()=>{const result=await s.run();if(!interrupted){interrupted=true;throw new Error('acknowledgement lost')}return result}});
-  r.env.DB.prepare=sql=>sql.trim().startsWith('INSERT INTO '+table)?wrap(original(sql)):original(sql);
+  if(kind==='member'){const batch=r.env.DB.batch;r.env.DB.batch=async statements=>{const result=await batch(statements);if(!interrupted){interrupted=true;throw new Error('acknowledgement lost')}return result}}
+  else r.env.DB.prepare=sql=>sql.trim().startsWith('INSERT INTO '+table)?wrap(original(sql)):original(sql);
   try{await assert.rejects(upload(),/acknowledgement lost/);assert.equal(objects.size,1);const receipt=await (await upload()).json();assert.equal(receipt.ok,true);assert.equal(receipt.replayed,true);assert.equal(objects.size,1);assert.equal(r.db.prepare('SELECT COUNT(*) n FROM '+table+" WHERE "+(kind==='judge'?'judge_id':'member_id')+"='a'").get().n,1)}finally{r.db.close()}
  }
 });

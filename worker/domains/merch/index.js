@@ -1,7 +1,7 @@
 import { json } from '../../http/responses.js';
 import { cors } from '../../http/cors.js';
 import { requireActiveMember } from '../../auth/member.js';
-import { validateImageFile,extensionFor } from '../media.js';
+import { validateImageFile, verifiedImage,extensionFor } from '../media.js';
 import { createSmtp2goAdapter,senderConfig } from '../mailing/provider/smtp2go.js';
 import { fail,MerchError,key,uid,stamp } from './model.js';
 import { getCatalog,seedCatalog,quotation,createOrder,readOrder,listOrders,changeOrder,getAddress,saveAddress,saveProduct,saveSettings } from './service.js';
@@ -31,12 +31,11 @@ export async function deliverMerchEmail(env,orderId){
 }
 async function upload(request,env,auth){
  const size=Number(request.headers.get('Content-Length'));if(!size||size>9*1024*1024)fail('Fotografie musí mít nejvýše 8 MB.',413);
- const fd=await request.formData(),file=fd.get('file'),error=validateImageFile(file);if(error)fail(error);
- const bytes=new Uint8Array(await file.arrayBuffer()),magic=file.type==='image/png'?bytes[0]===137&&bytes[1]===80&&bytes[2]===78&&bytes[3]===71:file.type==='image/jpeg'?bytes[0]===255&&bytes[1]===216&&bytes[2]===255:String.fromCharCode(...bytes.slice(0,4))==='RIFF'&&String.fromCharCode(...bytes.slice(8,12))==='WEBP';
- if(!magic)fail('Obsah neodpovídá typu fotografie.');
- const id=uid(),objectKey=`merch/${id}.${extensionFor(file.type)}`;
- await env.MEDIA.put(objectKey,bytes,{httpMetadata:{contentType:file.type}});
- try{await env.DB.prepare('INSERT INTO merch_media(id,object_key,content_type,created_by,created_at) VALUES(?,?,?,?,?)').bind(id,objectKey,file.type,auth.uid,stamp()).run();}catch(e){await env.MEDIA.delete(objectKey);throw e;}
+ const fd=await request.formData(),file=fd.get('file'),error=await validateImageFile(file);if(error)fail(error);
+ const image=verifiedImage(file),bytes=image.bytes;
+ const id=uid(),objectKey=`merch/${id}.${extensionFor(verifiedImage(file).type)}`;
+ await env.MEDIA.put(objectKey,bytes,{httpMetadata:{contentType:verifiedImage(file).type}});
+ try{await env.DB.prepare('INSERT INTO merch_media(id,object_key,content_type,created_by,created_at) VALUES(?,?,?,?,?)').bind(id,objectKey,verifiedImage(file).type,auth.uid,stamp()).run();}catch(e){await env.MEDIA.delete(objectKey);throw e;}
  return {image:`r2:${id}`};
 }
 export async function publicMerch(env,url,origin){

@@ -7,7 +7,7 @@ import { cors } from '../http/cors.js';
 import { json } from '../http/responses.js';
 import { clean } from '../utils/text.js';
 import { MEMBER_QR_PREFIX, parseMemberQr } from '../admin/member-qr.js';
-import { extensionFor, validateImageFile } from './media.js';
+import { extensionFor, validateImageFile, verifiedImage } from './media.js';
 
 const DISCIPLINES = new Set(['show_shine', 'best_exhaust']);
 const LIVE_STATES = new Set(['idle', 'live', 'paused', 'closed', 'published']);
@@ -228,14 +228,14 @@ export async function saveJudgeScore(request,env,auth,entryId,origin){
 
 export async function uploadLivePhoto(request,env,auth,origin){
   const event=await activeLiveEvent(env);if(!event)return json({ok:false,error:'live_disabled'},409,origin);
-  const form=await request.formData(),file=form.get('file'),validation=validateImageFile(file);if(validation)return json({ok:false,error:validation},400,origin);
+  const form=await request.formData(),file=form.get('file'),validation=await validateImageFile(file);if(validation)return json({ok:false,error:validation},400,origin);
   const caption=clean(form.get('caption')).slice(0,240),carId=clean(form.get('carId'));
   if(carId&&!validId(carId))return json({ok:false,error:'invalid_car'},400,origin);
   let id;try{id=await uploadIdentity(form,`live-gallery:${auth.uid}:${event.id}`)}catch{return json({ok:false,error:'invalid_upload_id'},400,origin)}
   const receipt=()=>one(env,'SELECT id,status,caption,created_at createdAt FROM gallery_submissions WHERE id=? AND member_id=? AND event_id=?',[id,auth.uid,event.id]);
   const existing=await receipt();if(existing)return json({ok:true,submission:existing,replayed:true},200,origin);
-  const key=`gallery/${auth.uid}/${id}-${crypto.randomUUID()}.${extensionFor(file.type)}`;
-  await env.MEDIA.put(key,file.stream(),{httpMetadata:{contentType:file.type},customMetadata:{owner:auth.uid,kind:'gallery',submissionId:id,eventId:event.id}});
+  const key=`gallery/${auth.uid}/${id}-${crypto.randomUUID()}.${extensionFor(verifiedImage(file).type)}`;
+  await env.MEDIA.put(key,verifiedImage(file).bytes,{httpMetadata:{contentType:verifiedImage(file).type},customMetadata:{owner:auth.uid,kind:'gallery',submissionId:id,eventId:event.id}});
   try{const result=await env.DB.prepare("INSERT INTO gallery_submissions(id,member_id,car_id,event_id,r2_key,caption,status) VALUES(?,?,?,?,?,?,'pending') ON CONFLICT(id) DO NOTHING").bind(id,auth.uid,carId||null,event.id,key,caption||null).run();if(!result.meta?.changes)await env.MEDIA.delete(key)}catch(error){await cleanupFailedUpload(env,key,'gallery_submissions',id);throw error}
   return json({ok:true,submission:await receipt()},201,origin);
 }
@@ -244,13 +244,13 @@ export async function uploadJudgePhoto(request,env,auth,entryId,origin){
   const entry=await one(env,`SELECT e.* FROM live_entries e JOIN events ev ON ev.id=e.event_id AND ev.live_enabled=1 WHERE e.id=?`,[entryId]);if(!entry)return json({ok:false,error:'entry_not_available'},404,origin);
   const allowed=await one(env,`SELECT 1 ok FROM members m WHERE m.id=? AND m.status='active'
     AND (m.role='admin' OR EXISTS(SELECT 1 FROM event_live_judges j WHERE j.event_id=? AND j.member_id=m.id))`,[auth.uid,entry.event_id]);if(!allowed)return json({ok:false,error:'judge_forbidden'},403,origin);
-  const form=await request.formData(),file=form.get('file'),validation=validateImageFile(file);if(validation)return json({ok:false,error:validation},400,origin);
+  const form=await request.formData(),file=form.get('file'),validation=await validateImageFile(file);if(validation)return json({ok:false,error:validation},400,origin);
   let id;try{id=await uploadIdentity(form,`live-judge:${auth.uid}:${entry.id}`)}catch{return json({ok:false,error:'invalid_upload_id'},400,origin)}
   const receipt=()=>one(env,'SELECT id,entry_id entryId FROM live_judge_photos WHERE id=? AND judge_id=? AND entry_id=?',[id,auth.uid,entryId]);
   if(await receipt())return json({ok:true,photo:{id,entryId,status:'internal',imageUrl:`/api/live/judge/photos/${encodeURIComponent(id)}`},replayed:true},200,origin);
-  const key=`live-judge/${entry.event_id}/${entry.id}/${auth.uid}/${id}-${crypto.randomUUID()}.${extensionFor(file.type)}`;
-  await env.MEDIA.put(key,file.stream(),{httpMetadata:{contentType:file.type},customMetadata:{owner:auth.uid,kind:'live-judge',entryId:entry.id,eventId:entry.event_id}});
-  try{const result=await env.DB.prepare('INSERT INTO live_judge_photos(id,event_id,entry_id,judge_id,r2_key,mime_type,size_bytes) VALUES(?,?,?,?,?,?,?) ON CONFLICT(id) DO NOTHING').bind(id,entry.event_id,entry.id,auth.uid,key,file.type,file.size).run();if(!result.meta?.changes)await env.MEDIA.delete(key)}catch(error){await cleanupFailedUpload(env,key,'live_judge_photos',id);throw error}
+  const key=`live-judge/${entry.event_id}/${entry.id}/${auth.uid}/${id}-${crypto.randomUUID()}.${extensionFor(verifiedImage(file).type)}`;
+  await env.MEDIA.put(key,verifiedImage(file).bytes,{httpMetadata:{contentType:verifiedImage(file).type},customMetadata:{owner:auth.uid,kind:'live-judge',entryId:entry.id,eventId:entry.event_id}});
+  try{const result=await env.DB.prepare('INSERT INTO live_judge_photos(id,event_id,entry_id,judge_id,r2_key,mime_type,size_bytes) VALUES(?,?,?,?,?,?,?) ON CONFLICT(id) DO NOTHING').bind(id,entry.event_id,entry.id,auth.uid,key,verifiedImage(file).type,file.size).run();if(!result.meta?.changes)await env.MEDIA.delete(key)}catch(error){await cleanupFailedUpload(env,key,'live_judge_photos',id);throw error}
   return json({ok:true,photo:{id,entryId,status:'internal',imageUrl:`/api/live/judge/photos/${encodeURIComponent(id)}`}},201,origin);
 }
 
@@ -444,11 +444,11 @@ export async function createCompetitionCar(request,env,auth,eventId,memberId,ori
   const existing=await one(env,'SELECT * FROM live_competition_cars WHERE id=?',[id]);
   if(existing)return existing.event_id===eventId&&existing.member_id===memberId&&existing.model===model&&existing.body===body&&existing.engine===engine&&!!existing.original_m===originalM&&existing.participant_name===participantName
     ?json({ok:true,carId:id,replayed:true},200,origin):json({ok:false,error:'car_identity_conflict'},409,origin);
-  const photo=file&&Number(file.size)>0?file:null,validation=photo?validateImageFile(photo):null;
+  const photo=file&&Number(file.size)>0?file:null,validation=photo?await validateImageFile(photo):null;
   if(validation)return json({ok:false,error:validation},400,origin);
-  const key=photo?`live/cars/${eventId}/${id}/${crypto.randomUUID()}.${extensionFor(photo.type)}`:null;
-  if(photo)await env.MEDIA.put(key,photo.stream(),{httpMetadata:{contentType:photo.type},customMetadata:{owner:memberId||'guest',eventId,kind:'competition-car'}});
-  try{const saved=await env.DB.prepare('INSERT INTO live_competition_cars(id,event_id,member_id,participant_name,model,body,engine,original_m,created_by,r2_key,mime_type,size_bytes) SELECT ?,?,?,?,?,?,?,?,?,?,?,? WHERE EXISTS('+JUDGE_SQL+')').bind(id,eventId,memberId,participantName,model,body,engine,originalM?1:0,auth.uid,key,photo?.type||null,photo?.size||null,auth.uid,eventId).run();if(!saved.meta?.changes){if(key)await env.MEDIA.delete(key);return json({ok:false,error:'judge_forbidden'},403,origin)}}
+  const key=photo?`live/cars/${eventId}/${id}/${crypto.randomUUID()}.${extensionFor(verifiedImage(photo).type)}`:null;
+  if(photo)await env.MEDIA.put(key,verifiedImage(photo).bytes,{httpMetadata:{contentType:verifiedImage(photo).type},customMetadata:{owner:memberId||'guest',eventId,kind:'competition-car'}});
+  try{const saved=await env.DB.prepare('INSERT INTO live_competition_cars(id,event_id,member_id,participant_name,model,body,engine,original_m,created_by,r2_key,mime_type,size_bytes) SELECT ?,?,?,?,?,?,?,?,?,?,?,? WHERE EXISTS('+JUDGE_SQL+')').bind(id,eventId,memberId,participantName,model,body,engine,originalM?1:0,auth.uid,key,photo?verifiedImage(photo).type:null,photo?.size||null,auth.uid,eventId).run();if(!saved.meta?.changes){if(key)await env.MEDIA.delete(key);return json({ok:false,error:'judge_forbidden'},403,origin)}}
   catch(error){if(key)await env.MEDIA.delete(key);const replay=await one(env,'SELECT * FROM live_competition_cars WHERE id=?',[id]);if(replay&&replay.event_id===eventId&&replay.member_id===memberId&&replay.model===model&&replay.body===body&&replay.engine===engine&&!!replay.original_m===originalM&&replay.participant_name===participantName)return json({ok:true,carId:id,replayed:true},200,origin);throw error}
   return json({ok:true,carId:id},201,origin);
 }
@@ -458,14 +458,14 @@ export async function saveCompetitionPhoto(request,env,auth,eventId,carId,origin
   if(Number(request.headers.get('Content-Length')||0)>12_000_000)return json({ok:false,error:'file_too_large'},413,origin);
   const car=await one(env,'SELECT id FROM live_vehicle_catalog WHERE id=? AND (event_id IS NULL OR event_id=?)',[carId,eventId])||await one(env,'SELECT id FROM event_arrivals WHERE car_key=? AND event_id=?',[carId,eventId]);
   if(!car||!await eventById(env,eventId))return json({ok:false,error:'invalid_car'},404,origin);
-  const form=await request.formData(),file=form.get('file'),validation=validateImageFile(file);
+  const form=await request.formData(),file=form.get('file'),validation=await validateImageFile(file);
   if(validation)return json({ok:false,error:validation},400,origin);
   let id;try{id=await uploadIdentity(form,`competition-photo:${eventId}:${carId}:${auth.uid}`)}catch{return json({ok:false,error:'invalid_upload_id'},400,origin)}
   const receipt=()=>one(env,'SELECT id FROM live_car_photos WHERE id=?',[id]);
   if(await receipt())return json({ok:true,photoId:id,replayed:true},200,origin);
-  const key=`live/cars/${eventId}/${carId}/${id}-${crypto.randomUUID()}.${extensionFor(file.type)}`;
-  await env.MEDIA.put(key,file.stream(),{httpMetadata:{contentType:file.type},customMetadata:{eventId,carId,kind:'competition-photo'}});
-  try{const result=await env.DB.prepare('INSERT INTO live_car_photos(id,event_id,car_id,created_by,r2_key,mime_type) VALUES(?,?,?,?,?,?) ON CONFLICT(id) DO NOTHING').bind(id,eventId,carId,auth.uid,key,file.type).run();if(!result.meta?.changes)await env.MEDIA.delete(key)}
+  const key=`live/cars/${eventId}/${carId}/${id}-${crypto.randomUUID()}.${extensionFor(verifiedImage(file).type)}`;
+  await env.MEDIA.put(key,verifiedImage(file).bytes,{httpMetadata:{contentType:verifiedImage(file).type},customMetadata:{eventId,carId,kind:'competition-photo'}});
+  try{const result=await env.DB.prepare('INSERT INTO live_car_photos(id,event_id,car_id,created_by,r2_key,mime_type) VALUES(?,?,?,?,?,?) ON CONFLICT(id) DO NOTHING').bind(id,eventId,carId,auth.uid,key,verifiedImage(file).type).run();if(!result.meta?.changes)await env.MEDIA.delete(key)}
   catch(error){await cleanupFailedUpload(env,key,'live_car_photos',id);throw error}
   return json({ok:true,photoId:id},201,origin);
 }

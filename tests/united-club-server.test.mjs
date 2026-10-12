@@ -1,4 +1,5 @@
 import test from 'node:test';
+import {jpegFixture} from './helpers/image-fixtures.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
@@ -71,7 +72,7 @@ function env(db){return {DB:d1(db),MEDIA:media()}}
 function addEvent(db,id,year,{concluded=true}={}){db.prepare('INSERT INTO events (id,year,event_end_at) VALUES (?,?,?)').run(id,year,concluded?'2025-01-01':null)}
 function addClaim(db,{id,member='member-a',event,attendance='pending',sns='not_claimed',category=null,placement=null,bob=0,exhaust=0}){db.prepare(`INSERT INTO united_history_claims (id,member_id,event_id,attendance_status,sns_competed,sns_status,sns_category,sns_placement,sns_best_of_best,sns_best_exhaust) VALUES (?,?,?,?,?,?,?,?,?,?)`).run(id,member,event,attendance,sns==='not_claimed'?0:1,sns,category,placement,bob,exhaust)}
 function reviewRequest(status,reviewNote=''){return new Request('https://api.e36united.cz/review',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({status,reviewNote})})}
-function claimRequest({eventId,sns=false,category='coupe',placement='',bob=false,exhaust=false,files=1}={}){const form=new FormData();form.set('eventId',eventId);if(sns){form.set('snsCompeted','on');form.set('snsCategory',category);if(placement)form.set('snsPlacement',String(placement));if(bob)form.set('snsBestOfBest','on');if(exhaust)form.set('snsBestExhaust','on')}for(let index=0;index<files;index+=1)form.append('files',new Blob([`evidence-${index}`],{type:'image/jpeg'}),`proof-${index}.jpg`);return new Request('https://api.e36united.cz/api/history/claims',{method:'POST',body:form})}
+function claimRequest({eventId,sns=false,category='coupe',placement='',bob=false,exhaust=false,files=1}={}){const form=new FormData();form.set('eventId',eventId);if(sns){form.set('snsCompeted','on');form.set('snsCategory',category);if(placement)form.set('snsPlacement',String(placement));if(bob)form.set('snsBestOfBest','on');if(exhaust)form.set('snsBestExhaust','on')}for(let index=0;index<files;index+=1)form.append('files',new Blob([jpegFixture(`evidence-${index}`)],{type:'image/jpeg'}),`proof-${index}.jpg`);return new Request('https://api.e36united.cz/api/history/claims',{method:'POST',body:form})}
 async function payload(response){return {status:response.status,body:await response.json()}}
 function ledger(db,member='member-a'){return db.prepare('SELECT source_key,delta FROM united_points_ledger WHERE member_id=? ORDER BY source_key').all(member)}
 function ledgerTotal(db,member='member-a'){return Number(db.prepare('SELECT COALESCE(SUM(delta),0) AS total FROM united_points_ledger WHERE member_id=?').get(member).total)}

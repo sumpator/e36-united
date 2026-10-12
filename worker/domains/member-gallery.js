@@ -1,48 +1,64 @@
 import { cors } from "../http/cors.js";
 import { json } from "../http/responses.js";
 import { clean } from "../utils/text.js";
-import { extensionFor, validateImageFile } from "./media.js";
-import { uploadIdentity, cleanupFailedUpload } from './upload-identity.js';
-
-const MAX_GALLERY_DAILY = 24;
+import { extensionFor, validateImageFile,verifiedImage,boundedImageBytes } from "./media.js";
+import { uploadIdentity } from './upload-identity.js';
+import {MAX_GALLERY_DAILY,imageDigest,claimGalleryAttempt,finishGalleryAttempt,abandonGalleryAttempt,cleanExpiredGalleryAttempts} from './member-gallery-uploads.js';
 
 async function uploadGallerySubmission(request, env, auth, origin) {
   const form = await request.formData();
   let id;
   try { id = await uploadIdentity(form, `member-gallery:${auth.uid}`); }
   catch { return json({ok:false,error:'invalid_upload_id'},400,origin); }
-  const receipt = () => env.DB.prepare('SELECT id,caption,status,created_at AS createdAt FROM gallery_submissions WHERE id=? AND member_id=?').bind(id,auth.uid).first();
-  const existing = await receipt();
-  if (existing) return json({ok:true,submission:existing,replayed:true},200,origin);
-  const daily = await env.DB.prepare(`
-    SELECT COUNT(*) AS count FROM gallery_submissions
-    WHERE member_id = ? AND created_at >= datetime('now', '-1 day')
-  `).bind(auth.uid).first();
-  if (Number(daily?.count || 0) >= MAX_GALLERY_DAILY) return json({ ok: false, error: "Daily upload limit reached" }, 429, origin);
-
   const file = form.get("file");
-  const validation = validateImageFile(file);
+  const validation = await validateImageFile(file);
   if (validation) return json({ ok: false, error: validation }, 400, origin);
+  const image=verifiedImage(file),sha=await imageDigest(image.bytes);
+  const receipt=()=>env.DB.prepare('SELECT id,caption,status,r2_key,created_at AS createdAt FROM gallery_submissions WHERE id=? AND member_id=?').bind(id,auth.uid).first();
+  const success=(row,status,replayed=false)=>{const {r2_key,...submission}=row;return json({ok:true,submission,...(replayed?{replayed:true}:{})},status,origin)};
+  const conflict=()=>json({ok:false,error:'upload_content_conflict',message:'Tento klíč nahrávání už patří jiné fotografii.'},409,origin);
+  const replay=async row=>{
+    const recorded=await env.DB.prepare('SELECT content_sha256 FROM member_gallery_upload_attempts WHERE upload_id=? AND member_id=? LIMIT 1').bind(id,auth.uid).first();
+    if(recorded)return recorded.content_sha256===sha?success(row,200,true):conflict();
+    // No backfill or image revalidation: compare a legacy retry to its existing bytes.
+    const object=await env.MEDIA.get(row.r2_key);if(!object)return json({ok:false,error:'media_unavailable',message:'Uloženou fotografii se nepodařilo ověřit. Zkus to znovu.'},503,origin);
+    const old=await boundedImageBytes(new Response(object.body).body,object.size||undefined);
+    return await imageDigest(old)===sha?success(row,200,true):conflict();
+  };
+  const existing=await receipt();if(existing)return replay(existing);
+  const previous=await env.DB.prepare('SELECT content_sha256,state,expires_at FROM member_gallery_upload_attempts WHERE upload_id=? AND member_id=?').bind(id,auth.uid).all();
+  if(previous.results?.some(row=>row.content_sha256!==sha))return conflict();
+  if(previous.results?.some(row=>row.state==='committed'))return json({ok:false,error:'upload_removed',message:'Tato fotografie již není dostupná.'},409,origin);
+  await cleanExpiredGalleryAttempts(env,auth.uid);
   const caption = clean(form.get("caption") || "").slice(0, 240);
-
-  const ext = extensionFor(file.type);
-  // Each concurrent attempt owns its object; a losing retry cannot delete the winner.
-  const key = `gallery/${auth.uid}/${id}-${crypto.randomUUID()}.${ext}`;
-  await env.MEDIA.put(key, file.stream(), {
-    httpMetadata: { contentType: file.type },
-    customMetadata: { owner: auth.uid, kind: "gallery", submissionId: id },
-  });
+  const attemptId=crypto.randomUUID(),key=`gallery/${auth.uid}/${id}-${attemptId}.${extensionFor(image.type)}`;
+  const attempt={attemptId,id,memberId:auth.uid,sha,key,caption};let claimed;
   try {
-    const result = await env.DB.prepare(`
-      INSERT INTO gallery_submissions (id, member_id, r2_key, caption, status)
-      VALUES (?, ?, ?, ?, 'pending') ON CONFLICT(id) DO NOTHING
-    `).bind(id, auth.uid, key, caption || null).run();
-    if (!result.meta?.changes) await env.MEDIA.delete(key);
+    claimed=await claimGalleryAttempt(env,attempt);
   } catch (error) {
-    await cleanupFailedUpload(env,key,'gallery_submissions',id);
+    await abandonGalleryAttempt(env,attemptId);
     throw error;
   }
-  return json({ ok: true, submission: await receipt() }, 201, origin);
+  if(!claimed.meta?.changes){
+    const saved=await receipt();if(saved)return replay(saved);
+    const rejected=await env.DB.prepare('SELECT content_sha256,state,expires_at FROM member_gallery_upload_attempts WHERE upload_id=? AND member_id=?').bind(id,auth.uid).all();
+    if(rejected.results?.some(row=>row.content_sha256!==sha))return conflict();
+    if(rejected.results?.some(row=>row.state==='committed'))return json({ok:false,error:'upload_removed',message:'Tato fotografie již není dostupná.'},409,origin);
+    const busy=await env.DB.prepare("SELECT 1 busy FROM member_gallery_upload_attempts WHERE upload_id=? AND member_id=? AND state='pending' AND expires_at>CURRENT_TIMESTAMP LIMIT 1").bind(id,auth.uid).first();
+    if(busy)return json({ok:false,error:'upload_in_progress',message:'Tato fotografie se ještě ukládá. Zkus stejnou položku znovu.'},409,origin);
+    return json({ok:false,error:'Daily upload limit reached',message:`Za posledních 24 hodin lze nahrát nejvýše ${MAX_GALLERY_DAILY} fotografií.`},429,origin);
+  }
+  try{
+    if(request.signal.aborted)throw new DOMException('Upload interrupted','AbortError');
+    await env.MEDIA.put(key,image.bytes,{httpMetadata:{contentType:image.type},customMetadata:{owner:auth.uid,kind:'gallery',submissionId:id,contentSHA256:sha}});
+    if(request.signal.aborted)throw new DOMException('Upload interrupted','AbortError');
+    const result=await finishGalleryAttempt(env,attempt),saved=await receipt();
+    if(result[0]?.meta?.changes&&saved)return success(saved,201);
+    await abandonGalleryAttempt(env,attemptId);
+    if(saved)return replay(saved);
+    const expired=await env.DB.prepare("SELECT 1 expired FROM member_gallery_upload_attempts WHERE attempt_id=? AND expires_at<=CURRENT_TIMESTAMP").bind(attemptId).first();
+    return expired?json({ok:false,error:'upload_attempt_expired',message:'Nahrávání se přerušilo. Zkus tuto fotografii znovu.'},409,origin):json({ok:false,error:'Daily upload limit reached',message:'Limit 24 fotografií za posledních 24 hodin byl dosažen.'},429,origin);
+  }catch(error){await abandonGalleryAttempt(env,attemptId);throw error}
 }
 
 async function listMyGallery(env, auth, url, origin) {

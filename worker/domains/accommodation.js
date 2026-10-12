@@ -1,7 +1,7 @@
 import { uploadIdentity, cleanupFailedUpload } from './upload-identity.js';
 import { cors } from "../http/cors.js";
 import { json } from "../http/responses.js";
-import { validateImageFile } from "./media.js";
+import { validateImageFile, verifiedImage } from "./media.js";
 
 function accommodationPhotoKey(eventId, optionId) {
   return `accommodation/${encodeURIComponent(String(eventId || ""))}/${encodeURIComponent(String(optionId || ""))}/cover`;
@@ -148,15 +148,15 @@ async function putAdminAccommodationPhoto(request, env, auth, optionId, origin) 
   try { form = await request.formData(); }
   catch { return json({ ok: false, error: "invalid_accommodation_photo", message: "Požadavek neobsahuje platný formulář s fotografií." }, 400, origin); }
   const file = form.get("file");
-  const validation = validateImageFile(file);
+  const validation = await validateImageFile(file);
   if (validation) return json({ ok: false, error: "invalid_accommodation_photo", message: validation }, 400, origin);
   const existingCover = await env.MEDIA.head(accommodationPhotoKey(option.event_id, option.id));
   if (!existingCover) {
     const row = await env.DB.prepare("SELECT COUNT(*) AS count FROM event_accommodation_photos WHERE option_id = ?").bind(option.id).first();
     if (Number(row?.count || 0) >= 5) return json({ ok: false, error: "accommodation_photo_limit", message: "Galerie už obsahuje maximálně 5 fotografií. Nejdřív jednu doplňkovou fotografii odeber." }, 409, origin);
   }
-  await env.MEDIA.put(accommodationPhotoKey(option.event_id, option.id), file.stream(), {
-    httpMetadata: { contentType: file.type },
+  await env.MEDIA.put(accommodationPhotoKey(option.event_id, option.id), verifiedImage(file).bytes, {
+    httpMetadata: { contentType: verifiedImage(file).type },
     customMetadata: { owner: auth.uid, kind: "accommodation", eventId: option.event_id, optionId: option.id },
   });
   return json({ ok: true, optionId: option.id, ...(await accommodationMediaMetadata(env, option.event_id, option.id)) }, 200, origin);
@@ -176,7 +176,7 @@ async function postAdminAccommodationGalleryPhoto(request, env, auth, optionId, 
   try { form = await request.formData(); }
   catch { return json({ ok: false, error: "invalid_accommodation_photo", message: "Požadavek neobsahuje platný formulář s fotografií." }, 400, origin); }
   const file = form.get("file");
-  const validation = validateImageFile(file);
+  const validation = await validateImageFile(file);
   if (validation) return json({ ok: false, error: "invalid_accommodation_photo", message: validation }, 400, origin);
   const cover = await env.MEDIA.head(accommodationPhotoKey(option.event_id, option.id));
   const maxAdditional = cover ? 4 : 5;
@@ -186,8 +186,8 @@ async function postAdminAccommodationGalleryPhoto(request, env, auth, optionId, 
   const exists=()=>env.DB.prepare('SELECT id FROM event_accommodation_photos WHERE id=? AND option_id=?').bind(photoId,optionId).first();
   if(await exists())return json({ok:true,optionId,replayed:true,...await accommodationMediaMetadata(env,option.event_id,optionId)},200,origin);
   const key = accommodationGalleryPhotoKey(option.event_id, option.id, photoId+'-'+crypto.randomUUID());
-  await env.MEDIA.put(key, file.stream(), {
-    httpMetadata: { contentType: file.type },
+  await env.MEDIA.put(key, verifiedImage(file).bytes, {
+    httpMetadata: { contentType: verifiedImage(file).type },
     customMetadata: { owner: auth.uid, kind: "accommodation-gallery", eventId: option.event_id, optionId: option.id, photoId },
   });
   try {
@@ -197,7 +197,7 @@ async function postAdminAccommodationGalleryPhoto(request, env, auth, optionId, 
       FROM event_accommodation_photos
       WHERE option_id = ?
       HAVING COUNT(*) < ? ON CONFLICT(id) DO NOTHING
-    `).bind(photoId, option.id, key, file.type, file.size, option.id, maxAdditional).run();
+    `).bind(photoId, option.id, key, verifiedImage(file).type, file.size, option.id, maxAdditional).run();
     if (!result?.meta?.changes) {
       await env.MEDIA.delete(key);
       if(await exists())return json({ok:true,optionId,replayed:true,...await accommodationMediaMetadata(env,option.event_id,optionId)},200,origin);

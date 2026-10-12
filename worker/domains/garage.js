@@ -2,7 +2,7 @@ import { cors } from "../http/cors.js";
 import { json } from "../http/responses.js";
 import { clean } from "../utils/text.js";
 import { profilePointStatement } from "./club/points.js";
-import { extensionFor, validateImageFile } from "./media.js";
+import { extensionFor, validateImageFile, verifiedImage } from "./media.js";
 
 const MAX_CAR_PHOTOS = 3;
 
@@ -141,28 +141,28 @@ async function uploadCarPhoto(request, env, auth, carId, origin) {
 
   const form = await request.formData();
   const file = form.get("file");
-  const validation = validateImageFile(file);
+  const validation = await validateImageFile(file);
   if (validation) return json({ ok: false, error: validation }, 400, origin);
 
   const id = crypto.randomUUID();
-  const ext = extensionFor(file.type);
+  const ext = extensionFor(verifiedImage(file).type);
   const key = `cars/${auth.uid}/${carId}/${id}.${ext}`;
   const sortOrder = Number(count?.count || 0);
 
-  await env.MEDIA.put(key, file.stream(), {
-    httpMetadata: { contentType: file.type },
+  await env.MEDIA.put(key, verifiedImage(file).bytes, {
+    httpMetadata: { contentType: verifiedImage(file).type },
     customMetadata: { owner: auth.uid, kind: "car", carId, photoId: id },
   });
   try {
     await env.DB.prepare(`
       INSERT INTO car_photos (id, car_id, r2_key, mime_type, size_bytes, sort_order)
       VALUES (?, ?, ?, ?, ?, ?)
-    `).bind(id, carId, key, file.type, file.size, sortOrder).run();
+    `).bind(id, carId, key, verifiedImage(file).type, file.size, sortOrder).run();
   } catch (error) {
     await env.MEDIA.delete(key);
     throw error;
   }
-  return json({ ok: true, photo: { id, mimeType: file.type, sizeBytes: file.size } }, 201, origin);
+  return json({ ok: true, photo: { id, mimeType: verifiedImage(file).type, sizeBytes: file.size } }, 201, origin);
 }
 
 async function replaceCarPhoto(request, env, auth, carId, origin) {
@@ -171,15 +171,15 @@ async function replaceCarPhoto(request, env, auth, carId, origin) {
 
   const form = await request.formData();
   const file = form.get("file");
-  const validation = validateImageFile(file);
+  const validation = await validateImageFile(file);
   if (validation) return json({ ok: false, error: validation }, 400, origin);
 
   const previous = await env.DB.prepare("SELECT id, r2_key FROM car_photos WHERE car_id = ? ORDER BY sort_order ASC, created_at ASC").bind(carId).all();
   const id = crypto.randomUUID();
-  const ext = extensionFor(file.type);
+  const ext = extensionFor(verifiedImage(file).type);
   const key = `cars/${auth.uid}/${carId}/${id}.${ext}`;
-  await env.MEDIA.put(key, file.stream(), {
-    httpMetadata: { contentType: file.type },
+  await env.MEDIA.put(key, verifiedImage(file).bytes, {
+    httpMetadata: { contentType: verifiedImage(file).type },
     customMetadata: { owner: auth.uid, kind: "car", carId, photoId: id },
   });
   try {
@@ -188,7 +188,7 @@ async function replaceCarPhoto(request, env, auth, carId, origin) {
       env.DB.prepare(`
         INSERT INTO car_photos (id, car_id, r2_key, mime_type, size_bytes, sort_order)
         VALUES (?, ?, ?, ?, ?, 0)
-      `).bind(id, carId, key, file.type, file.size),
+      `).bind(id, carId, key, verifiedImage(file).type, file.size),
     ]);
   } catch (error) {
     try { await env.MEDIA.delete(key); } catch (cleanupError) { console.warn("Unable to clean up failed R2 car replacement", cleanupError); }
@@ -198,7 +198,7 @@ async function replaceCarPhoto(request, env, auth, carId, origin) {
     if (!photo.r2_key || photo.r2_key === key) continue;
     try { await env.MEDIA.delete(photo.r2_key); } catch (error) { console.warn("Unable to delete replaced R2 car photo", error); }
   }
-  return json({ ok: true, photo: { id, mimeType: file.type, sizeBytes: file.size }, replaced: (previous.results || []).map(photo => photo.id) }, 200, origin);
+  return json({ ok: true, photo: { id, mimeType: verifiedImage(file).type, sizeBytes: file.size }, replaced: (previous.results || []).map(photo => photo.id) }, 200, origin);
 }
 
 async function privateCarMedia(env, auth, photoId, origin) {

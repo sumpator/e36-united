@@ -5,6 +5,7 @@ import {getCatalog,quotation,createOrder,readOrder,changeOrder,saveAddress,saveP
 import {projectOrder} from '../worker/domains/merch/model.js';
 import {deliverMerchEmail,routeMerch,publicMerch} from '../worker/domains/merch/index.js';
 import {readFileSync} from 'node:fs';
+import {imageFixture} from './helpers/image-fixtures.mjs';
 import {DatabaseSync} from 'node:sqlite';
 import {requireAdmin} from '../worker/auth/admin.js';
 const change=(env,o,action,extra={})=>changeOrder(env,'admin',o.id,{revision:o.revision,operationKey:crypto.randomUUID(),action,...extra},true);
@@ -18,7 +19,7 @@ test('concurrent admin operations use compare-and-swap and never double-record m
 });
 test('uploaded photo is private until publication and remains readable for archived orders',async t=>{
  const r=await merchRuntime();t.after(r.close);const media=new Map();r.env.MEDIA={put:async(k,b)=>media.set(k,b),get:async k=>media.has(k)?{body:media.get(k)}:null,delete:async k=>media.delete(k)};
- const form=new FormData();form.set('file',new File([Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aX1sAAAAASUVORK5CYII=','base64')],'fixture.png',{type:'image/png'}));const raw=new Request('https://api.e36united.cz/api/admin/merch/media',{method:'POST',body:form});const bytes=await raw.arrayBuffer(),request=new Request(raw.url,{method:'POST',headers:{'Content-Type':raw.headers.get('Content-Type'),'Content-Length':String(bytes.byteLength)},body:bytes});
+ const form=new FormData();form.set('file',new File([imageFixture('image/png')],'fixture.png',{type:'image/png'}));const raw=new Request('https://api.e36united.cz/api/admin/merch/media',{method:'POST',body:form});const bytes=await raw.arrayBuffer(),request=new Request(raw.url,{method:'POST',headers:{'Content-Type':raw.headers.get('Content-Type'),'Content-Length':String(bytes.byteLength)},body:bytes});
  const response=await routeMerch({request,url:new URL(request.url),env:r.env,auth:{uid:'admin'},origin:'https://e36united.cz'},true),uploaded=await response.json();assert.equal(response.status,200);const url=new URL('https://api.e36united.cz/api/merch/media/'+uploaded.image.slice(3));assert.equal((await publicMerch(r.env,url)).status,404);
  const p=(await getCatalog(r.env,true)).products[0];await saveProduct(r.env,'admin',{...p,variants:p.variants.map(v=>({...v,image:uploaded.image}))});assert.equal((await publicMerch(r.env,url)).status,200);const updated=(await getCatalog(r.env,true)).products[0];await saveProduct(r.env,'admin',{...updated,status:'archived'});assert.equal((await publicMerch(r.env,url)).status,200);
 });

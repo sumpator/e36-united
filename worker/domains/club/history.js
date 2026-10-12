@@ -3,7 +3,7 @@ import { readJsonObject } from "../../http/request.js";
 import { json } from "../../http/responses.js";
 import { clean } from "../../utils/text.js";
 import { memberCardSummaries } from '../../admin/member-cards.js';
-import { extensionFor, validateImageFile } from "../media.js";
+import { extensionFor, validateImageFile, verifiedImage } from "../media.js";
 import {
   attendancePointStatements,
   profilePointStatement,
@@ -310,7 +310,7 @@ async function submitHistoryClaim(request, env, auth, origin) {
   const files = form.getAll("files");
   if (!files.length || files.length > MAX_HISTORY_EVIDENCE) return json({ ok: false, error: "evidence_required", message: `Přilož 1 až ${MAX_HISTORY_EVIDENCE} důkazní fotografie.` }, 400, origin);
   for (const file of files) {
-    const validation = validateImageFile(file);
+    const validation = await validateImageFile(file);
     if (validation) return json({ ok: false, error: "invalid_evidence", message: validation }, 400, origin);
   }
 
@@ -320,8 +320,8 @@ async function submitHistoryClaim(request, env, auth, origin) {
     for (let index = 0; index < files.length; index += 1) {
       const file = files[index];
       const evidenceId = crypto.randomUUID();
-      const key = `history-proof/${auth.uid}/${claimId}/${evidenceId}.${extensionFor(file.type)}`;
-      await env.MEDIA.put(key, file.stream(), { httpMetadata: { contentType: file.type }, customMetadata: { owner: auth.uid, kind: "history-proof", claimId, evidenceId } });
+      const key = `history-proof/${auth.uid}/${claimId}/${evidenceId}.${extensionFor(verifiedImage(file).type)}`;
+      await env.MEDIA.put(key, verifiedImage(file).bytes, { httpMetadata: { contentType: verifiedImage(file).type }, customMetadata: { owner: auth.uid, kind: "history-proof", claimId, evidenceId } });
       uploaded.push({ id: evidenceId, key, file, index });
     }
     const statements = [];
@@ -347,7 +347,7 @@ async function submitHistoryClaim(request, env, auth, origin) {
     }
     for (const item of uploaded) {
       statements.push(env.DB.prepare(`INSERT INTO united_history_evidence (id, claim_id, member_id, r2_key, mime_type, size_bytes, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?)`)
-        .bind(item.id, claimId, auth.uid, item.key, item.file.type, item.file.size, item.index));
+        .bind(item.id, claimId, auth.uid, item.key, verifiedImage(item.file).type, item.file.size, item.index));
     }
     const previous = existing ? await env.DB.prepare("SELECT r2_key FROM united_history_evidence WHERE claim_id = ? AND member_id = ?").bind(claimId, auth.uid).all() : { results: [] };
     await env.DB.batch(statements);

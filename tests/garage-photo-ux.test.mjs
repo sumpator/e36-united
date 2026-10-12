@@ -1,4 +1,5 @@
 import test from 'node:test';
+import {imageFixture} from './helpers/image-fixtures.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
@@ -133,7 +134,7 @@ test('replacement photo keeps the old DB row and object if the D1 switch fails',
   const db = database(), DB = d1(db), objects = new Map([['cars/member-a/car-a/photo-old.jpg', { old: true }]]);
   const MEDIA = { async put(key) { objects.set(key, { fresh: true }); }, async delete(key) { objects.delete(key); } };
   const failingDB = { ...DB, batch() { throw new Error('simulated D1 failure'); } };
-  const form = new FormData(); form.append('file', new File([new Uint8Array([1, 2, 3])], 'new.jpg', { type: 'image/jpeg' }));
+  const form = new FormData(); form.append('file', new File([imageFixture('image/jpeg')], 'new.jpg', { type: 'image/jpeg' }));
   await assert.rejects(worker.replaceCarPhoto(new Request('https://api.e36united.cz/api/cars/car-a/photos', { method: 'PUT', body: form }), { DB: failingDB, MEDIA }, { uid: 'member-a' }, 'car-a', 'https://e36united.cz'), /simulated D1 failure/);
   assert.equal(db.prepare("SELECT id FROM car_photos WHERE car_id='car-a'").get().id, 'photo-old');
   assert.deepEqual([...objects.keys()], ['cars/member-a/car-a/photo-old.jpg']);
@@ -142,7 +143,7 @@ test('replacement photo keeps the old DB row and object if the D1 switch fails',
 test('replacement photo switches the same car to one new object and removes the old object after success', async () => {
   const db = database(), DB = d1(db), objects = new Map([['cars/member-a/car-a/photo-old.jpg', { old: true }]]);
   const MEDIA = { async put(key) { objects.set(key, { fresh: true }); }, async delete(key) { objects.delete(key); } };
-  const form = new FormData(); form.append('file', new File([new Uint8Array([4, 5, 6])], 'replacement.webp', { type: 'image/webp' }));
+  const form = new FormData(); form.append('file', new File([imageFixture('image/webp')], 'replacement.webp', { type: 'image/webp' }));
   const response = await worker.replaceCarPhoto(new Request('https://api.e36united.cz/api/cars/car-a/photos', { method: 'PUT', body: form }), { DB, MEDIA }, { uid: 'member-a' }, 'car-a', 'https://e36united.cz');
   const payload = await response.json(), row = db.prepare("SELECT id,car_id,r2_key,mime_type,sort_order FROM car_photos WHERE car_id='car-a'").get();
   assert.equal(response.status, 200); assert.equal(payload.replaced[0], 'photo-old');
