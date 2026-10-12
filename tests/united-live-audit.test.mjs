@@ -12,6 +12,7 @@ import { createPhotoBatch } from '../photo-batch.js';
 import { programDays, programTimes } from '../live-program.js';
 import { routeArrivals } from '../worker/domains/arrivals.js';
 import { resourceRevision } from '../worker/admin/commands.js';
+import { unmountArrivals } from '../admin/modules/arrivals.js';
 
 const origin='https://e36united.cz', admin={uid:'a'};
 const req=body=>new Request(origin+'/api/audit',{method:'POST',body:JSON.stringify(body)});
@@ -25,18 +26,19 @@ function harness(payload){
     }};
   document.querySelector=selector=>selector==='[data-admin-live-body]'?root:null;
   document.querySelectorAll=()=>[];document.body={classList:{toggle(){}}};
-  const logs=[];
+  const logs=[],arrivalsUnmounts=[];
   const context=vm.createContext({document,window,console:{error:(...v)=>logs.push(v),warn:(...v)=>logs.push(v)},
     adminState:{selectedEventId:'e',currentUser:{uid:'a'},activeAdminView:'dashboard'},
     apiRequest:async path=>path==='/api/live'?{event:{id:'e'},me:{memberId:'a'},judgeHistory:[]}:payload,
     escapeHtml:String,toast(){},navigator:{onLine:true},setTimeout,clearTimeout,cancelAnimationFrame(){},
     requestAnimationFrame:fn=>fn(),localStorage:{getItem:()=>null},sessionStorage:{getItem:()=>null,setItem(){}},URL,
     createPhotoBatch,programDays,programTimes,mountArrivals(){throw new Error('Unexpected arrivals mount')},
+    unmountArrivals(node){arrivalsUnmounts.push(node);return unmountArrivals(node)},
     apiMedia(){throw new Error('Unexpected media read')},apiUpload(){throw new Error('Unexpected upload')},
     history:{state:null,pushState(value){this.state=value},replaceState(value){this.state=value},go(){}}});
   vm.runInContext(readFileSync(new URL('../live-history.js',import.meta.url),'utf8').replace('export function','function'),context);
   vm.runInContext(source.replace(/^import .*;\r?\n/gm,'').replace('export function initializeAdminLive','function initializeAdminLive')+'\nglobalThis.factory=initializeAdminLive;',context);
-  return{app:context.factory({setAdminView:()=>true}),document,window,root,logs};
+  return{app:context.factory({setAdminView:()=>true}),document,window,root,logs,arrivalsUnmounts};
 }
 function prepared(){
   const r=memberRuntime();
@@ -51,6 +53,8 @@ test('LIVE regression actual Admin load renders populated and empty states',asyn
     const fixed=harness(payload);
     assert.equal((await fixed.app.load()).event.id,'e');
     assert.equal(fixed.logs.length,0,JSON.stringify(fixed.logs.map(row=>row.map(value=>value?.stack||String(value)))));
+    assert.ok(fixed.arrivalsUnmounts.length>0);
+    assert.ok(fixed.arrivalsUnmounts.every(node=>node===fixed.root));
     assert.match(fixed.root.innerHTML,/Show &amp; Shine|Show & Shine/);
     const rendered=fixed.root.innerHTML;
     const notice='<p role="status">Přehled se nepodařilo obnovit.</p>';
@@ -62,6 +66,8 @@ test('LIVE regression actual Admin load renders populated and empty states',asyn
     const empty=harness(payload);
     assert.equal((await empty.app.load()).event.id,'e');
     assert.equal(empty.logs.length,0,JSON.stringify(empty.logs.map(row=>row.map(value=>value?.stack||String(value)))));
+    assert.ok(empty.arrivalsUnmounts.length>0);
+    assert.ok(empty.arrivalsUnmounts.every(node=>node===empty.root));
     assert.match(empty.root.innerHTML,/Show &amp; Shine|Show & Shine/);
   }finally{r.db.close()}
 });
