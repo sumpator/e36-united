@@ -35,8 +35,14 @@ for(const width of [360,390,820,1440])for(const theme of ['light','dark'])test(`
   await expect(page.locator('[data-live-camera]')).toHaveCount(0);
   await expect(page.getByRole('textbox',{name:'Hledat účastníka',exact:true})).toHaveCount(1);
   await page.screenshot({path:info.outputPath('participants.png'),fullPage:true});
-  failList=true;await page.locator('[data-live-member-search] button').click();await expect(page.locator('[data-live-member-results]')).toContainText('Izolovaná chyba');failList=false;
-  await page.locator('[data-live-choose-member]').click();await page.locator('[data-live-select-member="car:car-paid"]').click();
+  const picker=page.locator('[data-admin-live-body] .admin-live-picker'),pickerAlert=picker.getByRole('alert'),retainedCard=picker.locator('[data-live-select-member="car:car-paid"]');
+  // Search errors belong beside the retained cards, not inside their result list.
+  failList=true;await picker.locator('[data-live-member-search] button').click();
+  await expect(pickerAlert).toBeVisible();await expect(pickerAlert).toHaveText('Izolovaná chyba načítání');await expect(retainedCard).toBeVisible();
+  failList=false;await picker.locator('[data-live-search-retry]').click();
+  // A retained card alone does not prove that the fresh retry has finished.
+  await expect(picker.locator('[data-live-search-results]')).toHaveAttribute('aria-busy','false');
+  await expect(pickerAlert).toHaveCount(0);await expect(retainedCard).toBeVisible();await retainedCard.click();
   await expect(page.locator('[data-live-start]')).toBeEnabled();await page.screenshot({path:info.outputPath('confirm-car.png'),fullPage:true});
   await page.locator('[data-live-start]').click();await expect(page.locator('[data-live-judge-form]')).toBeVisible();
   expect(r.db.prepare('SELECT COUNT(*) n FROM event_arrivals').get().n).toBe(0);
@@ -92,8 +98,12 @@ test('guest creation, gate with LIVE off, errors and private exports',async({pag
   await page.locator('[data-admin-live-more-toggle]').click();await page.locator('[data-admin-live-exit]').click();
   await page.goto('/admin.html?section=arrivals&event='+EVENT);await expect(page.locator('[data-gate-find]')).toBeVisible();
   await page.locator('[data-gate-find]').click();await expect(page.locator('[data-gate-pick="member:fixture-paid"]')).toBeVisible();
-  failList=true;await page.locator('[data-gate-lookup] button').click();await expect(page.locator('.gate-card')).toContainText('Seznam se nepodařilo načíst');failList=false;
-  await page.locator('[data-gate-lookup] button').click();
+  const gate=page.locator('[data-admin-panel=arrivals]'),gateResults=gate.locator('[data-gate-search-results]'),gateAlert=gateResults.getByRole('alert'),retainedCard=gate.locator('[data-gate-pick="member:fixture-paid"]');
+  // Arrivals likewise keeps cards visible while its own search alert reports failure.
+  failList=true;await gate.locator('[data-gate-lookup] button').click();
+  await expect(gateAlert).toBeVisible();await expect(gateAlert).toHaveText('Seznam se nepodařilo načíst. Zkus hledání znovu.');await expect(retainedCard).toBeVisible();
+  failList=false;await gate.locator('[data-gate-lookup] button').click();
+  await expect(gateResults).toHaveAttribute('aria-busy','false');await expect(gateAlert).toHaveCount(0);await expect(retainedCard).toBeVisible();
   const guest=r.db.prepare("SELECT id FROM live_competition_cars WHERE participant_name='Nový host bez účtu'").get().id;
   await page.locator('[data-gate-pick="car:'+guest+'"]').click();await expect(page.locator('[name=carId]')).toHaveValue(guest);
   await page.locator('.gate-confirm-actions button[type=submit]').evaluate(el=>el.scrollIntoView({block:'center'}));
