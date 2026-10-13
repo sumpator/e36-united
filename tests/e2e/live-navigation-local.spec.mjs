@@ -8,18 +8,18 @@ const photo=readFileSync(new URL('../../assets/images/showshine/ss_sedan.webp',i
 const headers={'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'Authorization,Content-Type','Access-Control-Allow-Methods':'GET,POST,PUT,PATCH,OPTIONS'};
 const origin='https://e36united.cz',auth={uid:'a'},keys=['overall','condition','cohesion','originality'];
 async function fixture(page){
- const c=await commandFixture(page),control={starts:0,closes:0,saves:0,uploads:0,startMode:'',closeMode:'',delay:0,qrDelay:0,readFailure:false,photoFailure:false};
+ const c=await commandFixture(page),control={starts:0,closes:0,saves:0,uploads:0,startMode:'',closeMode:'',delay:0,memberReads:0,response:null,readFailure:false,photoFailure:false};
  c.r.db.exec("UPDATE events SET live_enabled=1 WHERE id='e'; UPDATE cars SET body='Sedan'; UPDATE reservations SET car_id='c' WHERE id='r'; INSERT INTO member_qr_identities(member_id,token) VALUES('m','123456789012345678901234567890123456789012345678')");
  const objects=new Map();c.r.env.MEDIA.put=async(key,stream)=>objects.set(key,await new Response(stream).arrayBuffer());c.r.env.MEDIA.delete=async key=>objects.delete(key);
  await page.route('https://api.e36united.cz/api/**',async route=>{
   const q=route.request(),url=new URL(q.url()),p=url.pathname;if(!p.includes('/live'))return route.fallback();
   if(q.method()==='OPTIONS')return route.fulfill({status:204,headers});
-  const req=new Request(q.url(),{method:q.method(),headers:q.headers(),...(q.postDataBuffer()?{body:q.postDataBuffer()}:{})});let response;
+  const req=new Request(q.url(),{method:q.method(),headers:q.headers(),...(q.postDataBuffer()?{body:q.postDataBuffer()}:{})});let response,memberRead=0;
   if(p==='/api/admin/live'){if(control.readFailure)return route.fulfill({headers,status:503,json:{error:'synthetic_unavailable'}});response=await live.getAdminLive(c.r.env,url,origin)}
   else if(p==='/api/live')response=await live.getMemberLive(c.r.env,auth,origin);
   else if(p==='/api/live/state')response=await live.getLiveState(c.r.env,auth,url,origin);
-  else if(p.endsWith('/live/members'))response=await live.searchLiveMembers(c.r.env,'e',url,origin);
-  else if(p.endsWith('/live/qr')){if(control.qrDelay)await new Promise(r=>setTimeout(r,control.qrDelay));response=await live.resolveLiveQr(req,c.r.env,'e',origin)}
+  else if(p.endsWith('/live/members')){memberRead=++control.memberReads;response=await live.searchLiveMembers(c.r.env,'e',url,origin)}
+  else if(p.endsWith('/live/qr'))response=await live.resolveLiveQr(req,c.r.env,'e',origin);
   else if(p.endsWith('/live/start')){
    control.starts++;if(control.delay)await new Promise(r=>setTimeout(r,control.delay));
    if(control.startMode==='reject')return route.fulfill({headers,status:409,json:{error:'presence_required'}});
@@ -35,12 +35,51 @@ async function fixture(page){
    control.uploads++;if(control.photoFailure&&control.uploads===2)return route.fulfill({headers,status:503,json:{error:'synthetic_photo_failure'}});
    response=await live.uploadJudgePhoto(req,c.r.env,auth,p.split('/').at(-2),origin);
   }else return route.fulfill({headers,contentType:'image/webp',body:photo});
-  return route.fulfill({headers,status:response.status,body:await response.text()});
+  const body=await response.text();if(control.response)await control.response({request:q,response,body,memberRead});
+  return route.fulfill({headers,status:response.status,body});
  });
  await page.route('https://api.e36united.cz/api/admin/members/*/media/**',route=>route.fulfill({headers,contentType:'image/webp',body:photo}));
  const errors=[];page.on('pageerror',error=>errors.push(error.message));
  return {...c,control,errors,async open(){await page.goto('/admin.html?section=live&event=e');await page.locator('[data-admin-live-entry-confirm]').click();await expect(page.locator('[data-admin-live-mode]')).toBeVisible()},async finish(){expect(errors).toEqual([]);await page.close();c.r.db.close()}};
 }
+
+async function navigationSnapshot(page){return page.evaluate(()=>({navigation:history.state?.liveNavigation,length:history.length}))}
+async function trackMemberDelivery(page,path){
+ await page.evaluate(async path=>{const {apiRequest}=await import('/admin/api.js?v=20260930-arrivals2');window.__heldHistoryMemberRead=apiRequest(path)},path);
+}
+test('history records categories before member read settles',async({page},info)=>{
+ const c=await fixture(page),ready=Promise.withResolvers(),release=Promise.withResolvers();let tracked=false;
+ try{
+  await c.open();await expect.poll(()=>c.control.memberReads).toBeGreaterThan(0);const next=c.control.memberReads+1,stored=cancelData(c);
+  c.control.response=async({request,response,body,memberRead})=>{if(memberRead!==next)return;ready.resolve({path:new URL(request.url()).pathname+new URL(request.url()).search,status:response.status,members:JSON.parse(body).members.length});await release.promise};
+  await page.locator('[data-live-discipline=show_shine]').click();const read=await ready.promise;expect(read.status).toBe(200);expect(read.members).toBeGreaterThan(0);
+  await trackMemberDelivery(page,read.path);tracked=true;
+  await page.locator('[data-live-select-category=Sedan]').click();await page.goBack();
+  const observed={...(await navigationSnapshot(page)),categories:await page.locator('[data-live-select-category]').count(),title:await page.locator('[data-admin-live-section-title]').textContent()};
+  await info.attach('held-members-back-state',{body:JSON.stringify(observed,null,2),contentType:'application/json'});await page.screenshot({path:info.outputPath('held-members-back.png')});
+  await expect(page.locator('[data-live-select-category]')).toHaveCount(7);const beforeRelease=await navigationSnapshot(page);
+  release.resolve();await page.evaluate(()=>window.__heldHistoryMemberRead);
+  await expect(page.locator('[data-live-select-category]')).toHaveCount(7);expect(await navigationSnapshot(page)).toEqual(beforeRelease);
+  await page.goForward();await cancelChoice(page);await page.goBack();await expect(page.locator('[data-live-select-category]')).toHaveCount(7);
+  expect(cancelData(c)).toEqual(stored);expectNoUnexpectedClientErrors(c.observations);
+ }finally{release.resolve();if(tracked)await page.evaluate(()=>window.__heldHistoryMemberRead);await c.finish()}
+});
+
+test('history records picker before member read settles',async({page})=>{
+ const c=await fixture(page),ready=Promise.withResolvers(),release=Promise.withResolvers();let tracked=false;
+ try{
+  await c.open();await page.locator('[data-live-discipline=show_shine]').click();await page.locator('[data-live-select-category=Sedan]').click();const stored=cancelData(c);
+  c.control.response=async({request,response,body})=>{const url=new URL(request.url());if(!url.pathname.endsWith('/live/members')||url.searchParams.get('category')!=='Sedan')return;ready.resolve({path:url.pathname+url.search,status:response.status,members:JSON.parse(body).members.length});await release.promise};
+  await page.locator('[data-live-choose-member]').click();const read=await ready.promise;expect(read.status).toBe(200);expect(read.members).toBeGreaterThan(0);await trackMemberDelivery(page,read.path);tracked=true;
+  await expect.poll(()=>page.evaluate(()=>history.state?.liveNavigation?.view?.phase)).toBe('picker');await page.goBack();await cancelChoice(page);const beforeRelease=await navigationSnapshot(page);
+  release.resolve();await page.evaluate(()=>window.__heldHistoryMemberRead);await cancelChoice(page);expect(await navigationSnapshot(page)).toEqual(beforeRelease);
+  c.control.response=null;await page.goForward();await expect(page.locator('[data-live-member-search]')).toBeVisible();await expect.poll(()=>page.evaluate(()=>history.state?.liveNavigation?.view?.phase)).toBe('picker');
+  await page.locator('[data-live-member-search] button').click();await expect(page.locator('[data-live-search-results]')).toHaveAttribute('aria-busy','false');await page.locator('[data-live-select-member="car:c"]').click();
+  await expect(page.locator('[data-live-member="car:c"]')).toBeVisible();await page.getByRole('button',{name:'Zrušit výběr',exact:true}).click();await cancelChoice(page);
+  await page.goBack();await expect(page.locator('[data-live-select-category]')).toHaveCount(7);await page.goForward();await cancelChoice(page);
+  expect(cancelData(c)).toEqual(stored);expectNoUnexpectedClientErrors(c.observations);
+ }finally{release.resolve();if(tracked)await page.evaluate(()=>window.__heldHistoryMemberRead);await c.finish()}
+});
 
 test('navigation, QR, email, confirmed score and next car',async({page})=>{
  test.setTimeout(120000);const c=await fixture(page);page.on('dialog',d=>d.accept());
@@ -130,18 +169,21 @@ test('extra member real Back Forward, cancel and saved dialog',async({page})=>{
  }finally{await page.close();c.r.db.close()}
 });
 test('extra Admin real back from judge, exit and interrupted QR',async({page})=>{
- const c=await fixture(page);page.on('dialog',d=>d.accept());try{
+ const c=await fixture(page),qrReady=Promise.withResolvers(),releaseQr=Promise.withResolvers();page.on('dialog',d=>d.accept());
+ c.control.response=async({request,response})=>{if(!new URL(request.url()).pathname.endsWith('/live/qr'))return;qrReady.resolve(response.status);await releaseQr.promise};
+ try{
   await c.open();await page.locator('[data-live-discipline=show_shine]').click();await page.locator('[data-live-select-category=Sedan]').click();
-  c.control.qrDelay=500;
   await page.locator('.admin-live-manual summary').click();await page.locator('[data-live-qr] input').fill('E36U1:123456789012345678901234567890123456789012345678');await page.locator('[data-live-qr] button').click();
+  expect(await qrReady.promise).toBe(200);
   await page.goBack();await expect(page.locator('[data-live-select-category]')).toHaveCount(7);
-  await page.waitForTimeout(650);await expect(page.locator('[data-live-start]')).toHaveCount(0);await expect(page.locator('[data-live-member-search]')).toHaveCount(0);
+  const beforeQr=await navigationSnapshot(page),delivered=page.waitForResponse(r=>r.url().endsWith('/live/qr')&&r.request().method()==='POST');releaseQr.resolve();await(await delivered).finished();await page.evaluate(()=>new Promise(requestAnimationFrame));
+  await expect(page.locator('[data-live-select-category]')).toHaveCount(7);expect(await navigationSnapshot(page)).toEqual(beforeQr);await expect(page.locator('[data-live-start]')).toHaveCount(0);await expect(page.locator('[data-live-member-search]')).toHaveCount(0);
   await page.locator('[data-live-select-category=Sedan]').click();await page.locator('[data-live-choose-member]').click();await page.locator('[data-live-select-member="car:c"]').click();await page.locator('[data-live-start]').click();
   await expect(page.locator('[data-live-judge-form]')).toBeVisible();await page.goBack();await expect(page.locator('[data-live-resume]')).toBeVisible();
   await page.goBack();await expect(page.locator('[data-live-discipline]')).toHaveCount(2);
   await page.goBack();await expect(page.locator('.live-exit-dialog')).toBeVisible();await page.locator('[data-live-stay]').click();await expect(page.locator('[data-live-discipline]')).toHaveCount(2);
   await page.goBack();await page.locator('[data-live-leave]').click();await expect(page.locator('[data-admin-live-mode]')).toBeHidden();
- }finally{await c.finish()}
+ }finally{releaseQr.resolve();await c.finish()}
 });
 test('edge simulated camera release, lost start and failed close',async({page})=>{
  const c=await fixture(page);page.on('dialog',d=>d.accept());try{

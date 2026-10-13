@@ -6,7 +6,7 @@ import {fileURLToPath} from 'node:url';
 import {resolve,relative,isAbsolute} from 'node:path';
 
 import { ADMIN_MODULE_RELEASES } from './admin-module-releases.mjs';
-export const ADMIN_RELEASE_TOKEN='20261012-search1';
+export const ADMIN_RELEASE_TOKEN='20261013-history1';
 const origin='https://e36united.cz';
 const root=fileURLToPath(new URL('../',import.meta.url));
 const firebase=/^https:\/\/www\.gstatic\.com\/firebasejs\/[^/]+\/firebase-(app|auth)\.js$/;
