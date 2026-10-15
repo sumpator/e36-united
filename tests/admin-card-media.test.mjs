@@ -4,17 +4,17 @@ import {readFileSync} from 'node:fs';
 
 // Execute the unchanged manager with controlled IO/DOM ownership, not a duplicate implementation.
 const source=readFileSync(new URL('../admin/member-cards.js',import.meta.url),'utf8').replace(/^import .*;\r?$/gm,'').replace(/export /g,'');
-function harness({holdDecode=false}={}){
+function harness({holdDecode=false,holdLoad=false}={}){
  const requests=[],revokes=[],images=[];let observer,created=0;
  const state={currentUser:{uid:'a'},sessionGeneration:1,denied:false};
  const api=(path,{signal})=>new Promise(resolve=>requests.push({path,signal,resolve}));
  class Observer{constructor(cb){this.cb=cb;observer=this}observe(){}unobserve(){}disconnect(){this.disconnected=true}}
  const urls={createObjectURL:()=>`blob:${++created}`,revokeObjectURL:url=>{assert.equal(images.some(i=>i.isConnected&&i.src===url),false);revokes.push(url)}};
- const decoders=[];class Image{decode(){return holdDecode?new Promise(resolve=>decoders.push(resolve)):Promise.resolve()}removeAttribute(){this.src=''}}
+ const decoders=[],loaders=[];class Image{constructor(){loaders.push(this)}set src(value){this.value=value;if(value&&!holdLoad)queueMicrotask(()=>this.onload?.())}get src(){return this.value}decode(){return holdDecode?new Promise(resolve=>decoders.push(resolve)):Promise.resolve()}removeAttribute(){this.src=''}}
  const manager=new Function('apiRequest','adminState','IntersectionObserver','URL','Image',source+';return createCardMedia();')(api,state,Observer,urls,Image);
  const img=()=>{const i={dataset:{cardMedia:'/private/photo',cardVersion:'1'},isConnected:true,src:'',remove(){this.isConnected=false},removeAttribute(name){if(name==='src')this.src=''}};images.push(i);return i};
  const root=list=>({querySelectorAll:()=>list});
- return {manager,requests,revokes,img,root,state,decoders,get created(){return created},visible:list=>observer.cb(list.map(target=>({target,isIntersecting:true}))),get observer(){return observer}};
+ return {manager,requests,revokes,img,root,state,decoders,loaders,get created(){return created},visible:list=>observer.cb(list.map(target=>({target,isIntersecting:true}))),get observer(){return observer}};
 }
 // One event-loop turn drains the promise chain; no elapsed-time assumption.
 const settled=()=>new Promise(setImmediate);
@@ -35,4 +35,14 @@ test('card photo late response cannot assign after close, actor change or denied
 test('rapid close during off-DOM decode defers exactly one revoke and never exposes the retired URL',async()=>{
  const h=harness({holdDecode:true}),img=h.img();h.manager.hydrate(h.root([img]));h.visible([img]);h.requests[0].resolve(new Blob(['photo']));await settled();assert.equal(h.decoders.length,1);assert.equal(img.src,'');
  h.manager.clear();h.manager.clear();assert.deepEqual(h.revokes,[]);h.decoders[0]();await settled();assert.deepEqual(h.revokes,['blob:1']);assert.equal(img.src,'');h.manager.clear();assert.deepEqual(h.revokes,['blob:1']);
+});
+test('decode before load cannot expose or revoke a blob until its source load settles',async()=>{
+ const h=harness({holdLoad:true}),img=h.img();h.manager.hydrate(h.root([img]));h.visible([img]);h.requests[0].resolve(new Blob(['photo']));await settled();
+ assert.equal(img.src,'','decoding alone does not mean the source load event has completed');
+ h.manager.clear();assert.deepEqual(h.revokes,[],'an outstanding source consumer still owns the URL');
+ h.loaders[0].onload();await settled();assert.equal(img.src,'');assert.deepEqual(h.revokes,['blob:1']);h.manager.clear();assert.deepEqual(h.revokes,['blob:1']);
+});
+test('failed source load releases its URL once without exposing a decoded but failed image',async()=>{
+ const h=harness({holdLoad:true}),img=h.img();h.manager.hydrate(h.root([img]));h.visible([img]);h.requests[0].resolve(new Blob(['photo']));await settled();h.loaders[0].onerror();await settled();
+ assert.equal(img.src,'');assert.deepEqual(h.revokes,['blob:1']);h.manager.clear();assert.deepEqual(h.revokes,['blob:1']);
 });

@@ -3,7 +3,7 @@ import { accommodationVisualMarkup, bindAccommodationVisualFallbacks } from '../
 import { createPhotoBatch, renderPhotoBatch } from '../../photo-batch.js?v=20260928-flow1';
 import { apiBaseUrl, apiRequest, apiUpload } from '../api.js?v=20260930-arrivals2';
 import { adminState } from '../state.js?v=20260930-arrivals2';
-import { setDenied } from '../shell.js?v=20260930-arrivals2';
+import { setDenied } from '../shell.js?v=20261014-admin1';
 import { $, escapeHtml, formatMoney, numeric, toast } from '../ui.js?v=20260924-merch2';
 
 const accommodationPhotoSelections=new Map();

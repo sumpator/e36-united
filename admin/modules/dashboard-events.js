@@ -3,7 +3,7 @@ import { renderAdmissionSettings } from './admission-settings.js?v=20260930-arri
 import { adminActionCountState, adminModerationCounts, paymentNeedsAttention, reservationMatchesFilter } from '../../admin-view-model.js?v=20260930-arrivals2';
 import { apiRequest } from '../api.js?v=20260930-arrivals2';
 import { adminState } from '../state.js?v=20260930-arrivals2';
-import { setDenied } from '../shell.js?v=20260930-arrivals2';
+import { setDenied } from '../shell.js?v=20261014-admin1';
 import { $, $$, escapeHtml, formatDate, formatMoney, numeric, toast } from '../ui.js?v=20260924-merch2';
 
 

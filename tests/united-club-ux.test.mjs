@@ -251,7 +251,7 @@ test('Member Card keeps three core stats with the requested typography lift',()=
 test('Admin Photos contains two internal queues without another top-level navigation target',()=>{
   assert.match(adminHtml,/data-gallery-mode="community"[\s\S]*Komunitní fotky/);
   assert.match(adminHtml,/data-gallery-mode="history"[\s\S]*Ověření účasti/);
-  assert.match(read('admin/command-shell.js'),/data-community-toggle aria-expanded="false"/);
+  assert.match(read('admin/command-shell.js'),/command-nav-group">KOMUNITA/);
   assert.match(read('admin/command-shell.js'),/\.admin-section-nav,\.portal-nav-sheet-list/);
   assert.equal((adminHtml.match(/data-portal-target="gallery"/g)||[]).length,0);
   assert.match(read('admin/destinations.js'),/views:\['members','gallery','club','united-club'\]/);

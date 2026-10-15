@@ -19,7 +19,7 @@
   <link href="admin/command-polish.css?v=20260923-theme2" rel="stylesheet"/>
   <link href="admin/compact-overviews.css?v=20260923-theme2" rel="stylesheet"/>
   <link href="admin/live.css?v=20260930-flow2" rel="stylesheet"/>
-<link rel="stylesheet" href="appearance.css?v=20260923-theme2"/><link rel="stylesheet" href="portal-workspace.css?v=20261011-ci109"/><link rel="stylesheet" href="photo-batch.css?v=20260928-flow1"/></head>
+<link rel="stylesheet" href="appearance.css?v=20260923-theme2"/><link rel="stylesheet" href="portal-workspace.css?v=20261011-ci109"/><link rel="stylesheet" href="photo-batch.css?v=20260928-flow1"/><link rel="stylesheet" href="admin/center-visual.css?v=20261014-admin1"/></head>
 <body class="admin-page">
   <header class="site-header scrolled admin-header">
     <div class="container nav">
@@ -216,8 +216,8 @@
           <section class="admin-view-panel" data-admin-panel="merch" hidden><h2>Merchandising</h2><div class="merch-actions"><button type="button" data-merch-admin-tab="orders">Objednávky</button><button type="button" data-merch-admin-tab="products">Produkty</button><button type="button" data-merch-admin-tab="settings">Nastavení</button></div><div data-merch-order-controls><form data-merch-search-form><label>Číslo / člen / VS<input data-merch-search type="search"></label><select data-merch-order-filter aria-label="Stav objednávek"><option value="all">Vše</option><option value="active">Aktivní</option><option value="unpaid">Nezaplacené</option><option value="fulfill">K vyřízení</option><option value="history">Historie</option></select><button>Hledat</button></form></div><p role="status" data-merch-admin-status></p><div data-merch-admin-body></div></section>
 
           <section class="admin-event-settings admin-view-panel" data-admin-panel="event" hidden><section class="admin-config-card gate-app" data-admission-settings></section>
-            <div class="admin-section-head"><div><span class="admin-kicker">EVENT SETTINGS</span><h2>United <span data-event-settings-year>—</span>.</h2><p>Změny platí jen pro vybraný ročník a zapisují se do admin auditu.</p></div><span class="admin-view-label">EVENT</span></div>
-            <div class="portal-event-summary" data-settings-context></div><section class="admin-config-card portal-live-row"><h3>UNITED LIVE</h3><p data-event-live-context>Ověř stav vybraného ročníku.</p><button class="admin-button" data-event-live-refresh type="button">Obnovit stav LIVE</button><button class="admin-button" data-event-live-toggle disabled type="button">Načítám…</button></section><div class="admin-view-body" id="admin-settings-content"><form class="admin-config-card admin-config-form" data-event-settings-form>
+            <div class="admin-settings-context-panel"><div class="admin-section-head"><div><span class="admin-kicker">EVENT SETTINGS</span><h2>United <span data-event-settings-year>—</span>.</h2><p>Změny platí jen pro vybraný ročník a zapisují se do admin auditu.</p></div><span class="admin-view-label">EVENT</span></div>
+            <div class="portal-event-summary" data-settings-context></div></div><section class="admin-config-card portal-live-row"><h3>UNITED LIVE</h3><p data-event-live-context>Ověř stav vybraného ročníku.</p><button class="admin-button" data-event-live-refresh type="button">Obnovit stav LIVE</button><button class="admin-button" data-event-live-toggle disabled type="button">Načítám…</button></section><div class="admin-view-body" id="admin-settings-content"><form class="admin-config-card admin-config-form" data-event-settings-form>
               <label class="admin-field"><span>Registrace</span><select name="registrationStatus"><option value="open">Otevřené</option><option value="closed">Uzavřené</option></select></label>
               <label class="admin-field"><span>Kapacita registrací</span><input min="0" name="reservationCapacity" required type="number"/></label>
               <label class="admin-field"><span>Nocí · full weekend</span><input max="14" min="0" name="fullWeekendNights" required type="number"/></label>
@@ -351,6 +351,6 @@
     </aside>
   </div>
   <div aria-live="polite" class="admin-toast" data-toast role="status"></div>
-  <link rel="stylesheet" href="admin/arrivals.css?v=20260930-picker1"><script src="admin.js?v=20261013-history1" type="module"></script>
+  <link rel="stylesheet" href="admin/arrivals.css?v=20260930-picker1"><script src="admin.js?v=20261014-admin1" type="module"></script>
 </body>
 </html>

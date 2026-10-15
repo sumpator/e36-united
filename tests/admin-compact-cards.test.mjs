@@ -5,13 +5,24 @@ import {listAdminMembers} from '../worker/admin/members.js';
 import {memberCardsSql} from '../worker/admin/member-cards.js';
 import {getAdminHistoryClaims,getAdminGallery} from '../worker/domains.js';
 import {reservationListQuery} from '../worker/admin/lists.js';
-import {compactMemberDetails,compactMemberIdentity,compactMemberPhoto} from '../admin/member-cards.js';
+import {compactMemberDetails,compactMemberIdentity,compactMemberPhoto,memberInitials} from '../admin/member-cards.js';
+
+test('member initials use the person name, then nickname, at most two safe Unicode characters',()=>{
+ assert.equal(memberInitials({name:'  Žaneta Černá ',nickname:'Auto'}),'ŽČ');
+ assert.equal(memberInitials({nickname:'Řidič United'}),'ŘU');
+ assert.equal(memberInitials({name:'Jméno Prostřední Příjmení'}),'JP');
+ assert.equal(memberInitials({name:'Z\u030caneta C\u030cerna'}),'ŽČ');
+ assert.equal(memberInitials({}),'');
+ const safe=compactMemberPhoto({name:'<img src=x>',id:'m',card:{}});
+ assert.match(safe,/compact-member-placeholder/);assert.match(safe,/compact-member-initials">&lt;S<\/span>/);
+ assert.doesNotMatch(safe,/<img /);
+});
 
 test('compact member presentation keeps identity, photo and concise actions separate',()=>{
  const member={memberId:'m',nickname:'Řidič',name:'Skutečné jméno',email:'member@example.invalid',card:{eventId:'e',attendances:2,reservationStatus:'pending',pending:{reservations:1,attendance:0,sns:0,photos:0},photo:{mediaPath:'/api/admin/members/m/media/cars/c/p',version:'1'}}};
  assert.match(compactMemberIdentity(member),/>Řidič<\/button><p>Skutečné jméno<\/p>/);assert.doesNotMatch(compactMemberIdentity(member),/mailto:|data-member-pending/);
  assert.match(compactMemberPhoto(member),/data-card-media="\/api\/admin\/members\/m\/media\/cars\/c\/p"/);
- const details=compactMemberDetails(member);assert.match(details,/mailto:member@example\.invalid/);assert.match(details,/United: 2×/);assert.match(details,/Čeká na schválení/);assert.match(details,/data-member-pending="reservations"/);
+ const details=compactMemberDetails(member);assert.match(details,/mailto:member@example\.invalid/);assert.match(details,/United: 2×/);assert.match(details,/Čeká na schválení/);assert.match(details,/data-member-pending="reservations"/);assert.match(details,/>Ke kontrole: 1 →<\/button>/);assert.match(details,/aria-label="Ke kontrole: 1\. Registrace: 1; účast: 0; S&amp;S: 0; fotky: 0"/);
 });
 
 test('compact page projection keeps separate pending components, primary photo order and event scope without writes',async()=>{

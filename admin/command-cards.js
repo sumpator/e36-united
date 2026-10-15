@@ -1,7 +1,7 @@
 import { escapeHtml as esc } from './ui.js?v=20260924-merch2';
 import { showValue } from './dashboard-data.js?v=20260924-merch2';
-import { canonicalMemberLink } from './member-detail.js?v=20261011-ui1';
-import { commandIcon } from './command-icons.js?v=20260924-merch2';
+import { canonicalMemberLink } from './member-detail.js?v=20261014-admin1';
+import { commandIcon } from './command-icons.js?v=20261014-admin1';
 import { formatDate } from './ui.js?v=20260924-merch2';
 export const metricInfo = text => `<details class="command-info"><summary>O údajích</summary><p>${esc(text)}</p></details>`;
 export function recentPaymentLabel(row) {

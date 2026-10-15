@@ -62,7 +62,7 @@ test('admin has one persistent navigation target for each real agenda and one de
   assert.match(shell,/const liveButton = \(\) => `<button class="command-nav-live" data-portal-target="live"/);
   assert.ok(shell.indexOf("navButton('settings', 'Nastavení')")<shell.indexOf('liveButton()'));
   assert.ok(shell.indexOf('liveButton()')<shell.indexOf('logoutButton()'));
-  assert.match(shell,/data-community-toggle aria-expanded="false"/);
+  assert.match(shell,/command-nav-group">KOMUNITA/);assert.doesNotMatch(shell,/data-community-toggle/);
   assert.equal((html.match(/data-portal-target=/g)||[]).length,0); // One generated registry for desktop + mobile.
   for(const view of ADMIN_VIEW_IDS)assert.ok(ADMIN_AREAS[areaFor(view)].views.includes(view));
   assert.match(js,/ADMIN_AREAS\[area\]\.views\.map/);

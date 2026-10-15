@@ -1,6 +1,6 @@
 import { createLiveHistory } from '../../live-history.js?v=20260930-flow2';
 import { programDays, programTimes } from '../../live-program.js?v=20260928-live2';
-import { mountArrivals, unmountArrivals } from './arrivals.js?v=20261012-search1';
+import { mountArrivals, unmountArrivals } from './arrivals.js?v=20261014-admin1';
 import { createPhotoBatch } from '../../photo-batch.js?v=20260928-flow1';
 import { apiMedia, apiRequest, apiUpload } from '../api.js?v=20260930-arrivals2';
 import { adminState } from '../state.js?v=20260930-arrivals2';
