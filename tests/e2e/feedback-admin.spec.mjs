@@ -23,7 +23,7 @@ test('History and S&S pending badge is visible on desktop/mobile and updates aft
   const desktop=page.locator('.admin-section-nav [data-command-badge="community"]');await expect(desktop).toBeVisible();await expect(desktop).toHaveText('1');
   await page.setViewportSize({width:390,height:844});await page.locator('[data-portal-menu-open]').click();
   const mobile=page.locator('.portal-nav-sheet [data-command-badge="community"]');await expect(mobile).toBeVisible();await expect(mobile).toHaveText('1');
-  await page.locator('.portal-nav-sheet [data-community-toggle]').click();await page.locator('.portal-nav-sheet [data-admin-jump="club"]').click();
+  await page.locator('.portal-nav-sheet [data-admin-jump="club"]').click();
   const card=page.locator('[data-history-id="pending-claim"]');await card.locator('summary').click();
   await card.locator('[data-history-component="attendance"][data-history-action="approved"]').click();
   await expect(page.locator('[data-attention-history]')).toHaveText('1');
