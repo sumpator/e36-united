@@ -9,7 +9,7 @@ export async function bridge(page,env,uid){
   const headers={'access-control-allow-origin':'*','access-control-allow-headers':'*','access-control-allow-methods':'GET,POST,PUT,PATCH,OPTIONS'};
   if(r.method()==='OPTIONS')return route.fulfill({status:204,headers});
   try{const request=new Request(r.url(),{method:r.method(),headers:r.headers(),...(r.postData()?{body:r.postData()}: {})});
-   const response=r.method()==='GET'&&url.pathname==='/api/merch/catalog'?await publicMerch(env,url,'https://e36united.cz'):await routeMerch({request,env,url,auth:{uid},origin:'https://e36united.cz'},url.pathname.startsWith('/api/admin/'));
+   const response=r.method()==='GET'&&(url.pathname==='/api/merch/catalog'||url.pathname.startsWith('/api/merch/media/'))?await publicMerch(env,url,'https://e36united.cz'):await routeMerch({request,env,url,auth:{uid},origin:'https://e36united.cz'},url.pathname.startsWith('/api/admin/'));
    await route.fulfill({status:response.status,headers:{...Object.fromEntries(response.headers),...headers},body:Buffer.from(await response.arrayBuffer())});
   }catch(error){await route.fulfill({status:500,headers,contentType:'application/json',body:JSON.stringify({message:error.message})});}
  });

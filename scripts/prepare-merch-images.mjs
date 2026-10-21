@@ -11,9 +11,13 @@ const sources={
  'stay-men-black':'V3M.jpg','stay-women-black':'V3W.jpg',
  'stay-women-blue':'stayUNITEDblue.jpg','stay-women-pink':'stayunitedpink.jpg',
  'cars-men-black':'V1M.jpg','cars-women-black':'V1W.jpg','cars-women-grey-v':'damskeVgrey.jpg',
+ 'not-fast-not-furious-dark-grey':'IMG_0617.jpeg','sweetest-things-dark-grey':'IMG_0618.jpeg',
 };
+const only=process.argv.find(value=>value.startsWith('--only='))?.slice(7).split(',');
+if(only?.some(id=>!Object.hasOwn(sources,id)))throw new Error('Unknown merch image in --only.');
+const selected=Object.entries(sources).filter(([id])=>!only||only.includes(id));
 await mkdir(root,{recursive:true});
-for(const [id,file] of Object.entries(sources)){
+for(const [id,file] of selected){
  const input=root+'originals/'+file;
  for(const [suffix,width] of [['card',480],['detail',1000],['zoom',1800]]){
   let pipeline=sharp(input).rotate();
@@ -34,4 +38,4 @@ for(const [id,file] of Object.entries(sources)){
   }
  }
 }
-console.log('10 original images retained; 30 responsive exports and 9 existing polo close-ups generated.');
+console.log(`${selected.length} originals retained; ${selected.length*3} responsive exports generated (plus existing polo close-ups where selected).`);

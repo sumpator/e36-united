@@ -1,0 +1,43 @@
+{
+  "purpose": "Offline content batch for the existing D1 catalog and Admin media upload; not a frontend catalog or a full-catalog seed.",
+  "products": [
+    {
+      "id": "not-fast-not-furious",
+      "name": "Not Fast, Not Furious",
+      "type": "Unisex tričko",
+      "description": "Růžové E36 s lenochodem a nápisem Not Fast, Not Furious — Stay United.",
+      "category": "Trička",
+      "gender": "unisex",
+      "status": "published",
+      "variants": [{
+        "id": "not-fast-not-furious-dark-grey",
+        "color": "Tmavě šedá",
+        "swatch": "#333333",
+        "priceMinor": 69000,
+        "sizes": ["S", "M", "L", "XL"],
+        "availability": "available",
+        "imageFile": "assets/images/merch/not-fast-not-furious-dark-grey-zoom.webp",
+        "originalFile": "assets/images/merch/originals/IMG_0617.jpeg"
+      }]
+    },
+    {
+      "id": "sweetest-things",
+      "name": "Sweetest Things",
+      "type": "Unisex tričko",
+      "description": "Spící člověk s United motivem a modrým E36 v myšlenkové bublině.",
+      "category": "Trička",
+      "gender": "unisex",
+      "status": "published",
+      "variants": [{
+        "id": "sweetest-things-dark-grey",
+        "color": "Tmavě šedá",
+        "swatch": "#333333",
+        "priceMinor": 69000,
+        "sizes": ["S", "M", "L", "XL"],
+        "availability": "available",
+        "imageFile": "assets/images/merch/sweetest-things-dark-grey-zoom.webp",
+        "originalFile": "assets/images/merch/originals/IMG_0618.jpeg"
+      }]
+    }
+  ]
+}

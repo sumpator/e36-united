@@ -1,0 +1,11 @@
+{
+  "page": "o-nas.html",
+  "before": {
+    "2025": "https://static.wixstatic.com/media/595239_230b2b99d02e4866971d9d929f3d3948~mv2.jpg/v1/fill/w_468%2Ch_263%2Cal_c%2Cq_80%2Cusm_0.66_1.00_0.01%2Cenc_avif%2Cquality_auto/u36_1.jpg",
+    "2026": "https://static.wixstatic.com/media/595239_ef82600a8c944b88aba5032ee9886f25~mv2.jpg/v1/fill/w_468%2Ch_263%2Cal_c%2Cq_80%2Cusm_0.66_1.00_0.01%2Cenc_avif%2Cquality_auto/u36_2.jpg"
+  },
+  "after": {
+    "2025": "assets/images/about/onas-2025-1600.webp",
+    "2026": "https://static.wixstatic.com/media/595239_230b2b99d02e4866971d9d929f3d3948~mv2.jpg/v1/fill/w_468%2Ch_263%2Cal_c%2Cq_80%2Cusm_0.66_1.00_0.01%2Cenc_avif%2Cquality_auto/u36_1.jpg"
+  }
+}
