@@ -4,7 +4,7 @@
   const key = 'e36UnitedAppearance';
   const root = document.documentElement;
   const valid = value => ['dark', 'light', 'system'].includes(value);
-  let preference = 'dark';
+  let preference = 'light';
   try { const saved = localStorage.getItem(key); if (valid(saved)) preference = saved; } catch {}
   const device = window.matchMedia('(prefers-color-scheme: light)');
   function apply() {
@@ -27,13 +27,13 @@
   device.addEventListener('change', () => { if (preference === 'system') apply(); });
   window.addEventListener('storage', event => {
     if (event.key !== key && event.key !== null) return;
-    preference = valid(event.newValue) ? event.newValue : 'dark';
+    preference = valid(event.newValue) ? event.newValue : 'light';
     apply();
   });
   // A restored/frozen document can miss storage and device-change events.
   // Reconcile the preference, resolved palette and native controls together.
   function reconcile() {
-    try { const saved=localStorage.getItem(key); preference=valid(saved)?saved:'dark'; } catch {}
+    try { const saved=localStorage.getItem(key); preference=valid(saved)?saved:'light'; } catch { preference='light'; }
     apply();
   }
   window.addEventListener('pageshow', reconcile);

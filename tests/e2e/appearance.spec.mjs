@@ -4,7 +4,63 @@ import {commandFixture} from './command-fixture.mjs';
 import {readFileSync} from 'node:fs';
 import * as live from '../../worker/domains/live.js';
 import {memberRuntime} from '../helpers/admin-member-runtime.mjs';
+import {waitForScreenshotContent} from './screenshot-readiness.mjs';
 const photo=readFileSync(new URL('../../assets/images/showshine/ss_coupe.webp',import.meta.url));
+
+for(const file of ['index','galerie','merch','o-nas','member','admin'])test(`appearance default first paint ${file}`,async({page})=>{
+ const c=file==='admin'?await commandFixture(page):{observations:await prepareE2ePage(page,{authenticated:file==='member'})};
+ await photos(page);await page.emulateMedia({colorScheme:'dark'});
+ await page.addInitScript(()=>{
+  window.appearanceFirstFrame=new Promise(resolve=>{
+   const inspect=()=>document.body?.children.length?resolve({theme:document.documentElement.dataset.theme,scheme:getComputedStyle(document.documentElement).colorScheme}):requestAnimationFrame(inspect);
+   requestAnimationFrame(inspect);
+  });
+ });
+ let release,reached;const pending=new Promise(resolve=>release=resolve),started=new Promise(resolve=>reached=resolve);
+ await page.route('**/appearance.js?*',async route=>{reached();await pending;await route.continue()});
+ try{
+  const navigation=page.goto(`/${file}.html`);await started;
+  // The parser is held at the blocking bootstrap, before any theme CSS arrives.
+  expect(await page.evaluate(()=>({theme:document.documentElement.dataset.theme,scheme:document.documentElement.style.colorScheme}))).toEqual({theme:'light',scheme:'light'});
+  release();await navigation;
+  expect(await page.evaluate(()=>window.appearanceFirstFrame)).toEqual({theme:'light',scheme:'light'});
+  await expect(page.locator('html')).toHaveAttribute('data-appearance','light');
+  expect(await page.evaluate(()=>localStorage.getItem('e36UnitedAppearance'))).toBeNull();
+  expect(c.observations.pageErrors).toEqual([]);
+ }finally{release();await page.close();c.r?.db.close()}
+});
+
+test('appearance saved modes and unavailable storage keep the declared fallback',async({page})=>{
+ const o=await prepareE2ePage(page);await photos(page);await page.emulateMedia({colorScheme:'dark'});await page.goto('/index.html');
+ const control=page.locator('.site-footer [data-appearance-select]');
+ for(const mode of ['dark','system','light']){
+  await control.selectOption(mode);await page.reload();await expect(control).toHaveValue(mode);
+  await expect(page.locator('html')).toHaveAttribute('data-theme',mode==='system'?'dark':mode);
+  if(mode==='system'){
+   await page.emulateMedia({colorScheme:'light'});await expect(page.locator('html')).toHaveAttribute('data-theme','light');
+   await page.emulateMedia({colorScheme:'dark'});await expect(page.locator('html')).toHaveAttribute('data-theme','dark');
+  }
+ }
+ await page.evaluate(()=>localStorage.setItem('e36UnitedAppearance','invalid'));await page.reload();await expect(page.locator('html')).toHaveAttribute('data-theme','light');
+ expect(await page.evaluate(()=>localStorage.getItem('e36UnitedAppearance'))).toBe('invalid');
+ await page.addInitScript(()=>{
+  const read=Storage.prototype.getItem;
+  Storage.prototype.getItem=function(key){if(key==='e36UnitedAppearance')throw new DOMException('Storage blocked','SecurityError');return read.call(this,key)};
+ });
+ await page.reload();await expect(page.locator('html')).toHaveAttribute('data-theme','light');
+ expect(o.pageErrors).toEqual([]);
+});
+
+for(const width of [1440,390])test(`appearance default public and portal ${width}`,async({page},info)=>{
+ const o=await prepareE2ePage(page,{authenticated:true});await photos(page);await page.emulateMedia({colorScheme:'dark'});await page.setViewportSize({width,height:900});
+ for(const [file,ready] of [['index.html','.hero'],['member.html?section=overview','[data-member-panel="overview"].is-active']]){
+  await page.goto('/'+file);await expect(page.locator(ready)).toBeVisible();await expect(page.locator('html')).toHaveAttribute('data-theme','light');
+  await waitForScreenshotContent(page,{label:file});
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width+1);
+  await page.screenshot({path:info.outputPath(file.startsWith('index')?'public-light.png':'portal-light.png'),animations:'disabled'});
+ }
+ expect(o.pageErrors).toEqual([]);expect(o.profileWrites).toEqual([]);
+});
 for(const width of [1440,390])test(`appearance polish photo workflow ${width}`,async({page})=>{
  const o=await prepareE2ePage(page,{authenticated:true});await seed(page);await photos(page);await page.setViewportSize({width,height:900});
  await page.route('**/api/gallery/mine?**',r=>r.fulfill({contentType:'application/json',headers:{'Access-Control-Allow-Origin':'*'},body:JSON.stringify({submissions:['approved','pending','rejected'].map((status,i)=>({id:`visual-${i}`,status,caption:'United – společný víkend',createdAt:'2026-09-20T12:00:00Z'})),pagination:{hasMore:false}})}));
@@ -64,11 +120,11 @@ for(const width of [1440,390])for(const file of ['index','galerie','merch','o-na
  if(file==='index'){await page.locator('#planer').scrollIntoViewIfNeeded();await capture(page,`planner-${width}`)}
 });
 test('appearance preference persists across entries and refresh without application requests',async({page})=>{
- await prepareE2ePage(page);await page.goto('/index.html');await expect(page.locator('html')).toHaveAttribute('data-theme','dark');
+ await prepareE2ePage(page);await page.emulateMedia({colorScheme:'dark'});await page.goto('/index.html');await expect(page.locator('html')).toHaveAttribute('data-theme','light');
  await expect(page.locator('.site-header [data-appearance-select]')).toHaveCount(0);
  await page.locator('.site-footer [data-appearance-select]').scrollIntoViewIfNeeded();
- const requests=[];page.on('request',r=>requests.push(r.url()));await page.locator('.site-footer [data-appearance-select]').selectOption('light');expect(requests.filter(url=>url.includes('/api/'))).toEqual([]);
- await page.goto('/galerie.html');await expect(page.locator('html')).toHaveAttribute('data-theme','light');await page.reload();await expect(page.locator('html')).toHaveAttribute('data-theme','light');
+ const requests=[];page.on('request',r=>requests.push(r.url()));await page.locator('.site-footer [data-appearance-select]').selectOption('dark');expect(requests.filter(url=>url.includes('/api/'))).toEqual([]);
+ await page.goto('/galerie.html');await expect(page.locator('html')).toHaveAttribute('data-theme','dark');await page.reload();await expect(page.locator('html')).toHaveAttribute('data-theme','dark');
  await page.setViewportSize({width:360,height:800});await page.locator('.menu-btn').click();await expect(page.locator('.nav-links [data-appearance-select]')).toHaveCount(0);await capture(page,'public-menu-360');
 });
 for(const width of [1440,390])test(`appearance approved registration ${width}`,async({page})=>{

@@ -20,8 +20,8 @@
   --blue-2:var(--appearance-action); --red:var(--appearance-danger);
   --shadow:0 18px 50px var(--appearance-shadow);
 }
-:root {color-scheme:dark}
-:root[data-theme="light"] {color-scheme:light}
+:root {color-scheme:light}
+:root[data-theme="dark"] {color-scheme:dark}
 .appearance-control {display:flex;align-items:center;gap:8px;font:600 12px/1.4 Inter,system-ui,sans-serif;letter-spacing:normal;text-transform:none;min-width:0}
 .appearance-control select {min-height:44px;max-width:100%;border:1px solid var(--line,#33475d);border-radius:9px;background:var(--surface,#14171c);color:var(--text,#f7f8fa);padding:8px 26px 8px 10px;font:inherit;cursor:pointer;color-scheme:inherit}
 .appearance-control select:focus-visible,.appearance-personal>summary:focus-visible {outline:3px solid var(--blue,#4da3ff);outline-offset:3px}
