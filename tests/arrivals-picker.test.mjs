@@ -67,7 +67,7 @@ test('arrived accountless guest remains selectable; explicit guest later claimed
  await createGuest(r);const result=await start(r,'explicit-guest');const {entryId}=await result.json();
  const g=await gate(r,{id:'guest-to-link',carId:'explicit-guest',email:'other@example.invalid'});assert.equal(g.status,200);
  const {claimArrival}=await import('../worker/domains/arrival-invitations.js');
- const token=JSON.parse(r.db.prepare('SELECT payload_json FROM email_outbox').get().payload_json).token;
+ const token=JSON.parse(r.db.prepare("SELECT payload_json FROM email_outbox WHERE template_key='arrival_invitation'").get().payload_json).token;
  const linked=await claimArrival(req({token}),r.env,{uid:'n',email:'other@example.invalid',emailVerified:true},origin);assert.equal(linked.status,200);
  assert.equal(r.db.prepare('SELECT member_id FROM live_entry_vehicles WHERE entry_id=?').get(entryId).member_id,'n');
  assert.equal(r.db.prepare('SELECT COUNT(*) n FROM live_entries').get().n,1);

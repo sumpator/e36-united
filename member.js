@@ -10,7 +10,8 @@ import { createMemberShell } from './member/shell.js?v=20260927-ux2';
 import { createMemberOverview } from './member/modules/overview.js?v=20261011-ui1';
 import { createMemberGarage } from './member/modules/garage.js?v=20261011-ui1';
 import { createMemberPhotos } from './member/modules/photos.js?v=20261011-ui1';
-import { createMemberPlanner } from './member/modules/planner/index.js?v=20261011-ui1';
+import { createMemberPlanner } from './member/modules/planner/index.js?v=20261023-mail1';
+import {verifyNewPasswordAccount} from './member/registration-verification.js?v=20261023-mail1';
 import { formatCzk } from './member/modules/planner/payments.js?v=20260924-merch2';
 import { createMemberClub } from './member/modules/club/index.js?v=20261011-ui1';
 import { achievementIcon, pictogram } from './member/modules/club/points.js?v=20261011-ui1';
@@ -189,6 +190,8 @@ $('[data-auth-form="register"]')?.addEventListener('submit',async event=>{
     try{await firebase.updateProfile(createdUser,{displayName:name})}catch(error){console.warn('Firebase display name update unavailable; D1 profile keeps the submitted name.',error)}
     try{await apiRequest('/api/bootstrap',{method:'POST',body:{name,nickname}})}catch(error){console.warn('Member bootstrap will be retried during restore',error)}
     await restoreAuthenticatedSession(createdUser,{quiet:false});
+    const verification=await verifyNewPasswordAccount(firebase,createdUser);
+    if(verification.needed)toast(verification.requested?'Účet je založený. Otevři ověřovací e-mail od Firebase.':'Účet je založený, ale ověřovací e-mail se nepodařilo vyžádat. Kontaktuj info@e36united.cz.');
   }catch(error){
     console.error('Registration failed',error);toast(authError(error));return;
   }finally{

@@ -60,58 +60,8 @@ test.after(() => {
 
 function createRuntime(member = null) {
   const database = new DatabaseSync(':memory:');
-  database.exec(`
-    CREATE TABLE members (
-      id TEXT PRIMARY KEY,
-      member_code TEXT NOT NULL UNIQUE,
-      email TEXT NOT NULL UNIQUE,
-      name TEXT NOT NULL,
-      nickname TEXT,
-      phone TEXT,
-      role TEXT NOT NULL DEFAULT 'member',
-      status TEXT NOT NULL DEFAULT 'active',
-      email_verified INTEGER NOT NULL DEFAULT 0,
-      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      last_login_at TEXT,
-      history_completed_at TEXT
-      ,hide_on_club INTEGER NOT NULL DEFAULT 0
-    );
-    CREATE TABLE events (id TEXT PRIMARY KEY);
-    CREATE TABLE cars (
-      id TEXT PRIMARY KEY,
-      member_id TEXT NOT NULL,
-      nickname TEXT,
-      model TEXT,
-      body TEXT,
-      year INTEGER,
-      color TEXT,
-      is_primary INTEGER NOT NULL DEFAULT 0,
-      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-    );
-    CREATE TABLE car_photos (
-      id TEXT PRIMARY KEY,
-      car_id TEXT NOT NULL,
-      mime_type TEXT,
-      size_bytes INTEGER,
-      sort_order INTEGER NOT NULL DEFAULT 0,
-      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-    );
-    CREATE TABLE gallery_submissions (
-      id TEXT PRIMARY KEY,
-      member_id TEXT NOT NULL,
-      status TEXT NOT NULL
-    );
-    CREATE TABLE united_points_ledger (
-      id TEXT PRIMARY KEY,
-      member_id TEXT NOT NULL,
-      delta INTEGER NOT NULL,
-      source_type TEXT NOT NULL,
-      source_key TEXT NOT NULL UNIQUE,
-      reason TEXT NOT NULL
-    );
-  `);
+  // Bootstrap now atomically enqueues mail; use the canonical current schema, not a partial copy.
+  database.exec(readFileSync(new URL('../db/schema.sql',import.meta.url),'utf8'));
   if (member) {
     database.prepare(`
       INSERT INTO members (id, member_code, email, name, nickname, phone, role, status, email_verified)
@@ -129,7 +79,6 @@ function createRuntime(member = null) {
     );
   }
 
-  database.exec(readFileSync(new URL('../db/migrations/2026-09-08-admin-member-identity.sql',import.meta.url),'utf8').split('CREATE INDEX')[0]);
   const queries = [];
   const DB = {
     prepare(sql) {
@@ -266,7 +215,7 @@ test('authenticated Firebase identity without a member row is denied protected P
 
 test('public health remains accessible without Firebase or active-member authorization', async () => {
   const runtime = createRuntime();
-  runtime.database.prepare("INSERT INTO events (id) VALUES ('event-1')").run();
+  runtime.database.prepare("INSERT INTO events (id,year,title) VALUES ('event-1',2026,'Fixture')").run();
   const response = await worker.fetch(new Request('https://api.e36united.cz/api/health', {
     headers: { Origin: allowedOrigin },
   }), runtime.env);
@@ -306,6 +255,7 @@ test('missing member can still use bootstrap to create the current active profil
   assert.equal(payload.profileExists, true);
   assert.equal(payload.member.id, memberId);
   assert.equal(payload.member.status, 'active');
+  assert.equal(runtime.database.prepare("SELECT COUNT(*) n FROM email_outbox WHERE member_id=? AND template_key='account_created'").get(memberId).n,1);
   const qr=runtime.database.prepare('SELECT token FROM member_qr_identities WHERE member_id=?').get(memberId);assert.match(qr.token,/^[a-f0-9]{48}$/);assert.equal('qr' in payload.member,false);
   runtime.database.close();
 });

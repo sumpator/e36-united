@@ -1,0 +1,13 @@
+[data-mailing-area="transactional"] {min-width:0}
+[data-mailing-area="transactional"] .admin-panel {min-height:0;margin-block:14px;padding:20px}
+[data-transactional-filters] {display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,210px),1fr));gap:12px;align-items:end;margin-block:18px}
+[data-transactional-filters] label,[data-transactional-action] label {display:grid;gap:6px;min-width:0;font-size:14px}
+[data-transactional-filters] :is(input,select),[data-transactional-action] input:not([type="checkbox"]) {width:100%;min-width:0;min-height:44px;padding:10px;border:1px solid var(--line,#33475d);border-radius:7px;background:var(--surface,#14171c);color:var(--text,#f7f8fa);font:inherit}
+[data-mailing-area="transactional"] button {min-height:44px;max-width:100%;padding:10px 14px;border:1px solid var(--line,#33475d);border-radius:7px;background:var(--surface,#14171c);color:var(--text,#f7f8fa);font:600 14px/1.4 Inter,Arial,sans-serif;cursor:pointer}
+[data-mailing-area="transactional"] button:disabled {opacity:.5;cursor:default}
+[data-mailing-area="transactional"] button:focus-visible {outline:3px solid var(--blue,#4da3ff);outline-offset:2px}
+[data-transactional-action] {display:grid;gap:12px;max-width:640px}
+[data-transactional-detail]:empty {display:none}
+[data-transactional-detail] [role="alert"] {padding:12px;border-left:3px solid var(--appearance-danger,#ff6b75);background:var(--appearance-danger-wash,#2d1720)}
+[data-transactional-preview] {margin:20px auto}
+[data-transactional-types] summary {cursor:pointer;padding:12px 0;line-height:1.5}

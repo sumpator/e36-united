@@ -1,9 +1,12 @@
 import { tokenHash } from './arrivals.js';
 import { json } from '../http/responses.js';
 import { createSmtp2goAdapter, senderConfig } from './mailing/provider/smtp2go.js';
+import {deliverTransactionalEmails,transactionalReady,transactionalTransportState} from './mailing/transactional.js';
 
 // The local fixture injects a transport; its environment has no provider credentials.
 export async function deliverArrivalInvitations(env,arrivalId,{transport}={}) {
+  if(!(await transactionalTransportState(env)).enabled)return;
+  if(await transactionalReady(env))return deliverTransactionalEmails(env,{arrivalId,transport});
   const row=await env.DB.prepare("SELECT o.* FROM email_outbox o JOIN arrival_invitations i ON i.outbox_id=o.id WHERE i.arrival_id=? AND o.status='queued'").bind(arrivalId).first();
   if(!row)return;
   if(!transport&&!env.SMTP2GO_API_KEY)return; // Remains queued, clearly visible; no blind retry.

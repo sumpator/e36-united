@@ -6,6 +6,7 @@ import { $, $$, numeric, toast } from '../../ui.js?v=20260924-merch2';
 import { loadMailingContacts } from './contacts.js?v=20261014-admin1';
 import { initializeMailingCampaigns, loadMailingCampaigns, resetMailingCampaigns } from './campaigns.js?v=20260930-arrivals2';
 import { defaultMailingSegment, previewMailingSegment } from './segments.js?v=20260930-arrivals2';
+import {initializeTransactionalEmails,loadTransactionalEmails,resetTransactionalEmails} from './transactional.js?v=20261023-mail1';
 
 let initialized=false,overviewLoaded=false,overviewPromise=null,lastSegment=defaultMailingSegment;
 
@@ -24,12 +25,13 @@ async function loadMailingOverview({force=false}={}){
 }
 
 async function showMailingTab(name){
-  const tab=['overview','contacts','segments','campaigns'].includes(name)?name:'overview';
+  const tab=['overview','contacts','segments','campaigns','transactional'].includes(name)?name:'overview';
   $$('[data-mailing-tab]').forEach(button=>{const active=button.dataset.mailingTab===tab;button.classList.toggle('is-active',active);button.setAttribute('aria-selected',String(active))});
   $$('[data-mailing-area]').forEach(area=>area.hidden=area.dataset.mailingArea!==tab);
   if(tab==='overview')await loadMailingOverview();
   if(tab==='contacts')await loadMailingContacts();
   if(tab==='campaigns')await loadMailingCampaigns();
+  if(tab==='transactional')await loadTransactionalEmails();
 }
 
 async function safely(action,message){try{await action()}catch(error){toast(error.message||message)}}
@@ -42,11 +44,13 @@ export async function refreshMailingCenter({signal,isCurrent}){
    const payload=await apiRequest('/api/admin/mailing/campaigns?page='+campaignPage,{signal});
    if(!isCurrent())return;renderMailingCampaigns(payload);await refreshStoredMailingDelivery({signal,isCurrent});
  }else if(tab==='contacts')await loadMailingContacts(undefined,{signal,isCurrent});
+ else if(tab==='transactional')await loadTransactionalEmails({signal,isCurrent});
 }
-export function resetMailingCenter(){overviewLoaded=false;overviewPromise=null;lastSegment=defaultMailingSegment;$('[data-mailing-contact-list]').innerHTML='';$('[data-mailing-recipient-list]').innerHTML='';resetMailingCampaigns()}
+export function resetMailingCenter(){overviewLoaded=false;overviewPromise=null;lastSegment=defaultMailingSegment;$('[data-mailing-contact-list]').innerHTML='';$('[data-mailing-recipient-list]').innerHTML='';resetMailingCampaigns();resetTransactionalEmails()}
 
 export function initializeMailingCenter(){
   if(initialized)return;initialized=true;
+  initializeTransactionalEmails();
   initializeMailingCampaigns({getSegment:()=>lastSegment,onSaved:()=>{overviewLoaded=false}});
   window.addEventListener('admin:viewchange',event=>{if(event.detail?.view==='mailing')safely(()=>showMailingTab('campaigns'),'Mailing přehled se nepodařilo načíst.')});
   document.addEventListener('click',event=>{const tab=event.target.closest('[data-mailing-tab]');if(tab)safely(()=>showMailingTab(tab.dataset.mailingTab),'Mailing data se nepodařilo načíst.')});

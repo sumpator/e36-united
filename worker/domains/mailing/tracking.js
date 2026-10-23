@@ -1,5 +1,6 @@
 import { readMailingBody } from './request.js';
 import { validDeliveryEmail } from './preparation.js';
+import {recordTransactionalWebhook} from './transactional.js';
 
 const eventTypes=Object.freeze({processed:'sent',delivered:'delivered',open:'opened',click:'click',bounce:'bounce',spam:'blocked',unsubscribe:'unsubscribed',reject:'rejected',resubscribe:'resubscribed'});
 const reply=(body,status=200)=>Response.json(body,{status,headers:{'Cache-Control':'no-store'}}),encode=value=>new TextEncoder().encode(value);
@@ -27,7 +28,7 @@ function normalizeEvent(body){
   if(!type||!providerEventKey||providerEventKey.length>200||emailId.length>200||!validDeliveryEmail(email))throw Error('invalid_event');
   let clickedUrl=null;if(type==='click'){const value=body.url??body.URL??body.link;if(typeof value!=='string'||value.length>2048)throw Error('invalid_event');const url=new URL(value);if(!['http:','https:'].includes(url.protocol))throw Error('invalid_event');clickedUrl=value}
   return {providerEventKey,emailId,email,type,occurredAt:eventTime(body.time),clickedUrl,campaignId:String(header(body,'X-E36-Campaign-Id')||'').slice(0,100),
-    recipientId:String(header(body,'X-E36-Recipient-Id')||'').slice(0,100),mailType:String(header(body,'X-E36-Mail-Type')||'').toLowerCase(),
+    recipientId:String(header(body,'X-E36-Recipient-Id')||'').slice(0,100),mailType:String(header(body,'X-E36-Mail-Type')||'').toLowerCase(),outboxId:String(header(body,'X-E36-Transaction-Id')||'').slice(0,100),
     metadata:{event:original,bounce:original==='bounce'?String(body.bounce||'').toLowerCase():null,providerEventId:providerEventKey}};
 }
 async function resolveEvent(env,event){
@@ -43,6 +44,10 @@ async function resolveEvent(env,event){
     .bind(campaign.id,event.email).first()||{campaign_id:campaign.id,id:null,contact_id:null,normalized_email:event.email};
 }
 async function recordEvent(env,event){
+  if(event.mailType==='transactional')return recordTransactionalWebhook(env,event,event.outboxId);
+  // Existing webhooks may not forward custom headers. An exact saved provider ID
+  // and recipient still identify the message; never fall back to an address alone.
+  if(!event.mailType&&event.emailId){const counts=await recordTransactionalWebhook(env,event,null);if(!counts.ignored)return counts;}
   const recipient=await resolveEvent(env,event);if(!recipient)return {ignored:1};
   const id=crypto.randomUUID(),now=new Date().toISOString(),statements=[env.DB.prepare(`INSERT INTO mailing_delivery_events
     (id,campaign_id,recipient_id,normalized_email,provider,provider_event_key,event_type,occurred_at,clicked_url,provider_payload_json)

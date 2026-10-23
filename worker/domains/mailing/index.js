@@ -1,5 +1,6 @@
 import { readJsonObject } from "../../http/request.js";
 import { routeMailingDelivery } from './delivery-routes.js';
+import {routeTransactionalEmails} from './transactional-routes.js';
 import { json } from "../../http/responses.js";
 import { filterMailingContacts, loadMailingContacts } from "./contacts.js";
 import { createMailingCampaign, listMailingCampaigns, updateMailingCampaign } from "./campaigns.js";
@@ -118,6 +119,7 @@ async function renderPreview(request, origin) {
 
 export async function routeAdminMailing({ request, env, url, auth, origin }) {
   if (!url.pathname.startsWith("/api/admin/mailing")) return null;
+  const transactional=await routeTransactionalEmails({request,env,url,auth,origin});if(transactional)return transactional;
   const delivery = await routeMailingDelivery({ request, env, url, origin });
   if (delivery) return delivery;
   if (url.pathname === "/api/admin/mailing/overview" && request.method === "GET") return mailingOverview(env, origin);

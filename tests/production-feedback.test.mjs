@@ -164,7 +164,10 @@ test('tracking failure is harmless to public handoff and reservation/profile com
   const env={DB:{prepare(){throw new Error('migration not installed')}}};
   await markProfileCompletion(env,'a');await linkPlannerReservation(env,{draftId:crypto.randomUUID(),uid:'a',eventId:'event',reservationId:'r'});
 });
-test('normal registration no longer sends verification; password reset and sync remain',()=>{
+test('only new password-account creation requests guarded Firebase verification; login, reset and sync stay separate',()=>{
   const member=readFileSync(new URL('../member.js',import.meta.url),'utf8'),worker=readFileSync(new URL('../worker/domains/members.js',import.meta.url),'utf8');
-  assert.doesNotMatch(member,/sendEmailVerification|ověřovací e-mail|Ověření e-mailu jsme/);assert.match(member,/sendPasswordResetEmail/);assert.match(worker,/email_verified = excluded.email_verified/);
+  const registration=member.slice(member.indexOf("$('[data-auth-form=\"register\"]')"),member.indexOf("$('[data-password-reset]')"));
+  const login=member.slice(member.indexOf("$('[data-auth-form=\"login\"]')"),member.indexOf("$('[data-auth-form=\"register\"]')"));
+  assert.match(registration,/verifyNewPasswordAccount\(firebase,createdUser\)/);assert.doesNotMatch(login,/verifyNewPasswordAccount|sendEmailVerification/);
+  assert.match(member,/sendPasswordResetEmail/);assert.match(worker,/email_verified = excluded.email_verified/);
 });

@@ -20,7 +20,9 @@ const snapshot=r=>JSON.stringify(['reservations','reservation_accommodation','me
 test('preliminary migration is additive, defaults off and preserves FK integrity',()=>{
  const migration=readFileSync(new URL('../db/migrations/2026-09-19-preliminary-reservations.sql',import.meta.url),'utf8');
  const schema=readFileSync(new URL('../db/schema.sql',import.meta.url),'utf8');const db=new DatabaseSync(':memory:');
- db.exec(schema.replace(migration.trim(),''));db.exec(migration);
+ // Rebuild the historical predecessor before reinstalling its newer dependent triggers.
+ const transactional=readFileSync(new URL('../db/migrations/2026-10-23-transactional-emails.sql',import.meta.url),'utf8');
+ db.exec(schema.replace(transactional.trim(),'').replace(migration.trim(),''));db.exec(migration);db.exec(transactional);
  assert.equal(db.prepare('SELECT COUNT(*) n FROM event_preliminary_settings').get().n,0);
  assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(),[]);assert.equal(db.prepare("SELECT COUNT(*) n FROM sqlite_master WHERE name='idx_preliminary_event_status'").get().n,1);db.close();
 });

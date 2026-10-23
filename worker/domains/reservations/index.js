@@ -258,7 +258,15 @@ async function findLatestReservation(env, memberId) {
   `).bind(memberId).first();
 }
 
-async function getCurrentReservation(env, auth, origin) {
+async function getCurrentReservation(env, auth, origin, requestedId = null) {
+  if(requestedId){
+    const owned=await env.DB.prepare('SELECT event_id FROM reservations WHERE id=? AND member_id=?').bind(requestedId,auth.uid).first();
+    if(!owned)return json({ok:false,error:'reservation_not_found',message:'Požadovaná rezervace není dostupná pro tento účet.'},404,origin);
+    const event=await env.DB.prepare('SELECT * FROM events WHERE id=?').bind(owned.event_id).first();
+    const reservation=await findCurrentReservation(env,auth.uid,owned.event_id);
+    await hydrateReservationAccommodationVisual(env,reservation);await attachMemberReservationRequest(env,reservation);
+    return json({ok:true,event:publicMemberEvent(event),registrationOpen:!!event.is_current&&event.registration_status==='open',reservation:publicReservation(reservation),accommodationOptions:await listMemberAccommodationOptions(env,event.id,reservation)},200,origin);
+  }
   const event = await getCurrentEvent(env);
   if (!event) {
     let reservation = await findLatestReservation(env, auth.uid);

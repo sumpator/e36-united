@@ -66,6 +66,7 @@ test('missing rate fails closed; roles, plate uniqueness, stale second device an
 });
 test('guest invitation once, mock delivery only, verified ownership and one-use linkage',async()=>{
  const r=arrivalsRuntime();try{await seedArrivals(r);
+  r.db.exec('UPDATE transactional_email_control SET enabled=1 WHERE id=1');
   const b={id:'guest-invitation',model:'BMW E36',body:'Sedan',crew:2,cash:500,email:'other@example.invalid',matchesReviewed:true};
   const created=await call(r,b);assert.equal(created.status,200,JSON.stringify(created));const out=r.db.prepare("SELECT * FROM email_outbox WHERE template_key='arrival_invitation'").get(),token=JSON.parse(out.payload_json).token;
   assert.equal(r.db.prepare('SELECT token_hash FROM arrival_invitations').get().token_hash,await tokenHash(token));
@@ -81,6 +82,7 @@ test('guest invitation once, mock delivery only, verified ownership and one-use 
 });
 test('invitation retry accepts only definite failure, never uncertain delivery',async()=>{
  const r=arrivalsRuntime();try{await seedArrivals(r);const b={id:'arrival-mail-retry',model:'Test car',body:'Sedan',crew:1,cash:500,matchesReviewed:true,email:'retry@arrivals.invalid'};
+  r.db.exec('UPDATE transactional_email_control SET enabled=1 WHERE id=1');
   assert.equal((await call(r,b)).status,200);await deliverArrivalInvitations(r.env,b.id,{transport:{sendBatch:async()=>{throw {definiteRejection:true,code:'mock_rejected'}}}});
   assert.equal((await call(r,{arrivalId:b.id},{part:'/invitation-retry'})).status,200);
   await deliverArrivalInvitations(r.env,b.id,{transport:{sendBatch:async()=>{throw {code:'mock_timeout'}}}});

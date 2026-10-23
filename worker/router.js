@@ -358,7 +358,7 @@ export async function routeRequest({ request, env, url, origin, ctx }) {
     if (url.pathname === "/api/planner-draft" && request.method === "PUT") return await domain.putPlannerDraft(request, env, auth, origin);
     if (url.pathname === "/api/planner-draft" && request.method === "DELETE") return await domain.deletePlannerDraft(env, auth, url, origin);
 
-    if (url.pathname === "/api/reservations/current" && request.method === "GET") return await domain.getCurrentReservation(env, auth, origin);
+    if (url.pathname === "/api/reservations/current" && request.method === "GET") return await domain.getCurrentReservation(env, auth, origin,url.searchParams.get('reservation'));
     if (url.pathname === "/api/reservations/current" && request.method === "PUT") return await domain.putCurrentReservation(request, env, auth, origin);
     if (url.pathname === "/api/reservations/current/requests" && request.method === "POST") {
       let body;try{body=await request.clone().json()}catch{return json({ok:false,error:'invalid_json',message:'Požadavek nemá platný JSON.'},400,origin)}

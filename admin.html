@@ -19,6 +19,7 @@
   <link href="admin/command-polish.css?v=20260923-theme2" rel="stylesheet"/>
   <link href="admin/compact-overviews.css?v=20260923-theme2" rel="stylesheet"/>
   <link href="admin/live.css?v=20260930-flow2" rel="stylesheet"/>
+  <link href="admin/transactional.css?v=20261023-mail1" rel="stylesheet"/>
 <link rel="stylesheet" href="appearance.css?v=20261022-light1"/><link rel="stylesheet" href="portal-workspace.css?v=20261011-ci109"/><link rel="stylesheet" href="photo-batch.css?v=20260928-flow1"/><link rel="stylesheet" href="admin/center-visual.css?v=20261014-admin1"/></head>
 <body class="admin-page">
   <header class="site-header scrolled admin-header">
@@ -240,8 +241,18 @@
               <button aria-selected="false" data-mailing-tab="contacts" role="tab" type="button">Kontakty</button>
               <button aria-selected="false" data-mailing-tab="segments" role="tab" type="button">Segmenty / příjemci</button>
               <button aria-selected="true" class="is-active" data-mailing-tab="campaigns" role="tab" type="button">Kampaně</button>
+              <button aria-selected="false" data-mailing-tab="transactional" role="tab" type="button">Provozní e-maily</button>
             </div>
 
+            <div data-mailing-area="transactional" hidden>
+              <h3>Provozní e-maily</h3><p>Automatické zprávy k potvrzeným událostem. Nejsou newsletter a nevyžadují marketingový souhlas. Přijato SMTP2GO není doručeno ani přečteno.</p>
+              <p data-transactional-transport role="status">Ověřuji serverový stav odesílání…</p>
+              <details><summary>Typy zpráv a jejich spouštění</summary><div data-transactional-types></div></details>
+              <form data-transactional-filters class="admin-form-grid"><label>Typ zprávy<select name="kind"><option value="">Všechny typy</option></select></label><label>Stav<select name="status"></select></label><label>Související ID<input name="entity" maxlength="128"></label><button type="submit">Filtrovat historii</button></form>
+              <div data-transactional-list></div><p><button type="button" data-transactional-prev>Předchozí</button> <span data-transactional-page></span> <button type="button" data-transactional-next>Další</button></p>
+              <section class="admin-panel" data-transactional-detail></section>
+              <iframe title="Náhled provozního e-mailu" sandbox="allow-scripts" referrerpolicy="no-referrer" data-transactional-preview style="display:block;width:100%;max-width:640px;min-width:0;height:680px;border:1px solid #ced9e4"></iframe>
+            </div>
             <div data-mailing-area="overview" hidden>
               <section class="admin-mailing-kpis" aria-label="Mailing přehled">
                 <article><span>Kontakty celkem</span><strong data-mailing-kpi="total">0</strong></article>
@@ -351,6 +362,6 @@
     </aside>
   </div>
   <div aria-live="polite" class="admin-toast" data-toast role="status"></div>
-  <link rel="stylesheet" href="admin/arrivals.css?v=20260930-picker1"><script src="admin.js?v=20261014-admin1" type="module"></script>
+  <link rel="stylesheet" href="admin/arrivals.css?v=20260930-picker1"><script src="admin.js?v=20261023-mail1" type="module"></script>
 </body>
 </html>

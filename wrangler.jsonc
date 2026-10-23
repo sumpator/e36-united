@@ -3,6 +3,7 @@
   "name": "e36-united-api",
   "main": "cloudflare-worker-media.js",
   "compatibility_date": "2026-08-22",
+  "triggers": { "crons": ["* * * * *"] },
   "vars": {
     "SMTP2GO_API_BASE": "https://eu-api.smtp2go.com/v3",
     "MAILING_DAILY_SEND_LIMIT": "200",

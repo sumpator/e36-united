@@ -49,7 +49,7 @@ export async function createOrder(env,member,input){
       SELECT ?,?,?,?,?,?,?,?,? WHERE (SELECT revision FROM merch_config WHERE id=1)=?
       AND (SELECT COALESCE(SUM(delta),0) FROM united_points_ledger WHERE member_id=?)=? AND ${guards||'1=1'}
       ON CONFLICT(member_id,request_key) DO NOTHING`,id,member,requestKey,requestHash,vs,encode(q.quote),encode(state),now,expires,q.record.revision,member,q.points,...q.revisions.flat()),
-    prepare(env,`INSERT INTO merch_outbox(id,order_id,kind,payload,created_at) SELECT ?,id,'confirmation',?,? FROM merch_orders WHERE id=?`,uid(),encode({subject:'Potvrzení objednávky UNITED MERCH',quote:q.quote,variableSymbol:vs,expiresAt:expires}),now,id),
+    prepare(env,`INSERT INTO merch_outbox(id,order_id,kind,payload,created_at) SELECT ?,id,'confirmation',?,? FROM merch_orders WHERE id=?`,uid(),encode({subject:'Objednávku jsme přijali',template:'merch_confirmation',quote:q.quote,variableSymbol:vs,expiresAt:expires}),now,id),
    ]);
    const saved=await find();if(!saved)fail('Katalog se změnil. Obnov rekapitulaci.',409);
    if(saved.request_hash!==requestHash)fail('Klíč už patří jiné objednávce.',409);
@@ -109,12 +109,17 @@ export async function changeOrder(env,actor,id,input,admin=false){
  }else if(action==='resolve-request'){
   const request=s.requests.find(r=>r.id===input.requestId);if(!request||!audit.reason)fail('Vyber požadavek a popiš výsledek.');request.resolved={at:now,actor,text:audit.reason};
  }else fail('Neznámá operace.');
+ if(['withdraw','complaint'].includes(action)||action==='cancel'&&s.status!=='cancelled')audit.requestId=s.requests.at(-1)?.id;
+ if(action==='resolve-request')audit.requestId=input.requestId;
  s.history.push(audit);s.operations.push({id:op,hash});
  const statements=[prepare(env,'UPDATE merch_orders SET state=?,revision=revision+1 WHERE id=? AND revision=?',encode(s),id,order.revision)];
- if(['withdraw','complaint'].includes(action)||action==='status'&&input.status==='sent'){
+ let emailType=action==='withdraw'?'merch_withdraw':action==='complaint'?'merch_complaint':action==='cancel'?(s.status==='cancelled'?'merch_cancelled':'merch_cancel_request'):
+  ['payment','paid','void-payment'].includes(action)?'merch_payment':action==='refund'?'merch_refund':action==='resolve-request'?'merch_resolved':action==='status'&&['ready','sent'].includes(input.status)?'merch_'+input.status:null;
+ if(['payment','paid','void-payment'].includes(action)&&JSON.stringify(s.payments)===JSON.stringify(order.state.payments))emailType=null;
+ if(emailType&&(JSON.stringify(s)!==JSON.stringify(order.state))){
   statements.push(prepare(env,`INSERT INTO merch_outbox(id,order_id,kind,payload,created_at)
    SELECT ?,id,?,?,? FROM merch_orders WHERE id=? AND revision=? AND changes()=1
-   ON CONFLICT(order_id,kind) DO NOTHING`,uid(),`${action}-${op}`,encode({subject:action==='withdraw'?'Potvrzení přijetí odstoupení':action==='complaint'?'Potvrzení přijetí reklamace':'Objednávka byla odeslána',event:audit}),now,id,order.revision+1));
+   ON CONFLICT(order_id,kind) DO NOTHING`,uid(),`${action}-${op}`,encode({subject:'Zpráva k objednávce UNITED MERCH',template:emailType,event:audit}),now,id,order.revision+1));
  }
  const result=await env.DB.batch(statements);
  if(!result[0].meta.changes)fail('Souběžná změna. Obnov detail; operace nebyla provedena.',409);

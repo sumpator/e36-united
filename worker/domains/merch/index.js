@@ -3,6 +3,7 @@ import { cors } from '../../http/cors.js';
 import { requireActiveMember } from '../../auth/member.js';
 import { validateImageFile, verifiedImage,extensionFor } from '../media.js';
 import { createSmtp2goAdapter,senderConfig } from '../mailing/provider/smtp2go.js';
+import {deliverTransactionalEmails,transactionalReady,transactionalTransportState} from '../mailing/transactional.js';
 import { fail,MerchError,key,uid,stamp } from './model.js';
 import { getCatalog,seedCatalog,quotation,createOrder,readOrder,listOrders,changeOrder,getAddress,saveAddress,saveProduct,saveSettings } from './service.js';
 
@@ -14,6 +15,8 @@ async function body(request){
  if(!value||typeof value!=='object'||Array.isArray(value))fail('Požadavek musí být objekt.');return value;
 }
 export async function deliverMerchEmail(env,orderId){
+ if(!(await transactionalTransportState(env)).enabled)return;
+ if(await transactionalReady(env))return deliverTransactionalEmails(env,{orderId});
  const rows=(await env.DB.prepare("SELECT * FROM merch_outbox WHERE order_id=? AND status='pending'").bind(orderId).all()).results;
  for(const row of rows){
   const lock=await env.DB.prepare("UPDATE merch_outbox SET status='sending' WHERE id=? AND status='pending'").bind(row.id).run();if(!lock.meta.changes)continue;
@@ -28,6 +31,11 @@ export async function deliverMerchEmail(env,orderId){
    await env.DB.prepare("UPDATE merch_outbox SET status=?,error_code=? WHERE id=?").bind(error.definiteRejection||error.code==='provider_not_configured'?'failed':'uncertain',error.code||'delivery_unconfirmed',row.id).run();
   }
  }
+}
+async function merchEmailMessages(env,orderId){
+ if(!await transactionalReady(env))return (await env.DB.prepare('SELECT kind,status,error_code,sent_at FROM merch_outbox WHERE order_id=?').bind(orderId).all()).results;
+ return (await env.DB.prepare(`SELECT template_key kind,CASE status WHEN 'queued' THEN 'pending' ELSE status END status,error_message error_code,sent_at,delivered_at FROM email_outbox WHERE entity_type='merch' AND entity_id=?
+  UNION ALL SELECT kind,status,error_code,sent_at,NULL FROM merch_outbox legacy WHERE order_id=? AND NOT EXISTS(SELECT 1 FROM email_outbox WHERE source_outbox_id=legacy.id)`).bind(orderId,orderId).all()).results;
 }
 async function upload(request,env,auth){
  const size=Number(request.headers.get('Content-Length'));if(!size||size>9*1024*1024)fail('Fotografie musí mít nejvýše 8 MB.',413);
@@ -77,14 +85,14 @@ export async function routeMerch({request,env,url,origin,auth,ctx},admin=false){
   else{
    const match=path.match(/^\/orders\/([a-z0-9-]+)(?:\/(email))?$/);
    if(!match)fail('Endpoint neexistuje.',404);
-   if(method==='GET'&&match[2]&&admin)result={messages:(await env.DB.prepare('SELECT kind,status,error_code,sent_at FROM merch_outbox WHERE order_id=?').bind(match[1]).all()).results};
+   if(method==='GET'&&match[2]&&admin)result={messages:await merchEmailMessages(env,match[1])};
    else if(method==='GET'&&!match[2])result={order:await readOrder(env,match[1],admin?null:auth.uid)};
    else if(method==='PATCH'&&!match[2]){
     const input=await body(request);result={order:await changeOrder(env,auth.uid,match[1],input,admin)};
     if(['withdraw','complaint'].includes(input.action)||input.action==='status'&&input.status==='sent'){
      if(ctx)ctx.waitUntil(deliverMerchEmail(env,match[1]));
     }
-   }else if(method==='POST'&&match[2]&&admin){await deliverMerchEmail(env,match[1]);result={messages:(await env.DB.prepare('SELECT kind,status,error_code,sent_at FROM merch_outbox WHERE order_id=?').bind(match[1]).all()).results};}
+   }else if(method==='POST'&&match[2]&&admin){await deliverMerchEmail(env,match[1]);result={messages:await merchEmailMessages(env,match[1])};}
    else fail('Metoda není povolena.',405);
   }
   return json({ok:true,...result},200,origin);

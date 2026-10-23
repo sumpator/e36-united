@@ -27,7 +27,7 @@ test('arrived guest -> participant -> actual car -> atomic start -> official sco
   assert.equal((await saveLiveVote(req({score:8}),r.env,{uid:'n'},entryId,origin)).status,200);
   const data=await admin(r);assert.equal(data.states.show_shine.entry.carId,a.car_key);assert.ok(JSON.stringify(data.results).includes(entryId));
   assert.ok(JSON.stringify((await (await getMemberLive(r.env,auth,origin)).json()).judgeHistory).includes(entryId));
-  const token=JSON.parse(r.db.prepare('SELECT payload_json FROM email_outbox').get().payload_json).token;
+  const token=JSON.parse(r.db.prepare("SELECT payload_json FROM email_outbox WHERE template_key='arrival_invitation'").get().payload_json).token;
   assert.equal((await claimArrival(req({token}),r.env,{uid:'n',email:'other@example.invalid',emailVerified:false},origin)).status,403);
   assert.equal((await claimArrival(req({token}),r.env,{uid:'n',email:'other@example.invalid',emailVerified:true},origin)).status,200);
   assert.equal((await claimArrival(req({token}),r.env,{uid:'n',email:'other@example.invalid',emailVerified:true},origin)).status,409);

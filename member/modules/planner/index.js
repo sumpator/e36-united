@@ -100,7 +100,8 @@ export function createMemberPlanner({
 
   async function loadCurrentReservation(){
     const user=getCurrentUser();
-    const payload=await apiRequest('/api/reservations/current');
+    const requested=new URL(location.href).searchParams.get('reservation');
+    const payload=await apiRequest('/api/reservations/current'+(requested?'?reservation='+encodeURIComponent(requested):''));
     if(getCurrentUser()!==user)throw new Error('api_auth_required');
     reservationState={
       registrationOpen:payload?.registrationOpen===true,
