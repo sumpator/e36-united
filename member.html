@@ -14,7 +14,7 @@
 <link href="club-profile.css?v=20260923-theme2" rel="stylesheet"/>
 <link href="member/reliability.css?v=20260923-theme2" rel="stylesheet"/>
 <link href="mobile-feedback.css?v=20260923-theme2" rel="stylesheet"/>
-<link href="member/live.css?v=20260930-flow2" rel="stylesheet"/>
+<link href="member/live.css?v=20260930-flow2" rel="stylesheet"/><link rel="stylesheet" href="member/registration-continuity.css?v=20261025-flow1"/>
 <link rel="stylesheet" href="appearance.css?v=20261022-light1"/><link rel="stylesheet" href="portal-workspace.css?v=20261011-ci109"/><link rel="stylesheet" href="portal-next.css?v=20260926-portal3"/><link rel="stylesheet" href="ux-refinements.css?v=20260927-ux2"/><link rel="stylesheet" href="mobile-ux.css?v=20260928-mobile1"/><link rel="stylesheet" href="photo-batch.css?v=20260928-flow1"/></head>
 <body class="member-page">
 <header class="site-header scrolled member-header">
@@ -48,23 +48,23 @@
 <div class="member-auth-panel-inner">
 <div class="auth-panel-top"><span class="eyebrow">Můj United</span><div class="portal-mode" data-mode-badge="">Preview mode</div></div>
 <div class="auth-panel-intro"><span>BMW E36 COMMUNITY ACCESS</span><p>Tvůj osobní vstup do United — jedna identita pro komunitu, auta i společné zážitky.</p></div>
-<div aria-label="Přihlášení nebo registrace" class="auth-tabs" role="tablist"><button class="is-active" data-auth-tab="login"><span>01</span><span><b>Přihlášení</b><small>Mám United ID</small></span></button><button data-auth-tab="register"><span>02</span><span><b>Registrace</b><small>Chci United ID</small></span></button></div>
-<form class="auth-form is-active" data-auth-form="login">
+<div aria-label="Přihlášení nebo registrace" class="auth-tabs" role="tablist"><button data-auth-tab="login"><span>01</span><span><b>Přihlášení</b><small>Mám United ID</small></span></button><button class="is-active" data-auth-tab="register"><span>02</span><span><b>Registrace</b><small>Chci United ID</small></span></button></div>
+<form class="auth-form" data-auth-form="login">
 <div class="auth-heading"><h2>Vítej zpátky.</h2><p>Přihlas se do svého United profilu.</p></div>
 <label><span>E-mail</span><input autocomplete="email" name="email" placeholder="ty@email.cz" required="" type="email"/></label>
 <label><span>Heslo</span><div class="password-field"><input autocomplete="current-password" minlength="6" name="password" placeholder="••••••••" required="" type="password"/><button aria-label="Zobrazit heslo" data-toggle-password="" type="button">👁</button></div></label>
 <button class="member-primary" type="submit">Přihlásit do Můj United <span>→</span></button>
-<button class="auth-link" data-password-reset="" type="button">Zapomněl jsem heslo</button>
+<button class="auth-link" data-password-reset="" type="button">Zapomněl jsem heslo</button><button class="auth-link" data-auth-switch="register" type="button">Nemáš účet? Registruj se.</button>
 <div class="demo-hint" data-demo-hint="">Přihlášení chrání Firebase Authentication a tvoje členské údaje zůstávají v Můj United.</div>
 </form>
-<form class="auth-form" data-auth-form="register">
-<div class="auth-heading"><h2>Vytvoř si United ID.</h2><p>Členská karta se ti začne skládat z historie, aut a účastí.</p></div>
+<form class="auth-form is-active" data-auth-form="register">
+<div class="auth-heading"><h2>Založ si účet Můj United.</h2><p>Členská karta se ti začne skládat z historie, aut a účastí.</p></div>
 <div class="auth-grid-two"><label><span>Jméno</span><input autocomplete="name" name="name" placeholder="Jméno" required=""/></label><label><span>Přezdívka</span><input autocomplete="nickname" name="nickname" placeholder="Jak ti říká komunita"/></label></div>
 <label><span>E-mail</span><input autocomplete="email" name="email" placeholder="ty@email.cz" required="" type="email"/></label>
 <label><span>Heslo</span><div class="password-field"><input autocomplete="new-password" minlength="6" name="password" placeholder="Min. 6 znaků" required="" type="password"/><button aria-label="Zobrazit heslo" data-toggle-password="" type="button">👁</button></div></label><label><span>Heslo znovu</span><div class="password-field"><input autocomplete="new-password" minlength="6" name="passwordConfirm" placeholder="Zopakuj heslo" required="" type="password"/><button aria-label="Zobrazit heslo" data-toggle-password="" type="button">👁</button></div></label>
 <label class="consent-line"><input required="" type="checkbox"/><span>Souhlasím se zpracováním údajů pro správu členství a registrací E36 United.</span></label>
 <button class="member-primary" type="submit">Založit United ID <span>→</span></button>
-<small class="mail-preview-note">Po registraci tě rovnou přihlásíme do Můj United a zachováme tvůj rozpracovaný plán.</small>
+<button class="auth-link" data-auth-switch="login" type="button">Už máš účet? Přihlas se.</button><small class="mail-preview-note">Po registraci tě rovnou přihlásíme do Můj United a zachováme tvůj rozpracovaný plán.</small>
 </form>
 <div aria-label="Informace o přístupu" class="auth-trust-row"><span><i></i> United Member Portal</span><span>Soukromý členský profil</span></div>
 </div>
@@ -277,5 +277,5 @@
 <div class="member-gallery-lightbox" data-member-gallery-lightbox="" hidden=""><div class="member-gallery-lightbox-backdrop" data-member-gallery-close=""></div><div aria-label="Náhled fotografie" aria-modal="true" class="member-gallery-lightbox-dialog" role="dialog"><button aria-label="Zavřít náhled" class="member-gallery-lightbox-close" data-member-gallery-close="" type="button">×</button><button aria-label="Předchozí fotografie" class="member-gallery-lightbox-nav member-gallery-lightbox-prev" data-member-gallery-prev="" type="button">←</button><figure><img alt="" data-member-gallery-lightbox-image=""/><figcaption data-member-gallery-lightbox-caption=""></figcaption></figure><button aria-label="Další fotografie" class="member-gallery-lightbox-nav member-gallery-lightbox-next" data-member-gallery-next="" type="button">→</button></div></div>
 <div aria-live="polite" class="member-toast" data-toast="" role="status"></div>
 <script src="showshine-data.js?v=20260824"></script>
-<script src="member.js?v=20261023-mail1" type="module"></script>
+<script src="member.js?v=20261025-flow1" type="module"></script>
 </body></html>

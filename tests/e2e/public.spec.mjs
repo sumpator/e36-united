@@ -10,7 +10,7 @@ test('public homepage loads and opens a representative section', async ({ page }
   await expect(page).toHaveTitle(/E36 United/i);
   await expect(page.locator('.hero h1')).toContainText('E36');
   await expect(page.locator('.nav-links')).toContainText('Program');
-  await expect(page.locator('.nav-links .nav-member')).toHaveText('Přihlásit se');
+  await expect(page.locator('.nav-links .nav-member')).toHaveText('Můj United');
   await expect(page.locator('.nav-links .nav-member')).toHaveAttribute('href', 'member.html?returnTo=%2F');
   await expect(page.locator('.site-wip, .hero-badge')).toHaveCount(0);
 
@@ -19,7 +19,7 @@ test('public homepage loads and opens a representative section', async ({ page }
   await expect(page.locator('#experience')).toBeInViewport();
   await page.locator('.nav-links .nav-member').click();
   await expect(page).toHaveURL(/member\.html\?returnTo=%2F%23experience$/);
-  await expect(page.locator('[data-auth-form="login"]')).toBeVisible();
+  await expect(page.locator('[data-auth-form="register"]')).toBeVisible();
 
   expectNoUnexpectedClientErrors(observations);
 });

@@ -1,4 +1,4 @@
-import { deriveOverviewState } from '../../member-portal-state.js?v=20260921-member-ux-r2';
+import { deriveOverviewState } from '../../member-portal-state.js?v=20261025-flow1';
 import { $, esc } from '../ui.js?v=20260924-merch2';
 
 export function createMemberOverview({
@@ -95,6 +95,8 @@ export function createMemberOverview({
   }
   function bindOnboarding(){
     if(onboardingBound)return;onboardingBound=true;const modal=$('[data-onboarding-intro-modal]');
+    const fitViewport=()=>{const viewport=window.visualViewport;if(!modal)return;modal.style.setProperty('--intro-height',`${viewport?.height||innerHeight}px`);modal.style.setProperty('--intro-top',`${viewport?.offsetTop||0}px`)};
+    fitViewport();window.visualViewport?.addEventListener('resize',fitViewport);window.visualViewport?.addEventListener('scroll',fitViewport);window.addEventListener('resize',fitViewport);
     modal?.addEventListener('click',event=>{const jump=event.target.closest('[data-jump]');if(jump){closeOnboardingIntro();openSection?.(jump.dataset.jump);return}if(event.target.closest('[data-onboarding-intro-close]'))closeOnboardingIntro()});
     document.addEventListener('keydown',event=>{if(!modal||modal.hidden)return;if(event.key==='Escape'){event.preventDefault();closeOnboardingIntro();return}if(event.key!=='Tab')return;const focusable=[...modal.querySelectorAll('button:not([disabled]),a[href],[tabindex]:not([tabindex="-1"])')].filter(item=>item.getClientRects().length);if(!focusable.length)return;const first=focusable[0],last=focusable.at(-1);if(event.shiftKey&&document.activeElement===first){event.preventDefault();last.focus()}else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first.focus()}});
   }

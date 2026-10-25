@@ -68,7 +68,7 @@ test('CACHE SAFE stale unversioned destination poison reproduces old failure but
     await expect(page.locator('[data-admin-panel="dashboard"]')).toBeHidden();
     await expect(page).toHaveURL(/section=payments&view=payments/);
     expect(poisonHits).toEqual([]);expect(requests.length).toBeGreaterThan(30);
-    for(const value of requests){const u=new URL(value);const token=({...ADMIN_MODULE_RELEASES,'appearance.js':'20260928-flow1'})[u.pathname.slice(1)];expect(token,u.pathname).toBeTruthy();expect(u.search).toBe(`?v=${token}`);}
+    for(const value of requests){const u=new URL(value);const token=({...ADMIN_MODULE_RELEASES,'appearance.js':'20261022-light1'})[u.pathname.slice(1)];expect(token,u.pathname).toBeTruthy();expect(u.search).toBe(`?v=${token}`);}
     expect(requests.some(value=>new URL(value).pathname==='/admin/destinations.js')).toBe(true);
     const urls=new Map();for(const value of requests){const u=new URL(value);if(!urls.has(u.pathname))urls.set(u.pathname,new Set());urls.get(u.pathname).add(u.href);}
     expect([...urls.values()].every(values=>values.size===1)).toBe(true);

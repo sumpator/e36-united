@@ -139,7 +139,7 @@ export function createMemberPlannerExperience(form){
     const carLabel=source.car?.closest('label')?.querySelector(':scope > span');
     if(carLabel)carLabel.textContent=source.car?.value?'Auto z garáže':'S čím přijedeš?';
     const addCar=shell.querySelector('[data-member-planner-add-car]');
-    if(addCar)addCar.hidden=Boolean(source.car?.value);
+    if(addCar)addCar.hidden=Boolean(source.car?.closest('[data-reservation-form-car]')?.hidden);
     const carField=source.car?.closest('[data-reservation-form-car]'),carStep=shell.querySelector('.planner-step--car');
     if(carStep)carStep.hidden=Boolean(carField?.hidden)&&Boolean(addCar?.hidden);
     shell.querySelector('[data-member-summary-recap]').textContent=`${stay.title} · ${stay.arrival==='Jen na otočku'?'Bez ubytování':source.sleep?.value||'—'} · ${crew} ${personLabel(crew)} · Show & Shine: ${show.label}`;

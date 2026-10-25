@@ -1,3 +1,4 @@
+import { validatePlannerDraft as validateSharedPlannerDraft } from '../planner-state.js';
 import {
   accommodationVisualMetadata,
   deleteAdminAccommodationGalleryPhoto,
@@ -708,30 +709,7 @@ async function patchAdminGallery(request, env, auth, submissionId, origin) {
 }
 
 function validatePlannerDraft(candidate, now = Date.now()) {
-  if (!candidate || candidate.version !== 1 || candidate.source !== "weekend-planner") return null;
-  const draftId = String(candidate.draftId || "");
-  const createdAt = Date.parse(candidate.createdAt), expiresAt = Date.parse(candidate.expiresAt);
-  const eventYear = Number(candidate.eventYear), crew = Number(candidate.crew), units = Number(candidate.accommodationUnits);
-  const lifetime = 7 * 24 * 60 * 60 * 1000;
-  const attendanceByArrival = { "Pátek": "full_weekend", "Sobota": "saturday_only", "Jen na otočku": "day_visit" };
-  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(draftId) || !Number.isFinite(createdAt) || !Number.isFinite(expiresAt) || createdAt > now + PLANNER_CLOCK_SKEW_MS || expiresAt <= now || expiresAt <= createdAt || now - createdAt > lifetime || expiresAt - createdAt > lifetime) return null;
-  if (!Number.isInteger(eventYear) || eventYear < 2000 || eventYear > 2100) return null;
-  if (!attendanceByArrival[candidate.arrival] || candidate.attendanceType !== attendanceByArrival[candidate.arrival]) return null;
-  if (!["Chatka", "Stan", "Apartmán", "Bez ubytování"].includes(candidate.accommodation) || !Number.isInteger(crew) || crew < 1 || crew > MAX_RESERVATION_CREW || !Number.isInteger(units) || units < 0 || units > crew || !["Ano", "Ne", "Možná"].includes(candidate.showShine)) return null;
-  if ((candidate.arrival === "Jen na otočku" || candidate.accommodation === "Bez ubytování") && units !== 0) return null;
-  if (candidate.arrival !== "Jen na otočku" && candidate.accommodation !== "Bez ubytování" && units < 1) return null;
-  const eventId = candidate.eventId == null ? null : String(candidate.eventId);
-  const accommodationOptionId = candidate.accommodationOptionId == null ? null : String(candidate.accommodationOptionId);
-  if (eventId !== null && !/^[a-z0-9_-]{1,128}$/i.test(eventId)) return null;
-  if (accommodationOptionId !== null && !/^[a-z0-9_-]{1,128}$/i.test(accommodationOptionId)) return null;
-  const fallbackDeparture = candidate.arrival === "Jen na otočku" ? "Stejný den" : "Neděle";
-  const departure = String(candidate.departure || fallbackDeparture);
-  const nights = Number(candidate.nights ?? (candidate.arrival === "Pátek" ? 2 : candidate.arrival === "Sobota" ? 1 : 0));
-  const validStay = candidate.arrival === "Pátek"
-    ? ((departure === "Sobota" && nights === 1) || (departure === "Neděle" && nights === 2))
-    : candidate.arrival === "Sobota" ? (departure === "Neděle" && nights === 1) : (departure === "Stejný den" && nights === 0);
-  if (!validStay) return null;
-  return { version: 1, draftId, source: "weekend-planner", eventYear, eventId, createdAt: new Date(createdAt).toISOString(), expiresAt: new Date(expiresAt).toISOString(), arrival: candidate.arrival, departure, nights, attendanceType: candidate.attendanceType, accommodation: candidate.accommodation, accommodationOptionId, accommodationUnits: units, crew, showShine: candidate.showShine };
+  return validateSharedPlannerDraft(candidate,{now});
 }
 
 function plannerDraftFromRow(row) {
@@ -765,6 +743,7 @@ async function putPlannerDraft(request, env, auth, origin) {
 
   const draft = validatePlannerDraft(body?.draft);
   if (!draft || JSON.stringify(draft).length > 4096) return json({ ok: false, error: "invalid_planner_draft", message: "Plán z Weekend Planneru není platný." }, 400, origin);
+  if(draft.editor?.accountId && draft.editor.accountId!==auth.uid)return json({ok:false,error:'draft_owner_mismatch'},403,origin);
 
   const member = await env.DB.prepare("SELECT id FROM members WHERE id = ? LIMIT 1").bind(auth.uid).first();
   if (!member) return json({ ok: false, error: "member_profile_required", message: "Nejdřív dokonči členský profil." }, 409, origin);

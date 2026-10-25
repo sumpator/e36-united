@@ -28,8 +28,8 @@ export function deriveOverviewState({ reservation = null, registrationOpen = fal
       active: true,
       label: activePlan&&registrationOpen?'POTVRĎ SVOU REGISTRACI!':activePlan?'MÁŠ PŘEDBĚŽNOU REGISTRACI.':plannerUnavailable?'PŘEDBĚŽNOU REGISTRACI TEĎ NELZE OVĚŘIT':draft?(registrationOpen?'DOKONČI REGISTRACI':'DOKONČI PŘEDBĚŽNOU REGISTRACI'):(registrationOpen||planEnabled)?'REGISTRUJ SE NA UNITED':'REGISTRACE NYNÍ NEJSOU OTEVŘENÉ',
       copy: activePlan&&registrationOpen?'Registrace jsou otevřené.':activePlan?'Až otevřeme registrace, dáme Ti vědět a registraci dokončíš.':plannerUnavailable?'Spojení se serverem se nezdařilo. Stav uložené předběžné registrace teď nelze ověřit.':draft?'':registrationOpen?'':planEnabled?'Zatím přijímáme předběžné registrace.':closedCopy,
-      action: activePlan?'Zobrazit registraci':plannerUnavailable?'':draft?'Pokračovat':registrationOpen||planEnabled?'Začít':'',
-      openEditor: !activePlan&&!plannerUnavailable&&(draft||registrationOpen||planEnabled),
+      action: activePlan?(registrationOpen?'Zkontrolovat a potvrdit registraci':planEnabled?'Upravit předběžnou registraci':'Zobrazit předběžnou registraci'):plannerUnavailable?'':draft?(registrationOpen?'Dokončit registraci':'Dokončit předběžnou registraci'):registrationOpen?'Vyplnit registraci':planEnabled?'Vyplnit předběžnou registraci':'',
+      openEditor: !plannerUnavailable&&(registrationOpen||planEnabled),
       emptyCopy: '',
     };
   }

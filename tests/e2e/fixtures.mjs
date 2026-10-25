@@ -142,6 +142,7 @@ export async function prepareE2ePage(page, {
 } = {}) {
   let currentReservation=reservation;
   let currentPreliminary=null;
+  const plannerDrafts=new Map();
   let currentCars=cars??[{
     id:'car-001',nickname:'Estoril',body:'Coupé',model:'328i',year:1996,color:'Estoril Blau',primary:true,photos:[],
   }];
@@ -330,7 +331,11 @@ export async function prepareE2ePage(page, {
       const body=request.postDataJSON();observations.reservationCarWrites.push(body);await jsonResponse(route,{ok:true,carId:body.carId,message:'Auto rezervace bylo změněno.'});return;
     }
     if (url.pathname === '/api/planner-draft') {
-      await jsonResponse(route, { draft: null });
+      // Autosave is a draft contract, not a preliminary reservation or a booking.
+      const key=memberProfile.id;
+      if(request.method()==='PUT'){const candidate=request.postDataJSON().draft,previous=plannerDrafts.get(key);if(!previous||candidate.createdAt>previous.createdAt)plannerDrafts.set(key,candidate);await jsonResponse(route,{ok:true,accepted:plannerDrafts.get(key)?.createdAt===candidate.createdAt,draft:plannerDrafts.get(key)||null});return}
+      if(request.method()==='DELETE')plannerDrafts.delete(key);
+      await jsonResponse(route, {ok:true,draft:plannerDrafts.get(key)||null});
       return;
     }
     if (url.pathname === '/api/united-club') {

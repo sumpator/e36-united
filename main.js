@@ -15,7 +15,7 @@ publicMemberState={...publicMemberState,...state};
 qsa('.nav-cta').forEach(cta=>{cta.hidden=true});
 qsa('.nav-member').forEach(link=>{
   const authenticated=publicMemberState.authenticated===true;
-  link.textContent=authenticated?'Můj United':'Přihlásit se';
+  link.textContent='Můj United';
   link.href=authenticated?'member.html':`member.html?returnTo=${encodeURIComponent(location.pathname+location.search+location.hash)}`;
 });
 for(const listener of publicMemberStateListeners)listener(publicMemberState);
@@ -25,7 +25,7 @@ document.addEventListener('click',event=>{const link=event.target.closest('.nav-
 qsa('.nav-cta').forEach(cta=>{cta.hidden=true});
 void (async()=>{
 try{
-const [{firebaseConfig,portalConfig},{initPublicMemberState}]=await Promise.all([import('./firebase-config.js?v=20260823-auth2'),import('./public-member-state.js?v=20260928-flow1')]);
+const [{firebaseConfig,portalConfig},{initPublicMemberState}]=await Promise.all([import('./firebase-config.js?v=20260823-auth2'),import('./public-member-state.js?v=20261025-flow1')]);
 initPublicMemberState({config:firebaseConfig,apiBaseUrl:portalConfig.apiBaseUrl,onStateChange:publishPublicMemberState});
 }catch(error){publishPublicMemberState({status:'error',authenticated:false,showJoinCta:false,error});console.debug('Public member state unavailable; join CTA remains hidden.',error)}
 })();
@@ -44,7 +44,7 @@ const updateHeader = () => header?.classList.toggle('scrolled', window.scrollY >
 updateHeader();
 window.addEventListener('scroll', updateHeader, { passive: true });
 
-void import('./mobile-navigation.js?v=20260926-portal3').then(({initMobileNavigation})=>initMobileNavigation());
+void import('./mobile-navigation.js?v=20261025-flow1').then(({initMobileNavigation})=>initMobileNavigation());
 navLinks.forEach(a => a.addEventListener('click', () => {
 document.body.classList.remove('menu-open');
 menuBtn?.setAttribute('aria-expanded', 'false');

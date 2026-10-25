@@ -1,8 +1,8 @@
 // Release URLs approved by the September deliveries. Unchanged modules retain
 // their own tokens; every source still has exactly one runtime URL.
 export const ADMIN_MODULE_RELEASES = Object.freeze({
-  'admin.js': '20261023-mail1',
-  'admin/modules/live.js': '20261014-admin1',
+  'admin.js': '20261025-flow1',
+  'admin/modules/live.js': '20261025-flow1',
   'live-history.js': '20260930-flow2',
   'admin-view-model.js': '20260930-arrivals2',
   'admin/api.js': '20260930-arrivals2',

@@ -18,7 +18,18 @@ export function validatePlannerDraft(candidate,{now=Date.now()}={}){
   const accommodationOptionId=candidate.accommodationOptionId==null?null:String(candidate.accommodationOptionId);if(accommodationOptionId!==null&&!ID_PATTERN.test(accommodationOptionId))return null;
   const fallbackDeparture=candidate.arrival==='Jen na otočku'?'Stejný den':'Neděle',departure=String(candidate.departure||fallbackDeparture),nights=Number(candidate.nights??(candidate.arrival==='Pátek'?2:candidate.arrival==='Sobota'?1:0));
   const validStay=candidate.arrival==='Pátek'?((departure==='Sobota'&&nights===1)||(departure==='Neděle'&&nights===2)):candidate.arrival==='Sobota'?(departure==='Neděle'&&nights===1):(departure==='Stejný den'&&nights===0);if(!validStay)return null;
-  return {version:1,draftId,source:'weekend-planner',eventYear,eventId,createdAt:new Date(createdAt).toISOString(),expiresAt:new Date(expiresAt).toISOString(),arrival:candidate.arrival,departure,nights,attendanceType:candidate.attendanceType,accommodation:candidate.accommodation,accommodationOptionId,accommodationUnits:units,crew,showShine:candidate.showShine};
+  let editor;
+  if(candidate.editor!==undefined){
+    const value=candidate.editor;
+    if(!value||typeof value.accountId!=='string'||!value.accountId||value.accountId.length>128||!['plan','change','reservation'].includes(value.mode)||typeof value.baseKey!=='string'||value.baseKey.length>2048||typeof value.note!=='string'||value.note.length>1000||!Array.isArray(value.crewDetails)||value.crewDetails.length>5||value.crewDetails.some(item=>typeof item!=='string'||item.length>120)||value.carId!==null&&!ID_PATTERN.test(String(value.carId)))return null;
+    editor={accountId:value.accountId,mode:value.mode,baseKey:value.baseKey,carId:value.carId,note:value.note,crewDetails:value.crewDetails};
+  }
+  return {version:1,draftId,source:'weekend-planner',eventYear,eventId,createdAt:new Date(createdAt).toISOString(),expiresAt:new Date(expiresAt).toISOString(),arrival:candidate.arrival,departure,nights,attendanceType:candidate.attendanceType,accommodation:candidate.accommodation,accommodationOptionId,accommodationUnits:units,crew,showShine:candidate.showShine,...(editor?{editor}:{})};
+}
+
+// A draft is an edit of a particular saved state, never a replacement for a newer one.
+export function plannerBaseKey(reservation,preliminary){
+  return JSON.stringify(reservation?['reservation',reservation.id,reservation.updatedAt||'',reservation.status,reservation.carId,reservation.arrival,reservation.crew,reservation.sleep,reservation.accommodationUnits,reservation.accommodationSnapshot?.optionId,reservation.showshine,reservation.note,reservation.request?.id||'',reservation.request?.status||'']:['plan',preliminary?.id||'',preliminary?.revision||0]);
 }
 
 export function newerPlannerDraft(localDraft,serverDraft){

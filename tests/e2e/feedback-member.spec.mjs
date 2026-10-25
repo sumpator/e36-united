@@ -6,7 +6,14 @@ const reply=(route,body,status=200)=>route.fulfill({status,headers,body:JSON.str
 async function clickReady(locator){await locator.scrollIntoViewIfNeeded();await expect(locator).toBeInViewport();await expect(locator).toBeEnabled();await locator.click()}
 const paidReservation={id:'reservation-flow-e2e',eventId:'united-2026',eventYear:2026,title:'E36 United 2026',carId:'car-001',carSnapshot:{id:'car-001',nickname:'Estoril',body:'Coupé',model:'328i'},arrival:'Sobota',crew:2,attendanceType:'saturday_only',accommodation:'Chatka',accommodationUnits:2,accommodationSnapshot:{optionId:'cabin-premium',optionName:'Chatka Premium',kind:'cabin',capacityPerUnit:3,peopleCount:2,unitCount:1,unitPriceCzk:1650,personPriceCzk:0,beddingFeePerPersonCzk:120,cityTaxPerPersonPerNightCzk:25,nights:1,baseTotalCzk:1650,personTotalCzk:0,beddingTotalCzk:240,cityTaxTotalCzk:50,totalCzk:1940},showShine:'Ne',note:'Platná rezervace',status:'approved',amountDueCzk:1940,amountPaidCzk:1940,payment:{amountDueCzk:1940,amountPaidCzk:1940,balanceCzk:0,remainingCzk:0,overpaymentCzk:0,status:'paid',overdue:false,variableSymbol:'2026123456',recipientName:'E36 UNITED TEST',accountDisplay:'123 / 9999',iban:'CZ5099990000000000000123',currency:'CZK',message:'E36 UNITED 2026',deadline:'2026-12-01',testMode:true,configurationReady:true,actionable:false,awaitingApproval:false,spayd:null}};
 const reservationCars=[{id:'car-001',nickname:'Estoril',body:'Coupé',model:'328i',year:1996,color:'Estoril Blau',primary:true,photos:[]},{id:'car-002',nickname:'Touring',body:'Touring',model:'325i',year:1995,color:'Schwarz',primary:false,photos:[]}];
+async function expectTransferredPlan(page){
+  await expect(page.locator('[data-reservation-workbench]')).toBeVisible();
+  await expect(page.locator('[data-reservation-summary]')).toContainText('Pátek');
+  await expect(page.locator('[data-member-plan-open]')).toContainText('Dokončit předběžnou registraci');
+  await expect(page.locator('[data-planner-handoff]')).toBeHidden();
+}
 async function login(page){
+  await expect(page.locator('[data-auth-view]')).toBeVisible();await page.locator('[data-auth-tab=login]').click();
   const form=page.locator('[data-auth-form="login"]');
   await expect(form).toBeVisible();await form.locator('[name=email]').fill('eva@example.test');await form.locator('[name=password]').fill('fixture-password');
   await form.locator('[type=submit]').click();await expect(page.locator('[data-app-view]')).toBeVisible();
@@ -81,11 +88,11 @@ test('one final public Planner click hands off in the same tab through login to 
   await expect(plannerChoice).toBeVisible();await expect(plannerLogin).toBeVisible();await plannerLogin.click();
   await expect(page).toHaveURL(/member.html\?mode=login&section=reservation&draft=/);
   await login(page);await expect(page.locator('[data-member-panel="reservation"]')).toBeVisible();
-  await expect(page.locator('[data-planner-handoff]')).toBeVisible();await expect(page.locator('[data-planner-handoff-recap]')).toContainText('Pátek');
+  await expectTransferredPlan(page);
   expect(context.pages()).toHaveLength(1);await expect.poll(()=>tracked?.draftId).toBeTruthy();
   expect(new URL(page.url()).searchParams.get('draft')).toBe(tracked.draftId);
   expect(observations.requests).toContain('POST /api/planner-handoffs/claim');
-  await page.reload();await expect(page.locator('[data-planner-handoff]')).toBeVisible();
+  await page.reload();await expectTransferredPlan(page);
   expectNoUnexpectedClientErrors(observations);
 });
 
@@ -98,7 +105,7 @@ test('a stalled optional tracking module cannot block the public Planner handoff
     await expect.poll(()=>stalled).toBe(true);await expect(page.locator('[data-accommodation-option-id="cabin-standard"]')).toBeVisible();
     await page.locator('[data-planner-mail]').click();await page.locator('[data-planner-login]').click();
     await expect(page).toHaveURL(/member.html\?mode=login&section=reservation&draft=/);
-    await login(page);await expect(page.locator('[data-planner-handoff]')).toBeVisible();
+    await login(page);await expectTransferredPlan(page);
     expect(context.pages()).toHaveLength(1);expectNoUnexpectedClientErrors(observations);
   }finally{release()}
 });
@@ -127,7 +134,7 @@ test('authenticated Planner opens an existing reservation without creating anoth
 test('authenticated Planner without a reservation transfers one plan and gives processing feedback',async({page,context})=>{
   const observations=await prepareE2ePage(page,{authenticated:true});
   await page.goto('/#planer');const cta=page.locator('[data-planner-mail]');await expect(cta).toContainText('Dokončit v Můj United');
-  await clickReady(cta);await expect(page).toHaveURL(/member\.html\?section=reservation&draft=/);await expect(page.locator('[data-planner-handoff]')).toBeVisible();
+  await clickReady(cta);await expect(page).toHaveURL(/member\.html\?section=reservation&draft=/);await expectTransferredPlan(page);
   await expect.poll(()=>observations.requests.filter(item=>item==='POST /api/planner-handoffs').length).toBe(1);expect(context.pages()).toHaveLength(1);expectNoUnexpectedClientErrors(observations);
 });
 
@@ -208,8 +215,8 @@ test('storage-restricted handoff survives login and reload through its URL fallb
   const now=Date.now(),draftId='11111111-1111-4111-8111-111111111111';
   const draft={version:1,draftId,source:'weekend-planner',eventId:'united-2026',eventYear:2026,createdAt:new Date(now-1000).toISOString(),expiresAt:new Date(now+86400000).toISOString(),arrival:'Pátek',departure:'Neděle',nights:2,attendanceType:'full_weekend',accommodation:'Bez ubytování',accommodationOptionId:null,accommodationUnits:0,crew:2,showShine:'Ne'};
   await page.goto(`/member.html?section=reservation&draft=${draftId}#handoff=${Buffer.from(JSON.stringify(draft)).toString('base64url')}`);
-  await login(page);await expect(page.locator('[data-planner-handoff]')).toBeVisible();await expect(page).toHaveURL(/#handoff=/);
-  await page.reload();await expect(page.locator('[data-member-panel="reservation"]')).toBeVisible();await expect(page.locator('[data-planner-handoff]')).toBeVisible();
+  await login(page);await expectTransferredPlan(page);await expect(page).toHaveURL(/#handoff=/);
+  await page.reload();await expect(page.locator('[data-member-panel="reservation"]')).toBeVisible();await expectTransferredPlan(page);
   expectNoUnexpectedClientErrors(observations);
 });
 

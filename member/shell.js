@@ -1,8 +1,8 @@
-import { deriveMemberHeroState } from '../member-portal-state.js?v=20260921-member-ux-r2';
+import { deriveMemberHeroState } from '../member-portal-state.js?v=20261025-flow1';
 import { initPortalNavigation } from '../portal-navigation.js?v=20260924-merch2';
 import { $, $$ } from './ui.js?v=20260924-merch2';
 import { memberSection } from './deep-links.js?v=20260924-merch2';
-import { initMobileNavigation } from '../mobile-navigation.js?v=20260926-portal3';
+import { initMobileNavigation } from '../mobile-navigation.js?v=20261025-flow1';
 
 export function createMemberShell({
   renderApp,
@@ -52,12 +52,13 @@ export function createMemberShell({
     renderApp();
   }
   function activateAuthTab(name){
+    const url=new URL(location.href);url.searchParams.set('mode',name);history.replaceState(history.state,'',url);
     $$('[data-auth-tab]').forEach(element=>element.classList.toggle('is-active',element.dataset.authTab===name));
     $$('[data-auth-form]').forEach(form=>form.classList.toggle('is-active',form.dataset.authForm===name));
   }
   function resetAuthForms(){
     $$('[data-auth-form]').forEach(form=>form.reset());
-    activateAuthTab('login');
+    activateAuthTab('register');
   }
   function setLiveMode(active){
     const appView=$('[data-app-view]'),liveView=$('[data-member-live-mode]');

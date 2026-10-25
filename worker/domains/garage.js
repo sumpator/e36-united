@@ -50,20 +50,23 @@ async function createCar(request, env, auth, origin) {
   if (!model || !carBody) return json({ ok: false, error: "Model and body are required" }, 400, origin);
   if (year && (year < 1990 || year > 2030)) return json({ ok: false, error: "Invalid year" }, 400, origin);
 
-  const count = await env.DB.prepare("SELECT COUNT(*) AS count FROM cars WHERE member_id = ?").bind(auth.uid).first();
-  const primary = body.primary === true || Number(count?.count || 0) === 0;
+  // Planner selection never changes an existing garage primary. Decide inside the
+  // write transaction, not from a count read before another device saves.
+  const preservePrimary = body.preservePrimary === true;
+  const primary = !preservePrimary && body.primary === true;
   const id = crypto.randomUUID();
 
   const statements = [];
   if (primary) statements.push(env.DB.prepare("UPDATE cars SET is_primary = 0, updated_at = CURRENT_TIMESTAMP WHERE member_id = ?").bind(auth.uid));
   statements.push(env.DB.prepare(`
     INSERT INTO cars (id, member_id, nickname, model, body, year, color, is_primary)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-  `).bind(id, auth.uid, nickname || null, model, carBody, year, color || null, primary ? 1 : 0));
+    SELECT ?, ?, ?, ?, ?, ?, ?, CASE WHEN ? = 1 OR NOT EXISTS(SELECT 1 FROM cars WHERE member_id=? AND is_primary=1) THEN 1 ELSE 0 END
+  `).bind(id, auth.uid, nickname || null, model, carBody, year, color || null, primary ? 1 : 0, auth.uid));
   statements.push(profilePointStatement(env, auth.uid));
   await env.DB.batch(statements);
 
-  return json({ ok: true, car: { id, nickname, model, body: carBody, year, color, primary, photos: [] } }, 201, origin);
+  const saved = await env.DB.prepare('SELECT is_primary FROM cars WHERE id=? AND member_id=?').bind(id,auth.uid).first();
+  return json({ ok: true, car: { id, nickname, model, body: carBody, year, color, primary:!!saved?.is_primary, photos: [] } }, 201, origin);
 }
 
 async function updateCar(request, env, auth, carId, origin) {
@@ -82,6 +85,10 @@ async function updateCar(request, env, auth, carId, origin) {
   if (year && (year < 1990 || year > 2030)) return json({ ok: false, error: "Invalid year" }, 400, origin);
 
   const requestedPrimary = body.primary === true;
+  if(body.preservePrimary===true){
+    await env.DB.prepare('UPDATE cars SET nickname=?,model=?,body=?,year=?,color=?,updated_at=CURRENT_TIMESTAMP WHERE id=? AND member_id=?').bind(nickname||null,model,carBody,year,color||null,carId,auth.uid).run();
+    return json({ok:true,car:{id:carId,nickname,model,body:carBody,year,color,primary:!!car.is_primary}},200,origin);
+  }
   let primary = requestedPrimary || !!car.is_primary;
   let replacementPrimaryId = "";
   const statements = [];

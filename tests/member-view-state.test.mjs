@@ -37,11 +37,11 @@ test('overview: closed registration without enabled plans does not claim a persi
 
 test('overview: enabled and saved plans have explicit closed/open actions',()=>{
   const enabled=deriveOverviewState({registrationOpen:false,planEnabled:true,eventYear:2026});
-  assert.equal(enabled.action,'Začít');assert.equal(enabled.openEditor,true);assert.equal(enabled.copy,'Zatím přijímáme předběžné registrace.');
-  const saved=deriveOverviewState({registrationOpen:false,plan:{status:'active'},eventYear:2026});
-  assert.equal(saved.label,'MÁŠ PŘEDBĚŽNOU REGISTRACI.');assert.equal(saved.action,'Zobrazit registraci');assert.equal(saved.openEditor,false);assert.match(saved.copy,/dáme Ti vědět/);
+  assert.equal(enabled.action,'Vyplnit předběžnou registraci');assert.equal(enabled.openEditor,true);assert.equal(enabled.copy,'Zatím přijímáme předběžné registrace.');
+  const saved=deriveOverviewState({registrationOpen:false,planEnabled:true,plan:{status:'active'},eventYear:2026});
+  assert.equal(saved.label,'MÁŠ PŘEDBĚŽNOU REGISTRACI.');assert.equal(saved.action,'Upravit předběžnou registraci');assert.equal(saved.openEditor,true);assert.match(saved.copy,/dáme Ti vědět/);
   const open=deriveOverviewState({registrationOpen:true,plan:{status:'active'},eventYear:2026});
-  assert.equal(open.label,'POTVRĎ SVOU REGISTRACI!');assert.equal(open.action,'Zobrazit registraci');assert.equal(open.openEditor,false);assert.equal(open.copy,'Registrace jsou otevřené.');
+  assert.equal(open.label,'POTVRĎ SVOU REGISTRACI!');assert.equal(open.action,'Zkontrolovat a potvrdit registraci');assert.equal(open.openEditor,true);assert.equal(open.copy,'Registrace jsou otevřené.');
 });
 
 test('overview: open registration without reservation exposes the event CTA', () => {
@@ -49,7 +49,7 @@ test('overview: open registration without reservation exposes the event CTA', ()
   assert.equal(view.active, true);
   assert.equal(view.label, 'REGISTRUJ SE NA UNITED');
   assert.equal(view.copy, '');
-  assert.equal(view.action, 'Začít');
+  assert.equal(view.action, 'Vyplnit registraci');
 });
 
 test('overview: pending and approved states are concise', () => {

@@ -1,0 +1,46 @@
+/* Scoped registration entry, onboarding viewport and confirmed photo receipts. */
+.reservation-workbench[data-registration-mode=plan]{display:block;padding:20px;border:1px solid var(--appearance-border,#29445a);border-radius:18px;background:var(--appearance-surface,#0c1a26)}
+.reservation-workbench[data-registration-mode=plan] .reservation-status-card,.reservation-workbench[data-registration-mode=plan] .reservation-unified-card{border:0;background:transparent;box-shadow:none;padding:0;min-height:0}
+.reservation-workbench[data-registration-mode=plan] .reservation-status-card{border-radius:0;overflow:visible}
+.reservation-workbench[data-registration-mode=plan] .reservation-detail-grid{grid-template-columns:minmax(0,1fr);gap:14px}
+.reservation-workbench[data-registration-mode=plan]  .reservation-hero-strip{height:auto;min-height:0;padding:12px 0;background:none}
+.reservation-workbench[data-registration-mode=plan] .reservation-hero-strip h3{position:static;margin:0;font-size:24px;color:var(--appearance-ink,#edf7ff)}
+.reservation-workbench[data-registration-mode=plan] .reservation-large-year,.reservation-workbench[data-registration-mode=plan] .reservation-card-overlay,.reservation-workbench[data-registration-mode=plan] .reservation-car-hero{display:none}
+.reservation-workbench[data-registration-mode=plan] .reservation-card-large{min-height:0;padding:0;background:none}
+.reservation-workbench[data-registration-mode=plan] .reservation-summary{position:static;margin:0;padding:0;gap:12px}
+.reservation-workbench[data-registration-mode=plan] .reservation-preliminary-detail{padding:0;border:0;background:none}
+.reservation-workbench[data-registration-mode=plan] .reservation-preliminary-detail>header{display:none}
+.member-page .reservation-workbench[data-registration-mode=plan] .reservation-unified-card .reservation-hero-strip{height:auto;min-height:0;padding:0;background:none}
+.member-page .reservation-workbench[data-registration-mode=plan] .reservation-card-large[data-reservation-card]{border:0;border-radius:0;background:none;box-shadow:none}
+.member-page .reservation-workbench[data-registration-mode=plan] .reservation-card-large::before,.member-page .reservation-workbench[data-registration-mode=plan] .reservation-card-large::after{display:none}
+.member-page .reservation-workbench[data-registration-mode=plan] .reservation-summary{grid-auto-rows:auto;background:none;padding:12px 0;gap:10px}
+.member-page .reservation-workbench[data-registration-mode=plan] .reservation-summary>p{grid-column:1/-1;margin:0}
+.member-page .reservation-workbench[data-registration-mode=plan] .reservation-summary>div{min-height:0;padding:8px;border:0;background:var(--appearance-wash,rgba(255,255,255,.025))}
+.member-page .reservation-workbench[data-registration-mode=plan] .reservation-detail-status{padding:0 0 14px;display:block}
+.member-page .reservation-workbench[data-registration-mode=plan] .reservation-state-value strong{font-size:16px;line-height:1.4}
+[data-planner-draft-status]{font-size:13px;color:var(--appearance-muted,#9fb1c1);overflow-wrap:anywhere}
+.member-page .onboarding-intro-modal{top:var(--intro-top,0px);bottom:auto;height:var(--intro-height,100dvh);display:flex;align-items:center;justify-content:center;box-sizing:border-box;padding:max(12px,env(safe-area-inset-top)) max(12px,env(safe-area-inset-right)) max(12px,env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left))}
+.member-page .onboarding-intro-dialog{box-sizing:border-box;width:min(760px,100%);min-width:0;min-height:0;max-height:100%;overflow-y:auto;overscroll-behavior:contain;margin:0;transform:none;padding-top:52px}
+.onboarding-intro-dialog .member-modal-close{position:sticky;top:0;float:right;margin-top:-40px;z-index:2;flex:none}
+.member-page .onboarding-intro-dialog .united-onboarding-club{display:grid}
+.mobile-member-logout{width:100%;min-height:46px;margin-top:12px;border:1px solid var(--appearance-border,#29445a);border-radius:10px;background:var(--appearance-surface,#0c1a26);color:var(--appearance-ink,#edf7ff);font:inherit}
+.live-history>.live-category-card{border:1px solid var(--appearance-border,#29445a);border-radius:14px;background:var(--appearance-surface,#0c1a26);overflow:hidden}
+.live-history>.live-category-card.is-running{border-color:var(--appearance-action,#55a9ff)}
+.live-history>.live-category-card>summary{display:grid;grid-template-columns:minmax(0,1fr) auto 20px;min-height:54px;padding:10px 14px;list-style:none;border:0;gap:9px}
+.live-category-card>summary::-webkit-details-marker{display:none}
+.live-category-card>summary small{padding:5px 9px;border-radius:20px;background:var(--appearance-wash,#183044);font-size:12px;color:var(--appearance-ink,#edf7ff)}
+.live-category-card.is-running>summary small{background:var(--appearance-selected,#12354f);color:var(--appearance-action,#55a9ff)}
+.live-category-card[open] .live-category-chevron{transform:rotate(180deg)}
+.live-category-card>p,.live-category-card>article{margin:0;padding:12px 14px}
+.live-own-photo-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,9rem),1fr));gap:12px}
+.member-live-upload>label{position:relative;min-width:0}
+.member-live-upload input[type=file]{width:1px;min-width:0;height:1px;left:0;top:0}
+.member-live-gallery .live-own-photo-card{display:flex;flex-direction:column;aspect-ratio:auto;border:1px solid var(--appearance-border,#29445a);border-radius:13px;min-width:0;background:var(--appearance-surface,#0c1a26)}
+.member-live-gallery .live-own-photo-card>img{width:100%;max-width:none;height:auto;aspect-ratio:4/3;object-fit:cover}
+.member-live-gallery .live-own-photo-card>figcaption{position:static;display:grid;gap:7px;padding:10px;background:none;color:var(--appearance-ink,#edf7ff);overflow-wrap:anywhere}
+.live-own-photo-card [data-status]{font-size:12px;line-height:1.4}
+.member-live-gallery-grid>.live-empty{grid-column:1/-1;margin:0;padding:16px;border:1px solid var(--appearance-border,#29445a);border-radius:12px}
+.live-upload-preview[data-upload-state=uploaded],[data-member-photo-previews] [data-upload-state=uploaded]{grid-template-rows:auto;align-self:start}
+.live-upload-preview[data-upload-state=uploaded]>img,.live-upload-preview[data-upload-state=uploaded]>span,[data-member-photo-previews] [data-upload-state=uploaded]>img{display:none}
+.live-upload-preview[data-upload-state=uploaded] figcaption,[data-member-photo-previews] [data-upload-state=uploaded] figcaption{padding:10px 34px 10px 10px}
+@media(max-width:680px){.reservation-workbench[data-registration-mode=plan]{padding:15px}.live-history>.live-category-card>summary{gap:6px;padding:10px;font-size:14px}.live-category-card>summary small{font-size:12px}}

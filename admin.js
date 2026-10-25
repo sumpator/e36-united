@@ -23,7 +23,7 @@ import { renderAdminFunnel } from './admin/modules/funnel.js?v=20260930-arrivals
 import {releaseHistoryCardMedia} from './admin/modules/moderation.js?v=20261014-admin1';
 import { refreshHistoryAttention } from './admin/modules/dashboard-events.js?v=20261014-admin1';
 import {initializePreliminary,clearPreliminary,preliminaryContext,preliminaryTasks} from './admin/modules/preliminary.js?v=20260930-arrivals2';
-import {initializeAdminLive} from './admin/modules/live.js?v=20261014-admin1';
+import {initializeAdminLive} from './admin/modules/live.js?v=20261025-flow1';
 import { initializeArrivals } from './admin/modules/arrivals.js?v=20261014-admin1';
 import {initializeMerch} from './admin/modules/merch.js?v=20260930-arrivals2';
 

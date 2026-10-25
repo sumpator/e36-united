@@ -321,17 +321,21 @@ export function initializeAdminLive({setAdminView}){
   async function startExhaustRating(){const member=selectedMember(),car=selectedCar(member),state=currentState();if(!member||!car)return;++readSequence;try{await apiRequest(`/api/admin/events/${encodeURIComponent(eventId())}/live/start`,{method:'POST',body:{discipline,memberId:member.memberId,carId:car.id,category:discipline==='show_shine'?selectedCategory:'',originalM,expectedVersion:Number(state.version)}});judgeSaved='';await load();toast('Auto je zpřístupněné pro hodnocení.')}catch(error){const message=liveError(error,'Hodnocení se nepodařilo spustit.');toast(message);if(error?.payload?.error==='live_disabled'||error?.payload?.error==='stale_live_state')await load()}}
   async function startRating(){
     if(discipline!=='show_shine')return startExhaustRating();
-    if(flowBusy||scoreWrites.size||startUncertain||currentState('show_shine').entry)return;
+    if(flowBusy||carSaving||carBatch.busy||scoreWrites.size||startUncertain||currentState('show_shine').entry)return;
     if(startBlockedReason())return toast(startBlockedReason());
-    if(!confirmNewCar())return;
+    if(newCarOpen&&!confirmNewCar())return;
     const member=selectedMember(),car=selectedCar(member);if(!member||!car)return;
     const seq=selectionSequence,key=eventId()+'|'+accountId(),category=selectedCategory;
     const current=()=>seq===selectionSequence&&key===eventId()+'|'+accountId();
     newCarOpen=false;flowBusy='start';flowMessage='';stop();++readSequence;render();
     try{
+      const uploaded=await uploadCarPhoto(car.id,key);
+      if(!current()||selectedCar()?.id!==car.id||selectedCategory!==category)return;
+      if(!uploaded){flowMessage='Fotografie se neuložila. Hodnocení neběží; náhled zůstává pro opakování.';return}
       const receipt=await apiRequest(`/api/admin/events/${encodeURIComponent(eventId())}/live/start`,{method:'POST',body:{discipline:'show_shine',arrivalId:member.arrivalId,memberId:member.memberId,carId:car.id,category,originalM,expectedVersion:Number(currentState('show_shine').version)}});
       if(!current())return;
       if(!receipt?.ok||!receipt.entryId)throw new Error('Server nepotvrdil spuštění.');
+      carBatch.clear();
       workflowEntryId=receipt.entryId;workflowOverview=false;tab='showshine';subview='workflow';judgeSaved='';
       const refreshed=await load();if(!current())return;
       if(!refreshed){startUncertain=true;flowMessage='Spuštění je potvrzené, ale hodnoticí data se nepodařilo načíst. Obnov stav.'}

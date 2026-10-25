@@ -111,14 +111,16 @@ export function createMemberGarage({
     carForm?.addEventListener('submit',async event=>{
       event.preventDefault();
       if(!getCurrentUser())return toast('Nejdřív se přihlas.');
-      const form=event.currentTarget,button=form.querySelector('button[type="submit"]'),fd=new FormData(form),file=selectedCarPhoto,carId=editingCarId;
+      const form=event.currentTarget,button=form.querySelector('button[type="submit"]'),fd=new FormData(form),file=selectedCarPhoto,carId=editingCarId,actor=getCurrentUser();
       if(button.disabled)return;
       setButtonBusy(button,true,'Ukládám auto…');
       try{
-        const blob=file?await compressImageBlob(file,1800,.82):null,payload={nickname:fd.get('nickname'),body:fd.get('body'),model:fd.get('model'),year:fd.get('year'),color:fd.get('color'),primary:fd.get('primary')==='on'};
+        const blob=file?await compressImageBlob(file,1800,.82):null,payload={nickname:fd.get('nickname'),body:fd.get('body'),model:fd.get('model'),year:fd.get('year'),color:fd.get('color'),primary:fd.get('primary')==='on',preservePrimary:returnToReservationAfterCar};
+        if(getCurrentUser()!==actor)return;
         let savedCarId=carId;
         if(carId)await apiRequest(`/api/cars/${encodeURIComponent(carId)}`,{method:'PUT',body:payload});
         else{const created=await apiRequest('/api/cars',{method:'POST',body:payload});savedCarId=created?.car?.id;if(!savedCarId)throw new Error('car_create_failed')}
+        if(getCurrentUser()!==actor)return;
         // Keep the saved identity even if the photo or refresh fails: retry must not create another car.
         editingCarId=String(savedCarId);carModal.dataset.carId=editingCarId;
         let photoError=null;
@@ -128,10 +130,11 @@ export function createMemberGarage({
         }
         if(photoError){console.warn('Car photo upload failed',photoError);toast('Auto je uložené, ale fotku se nepodařilo nahrát. Zkus Uložit znovu; původní fotka zůstala beze změny.');return}
         clearSelectedCarPhoto();
-        setCars(await loadCarsFromApi());await refreshClub().catch(error=>console.warn('Club refresh unavailable',error));
-        const resumeReservation=returnToReservationAfterCar,resumePlanner=returnToPlannerAfterCar;closeCarModal();clearReservationCarError();renderGarage();onCarSaved({resumeReservation,resumePlanner});
+        const cars=await loadCarsFromApi();if(getCurrentUser()!==actor)return;setCars(cars);await refreshClub().catch(error=>console.warn('Club refresh unavailable',error));
+        if(getCurrentUser()!==actor)return;
+        const resumeReservation=returnToReservationAfterCar,resumePlanner=returnToPlannerAfterCar;closeCarModal();clearReservationCarError();renderGarage();onCarSaved({carId:String(savedCarId),resumeReservation,resumePlanner});
         returnToReservationAfterCar=false;
-        toast(carId?(file?'Auto i nová fotka byly aktualizovány.':'Změny auta byly uloženy.'):(file?'Auto i fotka jsou uložené v Můj United.':'Auto je uložené v Můj United.'));
+        if(!resumeReservation)toast(carId?(file?'Auto i nová fotka byly aktualizovány.':'Změny auta byly uloženy.'):(file?'Auto i fotka jsou uložené v Můj United.':'Auto je uložené v Můj United.'));
       }catch(error){console.warn('Car upload failed',error);toast(error?.message===IMAGE_ERROR_MESSAGE?IMAGE_ERROR_MESSAGE:error?.status===409?'Profilovou fotku se nepodařilo uložit.':'Uložení se nepodařilo dokončit. Zkontroluj připojení a zkus to znovu.')}
       finally{setButtonBusy(button,false)}
     });

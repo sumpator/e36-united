@@ -6,17 +6,17 @@ import { loadMemberSessionSnapshot } from './member/refresh.js?v=20260907-feedba
 import { apiError, authError, authOrApiError, createMemberSession } from './member/session.js?v=20260907-feedback';
 import { createMemberData as defaultData, normalizeMember as normalizeMemberState } from './member/state.js?v=20260926-portal3';
 import { $, $$, setButtonBusy, toast } from './member/ui.js?v=20260924-merch2';
-import { createMemberShell } from './member/shell.js?v=20260927-ux2';
-import { createMemberOverview } from './member/modules/overview.js?v=20261011-ui1';
-import { createMemberGarage } from './member/modules/garage.js?v=20261011-ui1';
-import { createMemberPhotos } from './member/modules/photos.js?v=20261011-ui1';
-import { createMemberPlanner } from './member/modules/planner/index.js?v=20261023-mail1';
+import { createMemberShell } from './member/shell.js?v=20261025-flow1';
+import { createMemberOverview } from './member/modules/overview.js?v=20261025-flow1';
+import { createMemberGarage } from './member/modules/garage.js?v=20261025-flow1';
+import { createMemberPhotos } from './member/modules/photos.js?v=20261025-flow1';
+import { createMemberPlanner } from './member/modules/planner/index.js?v=20261025-flow1';
 import {verifyNewPasswordAccount} from './member/registration-verification.js?v=20261023-mail1';
 import { formatCzk } from './member/modules/planner/payments.js?v=20260924-merch2';
 import { createMemberClub } from './member/modules/club/index.js?v=20261011-ui1';
 import { achievementIcon, pictogram } from './member/modules/club/points.js?v=20261011-ui1';
 import { createMemberAccount } from './member/modules/account.js?v=20261011-ui1';
-import { createMemberLive } from './member/modules/live.js?v=20261011-ui1';
+import { createMemberLive } from './member/modules/live.js?v=20261025-flow1';
 import { createMemberMerch } from './member/modules/merch.js?v=20260926-portal3';
 import './member/club-tabs.js?v=20260924-workspace1';
 import { requestedMemberSection } from './member/deep-links.js?v=20260924-merch2';
@@ -148,6 +148,7 @@ async function initFirebase(){
   await memberSession.initialize();
 }
 
+$$('[data-auth-switch]').forEach(btn=>btn.addEventListener('click',()=>activateAuthTab(btn.dataset.authSwitch)));
 $$('[data-auth-tab]').forEach(btn=>btn.addEventListener('click',()=>activateAuthTab(btn.dataset.authTab)));
 $$('[data-toggle-password]').forEach(button=>button.addEventListener('click',()=>{const input=button.parentElement.querySelector('input');if(input)input.type=input.type==='password'?'text':'password'}));
 
@@ -240,9 +241,9 @@ const memberGarage=createMemberGarage({
   renderReservationCarPhoto:()=>memberPlanner?.renderReservationCarPhoto(data.reservation),
   clearReservationCarError:()=>memberPlanner?.setReservationCarError(false),
   onCarDisplayChanged:()=>renderProfile(),
-  onCarSaved:({resumeReservation,resumePlanner})=>{
+  onCarSaved:({carId,resumeReservation,resumePlanner})=>{
     renderProfile();memberClub.renderPoints();memberClub.renderAchievements();
-    memberPlanner?.handleGarageCarSaved({resumeReservation,resumePlanner});
+    memberPlanner?.handleGarageCarSaved({carId,resumeReservation,resumePlanner});
   },
   renderEditIcon:()=>pictogram('<path d="m4 20 4.2-1 10.4-10.4a2.1 2.1 0 0 0-3-3L5.2 16 4 20Z"/><path d="m13.8 7.4 3 3"/>'),
   formatApiError:apiError,
@@ -339,5 +340,5 @@ memberLive.bind();
 
 bindMainNavigation();
 memberPlanner.hydratePlannerHandoffFromUrl();
-const requestedAuthMode=memberUrlParams.get('mode');if(requestedAuthMode==='register'||requestedAuthMode==='login')activateAuthTab(requestedAuthMode);
+const requestedAuthMode=memberUrlParams.get('mode');activateAuthTab(requestedAuthMode==='login'?'login':'register');
 initFirebase();
