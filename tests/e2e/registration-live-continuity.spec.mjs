@@ -88,6 +88,50 @@ async function plannerFixture(page,{empty=false}={}){
  return {r,observations,calls,open,failNextRefresh:()=>{failRefresh=true},restoreReads:()=>{failRefresh=false},holdDraftResponse:callback=>{draftResponse=callback}};
 }
 
+// Hold only the garage's initial-focus callback, not the page's animation frames.
+// The same regression also covers synchronous focus (there is then nothing queued).
+async function holdGarageInitialFocus(page){
+ await page.addInitScript(()=>{
+  const raf=window.requestAnimationFrame.bind(window),held=[];
+  window.__garageInitialFocus={captured:0,release(){const callbacks=held.splice(0);for(const callback of callbacks)callback(performance.now());return callbacks.length}};
+  window.requestAnimationFrame=callback=>{
+   if(/carForm\.elements\.nickname\?\.focus\(\)/.test(Function.prototype.toString.call(callback))){window.__garageInitialFocus.captured++;held.push(callback);return 0}
+   return raf(callback);
+  };
+ });
+}
+
+for(const state of ['another field','closed','reopened'])test('garage initial focus cannot take over '+state,async({page},info)=>{
+ await holdGarageInitialFocus(page);const c=await plannerFixture(page,{empty:true});try{
+  await page.setViewportSize({width:390,height:844});await c.open();const planner=page.locator('[data-member-planner-modal]'),car=page.locator('[data-car-modal]');
+  await planner.locator('[data-member-planner-add-car]').click();
+  if(state!=='another field'){
+   await car.getByRole('button',{name:'Zavřít formulář auta',exact:true}).click();await expect(car).toBeHidden();
+   if(state==='reopened')await planner.locator('[data-member-planner-add-car]').click();
+  }
+  const field=state==='closed'?planner.locator('[name=note]'):car.locator('[name=model]');
+  if(state!=='closed')await car.locator('[name=nickname]').fill('Nová E36');
+  await field.fill('328i');await field.evaluate(node=>node.setSelectionRange(2,2));
+  const released=await page.evaluate(()=>({released:window.__garageInitialFocus.release(),captured:window.__garageInitialFocus.captured}));
+  await info.attach('held-garage-focus',{body:JSON.stringify(released),contentType:'application/json'});
+  await expect(field).toBeFocused();await expect(field).toHaveValue('328i');expect(await field.evaluate(node=>[node.selectionStart,node.selectionEnd])).toEqual([2,2]);
+  await page.keyboard.insertText('X');await expect(field).toHaveValue('32X8i');
+  if(state==='closed')await expect(car).toBeHidden();else await expect(car.locator('[name=nickname]')).toHaveValue('Nová E36');
+  await page.screenshot({path:info.outputPath('garage-focus-'+state.replace(' ','-')+'.png')});expectNoUnexpectedClientErrors(c.observations);
+ }finally{await page.close();c.r.db.close()}
+});
+
+test('garage initial focus is available for creating and editing a car',async({page},info)=>{
+ const c=await plannerFixture(page);try{
+  await c.open();const planner=page.locator('[data-member-planner-modal]'),car=page.locator('[data-car-modal]');
+  await planner.locator('[data-member-planner-add-car]').click();await expect(car.locator('[name=nickname]')).toBeFocused();
+  await page.keyboard.type('Nová E36');await car.locator('[name=model]').fill('328i');await expect(car.locator('[name=nickname]')).toHaveValue('Nová E36');await expect(car.locator('[name=model]')).toHaveValue('328i');
+  await car.getByRole('button',{name:'Zavřít formulář auta',exact:true}).click();await planner.getByRole('button',{name:'Zavřít Planner',exact:true}).click();await page.locator('.member-sidebar [data-member-section=garage]').click();
+  const before=c.r.db.prepare("SELECT * FROM cars WHERE id='c'").get();await page.locator('[data-edit-car="c"]').click();await expect(car.locator('[name=nickname]')).toBeFocused();await expect(car.locator('[name=nickname]')).toHaveValue(before.nickname);await expect(car.locator('[name=model]')).toHaveValue(before.model);await expect(car).toHaveAttribute('data-car-id','c');
+  await page.screenshot({path:info.outputPath('garage-edit-focus.png')});await car.getByRole('button',{name:'Zavřít formulář auta',exact:true}).click();expect(c.r.db.prepare("SELECT * FROM cars WHERE id='c'").get()).toEqual(before);expect(c.calls.some(value=>value.startsWith('POST /api/cars')||value.startsWith('PUT /api/cars/'))).toBe(false);expectNoUnexpectedClientErrors(c.observations);
+ }finally{await page.close();c.r.db.close()}
+});
+
 for(const empty of [true,false])test('Planner keeps confirmed new car and draft through refresh '+(empty?'empty garage':'existing primary'),async({page},info)=>{
  const c=await plannerFixture(page,{empty});try{
   await c.open();const modal=page.locator('[data-member-planner-modal]');await modal.locator('[data-member-stay="2"]').click();await modal.locator('[name=note]').fill('Rozpracované údaje zůstávají');await modal.locator('[data-member-crew-plus]').click();

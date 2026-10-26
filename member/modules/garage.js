@@ -90,7 +90,7 @@ export function createMemberGarage({
     if(current){current.hidden=true;delete current.dataset.available}
     const photoId=car?.photos?.[0]?.id;
     if(photoId&&current&&currentImage){void getPrivateCarPhotoUrl(String(photoId)).then(url=>{if(editingCarId!==String(car.id)||selectedCarPhoto)return;currentImage.src=url;current.dataset.available='true';current.hidden=false;syncCarPhotoSelection()}).catch(error=>console.warn('Current car photo preview unavailable',error))}
-    carModal.hidden=false;document.body.classList.add('modal-open');requestAnimationFrame(()=>carForm.elements.nickname?.focus());syncCarPhotoSelection();
+    carModal.hidden=false;document.body.classList.add('modal-open');carForm.elements.nickname?.focus();syncCarPhotoSelection();
   }
   function openCarForReservation(event){returnToReservationAfterCar=true;returnToPlannerAfterCar=['data-preliminary-add-car','data-member-planner-add-car'].some(attribute=>event?.currentTarget?.hasAttribute(attribute)===true);openCarModal()}
 

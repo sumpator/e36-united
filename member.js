@@ -8,7 +8,7 @@ import { createMemberData as defaultData, normalizeMember as normalizeMemberStat
 import { $, $$, setButtonBusy, toast } from './member/ui.js?v=20260924-merch2';
 import { createMemberShell } from './member/shell.js?v=20261025-flow1';
 import { createMemberOverview } from './member/modules/overview.js?v=20261025-flow1';
-import { createMemberGarage } from './member/modules/garage.js?v=20261025-flow1';
+import { createMemberGarage } from './member/modules/garage.js?v=20261026-focus1';
 import { createMemberPhotos } from './member/modules/photos.js?v=20261025-flow1';
 import { createMemberPlanner } from './member/modules/planner/index.js?v=20261025-flow1';
 import {verifyNewPasswordAccount} from './member/registration-verification.js?v=20261023-mail1';
