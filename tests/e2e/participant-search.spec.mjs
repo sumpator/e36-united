@@ -74,18 +74,33 @@ async function setup(page,config){
  };
 }
 
+async function searchScroll(input){
+ return input.evaluate(element=>{
+  const root=document.scrollingElement,rect=element.getBoundingClientRect();
+  return {y:scrollY,height:root.scrollHeight,viewport:root.clientHeight,max:Math.max(0,root.scrollHeight-root.clientHeight),inputTop:rect.top,inputBottom:rect.bottom,documentTop:rect.top+scrollY};
+ });
+}
+
+async function expectRetainedSearchScroll(input,before){
+ const after=await searchScroll(input);
+ // Replacing a long list can make the old scroll offset physically unreachable.
+ // When it remains reachable this is still an exact, unchanged-offset assertion.
+ expect(after.y).toBe(Math.min(before.y,after.max));expect(after.documentTop).toBe(before.documentTop);
+ await expect(input).toBeInViewport({ratio:1});return after;
+}
+
 for(const config of cases){
  test(`participant search ${config.mode}: debounce, email, manual, clear and retained input`,async({page},info)=>{
   const c=await setup(page,config);
   try{
    await c.input.focus();await c.input.evaluate(input=>{window.__originalSearchInput=input});
    await c.input.fill('sea');await page.clock.runFor(150);await c.input.fill('search0');await page.clock.runFor(150);await c.input.fill('search00@example.invalid');
-   await c.input.evaluate(input=>input.setSelectionRange(6,6));const before=await page.evaluate(()=>scrollY);
+   await c.input.evaluate(input=>input.setSelectionRange(6,6));const before=await searchScroll(c.input);
    await page.clock.runFor(299);expect(c.searches).toHaveLength(0);await page.clock.runFor(1);
    await expect(c.results).toHaveAttribute('aria-busy','false');await expect(c.rows.locator('['+config.pick+']')).toHaveCount(1);
    expect(c.searches.map(x=>x.q)).toEqual(['search00@example.invalid']);await expect(c.input).toBeFocused();
    await expect(c.rows.locator('img')).toHaveCount(1);await expect.poll(()=>c.rows.locator('img').evaluate(image=>image.complete&&image.naturalWidth>0)).toBe(true);
-   expect(await c.input.evaluate(input=>({same:input===window.__originalSearchInput,start:input.selectionStart,end:input.selectionEnd}))).toEqual({same:true,start:6,end:6});expect(await page.evaluate(()=>scrollY)).toBe(before);
+   expect(await c.input.evaluate(input=>({same:input===window.__originalSearchInput,start:input.selectionStart,end:input.selectionEnd}))).toEqual({same:true,start:6,end:6});await expectRetainedSearchScroll(c.input,before);
    await c.input.dispatchEvent('input');await page.clock.runFor(300);expect(c.searches).toHaveLength(1);
    await c.input.fill('search01@example.invalid');await c.input.press('Enter');await expect(c.rows).toContainText('Find 01');await page.clock.runFor(300);expect(c.searches).toHaveLength(2);
    await c.input.fill('search02@example.invalid');await c.root.locator(config.form+' button').click();await expect(c.rows).toContainText('Find 02');await page.clock.runFor(300);expect(c.searches).toHaveLength(3);
@@ -140,6 +155,28 @@ for(const config of cases){
   }finally{await c.finish()}
  });
 }
+
+for(const {query,count,clamped} of [{query:'search00@example.invalid',count:1,clamped:true},{query:'search0',count:10,clamped:false}])test(`participant search admin-arrivals: ${clamped?'clamps unreachable':'preserves reachable'} scroll after shorter results`,async({page},info)=>{
+ const c=await setup(page,cases[2]),held=c.hold(query);
+ try{
+  const initialCount=await c.rows.locator('[data-gate-pick]').count();expect(initialCount).toBeGreaterThan(1);
+  await c.input.fill(query);await c.input.evaluate(input=>{window.__originalSearchInput=input;input.setSelectionRange(6,6)});
+  // Deliberately exercise a nonzero offset on the real list, never reset to zero
+  // or add page height. Real sets of 1/10 results put 184 outside/inside the FINAL range.
+  await page.evaluate(()=>scrollTo({top:184,behavior:'instant'}));const before=await searchScroll(c.input);expect(before.y).toBe(184);expect(before.max).toBeGreaterThan(184);
+  await page.clock.runFor(299);expect(c.searches).toHaveLength(0);expect(await searchScroll(c.input)).toEqual(before);
+  await page.clock.runFor(1);await held.received.promise;await expect(c.results).toHaveAttribute('aria-busy','true');
+  const loading=await searchScroll(c.input);expect(loading.y).toBe(before.y);expect(loading.documentTop).toBe(before.documentTop);await expect(c.rows.locator('[data-gate-pick]')).toHaveCount(initialCount);
+  held.release.resolve();await expect(c.results).toHaveAttribute('aria-busy','false');await expect(c.rows.locator('[data-gate-pick]')).toHaveCount(count);await expect(c.rows).toContainText('Find 00');
+  await expect(c.rows.locator('img')).toHaveCount(count);await expect.poll(()=>c.rows.locator('img').evaluateAll(images=>images.every(image=>image.complete&&image.naturalWidth>0))).toBe(true);
+  const after=await expectRetainedSearchScroll(c.input,before);expect(after.height).toBeLessThan(before.height);
+  await info.attach('search-scroll-range',{body:JSON.stringify({query,before,loading,after}),contentType:'application/json'});
+  if(clamped){expect(after.max).toBeLessThan(before.y);expect(after.y).toBe(after.max)}else{expect(after.max).toBeGreaterThan(before.y);expect(after.y).toBe(before.y)}
+  await expect(c.input).toBeFocused();expect(await c.input.evaluate(input=>({same:input===window.__originalSearchInput,start:input.selectionStart,end:input.selectionEnd}))).toEqual({same:true,start:6,end:6});
+  expect(c.searches.map(item=>item.q)).toEqual([query]);
+  await c.input.fill('');await page.clock.runFor(300);await expect(c.rows.locator('[data-gate-pick]')).toHaveCount(initialCount);expect(c.searches.at(-1)).toMatchObject({q:'',offset:0});
+ }finally{held.release.resolve();await c.finish()}
+});
 
 test('participant search: event and account changes discard queued and in-flight Arrivals reads',async({page})=>{
  const c=await setup(page,cases[2]);
