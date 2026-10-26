@@ -43,7 +43,7 @@ test('default-off transport covers cron, waitUntil, retry and legacy entry point
   await deliver(r,row,transport);await deliverArrivalInvitations(r.env,'missing',{transport});await deliverMerchEmail(r.env,'missing');
   const waits=[];await worker.scheduled({},r.env,{waitUntil:p=>waits.push(p)});
   const hook=new Request('https://api.e36united.cz/api/mailing/smtp2go-webhook',{method:'POST',headers:{Authorization:'Bearer isolated','Content-Type':'application/json'},body:JSON.stringify({id:'unknown-local',event:'processed',email_id:'unknown',time:1792742400,rcpt:'nobody@example.invalid'})});
-  const response=await worker.fetch(hook,r.env,{waitUntil:p=>waits.push(p)});assert.equal(response.status,200);assert.ok(waits.length>=2);await Promise.all(waits);
+  const response=await worker.fetch(hook,r.env,{waitUntil:p=>waits.push(p)});assert.equal(response.status,200);assert.equal(waits.length,1,'only the explicit cron schedules a drain, never the webhook');await Promise.all(waits);
   assert.equal((await api(r,'/'+row.id+'/retry','POST',{reason:'Výslovná zkouška ještě před aktivací'})).status,409);
   const history=await (await api(r)).json();assert.equal(history.transport.enabled,false);assert.equal((await api(r,'/'+row.id)).status,200);assert.equal((await api(r,'/templates/reservation_payment')).status,200);
   assert.equal(network,0);assert.equal(transport.messages.length,0);assert.equal(rows(r,'reservation_payment').at(-1).attempts,0);
@@ -334,4 +334,23 @@ test('audited guest invitation retries retain the existing one-use identity and 
  await deliver(r,mail,transport);assert.equal(transport.messages.length,1);assert.deepEqual(transport.messages[0].to,['invited@example.invalid']);assert.ok(transport.messages[0].text_body.includes(token));
  assert.deepEqual(r.db.prepare('SELECT * FROM arrival_invitations WHERE id=?').get(invitation.id),invitation);assert.equal(r.db.prepare("SELECT payload_json FROM email_outbox WHERE id=?").get(mail.id).payload_json,null);
  assert.deepEqual(r.db.prepare('PRAGMA foreign_key_check').all(),[]);
+});
+
+for(const enabled of [false,true])test(`Worker webhook records delivery without scheduling or sending queued mail (transport ${enabled?'on':'off'})`,async t=>{
+ const r=await merchRuntime();t.after(r.close);Object.assign(r.env,{SMTP2GO_WEBHOOK_SECRET:'isolated-callback',SMTP2GO_TRANSACTIONAL_API_KEY:'captured-only'});
+ const delivered=await r.order(),queued=await r.order();
+ const first=rows(r,'merch_confirmation').find(row=>row.entity_id===delivered.id),second=rows(r,'merch_confirmation').find(row=>row.entity_id===queued.id);
+ r.db.prepare("UPDATE email_outbox SET status='sent',provider_message_id='already-sent' WHERE id=?").run(first.id);
+ if(!enabled)r.db.exec('UPDATE transactional_email_control SET enabled=0 WHERE id=1');
+ const previous=globalThis.fetch,calls=[],waits=[];globalThis.fetch=async(url,options)=>{calls.push(url);return Response.json({request_id:'unexpected-send',data:JSON.parse(options.body).emails.map((_,i)=>({email_id:'unexpected-'+i}))})};
+ try{
+  const body={id:'actual-handler-callback',event:'delivered',email_id:'already-sent',rcpt:'member@example.invalid',time:1792742400,'X-E36-Mail-Type':'transactional','X-E36-Transaction-Id':first.id};
+  const req=new Request('https://api.e36united.cz/api/mailing/smtp2go-webhook',{method:'POST',headers:{Authorization:'Bearer isolated-callback','Content-Type':'application/json'},body:JSON.stringify(body)});
+  const response=await worker.fetch(req,r.env,{waitUntil:p=>waits.push(p)});await Promise.all(waits);
+  assert.equal(response.status,200);assert.equal((await response.json()).inserted,1);
+  assert.equal(r.db.prepare('SELECT status FROM email_outbox WHERE id=?').get(first.id).status,'delivered');
+  assert.equal(calls.length,0,'a provider callback must not send unrelated queued mail');
+  assert.equal(waits.length,0,'a provider callback must not schedule an outbox drain');
+  assert.deepEqual({...r.db.prepare('SELECT status,attempts FROM email_outbox WHERE id=?').get(second.id)},{status:'queued',attempts:0});
+ }finally{await Promise.all(waits);globalThis.fetch=previous}
 });

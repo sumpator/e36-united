@@ -25,7 +25,7 @@ Provozovatel schválil 0% nákupní slevu a neveřejný návrh podmínek. Fiktiv
 
 Nic z toho nebylo zapsáno do produkční business konfigurace: tam zůstává discountBasisPoints=NULL, shippingMinor=12900, 72 h, testovací platby všech ročníků a chybějící skutečné identifikační/bankovní/dodací údaje. Schválené rozhodnutí 0 % je připravené pro pozdější uložení společně se skutečnými údaji, není nahrazené fiktivní provozní konfigurací.
 
-## Webhook a patička kampaní — konkrétní zbývající práce
+## Webhook a patička kampaní — stav před navazujícím dokončením
 
 Produkční `POST https://api.e36united.cz/api/mailing/smtp2go-webhook` bez autorizace i s nesprávným Bearer vrací 401 `webhook_unauthorized`. Ochrana nebyla změněna. Nový klíč nemá správu webhooku; dostupná automatizovaná konzole je odhlášená. Proto **nebyla ověřena ani změněna skutečná provider konfigurace a celý produkční callback průchod**. Nevytvářely se falešné callbacky/business události.
 
@@ -59,3 +59,7 @@ Důkazy jsou v ignorované `.local-evidence/merch-launch-20261026/`, mimo automa
 6. Při problému pozastavit nové objednávky a existující transakční control; nemaže se objednávka, úhrada, audit ani fronta. Neobnovovat celou DB přes novější zápisy.
 
 **Verdikt: technické změny lze publikovat s vypnutými službami; ostré spuštění není připravené.** Zůstávají reálné obchodní údaje/podmínky, provider webhook a kampaňová patička. Fyzický telefon, nová transakční identita ve skutečně doručené zprávě a celý skutečný produkční nákup nejsou nyní ověřené a žádné další odeslání není schválené.
+
+## Navazující dokončení webhooku
+
+Aktuální ověřená konfigurace, úzká oprava Worker fast-drain, cílené výsledky a zbývající omezení jsou v [docs/smtp2go-webhook-local.md](smtp2go-webhook-local.md). Konzole již byla autorizovaná; do existujícího webhooku bylo přidáno X-E36-Transaction-Id a ostatní nastavení ověřeno. Starší výše uvedená nedostupnost konzole není aktuální. Skutečný callback provozní zprávy ještě ověřený není. Transport a Merch zůstávají vypnuté.
