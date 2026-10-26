@@ -33,7 +33,7 @@ const deliver=(r,row,transport)=>deliverTransactionalEmails(r.env,{id:row.id,tra
 const setPayment=r=>r.db.exec("UPDATE events SET payment_account_display='19-2000145399/0800',payment_iban='CZ6508000000192000145399',payment_recipient_name='Fixture',payment_test_mode=0 WHERE id='e'; UPDATE reservations SET payment_vs='2026000001' WHERE id='r'");
 
 test('default-off transport covers cron, waitUntil, retry and legacy entry points without blocking business writes or Admin reads',async t=>{
- const r=createMemberRuntime();t.after(()=>r.db.close());r.env.SMTP2GO_API_KEY='captured-only';r.env.SMTP2GO_WEBHOOK_SECRET='isolated';
+ const r=createMemberRuntime();t.after(()=>r.db.close());r.env.SMTP2GO_TRANSACTIONAL_API_KEY='captured-only';r.env.SMTP2GO_WEBHOOK_SECRET='isolated';
  const transport=capture(),previousFetch=globalThis.fetch;let network=0;globalThis.fetch=async()=>{network++;throw Error('No external calls allowed')};
  try{
   assert.deepEqual(await transactionalTransportState(r.env),{enabled:false,phase:'not_activated',activatedAt:null,revision:0});
@@ -99,7 +99,7 @@ test('controlled pause and resume during content loading invalidates the old pro
 });
 
 test('migration interlock prevents old Merch and arrival senders from claiming pre-activation or historical mail',async t=>{
- const r=await createMerchRuntime();t.after(r.close);r.env.SMTP2GO_API_KEY='captured-only';const order=await r.order();await deliverMerchEmail(r.env,order.id);
+ const r=await createMerchRuntime();t.after(r.close);r.env.SMTP2GO_TRANSACTIONAL_API_KEY='captured-only';const order=await r.order();await deliverMerchEmail(r.env,order.id);
  const legacy=r.db.prepare('SELECT * FROM merch_outbox WHERE order_id=?').get(order.id),linked=r.db.prepare('SELECT * FROM email_outbox WHERE source_outbox_id=?').get(legacy.id);
  assert.equal(linked.status,'skipped');assert.equal(r.db.prepare("UPDATE merch_outbox SET status='sending' WHERE id=? AND status='pending'").run(legacy.id).changes,0);
  const a=createArrivalsRuntime();t.after(()=>a.db.close());await seedArrivals(a);const revision=(await arrivalList(a.env,EVENT)).revision,url=new URL(origin+'/api/admin/events/'+EVENT+'/arrivals');
@@ -261,7 +261,7 @@ test('existing authenticated webhook correlates, deduplicates and never calls pr
 });
 
 test('scheduled Worker drains only new recoverable intents without an open page or a live provider',async t=>{
- const r=memberRuntime();t.after(()=>r.db.close());r.env.SMTP2GO_API_KEY='captured-only';
+ const r=memberRuntime();t.after(()=>r.db.close());r.env.SMTP2GO_TRANSACTIONAL_API_KEY='captured-only';
  r.db.exec("INSERT INTO email_outbox(id,template_key,recipient_email,subject,status) VALUES('legacy','old','old@example.invalid','Legacy','queued')");
  await patchAdminReservationPayment(request({amountPaidCzk:450},'PATCH'),r.env,admin,'r',origin);
  const before=globalThis.fetch,requests=[],waits=[];

@@ -64,7 +64,7 @@ export async function transactionalContent(env,row){
  }
  if(row.entity_type==='merch'){
   const o=await readOrder(env,row.entity_id),s=o.snapshot,p=o.payment;
-  if((kind==='merch_confirmation'&&['cancelled','expired'].includes(o.state.status))||(kind==='merch_ready'&&o.state.status!=='ready')||(kind==='merch_sent'&&!['sent','completed'].includes(o.state.status))||(kind==='merch_cancelled'&&o.state.status!=='cancelled'))return null;
+  if((kind==='merch_confirmation'&&['cancelled','expired'].includes(o.state.status))||(kind==='merch_ready'&&o.state.status!=='ready')||(kind==='merch_sent'&&!['sent','completed'].includes(o.state.status))||(kind==='merch_completed'&&o.state.status!=='completed')||(kind==='merch_cancelled'&&o.state.status!=='cancelled'))return null;
   if(['merch_cancel_request','merch_withdraw','merch_complaint'].includes(kind)){
    const match=o.state.requests.find(r=>payload.event?.requestId?r.id===payload.event.requestId:r.kind===payload.event?.action&&r.at===payload.event?.at);
    if(!match||match.resolved||kind==='merch_cancel_request'&&o.state.status==='cancelled')return null;
@@ -74,11 +74,12 @@ export async function transactionalContent(env,row){
   if(payload.event?.amountMinor)facts.push([kind==='merch_refund'?'Vrácená částka':'Částka operace',czk(payload.event.amountMinor/100)]);
   facts.push(['Způsob převzetí',s.shipping==='address'?'Doručení na adresu':'Osobní převzetí']);
   if(remaining&&kind!=='merch_refund')facts.push(['Účet',s.bank.accountDisplay],['Variabilní symbol',o.variableSymbol],['Platba do',o.expiresAt]);
-  if(kind==='merch_ready')facts.push(['Pokyny k převzetí',s.pickupInstructions||'Pokyny ověř u UNITED týmu.']);
+  if(kind==='merch_ready'&&s.shipping==='pickup')facts.push(['Pokyny k převzetí',s.pickupInstructions||'Pokyny ověř u UNITED týmu.']);
   if(kind==='merch_sent')facts.push(['Dopravce',o.state.tracking?.carrier],['Sledovací číslo',o.state.tracking?.number],['Sledování',o.state.tracking?.url]);
   const address=o.state.deliveryAddress||s.address;if(s.shipping==='address')facts.push(['Doručení',[address.name,address.street,address.city,address.postalCode].filter(Boolean).join(', ')]);
   return {reference:o.number,facts,items:s.lines.map(l=>({...l,imageUrl:l.image?.startsWith('r2:')?'https://api.e36united.cz/api/merch/media/'+encodeURIComponent(l.image.slice(3)):/^[a-z0-9-]+$/.test(l.image||'')?'https://e36united.cz/assets/images/merch/'+l.image+'-card.webp':null})),
-   ...(payload.event?.action==='void-payment'?{title:'Evidence úhrady objednávky byla opravena'}:{}),comment:['merch_resolved','merch_refund'].includes(kind)?payload.event?.reason:null,url:portalLink('merch',{order:o.id}),next:kind==='merch_refund'?'Teď nemusíš nic dělat. Zpráva potvrzuje zaevidované vrácení peněz; nepředstavuje novou výzvu k úhradě.':['merch_cancel_request','merch_withdraw','merch_complaint'].includes(kind)?'Počkej na vyřízení požadavku UNITED týmem. Přijetí požadavku není potvrzením zrušení ani refundace.':remaining?'Uhraď pouze aktuální zbývající částku. QR a platbu najdeš v detailu objednávky.':kind==='merch_ready'?'Objednávku převezmi podle uvedených pokynů.':'Teď nemusíš nic dělat.'};
+   ...(kind==='merch_ready'&&s.shipping==='address'?{title:'Objednávka je připravená k odeslání',intro:'Objednávku jsme připravili. O jejím odeslání dostaneš samostatnou zprávu.'}:{}),
+   ...(payload.event?.action==='void-payment'?{title:'Evidence úhrady objednávky byla opravena'}:{}),comment:['merch_resolved','merch_refund'].includes(kind)?payload.event?.reason:null,url:portalLink('merch',{order:o.id}),next:kind==='merch_refund'?'Teď nemusíš nic dělat. Zpráva potvrzuje zaevidované vrácení peněz; nepředstavuje novou výzvu k úhradě.':['merch_cancel_request','merch_withdraw','merch_complaint'].includes(kind)?'Počkej na vyřízení požadavku UNITED týmem. Přijetí požadavku není potvrzením zrušení ani refundace.':remaining?'Uhraď pouze aktuální zbývající částku. QR a platbu najdeš v detailu objednávky.':kind==='merch_ready'?(s.shipping==='pickup'?'Objednávku převezmi podle uvedených pokynů.':'Počkej na zprávu o odeslání. Teď nemusíš nic dělat.'):'Teď nemusíš nic dělat.'};
  }
  return null;
 }
@@ -90,10 +91,10 @@ export async function deliverTransactionalEmails(env,{transport,limit=5,id,arriv
  // A crash after hand-off cannot be distinguished from accepted mail: never blind-retry.
  await env.DB.prepare("UPDATE email_outbox SET status='uncertain',error_message='delivery_unconfirmed' WHERE tx_version=1 AND status='sending' AND started_at<datetime('now','-10 minutes')").run();
  await env.DB.prepare("UPDATE merch_outbox SET status='uncertain',error_code='delivery_unconfirmed' WHERE status='sending' AND id IN (SELECT source_outbox_id FROM email_outbox WHERE tx_version=1 AND status='uncertain')").run();
- if(!transport&&!env.SMTP2GO_API_KEY)return {processed:0};
+ if(!transport&&!env.SMTP2GO_TRANSACTIONAL_API_KEY)return {processed:0};
  const rows=await env.DB.prepare(`SELECT * FROM email_outbox WHERE tx_version=1 AND status='queued'
   ${id?'AND id=?':''}${arrivalId?"AND entity_type='arrival' AND entity_id=?":''}${orderId?"AND entity_type='merch' AND entity_id=?":''} ORDER BY created_at,id LIMIT ?`).bind(...[id,arrivalId,orderId].filter(Boolean),Math.min(5,Math.max(1,limit))).all();
- const provider=transport||createSmtp2goAdapter(env),sender=senderConfig(env);let processed=0;
+ const provider=transport||createSmtp2goAdapter(env,{purpose:'transactional'}),sender=senderConfig(env);let processed=0;
  for(const row of rows.results){
   const lock=await env.DB.prepare("UPDATE email_outbox SET status='sending',started_at=CURRENT_TIMESTAMP,attempts=attempts+1 WHERE id=? AND status='queued' AND EXISTS(SELECT 1 FROM transactional_email_control WHERE id=1 AND enabled=1 AND activated_at IS NOT NULL AND revision=?)").bind(row.id,control.revision).run();if(!lock.meta.changes)continue;
   processed++;
@@ -133,8 +134,15 @@ export async function recordTransactionalWebhook(env,event,outboxId){
     WHEN EXISTS(SELECT 1 FROM transactional_email_events WHERE outbox_id=? AND event_type IN ('hard_bounce','blocked','rejected')) THEN 'failed'
     WHEN EXISTS(SELECT 1 FROM transactional_email_events WHERE outbox_id=? AND event_type='delivered') THEN 'delivered'
     WHEN EXISTS(SELECT 1 FROM transactional_email_events WHERE outbox_id=? AND event_type='sent') THEN 'sent' ELSE status END,
-   error_message=CASE WHEN ? IN ('hard_bounce','blocked','rejected','soft_bounce') THEN ? ELSE error_message END WHERE id=?`).bind(row.id,row.id,event.emailId||null,row.id,row.id,row.id,event.type,event.type,row.id),
+   error_message=CASE
+    WHEN EXISTS(SELECT 1 FROM transactional_email_events WHERE outbox_id=email_outbox.id AND event_type='blocked') THEN 'blocked'
+    WHEN EXISTS(SELECT 1 FROM transactional_email_events WHERE outbox_id=email_outbox.id AND event_type='hard_bounce') THEN 'hard_bounce'
+    WHEN EXISTS(SELECT 1 FROM transactional_email_events WHERE outbox_id=email_outbox.id AND event_type='rejected') THEN 'rejected'
+    WHEN COALESCE((SELECT MAX(occurred_at) FROM transactional_email_events WHERE outbox_id=email_outbox.id AND event_type='soft_bounce'),'')>
+     COALESCE((SELECT MAX(occurred_at) FROM transactional_email_events WHERE outbox_id=email_outbox.id AND event_type='delivered'),'') THEN 'soft_bounce'
+    WHEN EXISTS(SELECT 1 FROM transactional_email_events WHERE outbox_id=email_outbox.id AND event_type IN ('sent','delivered')) THEN NULL
+    ELSE error_message END WHERE id=?`).bind(row.id,row.id,event.emailId||null,row.id,row.id,row.id,row.id),
  ]);
- if(['hard_bounce','blocked'].includes(event.type))await env.DB.prepare("UPDATE mailing_contacts SET deliverability_status=? WHERE normalized_email=?").bind(event.type,event.email).run();
+ if(result[0].meta.changes&&['hard_bounce','blocked'].includes(event.type))await env.DB.prepare("UPDATE mailing_contacts SET deliverability_status=? WHERE normalized_email=?").bind(event.type,event.email).run();
  return {inserted:result[0].meta.changes?1:0};
 }

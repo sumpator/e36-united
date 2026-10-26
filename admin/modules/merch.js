@@ -1,11 +1,11 @@
 import {apiRequest,apiUpload} from '../api.js?v=20260930-arrivals2';
 import {adminState} from '../state.js?v=20260930-arrivals2';
-import {esc,date,statusLabel,orderMarkup,bindOrder} from '../../merch/order-view.js?v=20260924-workspace1';
+import {esc,date,statusLabel,orderStatusLabel,orderMarkup,bindOrder} from '../../merch/order-view.js?v=20261026-merch-mail1';
 import {money,imageSource} from '../../merch/catalog.js?v=20260924-merch2';
 import {merchandiseDocuments} from '../../merch/documents.js?v=20260924-merch2';
-import {editMerchProduct,productStatus,productGender,productPrice} from './merch-product-editor.js?v=20260924-workspace1';
-import {initializeMerchPayments} from './merch-payments.js?v=20260924-workspace1';
-import {layoutMerchSettings} from './merch-settings-layout.js?v=20260924-workspace1';
+import {editMerchProduct,productStatus,productGender,productPrice} from './merch-product-editor.js?v=20261026-merch-mail1';
+import {initializeMerchPayments} from './merch-payments.js?v=20261026-merch-mail1';
+import {layoutMerchSettings} from './merch-settings-layout.js?v=20261026-merch-mail1';
 export function initializeMerch(){
  const panel=document.querySelector('[data-admin-panel="merch"]'),body=panel.querySelector('[data-merch-admin-body]');let tab='orders',page=1,catalog=null,generation=0,productEditor=null;
  const leaveProduct=()=>!productEditor||productEditor.allowLeave();
@@ -24,16 +24,16 @@ export function initializeMerch(){
  const stateMessage=value=>controls('[data-merch-admin-status]').textContent=value;
  const still=g=>g===generation&&!adminState.denied&&!!adminState.currentUser;
  function clear(){disposeProduct();generation++;body.replaceChildren();catalog=null;stateMessage('');}
- async function load(){disposeProduct();const g=++generation;body.textContent='Načítám…';try{
+ async function load({orderId}={}){disposeProduct();const g=++generation;body.textContent='Načítám…';try{
   if(tab==='orders'){
    const params=new URLSearchParams({page:String(page),search:controls('[data-merch-search]').value,filter:controls('[data-merch-order-filter]').value});
    const r=await request('/orders?'+params);if(!still(g))return;
-   body.innerHTML=`<div class="merch-orders">${r.orders.map(o=>`<button type="button" class="merch-order-card" data-admin-order="${o.id}"><img src="${esc(imageSource(o.snapshot.lines[0]))}" alt=""><span><b>${esc(o.number)} · ${esc(o.snapshot.address.name)}</b><small>VS ${o.variableSymbol} · ${money(o.snapshot.totalMinor)} </small><small>Vyřízení: ${statusLabel[o.state.status]} · Platba: ${statusLabel[o.payment.status]}</small></span></button>`).join('')||'<p>Žádné objednávky v tomto výběru.</p>'}</div>${r.orders.length||page>1?`<div class="merch-actions"><button class="shop-button" data-orders-prev ${page===1?'disabled':''}>←</button><span>Strana ${page}</span><button class="shop-button" data-orders-next ${r.hasMore?'':'disabled'}>→</button></div>`:''}<div data-admin-order-detail></div>`;
+   body.innerHTML=`<div class="merch-orders">${r.orders.map(o=>`<button type="button" class="merch-order-card" data-admin-order="${o.id}"><img src="${esc(imageSource(o.snapshot.lines[0]))}" alt=""><span><b>${esc(o.number)} · ${esc(o.snapshot.address.name)}</b><small>VS ${o.variableSymbol} · ${money(o.snapshot.totalMinor)} </small><small>Vyřízení: ${orderStatusLabel(o)} · Platba: ${statusLabel[o.payment.status]}</small></span></button>`).join('')||'<p>Žádné objednávky v tomto výběru.</p>'}</div>${r.orders.length||page>1?`<div class="merch-actions"><button class="shop-button" data-orders-prev ${page===1?'disabled':''}>←</button><span>Strana ${page}</span><button class="shop-button" data-orders-next ${r.hasMore?'':'disabled'}>→</button></div>`:''}<div data-admin-order-detail></div>`;
    body.querySelector('[data-orders-prev]')?.addEventListener('click',()=>{page=Math.max(1,page-1);void load();});body.querySelector('[data-orders-next]')?.addEventListener('click',()=>{page++;void load();});
-   const orderId=new URL(location.href).searchParams.get('order');if(orderId){const detail=await request('/orders/'+encodeURIComponent(orderId));if(still(g))showOrder(detail.order);}
+   const selectedOrder=orderId||new URL(location.href).searchParams.get('order');if(selectedOrder){const detail=await request('/orders/'+encodeURIComponent(selectedOrder));if(still(g))showOrder(detail.order);}
   }else{catalog=await request('/catalog');if(!still(g))return;if(tab==='products')products();else settings();}
  }catch(error){if(still(g)){body.textContent=error.message;stateMessage('Data nebyla načtena.');}}}
- function showOrder(order){const host=body.querySelector('[data-admin-order-detail]');if(!host)return;host.innerHTML=(adminState.merchReturn?'<p><a class="shop-button" href="admin.html?section=finance&view=payments&payment=merch">← Zpět na platby za Merch</a></p>':'')+orderMarkup(order,{admin:true});bindOrder(host,order,{admin:true,request:apiRequest,onChange:showOrder});host.scrollIntoView({block:'start',behavior:'instant'});}
+ function showOrder(order){const host=body.querySelector('[data-admin-order-detail]'),g=generation;if(!host)return;host.innerHTML=(adminState.merchReturn?'<p><a class="shop-button" href="admin.html?section=finance&view=payments&payment=merch">← Zpět na platby za Merch</a></p>':'')+orderMarkup(order,{admin:true});bindOrder(host,order,{admin:true,request:apiRequest,onChange:()=>{if(still(g)&&tab==='orders')return load({orderId:order.id});}});host.scrollIntoView({block:'start',behavior:'instant'});}
  body.addEventListener('click',async e=>{const b=e.target.closest('[data-admin-order]');if(b){const g=generation;try{const r=await request('/orders/'+b.dataset.adminOrder);if(still(g))showOrder(r.order);}catch(error){stateMessage(error.message);}}});
  content.querySelectorAll('[data-merch-admin-tab]').forEach(b=>b.onclick=()=>{if(!leaveProduct())return;content.querySelectorAll('[data-merch-admin-tab]').forEach(button=>button.setAttribute('aria-pressed',String(button===b)));tab=b.dataset.merchAdminTab;page=1;controls('[data-merch-order-controls]').hidden=tab!=='orders';void load();});
  controls('[data-merch-search-form]').onsubmit=e=>{e.preventDefault();page=1;void load();};

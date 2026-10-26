@@ -15,7 +15,7 @@ export default {
 
     try {
       const response=await routeRequest({...context,ctx});
-      if(ctx&&env.SMTP2GO_API_KEY&&request.method!=='GET'&&response.ok)ctx.waitUntil(deliverTransactionalEmails(env).catch(()=>console.error('Transactional queue unavailable')));
+      if(ctx&&env.SMTP2GO_TRANSACTIONAL_API_KEY&&request.method!=='GET'&&response.ok)ctx.waitUntil(deliverTransactionalEmails(env).catch(()=>console.error('Transactional queue unavailable')));
       return response;
     } catch (error) {
       console.error("Worker error:", error);

@@ -1,4 +1,4 @@
-import { canonicalMemberLink } from '../member-detail.js?v=20261014-admin1';
+import { canonicalMemberLink } from '../member-detail.js?v=20261026-merch-mail1';
 import {showReservationMedia,clearReservationMedia} from '../reservation-media.js?v=20260930-arrivals2';
 import {listChanged,renderListPagination} from '../lists.js?v=20260930-arrivals2';
 import { adminCommand, editorProtected, allowAdminNavigation, forgetAdminEditor } from '../editors.js?v=20260930-arrivals2';

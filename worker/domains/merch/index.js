@@ -17,6 +17,7 @@ async function body(request){
 export async function deliverMerchEmail(env,orderId){
  if(!(await transactionalTransportState(env)).enabled)return;
  if(await transactionalReady(env))return deliverTransactionalEmails(env,{orderId});
+ if(!env.SMTP2GO_TRANSACTIONAL_API_KEY)return;
  const rows=(await env.DB.prepare("SELECT * FROM merch_outbox WHERE order_id=? AND status='pending'").bind(orderId).all()).results;
  for(const row of rows){
   const lock=await env.DB.prepare("UPDATE merch_outbox SET status='sending' WHERE id=? AND status='pending'").bind(row.id).run();if(!lock.meta.changes)continue;
@@ -24,7 +25,7 @@ export async function deliverMerchEmail(env,orderId){
    const order=await readOrder(env,row.order_id),payload=JSON.parse(row.payload),s=order.snapshot,a=s.address;
    const message=[payload.subject,order.number,payload.event?`Přijato: ${payload.event.at}\n${payload.event.reason||''}`:'',order.state.tracking?.number?`Zásilka: ${order.state.tracking.carrier} ${order.state.tracking.number}\n${order.state.tracking.url}`:'',...s.lines.map(l=>`${l.name} / ${l.color} / ${l.size}: ${l.quantity} × ${(l.unitPriceMinor/100).toFixed(2)} Kč`),`Sleva: ${(s.discountMinor/100).toFixed(2)} Kč`,`Doprava: ${(s.shippingMinor/100).toFixed(2)} Kč`,`Celkem: ${(s.totalMinor/100).toFixed(2)} Kč`,`Účet: ${s.bank.accountDisplay}`,`VS: ${order.variableSymbol}`,`Platba do: ${order.expiresAt}`,`${a.name}, ${a.street}, ${a.city} ${a.postalCode}`,s.deliveryInformation,s.pickupInstructions,`Podmínky ${s.termsVersion}`, ...Object.entries(s.documents).map(([k,v])=>`${k}\n${v}`)].join('\n\n');
    const sender=senderConfig(env);
-   await createSmtp2goAdapter(env).sendBatch([{sender:sender.sender,to:[a.email],subject:`${payload.subject} ${order.number}`,text_body:message,custom_headers:[{header:'Reply-To',value:sender.replyTo}]}]);
+   await createSmtp2goAdapter(env,{purpose:'transactional'}).sendBatch([{sender:sender.sender,to:[a.email],subject:`${payload.subject} ${order.number}`,text_body:message,custom_headers:[{header:'Reply-To',value:sender.replyTo}]}]);
    await env.DB.prepare("UPDATE merch_outbox SET status='sent',sent_at=? WHERE id=?").bind(stamp(),row.id).run();
   }catch(error){
    // Ambiguous provider outcomes are never automatically retried; saved order survives.

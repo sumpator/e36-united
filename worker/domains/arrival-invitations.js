@@ -9,12 +9,12 @@ export async function deliverArrivalInvitations(env,arrivalId,{transport}={}) {
   if(await transactionalReady(env))return deliverTransactionalEmails(env,{arrivalId,transport});
   const row=await env.DB.prepare("SELECT o.* FROM email_outbox o JOIN arrival_invitations i ON i.outbox_id=o.id WHERE i.arrival_id=? AND o.status='queued'").bind(arrivalId).first();
   if(!row)return;
-  if(!transport&&!env.SMTP2GO_API_KEY)return; // Remains queued, clearly visible; no blind retry.
+  if(!transport&&!env.SMTP2GO_TRANSACTIONAL_API_KEY)return; // Remains queued, clearly visible; no blind retry.
   const lock=await env.DB.prepare("UPDATE email_outbox SET status='sending' WHERE id=? AND status='queued'").bind(row.id).run();if(!lock.meta.changes)return;
   try {
     const {token}=JSON.parse(row.payload_json),sender=senderConfig(env);
     const link='https://e36united.cz/member.html#arrival-invite='+encodeURIComponent(token);
-    const result=await (transport||createSmtp2goAdapter(env)).sendBatch([{sender:sender.sender,to:[row.recipient_email],subject:row.subject,text_body:`Děkujeme za příjezd na E36 United. Přihlas se nebo založ účet a ověř svoji e-mailovou adresu. Potom můžeš připojit účast: ${link}\nOdkaz platí 7 dní a lze použít jednou. Newsletter tím nezapínáš.`,custom_headers:[{header:'Reply-To',value:sender.replyTo}]}]);
+    const result=await (transport||createSmtp2goAdapter(env,{purpose:'transactional'})).sendBatch([{sender:sender.sender,to:[row.recipient_email],subject:row.subject,text_body:`Děkujeme za příjezd na E36 United. Přihlas se nebo založ účet a ověř svoji e-mailovou adresu. Potom můžeš připojit účast: ${link}\nOdkaz platí 7 dní a lze použít jednou. Newsletter tím nezapínáš.`,custom_headers:[{header:'Reply-To',value:sender.replyTo}]}]);
     await env.DB.prepare("UPDATE email_outbox SET status='sent',provider_message_id=?,sent_at=CURRENT_TIMESTAMP,payload_json=NULL WHERE id=?").bind(result.emailIds?.[0]||null,row.id).run();
   } catch(e) {
     await env.DB.prepare("UPDATE email_outbox SET status=?,error_message=? WHERE id=?").bind(e.definiteRejection?'failed':'uncertain',e.code||'delivery_unconfirmed',row.id).run();

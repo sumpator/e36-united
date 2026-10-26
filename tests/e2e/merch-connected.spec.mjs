@@ -4,8 +4,9 @@ import {prepareE2ePage,prepareAdminE2ePage,expectNoUnexpectedClientErrors} from 
 import {merchRuntime} from '../helpers/merch-runtime.mjs';
 import {mkdir} from 'node:fs/promises';
 import {resolve} from 'node:path';
+import {waitForScreenshotContent} from './screenshot-readiness.mjs';
 const shots=resolve(process.env.MERCH_SCREENSHOTS||'../merch-connected-review');
-async function capture(page,name){await page.evaluate(async()=>{await document.fonts.ready;await Promise.all([...document.images].filter(i=>{const r=i.getBoundingClientRect();return r.top<innerHeight&&r.bottom>0}).map(i=>i.decode()));});await mkdir(shots,{recursive:true});await page.screenshot({path:resolve(shots,name+'.png'),animations:'disabled'});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBe(true);}
+async function capture(page,name){await waitForScreenshotContent(page,{label:name});await mkdir(shots,{recursive:true});await page.screenshot({path:resolve(shots,name+'.png'),animations:'disabled'});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBe(true);}
 async function captureThemes(page,name){for(const t of ['light','dark']){await page.evaluate(value=>window.dispatchEvent(new StorageEvent('storage',{key:'e36UnitedAppearance',newValue:value})),t);await expect(page.locator('html')).toHaveAttribute('data-theme',t);await capture(page,`${name}-${t}`);}}
 for(const [width,theme] of [[1440,'light'],[390,'dark']])test(`Connected Merch member and Admin ${width} ${theme}`,async({page,context})=>{
  const r=await merchRuntime();try{

@@ -1,6 +1,6 @@
-import {initPointsGuide} from './member/points-guide.js?v=20260927-ux2';
+import {initPointsGuide} from './member/points-guide.js?v=20261026-merch-mail1';
 import { firebaseConfig, portalConfig } from './firebase-config.js?v=20260924-merch2';
-import {initShop} from './merch/shop.js?v=20260926-portal3';
+import {initShop} from './merch/shop.js?v=20261026-merch-mail1';
 import {rewardProgress,pointWord} from './member/reward-progress.js?v=20260926-portal3';
 import { initUnitedAuth } from './united-auth.js?v=20260825-phase-a1';
 

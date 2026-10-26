@@ -7,7 +7,8 @@ export function dailySendLimit(env) {
   if (env.MAILING_DAILY_SEND_LIMIT == null || env.MAILING_DAILY_SEND_LIMIT === '') return 200;
   const n=Number(env.MAILING_DAILY_SEND_LIMIT);return Number.isSafeInteger(n)&&n>0?n:0;
 }
-function textFromHtml(html){return String(html).replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi,' ').replace(/<[^>]+>/g,' ')
+function textFromHtml(html){return String(html).replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi,' ')
+  .replace(/<a\b[^>]*\bhref=(["'])%%UNSUBSCRIBE%%\1[^>]*>([\s\S]*?)<\/a>/gi,(_,quote,label)=>`${label}: %%UNSUBSCRIBE%%`).replace(/<[^>]+>/g,' ')
   .replace(/&nbsp;/gi,' ').replace(/&amp;/gi,'&').replace(/&lt;/gi,'<').replace(/&gt;/gi,'>').replace(/&#39;/gi,"'").replace(/&quot;/gi,'"').replace(/\s+/g,' ').trim()}
 export function emailPayload(env,row,recipient,{test=false}={}){
   const sender=senderConfig(env),html=test?renderDraft(row).html:row.prepared_html;

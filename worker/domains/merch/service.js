@@ -103,7 +103,7 @@ export async function changeOrder(env,actor,id,input,admin=false){
   if(['ready','sent','completed'].includes(input.status)&&order.payment.remainingMinor>0)fail('Nejprve dořeš úhradu.');
   if(input.status==='sent'&&order.snapshot.shipping!=='address')fail('Osobní převzetí není zásilka.');
   if(input.trackingUrl){let url;try{url=new URL(input.trackingUrl)}catch{fail('Neplatný sledovací odkaz.')}if(url.protocol!=='https:'||url.username||url.password)fail('Sledovací odkaz musí být HTTPS.');}
-  s.status=input.status;s.tracking={carrier:text(input.carrier),number:text(input.trackingNumber),url:text(input.trackingUrl,500)};
+  s.status=input.status;if(input.status!=='completed')s.tracking={carrier:text(input.carrier),number:text(input.trackingNumber),url:text(input.trackingUrl,500)};
  }else if(action==='address'){
   if(!audit.reason)fail('Napiš důvod změny adresy.');audit.before=s.deliveryAddress||order.snapshot.address;s.deliveryAddress=address(input.address,order.snapshot.shipping);audit.after=s.deliveryAddress;
  }else if(action==='resolve-request'){
@@ -114,7 +114,7 @@ export async function changeOrder(env,actor,id,input,admin=false){
  s.history.push(audit);s.operations.push({id:op,hash});
  const statements=[prepare(env,'UPDATE merch_orders SET state=?,revision=revision+1 WHERE id=? AND revision=?',encode(s),id,order.revision)];
  let emailType=action==='withdraw'?'merch_withdraw':action==='complaint'?'merch_complaint':action==='cancel'?(s.status==='cancelled'?'merch_cancelled':'merch_cancel_request'):
-  ['payment','paid','void-payment'].includes(action)?'merch_payment':action==='refund'?'merch_refund':action==='resolve-request'?'merch_resolved':action==='status'&&['ready','sent'].includes(input.status)?'merch_'+input.status:null;
+  ['payment','paid','void-payment'].includes(action)?'merch_payment':action==='refund'?'merch_refund':action==='resolve-request'?'merch_resolved':action==='status'&&['ready','sent','completed'].includes(input.status)?'merch_'+input.status:null;
  if(['payment','paid','void-payment'].includes(action)&&JSON.stringify(s.payments)===JSON.stringify(order.state.payments))emailType=null;
  if(emailType&&(JSON.stringify(s)!==JSON.stringify(order.state))){
   statements.push(prepare(env,`INSERT INTO merch_outbox(id,order_id,kind,payload,created_at)

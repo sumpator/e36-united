@@ -18,6 +18,7 @@ export const TRANSACTIONAL_TYPES=Object.freeze({
  merch_payment:['PLATBA · UNITED MERCH','Platbu objednávky jsme zaevidovali','Úhrada Merche je oddělená od plateb za sraz.','Zobrazit objednávku'],
  merch_ready:['UNITED MERCH','Objednávka je připravená k převzetí','Řiď se uloženými pokyny k převzetí níže.','Zobrazit objednávku'],
  merch_sent:['UNITED MERCH','Objednávka byla odeslána','Níže najdeš uložené údaje o zásilce.','Zobrazit objednávku'],
+ merch_completed:['UNITED MERCH','Objednávka je dokončená','UNITED tým označil vyřízení objednávky jako dokončené.','Zobrazit objednávku'],
  merch_cancel_request:['UNITED MERCH','Žádost o zrušení jsme přijali','Objednávka ještě není zrušená. Požadavek vyřídí UNITED tým.','Zobrazit objednávku'],
  merch_cancelled:['UNITED MERCH','Objednávka je zrušená','Případné vrácení peněz evidujeme samostatně.','Zobrazit objednávku'],
  merch_withdraw:['UNITED MERCH','Odstoupení jsme přijali','Potvrzujeme přijetí požadavku, nikoli jeho automatické schválení.','Zobrazit objednávku'],

@@ -21,11 +21,14 @@ export function normalizeProviderError(status) {
   return error;
 }
 
-export function createSmtp2goAdapter(env, { fetchImpl = fetch, timeoutMs = 18000 } = {}) {
+export function createSmtp2goAdapter(env, { fetchImpl = fetch, timeoutMs = 18000, purpose = 'campaign' } = {}) {
+  if (!['campaign','transactional'].includes(purpose)) throw new Error('invalid_mail_purpose');
+  // No fallback: a campaign key may append an unsubscribe footer to business mail.
+  const apiKey = purpose === 'transactional' ? env.SMTP2GO_TRANSACTIONAL_API_KEY : env.SMTP2GO_API_KEY;
   let requests = 0;
   const base = String(env.SMTP2GO_API_BASE || DEFAULT_BASE).replace(/\/+$/, '');
   async function request(path, body = {}) {
-    if (!env.SMTP2GO_API_KEY) throw new MailingDeliveryError('provider_not_configured', 503);
+    if (!apiKey) throw new MailingDeliveryError('provider_not_configured', 503);
     if (requests >= SMTP2GO_REQUEST_BUDGET) throw new MailingDeliveryError('provider_request_budget', 503);
     const encodedBody=JSON.stringify(body);
     if(new TextEncoder().encode(encodedBody).byteLength>MAX_REQUEST_BYTES){const error=new MailingDeliveryError('provider_rejected',502);error.definiteRejection=true;throw error}
@@ -33,7 +36,7 @@ export function createSmtp2goAdapter(env, { fetchImpl = fetch, timeoutMs = 18000
     const controller = new AbortController(), timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
       const response = await fetchImpl(`${base}${path}`, { method:'POST', redirect:'manual', signal:controller.signal,
-        headers:{ 'X-Smtp2go-Api-Key':env.SMTP2GO_API_KEY, Accept:'application/json', 'Content-Type':'application/json' },
+        headers:{ 'X-Smtp2go-Api-Key':apiKey, Accept:'application/json', 'Content-Type':'application/json' },
         body:encodedBody });
       if (!response.ok) { await response.body?.cancel(); throw normalizeProviderError(response.status); }
       const reader=response.body?.getReader();let size=0;const chunks=[];
@@ -66,7 +69,7 @@ export function createSmtp2goAdapter(env, { fetchImpl = fetch, timeoutMs = 18000
   }
   async function checkReadiness(){
     const sender=senderConfig(env),baseState={provider:'smtp2go',sender,domain:SMTP2GO_DOMAIN,trackingDomain:SMTP2GO_TRACKING_DOMAIN};
-    if(!env.SMTP2GO_API_KEY)return {...baseState,state:'not_configured',ready:false,apiConnected:false};
+    if(!apiKey)return {...baseState,state:'not_configured',ready:false,apiConnected:false};
     try{
       const domain=await checkDomain();
       if(!domain.exists)return {...baseState,...domain,state:'domain_missing',ready:false,apiConnected:true};

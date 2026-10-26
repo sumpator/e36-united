@@ -1,5 +1,5 @@
 import { createMemberHistory } from './history.js?v=20261011-ui1';
-import { createMemberPoints } from './points.js?v=20261011-ui1';
+import { createMemberPoints } from './points.js?v=20261026-merch-mail1';
 import { createClubMembers } from './members.js?v=20261011-ui1';
 
 export function createMemberClub({
