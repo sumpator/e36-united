@@ -747,6 +747,8 @@ html.reservation-change-planner-open,body.reservation-change-planner-open{overfl
 .reservation-change-planner-host .reservation-edit-actions button{min-width:0}
 .reservation-change-planner-host .reservation-edit-actions{position:sticky;z-index:4;bottom:0;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;padding:12px 0 0;background:linear-gradient(transparent,var(--appearance-glass,rgba(8,12,17,.98)) 18%)}
 .reservation-change-planner-host .reservation-edit-actions .member-primary{grid-column:auto}
+/* Keep the sticky action's hit area fixed when the pointer rests on its edge. */
+.reservation-change-planner-host .reservation-edit-actions .member-primary:hover{transform:none}
 .reservation-change-planner-host [data-member-planner-close]{display:inline-flex;min-height:52px}
 .member-weekend-planner{container-type:inline-size;min-width:0;width:100%;grid-column:1/-1}
 .member-weekend-planner .planner-workspace{display:block}

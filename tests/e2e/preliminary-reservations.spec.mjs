@@ -73,7 +73,11 @@ test('PLAN handoff never overwrites silently and open registration keeps failed 
  await page.locator('[data-planner-handoff-use]').click();const modal=page.locator('[data-member-planner-modal]');await expect(modal).toBeVisible();await expect(modal.locator('[name="showshine"]')).toHaveValue('Ano');expect(r.db.prepare('SELECT COUNT(*) n FROM preliminary_reservations').get().n).toBe(1);
  await modal.locator('[data-reservation-submit]').click();await expect(modal).toBeHidden();expect(serverDraft).toBeNull();expect(r.db.prepare('SELECT COUNT(*) n FROM preliminary_reservations').get().n).toBe(1);
  r.db.exec("UPDATE events SET registration_status='open' WHERE id='e'");await page.reload();await expect(page.locator('[data-planner-handoff]')).toBeHidden();await expect(page.locator('[data-preliminary-copy]')).toHaveText('Registrace jsou otevřené.');if(process.env.E36_REVIEW_SCREENSHOTS)await page.screenshot({path:'docs/review/member-plan-registration-open-desktop.png',fullPage:true});
- await page.locator('[data-member-plan-open]').click();await expect(modal.locator('[data-reservation-submit]')).toContainText('Odeslat ke schválení');await modal.locator('[data-reservation-submit]').click();await expect(modal.locator('[data-reservation-form-status]')).toContainText('Nejdřív přidej auto');
+ await page.locator('[data-member-plan-open]').click();await expect(modal.locator('[data-reservation-submit]')).toContainText('Odeslat ke schválení');
+ const submit=modal.locator('[data-reservation-submit]'),edge=await submit.boundingBox();
+ // The pointer may remain at the bottom edge of the sticky action after opening the Planner.
+ await page.mouse.move(edge.x+edge.width/2,edge.y+edge.height-.5);
+ await submit.click();await expect(modal.locator('[data-reservation-form-status]')).toContainText('Nejdřív přidej auto');
  expect(r.db.prepare("SELECT status FROM preliminary_reservations").get().status).toBe('active');expect(r.db.prepare('SELECT COUNT(*) n FROM reservations').get().n).toBe(0);expectNoUnexpectedClientErrors(observations);await page.close();r.db.close();
 });
 
