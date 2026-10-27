@@ -1,0 +1,25 @@
+E36 UNITED · KLUBOVÝ VEČER
+
+ŠIPKY. PIVO.
+STAY UNITED.
+Dáme mámu, pár asfaltů a bude dobře.
+
+ÚTERÝ 27. 10. 2026
+OD 19:00
+V KLUBU
+
+Dorazíš?
+ANO: {{YES_URL}}
+NE: {{NO_URL}}
+MOŽNÁ: {{MAYBE_URL}}
+
+Vyber odpověď. Po ANO si na stránce zvolíš hodnotu 0–10.
+Jak moc dneska potřebuješ pivo?
+0 · V pohodě
+10 · To byl den
+
+Ať víme, s kým počítat.
+
+E36 UNITED
+info@e36united.cz
+Soukromá pozvánka pro partu.

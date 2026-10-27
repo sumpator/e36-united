@@ -1,4 +1,5 @@
 import { publicMerch,routeMerch } from './domains/merch/index.js';
+import {routePrivatePoll,routePrivatePollAdmin} from './domains/private-polls.js';
 import { routeArrivals } from './domains/arrivals.js';
 import { claimArrival, deliverArrivalInvitations } from './domains/arrival-invitations.js';
 import { listAdminMembers,getAdminMember,resolveAdminMemberQr,adminMemberMedia } from './admin/members.js';
@@ -71,6 +72,7 @@ export function isProtectedMemberRoute(method, pathname) {
 }
 
 export async function routeRequest({ request, env, url, origin, ctx }) {
+  if(url.pathname.startsWith('/api/private-polls/'))return routePrivatePoll({request,env,url,origin});
   if(request.method==='GET'&&(url.pathname==='/api/merch/catalog'||url.pathname.startsWith('/api/merch/media/'))){
     return await publicMerch(env,url,origin);
   }
@@ -110,6 +112,7 @@ export async function routeRequest({ request, env, url, origin, ctx }) {
 
     const auth = await verifyFirebaseRequest(request);
     if (!auth) return json({ ok: false, authenticated: false, error: "Unauthorized" }, 401, origin);
+    if(url.pathname==='/api/admin/private-polls'||url.pathname.startsWith('/api/admin/private-polls/'))return routePrivatePollAdmin({request,env,url,origin,auth});
 
     // This release is installed before the controlled LIVE table rebuild.
     // Fail closed only for LIVE until its final schema marker is committed.
