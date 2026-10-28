@@ -2,13 +2,35 @@ import {test,expect} from '@playwright/test';
 import {readFileSync} from 'node:fs';
 import {prepareE2ePage} from './fixtures.mjs';
 
-const diagnosticPrefix='E36_HISTORY_FRAME ',hostDiagnostics=new Map();
-function captureHistoryDiagnostics(page,info){
+const diagnosticPrefix='E36_HISTORY_FRAME ',hostDiagnostics=new Map(),hostCleanups=new Map();
+const settleMode=process.env.E36_HISTORY_SETTLE_MODE||'A';
+if(!['A','B','C'].includes(settleMode))throw new Error('Unknown history diagnostic mode');
+async function boundedDiagnostic(promise,timeoutMs=500){let timer;try{return await Promise.race([promise,new Promise((_,reject)=>timer=setTimeout(()=>reject(new Error('diagnostic JavaScript probe did not respond within '+timeoutMs+'ms')),timeoutMs))])}finally{clearTimeout(timer)}}
+async function captureHistoryDiagnostics(page,info){
  const samples=[];hostDiagnostics.set(info.testId,samples);
- page.on('console',message=>{const text=message.text();if(!text.startsWith(diagnosticPrefix))return;try{samples.push({...JSON.parse(text.slice(diagnosticPrefix.length)),receivedAt:Date.now()});if(samples.length>240)samples.shift()}catch(error){samples.push({diagnosticError:String(error)})}});
+ const append=sample=>{samples.push({...sample,mode:settleMode,receivedAt:Date.now()});if(samples.length>240)samples.shift()};
+ let phase='',lastFrameAt=Date.now(),probing=false,lastProbeAt=0,lastProbePhase='',heartbeatStarted=false;
+ page.on('console',message=>{const text=message.text();if(!text.startsWith(diagnosticPrefix))return;try{const sample=JSON.parse(text.slice(diagnosticPrefix.length));append(sample);if(sample.stage==='helper-resolved'){phase='';lastProbePhase=''}else if(sample.stage!=='timer-heartbeat'){phase=sample.phase;lastFrameAt=Date.now();lastProbePhase=''}}catch(error){append({diagnosticError:String(error)})}});
+ const probeTimer=setInterval(async()=>{
+  if(settleMode==='C'||!phase||probing||Date.now()-lastFrameAt<=500||Date.now()-lastProbeAt<1000)return;
+  probing=true;lastProbeAt=Date.now();const currentPhase=phase;append({stage:'host-probe-start',phase:currentPhase,lastFrameAgeMs:Date.now()-lastFrameAt});
+  try{
+   const clock=await boundedDiagnostic(page.evaluate(()=>({performanceNow:performance.now(),dateNow:Date.now(),documentTimeline:document.timeline.currentTime,visibility:document.visibilityState,scrollY,rootScrollTop:document.scrollingElement?.scrollTop})));append({stage:'host-probe-response',phase:currentPhase,...clock});
+   // Preserve the first stalled interval without a browser timer intervention.
+   // Start heartbeat only after a second probe finds the same phase stalled.
+   if(!heartbeatStarted&&lastProbePhase===currentPhase&&phase===currentPhase&&Date.now()-lastFrameAt>500){
+    heartbeatStarted=true;
+    append({stage:'host-heartbeat-start',phase:currentPhase,lastFrameAgeMs:Date.now()-lastFrameAt});
+    const result=await boundedDiagnostic(page.evaluate(()=>window.__e36StartHistoryHeartbeat?.()));append({stage:'host-heartbeat-response',phase:currentPhase,result});
+   }
+   if(phase===currentPhase&&Date.now()-lastFrameAt>500)lastProbePhase=currentPhase;
+  }catch(error){append({stage:'host-probe-error',phase:currentPhase,error:String(error)});lastProbePhase=currentPhase}finally{probing=false}
+ },100);
+ hostCleanups.set(info.testId,()=>clearInterval(probeTimer));
+ await page.addInitScript(prefix=>{let timer;window.__e36StartHistoryHeartbeat=()=>{if(timer)return 'already-running';timer=setInterval(()=>console.debug(prefix+JSON.stringify({stage:'timer-heartbeat',performanceNow:performance.now(),dateNow:Date.now(),documentTimeline:document.timeline.currentTime,visibility:document.visibilityState,scrollY,rootScrollTop:document.scrollingElement?.scrollTop})),250);return 'started'}},diagnosticPrefix);
  return samples;
 }
-test.afterEach(async({},info)=>{const samples=hostDiagnostics.get(info.testId);if(samples){await info.attach('history-host-frame-diagnostics',{body:JSON.stringify(samples,null,2),contentType:'application/json'});hostDiagnostics.delete(info.testId)}});
+test.afterEach(async({},info)=>{hostCleanups.get(info.testId)?.();hostCleanups.delete(info.testId);const samples=hostDiagnostics.get(info.testId);if(samples){await info.attach('history-host-frame-diagnostics',{body:JSON.stringify(samples,null,2),contentType:'application/json'});hostDiagnostics.delete(info.testId)}});
 
 async function setup(page){
  const observations=await prepareE2ePage(page);
@@ -17,7 +39,7 @@ async function setup(page){
  return observations;
 }
 for(const width of [1366,390])test(`history reading line ignores reveal movement and supports year links ${width}`,async({page},info)=>{
- captureHistoryDiagnostics(page,info);
+ await captureHistoryDiagnostics(page,info);
  const observations=await setup(page);await page.setViewportSize({width,height:844});await page.goto('/o-nas.html');
  await page.evaluate(()=>document.fonts.ready);
  const entry=page.locator('.timeline-entry').nth(7);
@@ -57,19 +79,27 @@ for(const width of [1366,390])test(`history reading line ignores reveal movement
  expect(observations.pageErrors).toEqual([]);expect(observations.unhandledApi).toEqual([]);
 });
 async function settleReading(page,target,phase='finished-fill-regression'){
- return await target.evaluate((node,phase)=>new Promise(resolve=>{
+ if(settleMode==='C'){
+  const samples=[];let previous=null,stable=0;
+  await expect.poll(async()=>{
+   const sample=await boundedDiagnostic(target.evaluate((node,phase)=>{const rect=(node.querySelector('.timeline-year a')||node).getBoundingClientRect();const sample={phase,stage:'host-poll-geometry',performanceNow:performance.now(),dateNow:Date.now(),documentTimeline:document.timeline.currentTime,visibility:document.visibilityState,scrollY,rootScrollTop:document.scrollingElement?.scrollTop,x:rect.x,y:rect.y,width:rect.width,height:rect.height};console.debug('E36_HISTORY_FRAME '+JSON.stringify(sample));return sample},phase));
+   samples.push(sample);const unchanged=previous&&['scrollY','x','y','width','height'].every(key=>sample[key]===previous[key]);stable=unchanged?stable+1:0;previous=sample;return stable;
+  },{timeout:7000,intervals:[16,32,50],message:'History geometry converges without a long browser-side promise'}).toBeGreaterThanOrEqual(3);
+  await page.evaluate(phase=>console.debug('E36_HISTORY_FRAME '+JSON.stringify({stage:'helper-resolved',phase})),phase);return samples;
+ }
+ return await target.evaluate((node,{phase,mode})=>new Promise(resolve=>{
   const samples=[];let previous=null,stable=0;
   const frame=()=>{
    const link=node.querySelector('.timeline-year a')||node,rect=link.getBoundingClientRect();
    const clock={phase,performanceNow:performance.now(),dateNow:Date.now(),documentTimeline:document.timeline.currentTime,visibility:document.visibilityState,scrollY,rootScrollTop:document.scrollingElement?.scrollTop,rect:{x:rect.x,y:rect.y,width:rect.width,height:rect.height},stableFrames:stable};
-   console.debug('E36_HISTORY_FRAME '+JSON.stringify({...clock,stage:'before-getAnimations'}));
-   const animations=node.getAnimations({subtree:true});
-   console.debug('E36_HISTORY_FRAME '+JSON.stringify({...clock,stage:'after-getAnimations',animationCount:animations.length}));
+   if(mode==='A')console.debug('E36_HISTORY_FRAME '+JSON.stringify({...clock,stage:'before-getAnimations'}));
+   const animations=mode==='A'?node.getAnimations({subtree:true}):[];
+   if(mode==='A')console.debug('E36_HISTORY_FRAME '+JSON.stringify({...clock,stage:'after-getAnimations',animationCount:animations.length}));
    const animationDetails=animations.map(animation=>{
     const effect=animation.effect,timing=effect?.getComputedTiming?.(),target=effect?.target;
     return {name:animation.animationName||'',property:animation.transitionProperty||'',pseudo:animation.effect?.pseudoElement||'',playState:animation.playState,pending:animation.pending,currentTime:animation.currentTime,timelineTime:animation.timeline?.currentTime,iterations:timing?.iterations,duration:timing?.duration,progress:timing?.progress,currentIteration:timing?.currentIteration,localTime:timing?.localTime,targetTag:target?.tagName,targetClass:typeof target?.className==='string'?target.className:target?.className?.baseVal};
    });
-   console.debug('E36_HISTORY_FRAME '+JSON.stringify({...clock,stage:'animation-metadata',animations:animationDetails}));
+   console.debug('E36_HISTORY_FRAME '+JSON.stringify({...clock,stage:mode==='A'?'animation-metadata':'geometry-only-frame',animations:animationDetails}));
    const active=animations.filter(animation=>animation.pending||animation.playState==='running');
    const sample={scrollY,x:rect.x,y:rect.y,width:rect.width,height:rect.height,activeAnimations:active.length};
    samples.push(sample);if(samples.length>120)samples.shift();
@@ -78,13 +108,13 @@ async function settleReading(page,target,phase='finished-fill-regression'){
    // finished promise, which can starve rendering indefinitely.
    const unchanged=previous&&['scrollY','x','y','width','height'].every(key=>sample[key]===previous[key]);
    stable=unchanged&&!active.length?stable+1:0;previous=sample;
-   if(stable>=3)resolve(samples);else requestAnimationFrame(frame);
+   if(stable>=3){console.debug('E36_HISTORY_FRAME '+JSON.stringify({phase,stage:'helper-resolved'}));resolve(samples)}else requestAnimationFrame(frame);
   };requestAnimationFrame(frame);
- }),phase);
+ }),{phase,mode:settleMode});
 }
 
 test('history settling leaves completed fill-forwards animation intact and keeps rendering',async({page},info)=>{
- const diagnostics=captureHistoryDiagnostics(page,info);
+ const diagnostics=await captureHistoryDiagnostics(page,info);
  await page.setContent('<article>Finished decorative movement</article>');
  await page.locator('article').evaluate(async node=>{const animation=node.animate([{transform:'translateX(0)'},{transform:'translateX(4px)'}],{duration:1,fill:'forwards'});await animation.finished;});
  const samples=await settleReading(page,page.locator('article'));

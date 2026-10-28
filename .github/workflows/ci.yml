@@ -39,21 +39,31 @@ jobs:
         id: browser_setup
         run: pnpm exec playwright install --with-deps chromium webkit firefox
 
-      - name: Diagnose history in a fresh Linux WebKit process
+      - name: Compare history observation in fresh Linux WebKit processes
         id: history_preflight
         if: ${{ !cancelled() && steps.browser_setup.outcome == 'success' && github.ref == 'refs/heads/fix/member-journeys-20261028' }}
-        env:
-          PLAYWRIGHT_HTML_OUTPUT_DIR: playwright-report/history-preflight-${{ github.run_attempt }}
-        run: pnpm test:e2e tests/e2e/history-reading.spec.mjs --project=webkit --output=test-results/history-preflight-${{ github.run_attempt }}
+        shell: bash
+        run: |
+          result=0
+          for mode in A B C; do
+            if E36_HISTORY_SETTLE_MODE="$mode" PLAYWRIGHT_HTML_OUTPUT_DIR="playwright-report/history-preflight-$mode-${{ github.run_attempt }}" pnpm test:e2e tests/e2e/history-reading.spec.mjs --project=webkit --grep 'reading line' --output="test-results/history-preflight-$mode-${{ github.run_attempt }}"; then
+              printf '%s: PASS\n' "$mode"
+            else
+              status=$?
+              printf '%s: FAIL (exit %s)\n' "$mode" "$status"
+              result=1
+            fi
+          done
+          exit "$result"
 
       - name: Preserve fresh Linux history diagnostics
-        if: ${{ failure() && steps.history_preflight.outcome == 'failure' }}
+        if: ${{ !cancelled() && (steps.history_preflight.outcome == 'success' || steps.history_preflight.outcome == 'failure') }}
         uses: actions/upload-artifact@v7
         with:
           name: browser-history-preflight-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
-            test-results/history-preflight-${{ github.run_attempt }}/
-            playwright-report/history-preflight-${{ github.run_attempt }}/
+            test-results/history-preflight-*-${{ github.run_attempt }}/
+            playwright-report/history-preflight-*-${{ github.run_attempt }}/
           retention-days: 5
           if-no-files-found: warn
 
