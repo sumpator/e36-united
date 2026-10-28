@@ -1,5 +1,6 @@
 import { defineConfig } from '@playwright/test';
 
+const criticalJourneys = ["account-entry","member-session-lifecycle","account-deadline","member-completion","history-reading","public-planner-stability","registration-live-continuity","appearance"].map(name => '**/' + name + '.spec.mjs');
 const port = 4173;
 const baseURL = `http://127.0.0.1:${port}`;
 
@@ -12,7 +13,8 @@ export default defineConfig({
   reporter: [['line'], ['html', { open: 'never' }]],
   projects: [
     { name: 'chromium', use: { browserName: 'chromium' } },
-    { name: 'webkit', testMatch: ['**/feedback-member.spec.mjs','**/member-club-profiles.spec.mjs','**/member-new-member.spec.mjs','**/preliminary-reservations.spec.mjs','**/admin-safety.spec.mjs','**/admin-members.spec.mjs','**/admin-dashboard.spec.mjs','**/admin-command.spec.mjs','**/admin-confirmed-render.spec.mjs','**/admin-responsive-member.spec.mjs','**/admin-member-hero.spec.mjs','**/admin-compact.spec.mjs'], use: { browserName: 'webkit' } },
+    { name: 'webkit', testMatch: [...criticalJourneys,'**/feedback-member.spec.mjs','**/member-club-profiles.spec.mjs','**/member-new-member.spec.mjs','**/preliminary-reservations.spec.mjs','**/admin-safety.spec.mjs','**/admin-members.spec.mjs','**/admin-dashboard.spec.mjs','**/admin-command.spec.mjs','**/admin-confirmed-render.spec.mjs','**/admin-responsive-member.spec.mjs','**/admin-member-hero.spec.mjs','**/admin-compact.spec.mjs'], use: { browserName: 'webkit' } },
+    { name: 'firefox', testMatch: criticalJourneys, use: { browserName: 'firefox' } },
   ],
   expect: { timeout: 7_000 },
   use: {

@@ -38,3 +38,23 @@ test('public Planner does not restore another event or invalid saved draft',asyn
  await page.reload();await expect(page.locator('[data-accommodation-option-id="cabin-standard"]')).toBeVisible();await expect(page.locator('[data-stay-index="0"]')).toHaveAttribute('aria-pressed','true');
  await page.evaluate(()=>localStorage.setItem('e36UnitedPublicPlanner:v1','invalid-json'));await page.reload();await expect(page.locator('[data-accommodation-option-id="cabin-standard"]')).toBeVisible();await expect(page.locator('[data-stay-index="0"]')).toHaveAttribute('aria-pressed','true');expectNoUnexpectedClientErrors(observations);
 });
+
+test('public Planner explains unavailable storage and still transfers the current choice',async({page})=>{
+ const observations=await prepareE2ePage(page);
+ await page.addInitScript(()=>{const set=Storage.prototype.setItem;Storage.prototype.setItem=function(key,value){if(String(key).startsWith('e36UnitedPublicPlanner')||String(key).startsWith('e36UnitedPlanner'))throw new DOMException('Denied','SecurityError');return set.call(this,key,value)}});
+ await page.goto('/#planer');await page.locator('[data-stay-index="2"]').click();await page.locator('[data-people-plus]').click();
+ await expect(page.locator('[data-planner-storage-status]')).toContainText('neumožňuje uchovat plán');
+ await page.locator('[data-planner-mail]').click();await page.locator('[data-planner-login]').click();
+ await expect(page).toHaveURL(/member.html\?mode=login/);
+ const draft=await page.evaluate(()=>{const encoded=new URLSearchParams(location.hash.slice(1)).get('handoff');return JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(encoded.replace(/-/g,'+').replace(/_/g,'/')),c=>c.charCodeAt(0))))});
+ expect(draft).toMatchObject({crew:3,arrival:'Sobota'});expectNoUnexpectedClientErrors(observations);
+});
+
+test('public Planner second tab cannot silently overwrite choices already being edited',async({page,context})=>{
+ const observations=await prepareE2ePage(page);await page.goto('/#planer');await page.locator('[data-stay-index="2"]').click();
+ const other=await context.newPage();const otherErrors=await prepareE2ePage(other);await other.goto('/#planer');await expect(other.locator('[data-stay-index="2"]')).toHaveAttribute('aria-pressed','true');
+ await other.locator('[data-stay-index="1"]').click();await expect(other.locator('[data-stay-index="1"]')).toHaveAttribute('aria-pressed','true');
+ await expect(page.locator('[data-stay-index="2"]')).toHaveAttribute('aria-pressed','true');
+ await page.reload();await expect(page.locator('[data-stay-index="1"]')).toHaveAttribute('aria-pressed','true');
+ expectNoUnexpectedClientErrors(observations);expectNoUnexpectedClientErrors(otherErrors);
+});

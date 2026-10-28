@@ -25,16 +25,16 @@ export function createMemberApiClient({ baseUrl, getCurrentUser, fetchRequest = 
   function requireSameUser(user) {
     if (getCurrentUser() !== user) throw new Error('api_auth_required');
   }
-  async function getToken(user, force) {
+  async function getToken(user, force, deadlineAt=Date.now()+timeoutMs) {
     let timer;
     try {
-      const token = await Promise.race([user.getIdToken(force),new Promise((_,reject)=>{timer=setTimeout(()=>reject(networkError(new Error('token_timeout'))),timeoutMs)})]);
+      const token = await Promise.race([user.getIdToken(force),new Promise((_,reject)=>{timer=setTimeout(()=>reject(networkError(new Error('token_timeout'))),Math.max(0,deadlineAt-Date.now()))})]);
       requireSameUser(user);
       return token;
     } finally { clearTimeout(timer); }
   }
   // Include body consumption in the deadline: a response can stall after headers.
-  async function transfer(path, options, consume, transientRetry = true) {
+  async function transfer(path, options, consume, transientRetry = true, deadlineAt=Date.now()+timeoutMs) {
     const controller = new AbortController();
     let timer;
     try {
@@ -47,22 +47,22 @@ export function createMemberApiClient({ baseUrl, getCurrentUser, fetchRequest = 
           }
           return await consume(response);
         })(),
-        new Promise((_, reject) => { timer = setTimeout(() => { controller.abort(); reject(networkError(new Error('request_timeout'))); }, timeoutMs); }),
+        new Promise((_, reject) => { timer = setTimeout(() => { controller.abort(); reject(networkError(new Error('request_timeout'))); }, Math.max(0,deadlineAt-Date.now())); }),
       ]);
     } catch (error) {
       const network = !error.status && (error instanceof TypeError || error.name === 'AbortError' || error.message === 'api_network_error' || error.transient);
-      if (['GET', undefined].includes(options.method) && transientRetry && network) {
+      if (['GET', undefined].includes(options.method) && transientRetry && network && Date.now()+retryDelayMs<deadlineAt) {
         clearTimeout(timer);
         await new Promise(resolve => setTimeout(resolve, retryDelayMs));
-        return transfer(path, options, consume, false);
+        return transfer(path, options, consume, false, deadlineAt);
       }
       throw network ? networkError(error) : error;
     } finally { clearTimeout(timer); }
   }
-  async function request(path, { method = 'GET', body, token, retry = true } = {}) {
+  async function request(path, { method = 'GET', body, token, retry = true, deadlineAt=Date.now()+timeoutMs } = {}) {
     const currentUser = getCurrentUser();
     if (!currentUser) throw new Error('api_auth_required');
-    const idToken = token || await getToken(currentUser);
+    const idToken = token || await getToken(currentUser, undefined, deadlineAt);
     let response;
     try {
       response = await transfer(path, {
@@ -70,14 +70,14 @@ export function createMemberApiClient({ baseUrl, getCurrentUser, fetchRequest = 
         headers: { Authorization: `Bearer ${idToken}`, ...(body ? { 'Content-Type': 'application/json' } : {}) },
         body: body ? JSON.stringify(body) : undefined,
         cache: 'no-store',
-      }, async result => ({ status: result.status, ok: result.ok, payload: await responsePayload(result) }));
+      }, async result => ({ status: result.status, ok: result.ok, payload: await responsePayload(result) }), true, deadlineAt);
     } catch (error) {
       throw networkError(error);
     }
     if (response.status === 401 && retry) {
       if (getCurrentUser()?.uid !== currentUser.uid || !getCurrentUser()) throw new Error('api_auth_required');
-      const freshToken = await getToken(currentUser, true);
-      return request(path, { method, body, token: freshToken, retry: false });
+      const freshToken = await getToken(currentUser, true, deadlineAt);
+      return request(path, { method, body, token: freshToken, retry: false, deadlineAt });
     }
     const payload = response.payload;
     requireSameUser(currentUser);

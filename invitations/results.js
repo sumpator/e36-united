@@ -1,4 +1,4 @@
-import {initUnitedAuth} from '../united-auth.js?v=20261028-flow1';
+import {initUnitedAuth} from '../united-auth.js?v=20261028-flow2';
 import {firebaseConfig,portalConfig} from '../firebase-config.js?v=20260924-merch2';
 const poll=new URLSearchParams(location.search).get('poll')||'darts-20261027';
 const status=document.querySelector('[data-status]'),table=document.querySelector('table'),tbody=document.querySelector('tbody'),refresh=document.querySelector('[data-refresh]');

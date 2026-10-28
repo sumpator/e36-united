@@ -1,4 +1,4 @@
-import { initUnitedAuth } from './united-auth.js?v=20261028-flow1';
+import { initUnitedAuth } from './united-auth.js?v=20261028-flow2';
 import { shouldShowJoinCta } from './planner-state.js?v=20261025-flow1';
 
 export function renderAccountLinks(state, root=document){
@@ -12,7 +12,7 @@ export function renderAccountLinks(state, root=document){
   });
 }
 
-export function initPublicMemberState({config,apiBaseUrl,onStateChange,authFactory=initUnitedAuth,fetchImpl=fetch,timeoutMs=20_000}){
+export function initPublicMemberState({config,apiBaseUrl,onStateChange,authFactory=initUnitedAuth,fetchImpl=fetch,timeoutMs=10_000}){
   let revision=0;
   let activeController=null;
   const emit=state=>onStateChange?.({...state,showJoinCta:shouldShowJoinCta(state)});
@@ -23,6 +23,7 @@ export function initPublicMemberState({config,apiBaseUrl,onStateChange,authFacto
     if(authState.status!=='authenticated'||!authState.user){emit({status:authState.status,authenticated:false,hasWaitingPlan:false,hasReservation:false,error:authState.error||null});return}
     emit({status:'loading',authenticated:true,hasWaitingPlan:false,hasReservation:false});
     const controller=new AbortController();activeController=controller;let timer;
+    const remaining=Math.max(0,Math.min(timeoutMs,(authState.deadlineAt||Date.now()+timeoutMs)-Date.now()));
     try{
       const payload=await Promise.race([(async()=>{
       const token=await authState.user.getIdToken();
@@ -30,7 +31,7 @@ export function initPublicMemberState({config,apiBaseUrl,onStateChange,authFacto
       const response=await fetchImpl(`${String(apiBaseUrl).replace(/\/$/,'')}/api/navigation-state`,{headers:{Authorization:`Bearer ${token}`},cache:'no-store',signal:controller.signal});
       if(!response.ok)throw new Error(`navigation_state_${response.status}`);
       return response.json();
-      })(),new Promise((_,reject)=>{timer=setTimeout(()=>{controller.abort();reject(new Error('navigation_state_timeout'))},timeoutMs)})]);
+      })(),new Promise((_,reject)=>{timer=setTimeout(()=>{controller.abort();reject(new Error('navigation_state_timeout'))},remaining)})]);
       if(activeRevision!==revision)return;
       emit({status:'authenticated',authenticated:true,hasWaitingPlan:payload?.hasWaitingPlan===true,hasReservation:payload?.hasReservation===true});
     }catch(error){if(activeRevision===revision)emit({status:'error',authenticated:true,hasWaitingPlan:false,hasReservation:false,error})}

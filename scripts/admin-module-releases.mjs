@@ -1,7 +1,7 @@
 // Release URLs approved by the September deliveries. Unchanged modules retain
 // their own tokens; every source still has exactly one runtime URL.
 export const ADMIN_MODULE_RELEASES = Object.freeze({
-  'admin.js': '20261026-merch-mail1',
+  'admin.js': '20261028-flow2',
   'admin/modules/live.js': '20261025-flow1',
   'live-history.js': '20260930-flow2',
   'admin-view-model.js': '20260930-arrivals2',
@@ -20,11 +20,11 @@ export const ADMIN_MODULE_RELEASES = Object.freeze({
   'admin/modules/admission-settings.js': '20260930-arrivals2',
   'admin/modules/dashboard-events.js': '20261014-admin1',
   'admin/modules/funnel.js': '20260930-arrivals2',
-  'admin/modules/mailing/campaigns.js': '20260930-arrivals2',
+  'admin/modules/mailing/campaigns.js': '20261028-flow2',
   'admin/modules/mailing/contacts.js': '20261026-merch-mail1',
   'admin/modules/mailing/delivery.js': '20260930-arrivals2',
-  'admin/modules/mailing/editor.js': '20260930-arrivals2',
-  'admin/modules/mailing/index.js': '20261026-merch-mail1',
+  'admin/modules/mailing/editor.js': '20261028-flow2',
+  'admin/modules/mailing/index.js': '20261028-flow2',
   'admin/modules/mailing/transactional.js': '20261023-mail1',
   'admin/modules/mailing/preview.js': '20260930-arrivals2',
   'admin/modules/mailing/segments.js': '20260930-arrivals2',

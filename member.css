@@ -670,6 +670,12 @@ body:not(.member-authenticated) [data-app-view]{display:none!important}
 html.reservation-change-planner-open,body.reservation-change-planner-open{overflow:hidden}
 .reservation-change-planner-modal{z-index:760;padding:20px}
 .reservation-change-planner-open [data-car-modal]{z-index:780}
+[data-car-modal]{top:var(--car-viewport-top,0px);bottom:auto;height:var(--car-viewport-height,100%)}
+[data-car-modal] .member-modal-dialog{max-height:calc(var(--car-viewport-height,100svh) - 40px)}
+.car-form-actions{position:sticky;bottom:-26px;z-index:2;margin:0 -26px -26px;padding:12px 26px 20px;border-top:1px solid var(--appearance-border,rgba(255,255,255,.12));background:var(--appearance-page,#0c1015)}
+.car-form-actions>small{display:block;margin-bottom:9px;color:var(--appearance-muted,#7f8a96);font-size:12px;line-height:1.4}
+.car-form-actions>div{display:grid;grid-template-columns:auto minmax(0,1fr);gap:10px}
+@media(max-width:700px){[data-car-modal] .member-modal-dialog{max-height:calc(var(--car-viewport-height,100svh) - 20px)}.car-form-actions{bottom:-20px;margin-inline:-20px;margin-bottom:-20px;padding:10px 20px 16px}}
 .reservation-change-planner-dialog{width:min(1080px,calc(100vw - 40px));max-height:calc(100dvh - 40px);padding:0;overflow:auto;overscroll-behavior:contain;border-color:var(--appearance-border,rgba(105,175,255,.32));background:radial-gradient(circle at 88% 6%,var(--appearance-selected,rgba(77,163,255,.14)),transparent 28rem),linear-gradient(145deg,var(--appearance-surface,#101821),var(--appearance-page,#080c11))}
 .reservation-change-planner-dialog{scroll-padding-block:18px 82px}
 .reservation-change-planner-host :is(input,select,textarea,button){scroll-margin-bottom:82px}

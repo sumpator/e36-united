@@ -13,7 +13,7 @@ function freshBlock(type){
   if(type==='heading')return{id:newId('heading'),type,kicker:'UNITED',heading:'Nový nadpis'};
   if(type==='rich_text')return{id:newId('text'),type,text:'Napiš zprávu pro členy United.'};
   if(type==='image')return{id:newId('image'),type,imageUrl:'',alt:'',caption:''};
-  if(type==='cta')return{id:newId('cta'),type,label:'Zjistit více',url:'https://e36united.cz/',variant:'primary'};
+  if(type==='cta')return{id:newId('cta'),type,label:'Zjistit více',url:'https://www.e36united.cz/',variant:'primary'};
   if(type==='divider')return{id:newId('divider'),type,variant:'line',size:'medium'};
   if(type==='highlight')return{id:newId('highlight'),type,kicker:'DŮLEŽITÉ',text:'Krátká zvýrazněná zpráva.'};
   const questionId=newId('question');return{id:newId('survey'),type:'survey',questionId,question:'Nová otázka',text:'',answers:[{id:newId('answer'),label:'ANO'},{id:newId('answer'),label:'NE'}]};

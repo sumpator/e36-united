@@ -96,7 +96,21 @@ test('access loss clears protected state and drafts and stops refresh',async({pa
 });
 
 test('visible polling converges within the sixty-second interval; hidden tabs make no periodic requests',async({page})=>{
- await page.clock.install();const control=await fixture(page);await open(page);control.change(2200);
+ await page.clock.install();const control=await fixture(page);
+ const received=Promise.withResolvers(),release=Promise.withResolvers();let firstDetail=true;
+ await page.route('https://api.e36united.cz/api/admin/reservations**',async route=>{
+  if(firstDetail&&route.request().method()==='GET'&&new URL(route.request().url()).searchParams.get('id')===id){firstDetail=false;received.resolve();await release.promise;}
+  return route.fallback();
+ });
+ await open(page);await received.promise;
+ // The drawer is already usable from list data while its actual detail read is pending.
+ // Advancing virtual time here also expires real-network request deadlines.
+ await expect(amount(page)).toHaveValue('1200');
+ await expect(page.locator('[data-admin-freshness]')).toHaveAttribute('data-state','loading');
+ release.resolve();
+ await expect(page.locator('[data-admin-freshness]')).toHaveAttribute('data-state','fresh');
+ await expect(drawer(page).locator('[data-domain-status="reservation-detail"]')).toHaveCount(0);
+ control.change(2200);
  await page.clock.runFor(60_100);await expect(amount(page)).toHaveValue('2200');
  let reads=0;page.on('request',request=>{if(request.url().includes('/api/admin/'))reads++});
  await page.evaluate(()=>{Object.defineProperty(document,'hidden',{configurable:true,get:()=>true});document.dispatchEvent(new Event('visibilitychange'))});

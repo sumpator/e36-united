@@ -1,5 +1,5 @@
 import { firebaseConfig, portalConfig } from './firebase-config.js?v=20260823-auth2';
-import { initUnitedAuth } from './united-auth.js?v=20261028-flow1';
+import { initUnitedAuth } from './united-auth.js?v=20261028-flow2';
 import { createImagePreviewController, selectImageFiles } from './image-upload.js?v=20260827-garage-photos';
 import { initScrollAffordance } from './scroll-affordance.js?v=20260907-mobile';
 import { createClubProfileViewer } from './member/club-profile.js?v=20260920-club-profile-release-r1';

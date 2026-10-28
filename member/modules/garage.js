@@ -74,6 +74,9 @@ export function createMemberGarage({
     if(current)current.hidden=Boolean(selectedCarPhoto)||!current.dataset.available;
   }
   function clearSelectedCarPhoto(){selectedCarPhoto=null;if(carPhotoInput)carPhotoInput.value='';carPhotoPreview?.clear();syncCarPhotoSelection()}
+  function fitCarViewport(){
+    if(!carModal)return;const viewport=window.visualViewport;carModal.style.setProperty('--car-viewport-height',`${viewport?.height||innerHeight}px`);carModal.style.setProperty('--car-viewport-top',`${viewport?.offsetTop||0}px`);
+  }
   function closeCarModal(){
     if(!carModal)return;carModal.hidden=true;delete carModal.dataset.carId;document.body.classList.remove('modal-open');returnToReservationAfterCar=false;returnToPlannerAfterCar=false;editingCarId='';carForm?.reset();clearSelectedCarPhoto();
     const current=$('[data-car-current-photo]');if(current){current.hidden=true;delete current.dataset.available}
@@ -85,19 +88,19 @@ export function createMemberGarage({
     if(title)title.textContent=editingCarId?'Upravit auto.':'Přidat auto.';
     if(kicker)kicker.textContent=editingCarId?'MY GARAGE · ÚPRAVA':'MY GARAGE · NOVÉ AUTO';
     if(copy)copy.textContent=editingCarId?'Změň jen to, co potřebuješ. Auto zůstane stejné a současná fotka se nahradí až po úspěšném uložení nové.':'Fotografie není povinná. K autu ji můžeš bezpečně doplnit kdykoliv a zůstane soukromá.';
-    if(submit)submit.innerHTML=editingCarId?'Uložit změny <span>→</span>':'Přidat do garáže <span>→</span>';
+    if(submit)submit.innerHTML=editingCarId?'Uložit změny <span>→</span>':'Přidat auto <span>→</span>';
     if(car){for(const field of ['nickname','body','model','year','color'])if(carForm.elements[field])carForm.elements[field].value=car[field]??'';if(carForm.elements.primary)carForm.elements.primary.checked=car.primary===true}
     if(current){current.hidden=true;delete current.dataset.available}
     const photoId=car?.photos?.[0]?.id;
     if(photoId&&current&&currentImage){void getPrivateCarPhotoUrl(String(photoId)).then(url=>{if(editingCarId!==String(car.id)||selectedCarPhoto)return;currentImage.src=url;current.dataset.available='true';current.hidden=false;syncCarPhotoSelection()}).catch(error=>console.warn('Current car photo preview unavailable',error))}
-    carModal.hidden=false;document.body.classList.add('modal-open');carForm.elements.nickname?.focus();syncCarPhotoSelection();
+    fitCarViewport();carModal.hidden=false;document.body.classList.add('modal-open');carForm.elements.nickname?.focus();syncCarPhotoSelection();
   }
   function openCarForReservation(event){returnToReservationAfterCar=true;returnToPlannerAfterCar=['data-preliminary-add-car','data-member-planner-add-car'].some(attribute=>event?.currentTarget?.hasAttribute(attribute)===true);openCarModal()}
 
   function bind(){
-    if(bound)return;bound=true;carPhotoPreview=createImagePreviewController($('[data-car-photo-preview]'));
+    if(bound)return;bound=true;window.visualViewport?.addEventListener('resize',fitCarViewport);window.visualViewport?.addEventListener('scroll',fitCarViewport);window.addEventListener('resize',fitCarViewport);carPhotoPreview=createImagePreviewController($('[data-car-photo-preview]'));
     const uploadField=carPhotoInput?.closest('.image-upload-field');if(uploadField&&!uploadField.querySelector('.image-upload-recommendation')){const recommendation=document.createElement('small');recommendation.className='image-upload-recommendation';recommendation.textContent='Fotografie není povinná, ale doporučujeme ji nahrát.';uploadField.querySelector(':scope > span')?.after(recommendation)}
-    $('[data-open-car]')?.addEventListener('click',openCarModal);
+    $('[data-open-car]')?.addEventListener('click',()=>openCarModal());
     $('[data-planner-handoff-add-car]')?.addEventListener('click',openCarForReservation);
     $('[data-reservation-add-car]')?.addEventListener('click',openCarForReservation);
     $$('[data-preliminary-add-car],[data-member-planner-add-car]').forEach(button=>button.addEventListener('click',openCarForReservation));

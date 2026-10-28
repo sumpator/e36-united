@@ -1,7 +1,7 @@
 import {renderListPagination} from '../../lists.js?v=20260930-arrivals2';
 import { apiRequest } from '../../api.js?v=20260930-arrivals2';
 import { $, escapeHtml, formatDate, numeric, toast } from '../../ui.js?v=20260924-merch2';
-import { allowMailingLeave, activeMailingCampaignId, initializeMailingEditor, markMailingEditorSaved, openMailingEditorDraft, resetMailingEditor } from './editor.js?v=20260930-arrivals2';
+import { allowMailingLeave, activeMailingCampaignId, initializeMailingEditor, markMailingEditorSaved, openMailingEditorDraft, resetMailingEditor } from './editor.js?v=20261028-flow2';
 import { initializeMailingDelivery, openMailingDelivery, resetMailingDelivery } from './delivery.js?v=20260930-arrivals2';
 import { defaultMailingSegment } from './segments.js?v=20260930-arrivals2';
 

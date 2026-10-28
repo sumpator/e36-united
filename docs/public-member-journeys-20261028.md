@@ -1,5 +1,7 @@
 # Veřejný web a členské průchody — 28. 10. 2026
 
+Pokračování a aktuální limit 5/10 sekund: [public-member-followup-20261028.md](public-member-followup-20261028.md). Níže zůstává historická evidence první publikace.
+
 ## Výchozí stav a hranice
 
 - Výchozí `main`: `7cb5c3f6b4d35cc6673852ec70aa0490556f9137`, shodný s čerstvě načteným `origin/main`.

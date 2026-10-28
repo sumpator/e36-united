@@ -22,7 +22,7 @@ document.addEventListener('click',event=>{if(event.target.closest('.nav-member')
 qsa('.nav-cta').forEach(cta=>{cta.hidden=true});
 void (async()=>{
 try{
-const [{firebaseConfig,portalConfig},memberStateModule]=await Promise.all([import('./firebase-config.js?v=20260823-auth2'),import('./public-member-state.js?v=20261028-flow1')]);
+const [{firebaseConfig,portalConfig},memberStateModule]=await Promise.all([import('./firebase-config.js?v=20260823-auth2'),import('./public-member-state.js?v=20261028-flow2')]);
 const {initPublicMemberState}=memberStateModule;renderAccountLinks=memberStateModule.renderAccountLinks;
 initPublicMemberState({config:firebaseConfig,apiBaseUrl:portalConfig.apiBaseUrl,onStateChange:publishPublicMemberState});
 }catch(error){publishPublicMemberState({status:'error',authenticated:false,showJoinCta:false,error});console.debug('Public member state unavailable; join CTA remains hidden.',error)}
@@ -1055,7 +1055,15 @@ const createPlannerHandoff=({persist=true,draftId=crypto.randomUUID()}={})=>{
 };
 document.addEventListener('e36:planner',()=>{
   if(!publicPlannerReady)return;
-  try{localStorage.setItem(publicPlannerDraftKey,JSON.stringify(createPlannerHandoff({persist:false,draftId:publicPlannerDraftId})))}catch(error){console.debug('Planner nelze uložit v tomto prohlížeči.',error)}
+  try{
+    localStorage.setItem(publicPlannerDraftKey,JSON.stringify(createPlannerHandoff({persist:false,draftId:publicPlannerDraftId})));
+    const status=qs('[data-planner-storage-status]');if(status){status.hidden=true;status.textContent=''}
+  }catch(error){
+    console.debug('Planner nelze uložit v tomto prohlížeči.',error);
+    let status=qs('[data-planner-storage-status]');
+    if(!status){status=document.createElement('small');status.dataset.plannerStorageStatus='';status.setAttribute('role','status');qs('.planner-actionbar-copy')?.append(status)}
+    status.hidden=false;status.textContent='Prohlížeč neumožňuje uchovat plán po zavření stránky. Pokračuj do účtu; aktuální výběr se přenese.';
+  }
 });
 let memberHandoffNavigating=false;
 const plannerActionStatus=qs('[data-planner-action-status]');

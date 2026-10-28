@@ -35,11 +35,13 @@ jobs:
       - name: Install browser test dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Install Chromium and focused WebKit runtime
-        run: pnpm exec playwright install --with-deps chromium webkit
+      - name: Install required browser runtimes
+        id: browser_setup
+        run: pnpm exec playwright install --with-deps chromium webkit firefox
 
       - name: Run browser E2E suite
         id: chromium
+        if: ${{ !cancelled() && steps.browser_setup.outcome == 'success' }}
         env:
           PLAYWRIGHT_HTML_OUTPUT_DIR: playwright-report/chromium-${{ github.run_attempt }}
         run: pnpm test:e2e --project=chromium --output=test-results/chromium-${{ github.run_attempt }}
@@ -57,6 +59,7 @@ jobs:
 
       - name: Run focused WebKit reliability suite
         id: webkit
+        if: ${{ !cancelled() && steps.browser_setup.outcome == 'success' }}
         env:
           PLAYWRIGHT_HTML_OUTPUT_DIR: playwright-report/webkit-${{ github.run_attempt }}
         run: pnpm test:e2e --project=webkit --output=test-results/webkit-${{ github.run_attempt }}
@@ -69,5 +72,23 @@ jobs:
           path: |
             test-results/webkit-${{ github.run_attempt }}/
             playwright-report/webkit-${{ github.run_attempt }}/
+          retention-days: 5
+          if-no-files-found: warn
+
+      - name: Run focused Firefox journey suite
+        id: firefox
+        if: ${{ !cancelled() && steps.browser_setup.outcome == 'success' }}
+        env:
+          PLAYWRIGHT_HTML_OUTPUT_DIR: playwright-report/firefox-${{ github.run_attempt }}
+        run: pnpm test:e2e --project=firefox --output=test-results/firefox-${{ github.run_attempt }}
+
+      - name: Preserve Firefox failure diagnostics
+        if: ${{ failure() && steps.firefox.outcome == 'failure' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: browser-firefox-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            test-results/firefox-${{ github.run_attempt }}/
+            playwright-report/firefox-${{ github.run_attempt }}/
           retention-days: 5
           if-no-files-found: warn

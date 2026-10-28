@@ -1,4 +1,4 @@
-import { initUnitedAuth } from '../united-auth.js?v=20261028-flow1';
+import { initUnitedAuth } from '../united-auth.js?v=20261028-flow2';
 
 export function createMemberSession({ config, onStateChange }) {
   let firebase = null;
@@ -60,4 +60,17 @@ export function apiError(error) {
 
 export function authOrApiError(error) {
   return error?.status || error?.message === 'api_network_error' ? apiError(error) : authError(error);
+}
+
+// A single budget spans auth, token acquisition and the blocking profile path.
+export function createAccountAttempt({startedAt=Date.now(),timeoutMs=10_000,slowMs=5_000,onSlow,onTimeout}={}){
+  const deadlineAt=startedAt+timeoutMs;
+  let active=true;
+  const error=()=>new Error('account_load_timeout');
+  let rejectExpired;
+  const expired=new Promise((_,reject)=>{rejectExpired=reject});
+  expired.catch(()=>{});
+  const slowTimer=setTimeout(()=>{if(active)onSlow?.()},Math.max(0,startedAt+slowMs-Date.now()));
+  const timer=setTimeout(()=>{if(!active)return;active=false;clearTimeout(slowTimer);onTimeout?.();rejectExpired(error())},Math.max(0,deadlineAt-Date.now()));
+  return {deadlineAt,get active(){return active},wait(work){if(!active)return Promise.reject(error());return Promise.race([Promise.resolve(work),expired])},finish(){active=false;clearTimeout(timer);clearTimeout(slowTimer)}};
 }

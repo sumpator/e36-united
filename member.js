@@ -1,20 +1,20 @@
 import { firebaseConfig, portalConfig } from './firebase-config.js?v=20260924-merch2';
-import { renderAccountLinks } from './public-member-state.js?v=20261028-flow1';
+import { renderAccountLinks } from './public-member-state.js?v=20261028-flow2';
 import { showArrivalInvitation } from './member/arrival-invite.js?v=20260930-arrivals2';
 import { performMemberLogout } from './member-logout.js?v=20260826-predeploy-fix';
-import { createMemberApiClient } from './member/api.js?v=20261028-flow1';
+import { createMemberApiClient } from './member/api.js?v=20261028-flow2';
 import { loadMemberSessionSnapshot } from './member/refresh.js?v=20260907-feedback';
-import { apiError, authError, authOrApiError, createMemberSession } from './member/session.js?v=20261028-flow1';
+import { apiError, authError, authOrApiError, createAccountAttempt, createMemberSession } from './member/session.js?v=20261028-flow2';
 import { createMemberData as defaultData, normalizeMember as normalizeMemberState } from './member/state.js?v=20260926-portal3';
 import { $, $$, setButtonBusy, toast } from './member/ui.js?v=20260924-merch2';
 import { createMemberShell } from './member/shell.js?v=20261025-flow1';
 import { createMemberOverview } from './member/modules/overview.js?v=20261028-flow1';
-import { createMemberGarage } from './member/modules/garage.js?v=20261026-focus1';
+import { createMemberGarage } from './member/modules/garage.js?v=20261028-flow2';
 import { createMemberPhotos } from './member/modules/photos.js?v=20261025-flow1';
 import { createMemberPlanner } from './member/modules/planner/index.js?v=20261025-flow1';
 import {verifyNewPasswordAccount} from './member/registration-verification.js?v=20261023-mail1';
 import { formatCzk } from './member/modules/planner/payments.js?v=20260924-merch2';
-import { createMemberClub } from './member/modules/club/index.js?v=20261026-merch-mail1';
+import { createMemberClub } from './member/modules/club/index.js?v=20261028-flow2';
 import { achievementIcon, pictogram } from './member/modules/club/points.js?v=20261026-merch-mail1';
 import { createMemberAccount } from './member/modules/account.js?v=20261011-ui1';
 import { createMemberLive } from './member/modules/live.js?v=20261025-flow1';
@@ -33,19 +33,26 @@ const memberUrlParams=new URLSearchParams(window.location.search);
 let data=defaultData();
 let memberPlanner=null,memberShell=null,memberLive=null;
 let startupErrors={},lastPlannerDraftResult=null;
-let sessionAttempt=0;
+let sessionAttempt=0,accountAttempt=null,accountNeedsRetry=false,accountWritePending=false;
+function beginAccountAttempt(startedAt=Date.now()){
+  accountAttempt?.finish();accountNeedsRetry=false;
+  const attempt=createAccountAttempt({startedAt,onSlow:()=>showAuthStatus({title:'Připojení trvá déle.',copy:'Stále ověřuji účet. Do chvíle nabídnu výsledek nebo nové načtení.'}),onTimeout:()=>{
+    accountNeedsRetry=true;sessionAttempt++;
+    showAuthStatus({title:'Účet se nepodařilo načíst včas.',copy:accountWritePending?'Požadavek na účet mohl proběhnout. Obnov načtení; nový účet znovu nezakládej.':'Zkontroluj připojení a obnov načtení. Uložené přihlášení jsme nezměnili.',retry:true});
+  }});accountAttempt=attempt;return attempt;
+}
 const trackOnboarding=stage=>apiRequest('/api/onboarding',{method:'POST',body:{stage}}).catch(error=>console.warn('Onboarding tracking unavailable',error));
 function resetMemberState(){startupErrors={};lastPlannerDraftResult=null;resetGarage();resetMemberPhotos();memberClub.reset();memberPlanner.reset();memberLive?.reset();memberMerch.reset();memberAccount.reset();memberOverview?.resetOnboarding();data=defaultData();renderAll()}
 function normalizeMember(payload,user=memberSession.currentUser){return normalizeMemberState(payload,user)}
 
-async function ensureMemberProfile(user){
+async function ensureMemberProfile(user,attempt){
   memberSession.currentUser=user;
-  let payload=await apiRequest('/api/me');
+  let payload=await apiRequest('/api/me',{deadlineAt:attempt.deadlineAt});
   if(payload?.profileExists===false){
     const fallbackName=(user.displayName||user.email?.split('@')[0]||'United Member').trim();
     payload=await apiRequest('/api/bootstrap',{
       method:'POST',
-      body:{name:fallbackName,nickname:fallbackName.split(/\s+/)[0]||'Driver'}
+      deadlineAt:attempt.deadlineAt,body:{name:fallbackName,nickname:fallbackName.split(/\s+/)[0]||'Driver'}
     });
   }
   const member=normalizeMember(payload,user);
@@ -55,27 +62,31 @@ async function ensureMemberProfile(user){
   return member;
 }
 
-async function openAuthenticatedSession(user,{quiet=false,isCurrent=()=>memberSession.currentUser===user}={}){
+async function openAuthenticatedSession(user,{quiet=false,isCurrent=()=>memberSession.currentUser===user,attempt=accountAttempt}={}){
   if(data.profile?.id&&data.profile.id!==user.uid)resetMemberState();
   memberSession.currentUser=user;
   void trackOnboarding('seen');
-  const member=await ensureMemberProfile(user);
+  const member=await attempt.wait(ensureMemberProfile(user,attempt));
   if(!isCurrent())return;
   void trackOnboarding('profile');
-  const {cars,reservation,plannerDraftResult,club,errors}=await loadMemberSessionSnapshot({
+  const {cars,reservation,plannerDraftResult,club,errors}=await attempt.wait(loadMemberSessionSnapshot({
     loadCars:loadCarsFromApi,
     loadReservation:()=>memberPlanner.loadCurrentReservation(),
     loadPlannerDraft:()=>memberPlanner.loadServerPlannerDraft(),
-    loadClub:()=>memberClub.load(),
-    loadGallery:loadMemberGallery,
+    loadClub:async()=>null,
+    loadGallery:async()=>[],
     onCarsError:error=>console.warn('Cars API unavailable',error),
     onGalleryError:error=>{console.warn('Gallery status unavailable',error);handleMemberGalleryLoadError()},
-  });
+  }));
   if(!isCurrent())return;
   startupErrors=errors;lastPlannerDraftResult=plannerDraftResult;
   data={...defaultData(),profile:member,cars,reservation,club:club||defaultData().club};
   setMode('AUTH + PROFIL LIVE');
   showApp();
+  attempt.finish();
+  if(memberSession.firebase?.persistence==='memory')toast('Úložiště prohlížeče není dostupné. Přihlášení platí jen v tomto panelu; po obnovení se přihlas znovu.');
+  void memberClub.load().then(club=>{if(isCurrent()){data.club=club;memberClub.renderPoints();memberClub.renderAchievements();memberClub.renderMembers();memberClub.renderHistory();memberClub.renderRewards();renderMemberHero()}}).catch(error=>{if(isCurrent()){startupErrors.club=error;renderMemberAvailability(startupErrors,retryMemberDomain,{hasHandoff:memberPlanner.hasActiveHandoff()})}});
+  void loadMemberGallery().catch(error=>{if(isCurrent()){startupErrors.photos=error;handleMemberGalleryLoadError();renderMemberAvailability(startupErrors,retryMemberDomain,{hasHandoff:memberPlanner.hasActiveHandoff()})}});
   memberMerch.startup();
   if(!errors.reservation)await memberPlanner.applyPlannerDraft(plannerDraftResult);
   if(!isCurrent())return;
@@ -117,15 +128,16 @@ async function retryMemberDomain(key){
   renderMemberAvailability(startupErrors,retryMemberDomain,{hasHandoff:memberPlanner.hasActiveHandoff()});
 }
 
-async function restoreAuthenticatedSession(user,{quiet=true}={}){
-  const attempt=++sessionAttempt;
+async function restoreAuthenticatedSession(user,{quiet=true,attempt=beginAccountAttempt()}={}){
+  const attemptNumber=++sessionAttempt;
   memberSession.currentUser=user;
   renderAccountLinks({status:'authenticated'});
-  const isCurrent=()=>attempt===sessionAttempt&&memberSession.currentUser===user;
+  const isCurrent=()=>attemptNumber===sessionAttempt&&memberSession.currentUser===user;
   showAuthStatus({title:'Načítám tvůj United.',copy:'Session je potvrzená. Připravuji profil, garáž a aktuální stav srazu.'});
-  try{await openAuthenticatedSession(user,{quiet,isCurrent});return isCurrent()}
+  try{await openAuthenticatedSession(user,{quiet,isCurrent,attempt});return isCurrent()}
   catch(error){
     if(!isCurrent())return false;
+    attempt.finish();
     console.error('Unable to restore member session',error);
     resetMemberState();
     setMode('AUTH OK · PROFIL NEDOSTUPNÝ');
@@ -137,20 +149,22 @@ async function restoreAuthenticatedSession(user,{quiet=true}={}){
 async function handleUnitedAuthState(state){
   renderAccountLinks(state);
   if(state.status==='loading'){
-    showAuthStatus();setMode('AUTH LOADING');return;
+    if(!accountAttempt?.active)beginAccountAttempt(state.startedAt);
+    showAuthStatus(state.slow?{title:'Připojení trvá déle.',copy:'Stále ověřuji účet. Do chvíle nabídnu výsledek nebo nové načtení.'}:undefined);setMode('AUTH LOADING');return;
   }
   if(state.status==='error'){
+    accountAttempt?.finish();
     console.error('Firebase Auth initialization failed',state.error);
     setMode('AUTH NEDOSTUPNÝ');
     showAuthStatus({title:'Přihlášení se nepodařilo ověřit.',copy:'Tvoje uložená session nebyla změněna. Zkontroluj připojení a zkus to znovu.',retry:true});
     return;
   }
-  if(memberSession.authFlowActive)return;
+  if(memberSession.authFlowActive||accountNeedsRetry)return;
   if(state.status==='anonymous'){
-    sessionAttempt++;
+    accountAttempt?.finish();sessionAttempt++;
     memberSession.currentUser=null;resetMemberState();showAuth();setMode('AUTH READY');return;
   }
-  await restoreAuthenticatedSession(state.user);
+  await restoreAuthenticatedSession(state.user,{attempt:accountAttempt?.active?accountAttempt:beginAccountAttempt()});
 }
 
 async function initFirebase(){
@@ -172,16 +186,17 @@ $('[data-auth-form="login"]')?.addEventListener('submit',async event=>{
   const email=String(fd.get('email')||'').trim().toLowerCase(),password=String(fd.get('password')||'');
   resetMemberState();showAuth();
   memberSession.authFlowActive=true;setButtonBusy(button,true,'Přihlašuji…');
+  const attempt=beginAccountAttempt();showAuthStatus({title:'Přihlašuji tě.',copy:'Ověřuji účet a načítám profil.'});
   let credential=null;
   try{
-    credential=await firebase.signInWithEmailAndPassword(firebase.auth,email,password);
+    credential=await attempt.wait(firebase.signInWithEmailAndPassword(firebase.auth,email,password));
   }catch(error){
     console.error('Login failed',error);
-    memberSession.currentUser=null;resetMemberState();showAuth();setMode('AUTH READY');toast(authOrApiError(error));
+    if(attempt.active){attempt.finish();memberSession.currentUser=null;resetMemberState();showAuth();setMode('AUTH READY');toast(authOrApiError(error))}
   }
   if(credential){
     memberSession.currentUser=credential.user;
-    const restored=await restoreAuthenticatedSession(credential.user,{quiet:false});
+    const restored=await restoreAuthenticatedSession(credential.user,{quiet:false,attempt});
     if(!restored)toast('Přihlášení je aktivní, ale profil se teď nepodařilo načíst.');
   }
   memberSession.authFlowActive=false;setButtonBusy(button,false);
@@ -195,20 +210,23 @@ $('[data-auth-form="register"]')?.addEventListener('submit',async event=>{
   const email=String(fd.get('email')||'').trim().toLowerCase(),password=String(fd.get('password')||''),passwordConfirm=String(fd.get('passwordConfirm')||''),name=String(fd.get('name')||'').trim(),nickname=String(fd.get('nickname')||'').trim()||name.split(/\s+/)[0];
   if(password!==passwordConfirm)return toast('Hesla se neshodují.');
   memberSession.authFlowActive=true;setButtonBusy(button,true,'Zakládám United ID…');
+  const attempt=beginAccountAttempt();accountWritePending=true;showAuthStatus({title:'Zakládám tvůj účet.',copy:'Po vytvoření tě automaticky přihlásím.'});
   let createdUser=null;
   try{
-    const cred=await firebase.createUserWithEmailAndPassword(firebase.auth,email,password);
+    const cred=await attempt.wait(firebase.createUserWithEmailAndPassword(firebase.auth,email,password));
     createdUser=cred.user;memberSession.currentUser=createdUser;
     void trackOnboarding('seen');
-    try{await firebase.updateProfile(createdUser,{displayName:name})}catch(error){console.warn('Firebase display name update unavailable; D1 profile keeps the submitted name.',error)}
-    try{await apiRequest('/api/bootstrap',{method:'POST',body:{name,nickname}})}catch(error){console.warn('Member bootstrap will be retried during restore',error)}
-    await restoreAuthenticatedSession(createdUser,{quiet:false});
-    const verification=await verifyNewPasswordAccount(firebase,createdUser);
-    if(verification.needed)toast(verification.requested?'Účet je založený. Otevři ověřovací e-mail od Firebase.':'Účet je založený, ale ověřovací e-mail se nepodařilo vyžádat. Kontaktuj info@e36united.cz.');
+    try{await attempt.wait(firebase.updateProfile(createdUser,{displayName:name}))}catch(error){console.warn('Firebase display name update unavailable; D1 profile keeps the submitted name.',error)}
+    if(!attempt.active)return;
+    try{await attempt.wait(apiRequest('/api/bootstrap',{method:'POST',body:{name,nickname},deadlineAt:attempt.deadlineAt}))}catch(error){console.warn('Member bootstrap will be retried during restore',error)}
+    if(!attempt.active)return;
+    await restoreAuthenticatedSession(createdUser,{quiet:false,attempt});
+    void verifyNewPasswordAccount(firebase,createdUser).then(verification=>{if(verification.needed)toast(verification.requested?'Účet je založený. Otevři ověřovací e-mail od Firebase.':'Účet je založený, ale ověřovací e-mail se nepodařilo vyžádat. Kontaktuj info@e36united.cz.')});
   }catch(error){
-    console.error('Registration failed',error);toast(authError(error));return;
+    console.error('Registration failed',error);if(attempt.active){attempt.finish();toast(authError(error))}return;
   }finally{
-    if(!createdUser){showAuth();activateAuthTab('register')}
+    accountWritePending=false;
+    if(!createdUser&&!accountNeedsRetry){showAuth();activateAuthTab('register')}
     memberSession.authFlowActive=false;setButtonBusy(button,false);
   }
 });
@@ -224,6 +242,7 @@ $('[data-password-reset]')?.addEventListener('click',async()=>{
 $('[data-auth-retry]')?.addEventListener('click',async()=>{
   const user=memberSession.firebase?.auth?.currentUser||memberSession.currentUser;
   if(user)await restoreAuthenticatedSession(user);
+  else if(accountNeedsRetry&&memberSession.firebase){accountNeedsRetry=false;accountAttempt?.finish();showAuth();activateAuthTab('login');toast('Výsledek předchozího požadavku ověř přihlášením. Účet znovu nezakládej.')}
   else await memberSession.retry();
 });
 

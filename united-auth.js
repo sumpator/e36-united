@@ -12,12 +12,14 @@ function configured(config) {
   );
 }
 
-export function initUnitedAuth({ config, onStateChange, importModule = specifier => import(specifier), timeoutMs = 20_000 }) {
+export function initUnitedAuth({ config, onStateChange, importModule = specifier => import(specifier), timeoutMs = 10_000, slowMs = 5_000 }) {
   let attempt = 0;
   let unsubscribe = null;
   let context = null;
   let stopped = false;
   let startupTimer = null;
+  let slowTimer = null;
+  let memoryOnly = false;
   let state = { status: 'loading', user: null, error: null, context: null };
 
   const emit = next => {
@@ -28,9 +30,11 @@ export function initUnitedAuth({ config, onStateChange, importModule = specifier
   const start = async () => {
     const activeAttempt = ++attempt;
     clearTimeout(startupTimer);
+    clearTimeout(slowTimer);
     unsubscribe?.();
     unsubscribe = null;
-    emit({ status: 'loading', error: null, context });
+    const startedAt = Date.now();
+    emit({ status: 'loading', error: null, context, startedAt, deadlineAt: startedAt + timeoutMs, slow: false });
 
     if (!configured(config)) {
       const error = new Error('firebase_not_configured');
@@ -41,6 +45,10 @@ export function initUnitedAuth({ config, onStateChange, importModule = specifier
     try {
       // Bound all startup stages, including SDK loading and the first observer
       // notification. A late completion cannot revive a failed attempt.
+      slowTimer = setTimeout(() => {
+        if (!stopped && activeAttempt === attempt) emit({ slow: true });
+      }, slowMs);
+      slowTimer.unref?.();
       startupTimer = setTimeout(() => {
         if (stopped || activeAttempt !== attempt) return;
         attempt += 1;
@@ -61,25 +69,32 @@ export function initUnitedAuth({ config, onStateChange, importModule = specifier
       // Persistence must be selected before the first auth-state decision is rendered.
       try {
         await authMod.setPersistence(auth, authMod.browserLocalPersistence);
+        memoryOnly = false;
       } catch (error) {
         if (!['auth/web-storage-unsupported', 'auth/unsupported-persistence-type'].includes(error?.code)) throw error;
         // Private/storage-restricted browsers may still authenticate in memory.
         // Do not turn network or credential errors into a persistence fallback.
         await authMod.setPersistence(auth, authMod.inMemoryPersistence);
+        memoryOnly = true;
       }
       if (stopped || activeAttempt !== attempt) return null;
 
-      context = { ...authMod, auth };
+      context = { ...authMod, auth, persistence: memoryOnly ? 'memory' : 'local' };
+      let decided = false;
       unsubscribe = authMod.onAuthStateChanged(
         auth,
         user => {
           if (stopped || activeAttempt !== attempt) return;
           clearTimeout(startupTimer);
-          emit({ status: user ? 'authenticated' : 'anonymous', user: user || null, error: null, context });
+          clearTimeout(slowTimer);
+          const changedAt = decided ? Date.now() : startedAt;
+          decided = true;
+          emit({ startedAt: changedAt, deadlineAt: changedAt + timeoutMs, slow: false, status: user ? 'authenticated' : 'anonymous', user: user || null, error: null, context });
         },
         error => {
           if (stopped || activeAttempt !== attempt) return;
           clearTimeout(startupTimer);
+          clearTimeout(slowTimer);
           emit({ status: 'error', error, context });
         }
       );
@@ -87,6 +102,7 @@ export function initUnitedAuth({ config, onStateChange, importModule = specifier
     } catch (error) {
       if (!stopped && activeAttempt === attempt) {
         clearTimeout(startupTimer);
+        clearTimeout(slowTimer);
         emit({ status: 'error', error, context });
       }
       return null;
@@ -100,6 +116,7 @@ export function initUnitedAuth({ config, onStateChange, importModule = specifier
     stop() {
       stopped = true;
       clearTimeout(startupTimer);
+      clearTimeout(slowTimer);
       attempt += 1;
       unsubscribe?.();
       unsubscribe = null;
