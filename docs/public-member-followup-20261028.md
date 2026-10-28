@@ -109,3 +109,47 @@ První diagnostický skript hledal desktopový logout na mobilu; následující 
 - Fyzický postižený iPhone: otevřít přes www, zaznamenat motiv OS i stránky; přihlášení → reload → změna Planneru → otevření/zavření fotografie. Při šednutí zaznamenat přesnou poslední akci a screenshot bez osobních údajů. Bez reprodukce se nepřidávají globální filtry ani se problém neoznačuje za opravený.
 - Doručení ověřovacích/resetovacích zpráv Firebase není totéž co provozní transport aplikace. Účet zůstává použitelný bez ověřené adresy podle současných pravidel. Ověřovací podmínka se nezapíná a další skutečné zprávy se neposílají.
 - Skutečné rezervace kapacity, platby, veřejné uploady a produkční obchodní zápisy jsou mimo testování. Izolované průchody musí dokazovat výsledný stav pomocí existujících handlerů.
+
+
+## Linuxové ověření po #134 — neuzavřená historie
+
+- #134 (`40733597961`, SHA `d55f3d468a7ea95ffa0318ad93b731e585b6f33e`): Node **642 PASS**, syntax PASS, celý Chromium **465 PASS**, WebKit **244 PASS / 2 FAIL**, Firefox **109 PASS**; všechny **0 skipped**. Dvě selhání jsou nově trvale zařazené scénáře historie. Zelený lokální výběr je nevylučuje a do produkce se nepřenášejí jako vyřešené.
+- #135 (`40740709282`, SHA `02bd3167cca3f57d11e96e36717d6c6a94f63c2b`): čerstvý izolovaný Linuxový WebKit výběr historie **1 PASS / 2 FAIL / 0 skipped**. Zásek tedy nevyžaduje pořadí celé předchozí sady. Předchozí kliknutí na 2026 a kontroly roku/nadpisu prošly; následné snímky přestaly přicházet. Poslední zaznamenané animace byly konečné, s jednou iterací.
+- #136 (`40743725451`, SHA `76edebd97df041084a2b2b50b1884b2bd6741da6`): řízené porovnání **A 0 PASS / 2 FAIL**, **B 0 PASS / 2 FAIL**, **C 0 PASS / 2 FAIL**, vše **0 skipped**. A používalo geometrické snímky + Web Animations API, B vynechalo Web Animations API, C používalo krátké synchronní dotazy z hostitele bez dlouhé browserové Promise. Po zastavení přestaly odpovídat i krátké JS sondy; zaznamenáno `Target crashed`. Heartbeat se ve skutečnosti nespustil. Nelze to uzavřít jako samotný problém rAF nebo opravit pouhým přepsáním čekání.
+
+Tato měření jsou diagnostické pokusy na pracovní větvi, nikoli tři úspěšné celé průchody nebo důkaz konkrétní aplikační příčiny. Produkční `main` při nich zůstává na `5e61132ab6749d96a1fcaa9fa8f0debb7fc1e9a4`. Následuje úzké oddělení přípravy reveal/čistého vstupu přes hash a záznamu trace; bez spekulativní produkční změny stylů.
+
+
+## Navazující test otevření pravidel
+
+#135 navíc zachytil `feedback-member.spec.mjs`, otevření hodnoticích pravidel. Trace dokládá klik v bodě **720 / 859,14**, scrollTop **2229 → 2301 za 23 ms**, později **3048**; panel zůstal zavřený. Původní lokální WebKit scénář **1 PASS** není důkaz odstranění závodu. Test nyní před běžným kliknutím výslovně připraví ustálenou skutečnou geometrii summary/viewportu a při chybě zachová pointer/toggle diagnostiku. Aplikační handler ani nativní toggle se nemění; přesný zdroj původního pokračujícího posunu zůstává neprokázaný.
+
+Následný cílený běh **2 PASS / 1 FAIL** odhalil konkrétní druhý testovací problém ve Firefoxu: `getAnimations()` zahrnovalo `faqReveal` uvnitř zavřeného `#showshine-rules-panel`, s `pending=true`, časem **0** a neviditelným cílem. Čekání na `finished` této skryté animace nemohlo dokončit. Čeká se proto na animace skutečně viditelného obsahu; kontrola otevření, ARIA, pořadí místa, kontaktů a nulových chyb zůstala. Finální cílený výběr **3/3 PASS** v Chromium/WebKit/Firefox, včetně všech kroků za původním selháním. Screenshoty otevřených osmi hodnoticích oblastí a čtyř karet Info Hubu byly otevřeny a prohlédnuty.
+
+Diagnostické kontroly historie #137 (`40745841822`) — umělá příprava bez trace, přirozený vstup bez trace, přirozený vstup s trace — každá **0 PASS / 2 FAIL / 0 skipped**. Většina desítek aplikačních callbacků skončila; renderer RSS přibližně **386–435 MiB**, bez doloženého OOM. #138 (`40747317940`) — podporovaný CPU backend a softwarový Mesa backend — každý **0 PASS / 2 FAIL / 0 skipped**. Žádné z těchto vykreslovacích nastavení není vydáváno za opravu a nezůstane součástí konečné konfigurace.
+
+
+## Doložená příčina historie a nejmenší aplikační oprava
+
+CI #139 (`40748605237`, SHA `c93880723b31786fd264d76854b26d57b5365acb`), stejný Linux/WebKit r2336, stejné nativní odkazy a významové kontroly:
+
+| Jediná diagnostická skupina stylů | Celý cílený průchod |
+|---|---|
+| Bez filtru fotografií historie | **2 PASS / 0 FAIL / 0 skipped** |
+| Bez transformací historie | **2 PASS / 0 FAIL / 0 skipped** |
+| Bez backdrop filtru | **0 PASS / 2 FAIL / 0 skipped** |
+| Bez smooth scrollu | **0 PASS / 2 FAIL / 0 skipped** |
+
+Obě zelené varianty dokončily všech pět odkazů mezi roky, aktuální rok/nadpis/článek, reload i Zpět/Dopředu. Ve všech čtyřech variantách skončily zaznamenané aplikační callbacky; žádná doložená nekonečná JS smyčka. Zaseknutí/pád rendereru vyvolává kombinace dodatečného filtru fotografie s transformacemi. Nízkourovňová chyba WebKitu není identifikována na konkrétní upstream commit; samotné MESA upozornění nebylo vydáváno za příčinu.
+
+Ve `styles.css` je proto odstraněno pouze `saturate(1.06) contrast(1.02)` aktivní historické fotografie a její nepotřebný přechod filtru. Skutečné fotografie zůstávají v přirozených barvách; zvětšení, reveal, modré akcenty, sticky orientace, smooth scroll, nativní hash odkazy a výběr roku se nemění. Ostatní fotografie a filtry jsou beze změny. Toto není tvrzení o opravě dosud nereprodukovaného šednutí na fyzickém iPhonu.
+
+Všechny dočasné diagnostické režimy, přepisování aplikačního modulu/CSS v testu, sondy, heartbeat a workflow preflight se z konečné verze odstraňují. Produkční cache společného stylu i jeho stávajícího dynamického fallbacku používá jediný token `20261028-flow2`. Zůstává povinné nezávislé spuštění Chromium, WebKitu a Firefoxu a jejich izolovaná diagnostika. Před produkčním main následuje konečný kontrolní CI bez těchto experimentálních zásahů.
+
+
+Čistá konečná historie s opravou skutečného `styles.css`, bez diagnostických režimů a bez přepisování aplikace v route: **9/9 PASS** (tři scénáře na Chromium/WebKit/Firefox). Zachovává dokončenou fill-forwards animaci jako samostatnou regresi proti mikroúlohovému zablokování testu; navigace kontroluje skutečný rok, nadpis, článek, URL a návraty. Funkční výsledky se nesčítají s dřívějšími diagnostickými variantami.
+
+Konečné publikační kontroly: **33 JS/MJS syntax PASS**, **19 změněných cache cílů / 35 odkazů**, všechny `20261028-flow2`; Admin module graph **0 chyb / 0 cyklů**, `git diff --check` PASS. Styly byly zpětně porovnány po vrácení obou cílených náhrad: výsledkem je přesně původní soubor; mimo dvě historické obrazové deklarace a vysvětlující komentář nebyly změněny další styly. Konečná discovery zůstává Chromium **465**, WebKit **246**, Firefox **109**, nikoli automatické připsání PASS před dokončením CI.
+
+
+Finální vizuální kontrola skutečné opravy: otevřeny čtyři WebKit snímky **390 a 1366 px, světlý/tmavý**. Fotografie zůstávají přirozeně barevné, tmavá hlavička má správný motiv a desktopový rok souhlasí s článkem. Po původních 9 PASS byla upravena pouze příprava snímku za všemi funkčními assertions (dokončení přechodu motivu a zarovnání článku): samostatné WebKit vizuální ověření **2 PASS**, poté desktop **1 PASS**. Nevydává se za nový úplný 9scénářový průchod finálního zachycení.

@@ -39,44 +39,6 @@ jobs:
         id: browser_setup
         run: pnpm exec playwright install --with-deps chromium webkit firefox
 
-      - name: Isolate history rendering effects on Linux
-        id: history_preflight
-        if: ${{ !cancelled() && steps.browser_setup.outcome == 'success' && github.ref == 'refs/heads/fix/member-journeys-20261028' }}
-        shell: bash
-        run: |
-          result=0
-          mkdir -p .local-evidence/history-linux
-          for mode in no-filter no-backdrop no-transform no-smooth; do
-            log=".local-evidence/history-linux/$mode.log"
-            memory=".local-evidence/history-linux/$mode-memory.log"
-            env DEBUG=pw:browser E36_HISTORY_SETUP_MODE=natural E36_HISTORY_STYLE_MODE="$mode" PLAYWRIGHT_HTML_OUTPUT_DIR="playwright-report/history-preflight-$mode-${{ github.run_attempt }}" pnpm test:e2e tests/e2e/history-reading.spec.mjs --project=webkit --grep 'reading line' --trace=on --output="test-results/history-preflight-$mode-${{ github.run_attempt }}" > "$log" 2>&1 &
-            test_pid=$!
-            (while kill -0 "$test_pid" 2>/dev/null; do date -u +%FT%TZ; ps -eo pid,ppid,pcpu,rss,comm --sort=-rss | head -16; sleep 1; done) > "$memory" &
-            monitor_pid=$!
-            if wait "$test_pid"; then
-              printf '%s: PASS\n' "$mode"
-            else
-              status=$?
-              printf '%s: FAIL (exit %s)\n' "$mode" "$status"
-              result=1
-            fi
-            kill "$monitor_pid" 2>/dev/null || true
-            cat "$log"
-          done
-          exit "$result"
-
-      - name: Preserve fresh Linux history diagnostics
-        if: ${{ !cancelled() && (steps.history_preflight.outcome == 'success' || steps.history_preflight.outcome == 'failure') }}
-        uses: actions/upload-artifact@v7
-        with:
-          name: browser-history-preflight-${{ github.run_id }}-${{ github.run_attempt }}
-          path: |
-            test-results/history-preflight-*-${{ github.run_attempt }}/
-            playwright-report/history-preflight-*-${{ github.run_attempt }}/
-            .local-evidence/history-linux/
-          retention-days: 5
-          if-no-files-found: warn
-
       - name: Run browser E2E suite
         id: chromium
         if: ${{ !cancelled() && steps.browser_setup.outcome == 'success' }}

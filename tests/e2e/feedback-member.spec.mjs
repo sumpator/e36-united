@@ -58,12 +58,25 @@ test('ACCOMMODATION GALLERY is reused by the member reservation without eager ex
  await page.keyboard.press('Escape');await expect(trigger).toBeFocused();expectNoUnexpectedClientErrors(observations);
 });
 
-test('ACCOMMODATION GALLERY keeps judging disclosure explicit and venue first',async({page})=>{
+test('ACCOMMODATION GALLERY keeps judging disclosure explicit and venue first',async({page},testInfo)=>{
  const observations=await prepareE2ePage(page);await page.setViewportSize({width:1440,height:900});await page.goto('/#show-shine');
  const disclosure=page.locator('.showshine-disclosure'),summary=page.locator('.showshine-disclosure-trigger');await expect(summary).toHaveAttribute('aria-expanded','false');await expect(summary).toHaveCSS('cursor','pointer');
+ await page.evaluate(()=>{
+  window.__showshineDisclosureTrace=[];const disclosure=document.querySelector('.showshine-disclosure'),summary=disclosure.querySelector('summary');
+  const record=event=>window.__showshineDisclosureTrace.push({type:event.type,target:event.target.tagName,summaryTarget:summary.contains(event.target),x:event.clientX,y:event.clientY,scrollX,scrollY,rect:summary.getBoundingClientRect().toJSON(),open:disclosure.open,expanded:summary.getAttribute('aria-expanded'),oldState:event.oldState,newState:event.newState});
+  for(const type of ['pointerdown','pointerup','click'])document.addEventListener(type,record,true);disclosure.addEventListener('toggle',record);
+ });
+ try{
+  // The initial hash navigation and the locator's automatic scroll can overlap.
+  // Arrange a settled summary before this disclosure appearance check clicks it.
+  await summary.evaluate(async summary=>{
+   await document.fonts.ready;summary.scrollIntoView({behavior:'instant',block:'center',inline:'nearest'});
+   await new Promise(resolve=>{let previous='',stable=0;const sample=()=>{const r=summary.getBoundingClientRect();const current=[scrollX,scrollY,r.x,r.y,r.width,r.height].join('|');stable=current===previous?stable+1:0;previous=current;if(stable===3)resolve();else requestAnimationFrame(sample)};requestAnimationFrame(sample)});
+  });
  await summary.click();await expect(disclosure).toHaveAttribute('open','');await expect(summary).toHaveAttribute('aria-expanded','true');await page.screenshot({path:'test-results/showshine-disclosure.png',fullPage:false});
  await page.locator('#info-hub').evaluate(element=>element.scrollIntoView({behavior:'instant'}));const expanders=page.locator('.info-expanders>.info-expander');await expect(expanders.first()).toHaveAttribute('id','venue-details-panel');await expect(expanders.first()).toHaveAttribute('open','');await expect(expanders.first().locator('summary strong')).toHaveText('Místo konání — Kemp Zbraslavice');
- await expect(page.locator('#kontakt a[href="mailto:united@e36united.cz"]')).toBeVisible();await expect(page.locator('#kontakt a[href^="tel:"]')).toHaveCount(0);await expect(page.locator('.footer-contact[href="mailto:united@e36united.cz"]')).toHaveCount(1);await expect(page.locator('#info-hub .section-head')).toHaveClass(/is-visible/);await page.locator('#info-hub').evaluate(async element=>{const animations=element.getAnimations({subtree:true}).filter(animation=>animation.playState==='running'||animation.playState==='pending');await Promise.all(animations.map(animation=>animation.finished))});await page.screenshot({path:'test-results/info-hub-upper.png',fullPage:false});expectNoUnexpectedClientErrors(observations);
+ await expect(page.locator('#kontakt a[href="mailto:united@e36united.cz"]')).toBeVisible();await expect(page.locator('#kontakt a[href^="tel:"]')).toHaveCount(0);await expect(page.locator('.footer-contact[href="mailto:united@e36united.cz"]')).toHaveCount(1);await expect(page.locator('#info-hub .section-head')).toHaveClass(/is-visible/);await page.locator('#info-hub').evaluate(async element=>{const animations=element.getAnimations({subtree:true}).filter(animation=>{const target=animation.effect?.target;const visible=!target||(typeof target.checkVisibility==='function'?target.checkVisibility({contentVisibilityAuto:true}):target.getClientRects().length>0&&!target.closest('details:not([open])'));return visible&&(animation.playState==='running'||animation.pending)});await Promise.all(animations.map(animation=>animation.finished))});await page.screenshot({path:'test-results/info-hub-upper.png',fullPage:false});expectNoUnexpectedClientErrors(observations);
+ }catch(error){try{await testInfo.attach('disclosure-pointer-and-toggle-events',{body:JSON.stringify(await page.evaluate(()=>window.__showshineDisclosureTrace),null,2),contentType:'application/json'})}catch{/* A closed page cannot provide diagnostics; preserve the original failure. */}throw error}
 });
 
 test('login retains canonical target, reload restores it, and invalid links fall back safely',async({page})=>{
