@@ -153,3 +153,45 @@ Konečné publikační kontroly: **33 JS/MJS syntax PASS**, **19 změněných ca
 
 
 Finální vizuální kontrola skutečné opravy: otevřeny čtyři WebKit snímky **390 a 1366 px, světlý/tmavý**. Fotografie zůstávají přirozeně barevné, tmavá hlavička má správný motiv a desktopový rok souhlasí s článkem. Po původních 9 PASS byla upravena pouze příprava snímku za všemi funkčními assertions (dokončení přechodu motivu a zarovnání článku): samostatné WebKit vizuální ověření **2 PASS**, poté desktop **1 PASS**. Nevydává se za nový úplný 9scénářový průchod finálního zachycení.
+
+
+## Ojedinělý snímek klubového profilu — hranice důkazů
+
+Ve starším diagnostickém #137 selhal také `member-club-profiles.spec.mjs`, první elementový snímek galerijního profilu. Fonty se načetly, předchozí kontroly URL, viditelnosti profilu a API prošly; screenshot čekal na stabilitu přibližně 7 s. Poslední DOM měl scrollTop **4450**, poslední viditelný snímek normálně rozložený profil. CSS dialogu nemá pohybový přechod; souvislý pohyb ani souvislost s historickými filtry se neprokázaly. Artefakt `12843333497` a screenshot byly skutečně přečteny. Původní lokální WebKit průchod **1 PASS** včetně desktopu/mobilu, lightboxu, návratů a fokusu není důkazem opravy tohoto selhání.
+
+Do testu je proto doplněna přímo existující podmínka dvou načtených zobrazených privátních fotografií před prvním galerijním snímkem. Elementový screenshot i jeho kontrola stability zůstávají. Při případné další chybě se zachová nejvýše 240 pasivních vykreslovacích vzorků rozměrů, scrollu a stavu obrázků v hostiteli i po uzavření stránky. Žádné časovače, retries, skryté chyby nebo vynucené akce. Cílený Chromium/WebKit **2/2 PASS**, se všemi navazujícími assertions; výsledný snímek otevřen. Klasifikace původního selhání zůstává **neobjasněná připravenost snímku / prostředí**, nikoli prokázaná a údajně opravená aplikační chyba.
+
+Před publikací byla čtením porovnána produkční metadata s výchozím záznamem: Worker `a458c9f7-ad43-4564-a516-4a65b9fec70c` na 100 %, bindings, cron, vypnuté preview URL, registr migrací a provozní přepínače beze změny. Merch `paused=1`, transport `enabled=0`. Schválený testovací účet: právě jeden profil, žádné auto, rezervace nebo platba, jeden koncept; aktuální `united-2026` má registrace zavřené. Neproběhla nová migrace ani nasazení Workeru. Po nasazení frontendové verze se tato čtení a skutečné přihlášení vyhodnotí samostatně.
+
+
+Čerstvé `playwright test --list` finální konfigurace (bez spuštění browserů): **Chromium 465 / WebKit 246 / Firefox 109**. V každém enginu jsou skutečně nalezeny všechny kritické soubory: `account-entry`, `member-session-lifecycle`, `account-deadline`, `auth-memory-session`, `member-completion`, `history-reading`, `public-planner-stability`, `registration-live-continuity`, `appearance`, `showshine-pointer`. Původních dvanáct doplňkových WebKit souborů zůstalo. Výpis není testovací PASS a související celé lokální sady se kvůli němu neopakovaly.
+
+
+## Stav po opravách, před konečnou publikací
+
+| Kategorie | Konkrétní stav a důkaz |
+|---|---|
+| Opravené a cíleně ověřené | Společná 5/10s hranice účtu, stale/retry/logout ochrany a neblokující doplňkové čtení; nedostupná akce auta, prázdná karoserie, placeholder; pravdivý nedostupný lokální koncept; příčina CI #130; historie bez kombinace filtru a transformace. Přesné oddělené výsledky výše. |
+| Ověřené bez potřeby další změny | Pobyty a závislé ubytování, ceny/souhrn, uzavřená registrace, konflikt uloženého plánu, přenosy a návrat po přidání auta v izolovaných skutečných handlerech. Bodová a obchodní pravidla se nemění. Kalendář a příprava e-mailové poptávky netvrdí uskutečnění externí akce. |
+| Doložené a dosud neprovedené | Sjednocení hostname mimo frontend. Rozdílná session a koncepty obou originů byly skutečně reprodukovány. Přesné pravidlo 308 a předchozí převzetí apex konceptů jsou připravené; Cloudflare/Firebase konfigurace se nemění. |
+| Neověřené nebo neobjasněné | Skutečné doručení ověřovacího/resetovacího Firebase e-mailu; původní ojedinělý timeout elementového snímku klubového profilu. Připravenost médií je zpřesněná, další selhání má úzkou diagnostiku; není vydáváno za prokázanou opravu aplikace. Produkční obchodní zápisy a skutečné uploady se netestují. |
+| Blokované konkrétním zařízením | Postižený fyzický iPhone a jeho klávesnice nejsou dostupné. Desktopový WebKit a řízený visualViewport je nenahrazují. Postup pro zachycení šednutí bez citlivých údajů je uveden výše; náhodná globální barevná oprava se nepřidává. |
+
+Skutečné přihlášení kandidáta je oddělené od fixture testů v tabulce výše. Výsledek finálního CI, Pages a skutečného produkčního přihlášení se doplní podle uskutečněných kroků, nikoli odhadem z předchozího SHA.
+
+
+## Úplné závěrečné CI aplikačního kandidáta
+
+[CI #140](https://github.com/sumpator/e36-united/actions/runs/40751950161), pokus **1**, SHA `4723901f4108ca88f2297f7966a86547e0d78f1f`, job `123040688060`: **SUCCESS**.
+
+| Povinná část | Skutečný výsledek |
+|---|---|
+| Node | **642 PASS / 0 FAIL / 0 skipped** |
+| Syntax | **PASS** |
+| Chromium | **465 PASS / 0 FAIL / 0 skipped**, 19,1 min |
+| WebKit | **246 PASS / 0 FAIL / 0 skipped**, 12,1 min |
+| Firefox | **109 PASS / 0 FAIL / 0 skipped**, 4,5 min |
+
+Počty jsou z konečného logu. Přeskočeny byly pouze kroky archivace neexistující diagnostiky selhání, nikoli testy. Žádný rerun. Tento úplný průchod skutečně obsahuje konečnou opravu historických fotografií bez experimentálních zásahů.
+
+Následný samostatný commit obsahuje pouze výše popsanou připravenost/diagnostiku klubového snímku a tento report; aplikační HTML/JS/CSS, Worker, schéma, závislosti i workflow jsou vůči úspěšnému kandidátu byte shodné. Jeho přímo dotčený Chromium/WebKit scénář **2/2 PASS**; tuto lokální kontrolu nevydáváme za další úplný průchod. Konečná syntax všech změněných JS/MJS po tomto testovém doplnění **34 souborů PASS**, cache i diff kontrola PASS. Nový automatický běh publikačního SHA se vyhodnotí zvlášť.

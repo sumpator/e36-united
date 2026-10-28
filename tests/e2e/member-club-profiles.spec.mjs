@@ -44,6 +44,26 @@ async function waitForDisplayedProfileBlobImages(profileModal){
   }))).toEqual({count:2,ready:true});
 }
 
+// Keep a bounded host-side record even if the test closes its own page on failure.
+async function captureGalleryProfile(page,profileModal,testInfo){
+  await waitForDisplayedProfileBlobImages(profileModal);
+  const prefix='E36_PROFILE_CAPTURE ',samples=[];
+  const record=message=>{if(message.text().startsWith(prefix)&&samples.length<240)samples.push(JSON.parse(message.text().slice(prefix.length)))};
+  page.on('console',record);
+  await page.evaluate(prefix=>{
+    const probe={active:true,count:0};window.__profileCaptureProbe=probe;
+    const sample=()=>{
+      if(!probe.active||probe.count++>=240)return;
+      const dialog=document.querySelector('[data-club-profile-modal] .club-profile-dialog');
+      console.debug(prefix+JSON.stringify({time:performance.now(),scrollX,scrollY,rect:dialog?.getBoundingClientRect().toJSON(),images:[...dialog.querySelectorAll('[data-club-profile-private-photo]')].map(image=>({complete:image.complete,width:image.naturalWidth,displayed:image.getClientRects().length>0}))}));
+      requestAnimationFrame(sample);
+    };requestAnimationFrame(sample);
+  },prefix);
+  try{await profileModal.locator('.club-profile-dialog').screenshot({path:'test-results/gallery-member-profile-overlay.png'})}
+  catch(error){await testInfo.attach('profile-capture-readiness',{body:JSON.stringify(samples,null,2),contentType:'application/json'});throw error}
+  finally{page.off('console',record);try{await page.evaluate(()=>{if(window.__profileCaptureProbe)window.__profileCaptureProbe.active=false})}catch{/* The original screenshot error remains authoritative if its page closed. */}}
+}
+
 const scrollOwnershipState=page=>page.evaluate(()=>({
   restoration:history.scrollRestoration,
   documentBehavior:document.documentElement.style.getPropertyValue('scroll-behavior'),
@@ -57,7 +77,7 @@ async function expectScrollOwnershipRestored(page,expected){
   expect(await scrollOwnershipState(page)).toEqual(expected);
 }
 
-async function verifyMemberAndGallery(page,label){
+async function verifyMemberAndGallery(page,label,testInfo){
   await page.setViewportSize(label==='mobile'?{width:390,height:844}:{width:1440,height:980});
   const observations=await prepareClubPage(page);
   await page.goto('/member.html');await expect(page.locator('[data-app-view]')).toBeVisible();
@@ -89,7 +109,7 @@ async function verifyMemberAndGallery(page,label){
   if(label==='desktop')await author.screenshot({path:'test-results/gallery-member-author-link.png'});
   await author.click();await expect(page).toHaveURL(/galerie\.html\?profile=EU-OTHER/);await expect(profileModal).toBeVisible();await expect(profile).toContainText('Petr');
   expect(observations.requests.filter(request=>request==='GET /api/united-club/members/EU-OTHER')).toHaveLength(profileRequestsBefore+1);
-  if(label==='desktop')await profileModal.locator('.club-profile-dialog').screenshot({path:'test-results/gallery-member-profile-overlay.png'});
+  if(label==='desktop')await captureGalleryProfile(page,profileModal,testInfo);
   await profile.locator('[data-club-profile-gallery] [data-lightbox]').click();await expect(page.locator('.lightbox')).toHaveClass(/open/);await page.keyboard.press('Escape');await expect(page.locator('.lightbox')).not.toHaveClass(/open/);await expect(profileModal).toBeVisible();
   await page.keyboard.press('Escape');await expect(profileModal).toBeHidden();await expect(page).toHaveURL(/galerie\.html$/);await expect(author).toBeFocused();await expectGalleryAuthorInViewport(author);
   await expectScrollOwnershipRestored(page,initialScrollOwnership);
@@ -98,8 +118,8 @@ async function verifyMemberAndGallery(page,label){
   expectNoUnexpectedClientErrors(observations);
 }
 
-test('MEMBER CLUB profile UX stays in gallery and keeps Club navigation compact',async({browser})=>{
-  for(const label of ['desktop','mobile']){const page=await browser.newPage();try{await verifyMemberAndGallery(page,label)}finally{await page.close()}}
+test('MEMBER CLUB profile UX stays in gallery and keeps Club navigation compact',async({browser},testInfo)=>{
+  for(const label of ['desktop','mobile']){const page=await browser.newPage();try{await verifyMemberAndGallery(page,label,testInfo)}finally{await page.close()}}
 });
 
 test('MEMBER CLUB onboarding acknowledgement is isolated per member and completion uses required steps only',async({browser})=>{
