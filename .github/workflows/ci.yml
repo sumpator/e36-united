@@ -39,20 +39,31 @@ jobs:
         id: browser_setup
         run: pnpm exec playwright install --with-deps chromium webkit firefox
 
-      - name: Compare history observation in fresh Linux WebKit processes
+      - name: Isolate history preparation and tracing in Linux WebKit
         id: history_preflight
         if: ${{ !cancelled() && steps.browser_setup.outcome == 'success' && github.ref == 'refs/heads/fix/member-journeys-20261028' }}
         shell: bash
         run: |
           result=0
-          for mode in A B C; do
-            if E36_HISTORY_SETTLE_MODE="$mode" PLAYWRIGHT_HTML_OUTPUT_DIR="playwright-report/history-preflight-$mode-${{ github.run_attempt }}" pnpm test:e2e tests/e2e/history-reading.spec.mjs --project=webkit --grep 'reading line' --output="test-results/history-preflight-$mode-${{ github.run_attempt }}"; then
+          mkdir -p .local-evidence/history-linux
+          for mode in artificial-off natural-off natural-on; do
+            setup="${mode%-*}"
+            trace="${mode##*-}"
+            log=".local-evidence/history-linux/$mode.log"
+            memory=".local-evidence/history-linux/$mode-memory.log"
+            DEBUG=pw:browser E36_HISTORY_SETUP_MODE="$setup" PLAYWRIGHT_HTML_OUTPUT_DIR="playwright-report/history-preflight-$mode-${{ github.run_attempt }}" pnpm test:e2e tests/e2e/history-reading.spec.mjs --project=webkit --grep 'reading line' --trace="$trace" --output="test-results/history-preflight-$mode-${{ github.run_attempt }}" > "$log" 2>&1 &
+            test_pid=$!
+            (while kill -0 "$test_pid" 2>/dev/null; do date -u +%FT%TZ; ps -eo pid,ppid,pcpu,rss,comm --sort=-rss | head -16; sleep 1; done) > "$memory" &
+            monitor_pid=$!
+            if wait "$test_pid"; then
               printf '%s: PASS\n' "$mode"
             else
               status=$?
               printf '%s: FAIL (exit %s)\n' "$mode" "$status"
               result=1
             fi
+            kill "$monitor_pid" 2>/dev/null || true
+            cat "$log"
           done
           exit "$result"
 
@@ -64,6 +75,7 @@ jobs:
           path: |
             test-results/history-preflight-*-${{ github.run_attempt }}/
             playwright-report/history-preflight-*-${{ github.run_attempt }}/
+            .local-evidence/history-linux/
           retention-days: 5
           if-no-files-found: warn
 
