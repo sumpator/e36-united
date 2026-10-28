@@ -1,7 +1,7 @@
 import { deriveMemberHeroState } from '../member-portal-state.js?v=20261025-flow1';
 import { initPortalNavigation } from '../portal-navigation.js?v=20260924-merch2';
 import { $, $$ } from './ui.js?v=20260924-merch2';
-import { memberSection } from './deep-links.js?v=20260924-merch2';
+import { accountAuthMode, memberSection, requestedMemberSection } from './deep-links.js?v=20261028-entry1';
 import { initMobileNavigation } from '../mobile-navigation.js?v=20261025-flow1';
 
 export function createMemberShell({
@@ -14,6 +14,7 @@ export function createMemberShell({
   onGarageHeroAction,
   beforePortalAction,
   onLiveEntry,
+  onSectionChange,
 }) {
   const menuBtn=$('.menu-btn'),nav=$('.nav-links');
   let memberHeroPhotoId='',liveModeActive=false,currentSection=null;
@@ -58,7 +59,7 @@ export function createMemberShell({
   }
   function resetAuthForms(){
     $$('[data-auth-form]').forEach(form=>form.reset());
-    activateAuthTab('register');
+    activateAuthTab(accountAuthMode(''));
   }
   function setLiveMode(active){
     const appView=$('[data-app-view]'),liveView=$('[data-member-live-mode]');
@@ -73,6 +74,7 @@ export function createMemberShell({
     if(beforePortalAction?.()===false)return false;
     id=memberSection(id);
     if(id==='live'&&!liveConfirmed){void onLiveEntry?.();return false}
+    onSectionChange?.(id);
     const url=new URL(window.location.href);url.searchParams.set('section',id);url.searchParams.delete('panel');
     if(id!=='club'){url.searchParams.delete('profile');url.searchParams.delete('members')}
     const changed=currentSection!==id,wasInitialized=currentSection!==null;
@@ -89,7 +91,7 @@ export function createMemberShell({
     memberPortalNavigation?.sync(id,{scroll:false});
     if(changed)requestAnimationFrame(()=>{const panel=$(`[data-member-panel="${id}"]`);if(!panel)return;const title=id==='overview'?panel.querySelector('h2'):$('[data-member-page-title]');if(title){title.tabIndex=-1;title.focus({preventScroll:true})}if(wasInitialized)(id==='overview'?panel:$('[data-member-hero]')).scrollIntoView({block:'start',behavior:'instant'})});return true;
   }
-  window.addEventListener('popstate',()=>{if(!history.state?.unitedMobileMenu&&!document.querySelector('.united-mobile-menu[open]'))openSection(new URL(location.href).searchParams.get('section')||'overview',{fromHistory:true})});
+  window.addEventListener('popstate',()=>{if(!history.state?.unitedMobileMenu&&!document.querySelector('.united-mobile-menu[open]'))openSection(requestedMemberSection(location.search),{fromHistory:true})});
   function focusReservationEntry(){
     requestAnimationFrame(()=>requestAnimationFrame(()=>{const modalTitle=$('[data-member-planner-modal]:not([hidden]) [data-member-planner-title]'),target=modalTitle||$('[data-reservation-section-entry]');if(!target)return;if(!modalTitle)target.scrollIntoView({behavior:'smooth',block:'start'});target.focus({preventScroll:true})}));
   }

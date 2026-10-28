@@ -698,7 +698,7 @@ export function createMemberPlanner({
     catch(error){console.error('Reservation car update failed',error);toast(formatApiError(error))}finally{setButtonBusy(button,false)}
   }
 
-  async function applyPlannerDraft(serverResult={available:false,draft:null}){
+  async function applyPlannerDraft(serverResult={available:false,draft:null},{isCurrent=()=>true}={}){
     if(!reservationForm||!getCurrentUser())return;
     const data=getData();let localEditor=null;try{localEditor=validatePlannerDraft(JSON.parse(localStorage.getItem(editorKey())||'null'))}catch{}
     const serverEditor=serverResult.draft?.editor?serverResult.draft:null;
@@ -712,8 +712,9 @@ export function createMemberPlanner({
       try{localStorage.setItem(`e36UnitedPlannerHandoffOwner:v1:${localHandoff.draftId}`,getCurrentUser().uid)}catch{}
       try{
         const payload=await apiRequest('/api/planner-draft',{method:'PUT',body:{draft:localHandoff}});
+        if(!isCurrent())return;
         handoff=validatePlannerHandoff(payload?.draft)||localHandoff;plannerDraftSyncState='ready';
-      }catch(error){if(isAuthorizationFailure(error))throw error;console.warn('Planner handoff promotion failed; local fallback retained.',error);plannerDraftSyncState='error';handoff=localHandoff}
+      }catch(error){if(!isCurrent())return;if(isAuthorizationFailure(error))throw error;console.warn('Planner handoff promotion failed; local fallback retained.',error);plannerDraftSyncState='error';handoff=localHandoff}
     }
       if(handoff){
       void apiRequest('/api/planner-handoffs/claim',{method:'POST',body:{draft:handoff}}).catch(error=>console.warn('Planner tracking unavailable',error));

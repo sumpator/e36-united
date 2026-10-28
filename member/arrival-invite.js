@@ -1,23 +1,24 @@
 // The token remains in the URL fragment (never sent as a referrer).
-export async function showArrivalInvitation({request,user,firebase,openAccount}) {
+export async function showArrivalInvitation({request,user,firebase,openAccount,signal,isCurrent=()=>true}) {
   const token=new URLSearchParams(location.hash.slice(1)).get('arrival-invite');
-  if(!token||document.querySelector('[data-arrival-invite]'))return false;
+  if(!token||signal?.aborted||!isCurrent()||document.querySelector('[data-arrival-invite]'))return false;
   const dialog=document.createElement('dialog');dialog.dataset.arrivalInvite='';dialog.className='member-account-card';
   dialog.innerHTML='<h2>Připojit účast z brány</h2><p data-invite-copy></p><p role="status"></p><button type="button" data-invite-action>Pokračovat</button> <button type="button" data-invite-close>Později</button>';
   document.body.append(dialog);dialog.showModal();
   const copy=dialog.querySelector('[data-invite-copy]'),status=dialog.querySelector('[role=status]'),button=dialog.querySelector('[data-invite-action]');let preview=null;
-  const close=()=>{dialog.close();dialog.remove()};dialog.querySelector('[data-invite-close]').onclick=close;dialog.oncancel=close;
+  const current=()=>dialog.isConnected&&!signal?.aborted&&isCurrent();
+  const close=()=>{signal?.removeEventListener('abort',close);if(dialog.open)dialog.close();dialog.remove()};signal?.addEventListener('abort',close,{once:true});dialog.querySelector('[data-invite-close]').onclick=close;dialog.oncancel=close;
   async function load(){
     if(!user.emailVerified){copy.textContent='Přihlášení nestačí. Nejprve ověř vlastnictví e-mailu '+user.email+'.';button.textContent='Poslat ověřovací e-mail';return}
-    const result=await request('/api/arrivals/claim',{method:'POST',body:{token,preview:true}});preview=result.preview;
+    const result=await request('/api/arrivals/claim',{method:'POST',body:{token,preview:true},signal});if(!current())return;preview=result.preview;
     copy.textContent=(result.alreadyLinked?'Účast už je propojená. ':'')+preview.model+' · '+preview.eventId+'. Účet ani newsletter se tím nemění.';button.textContent=result.alreadyLinked?'Doplnit profil z účasti':'Propojit moji účast';preview.alreadyLinked=result.alreadyLinked;
   }
-  button.onclick=async()=>{button.disabled=true;try{
-    if(!user.emailVerified){await firebase.sendEmailVerification(user);status.textContent='Otevři ověřovací e-mail a potom znovu tento odkaz. Další e-mail neposíláme automaticky.';return}
-    if(!preview)await load();if(!preview.alreadyLinked)await request('/api/arrivals/claim',{method:'POST',body:{token}});
+  button.onclick=async()=>{if(!current())return;button.disabled=true;try{
+    if(!user.emailVerified){await firebase.sendEmailVerification(user);if(current())status.textContent='Otevři ověřovací e-mail a potom znovu tento odkaz. Další e-mail neposíláme automaticky.';return}
+    if(!preview)await load();if(!current()||!preview)return;if(!preview.alreadyLinked)await request('/api/arrivals/claim',{method:'POST',body:{token},signal});if(!current())return;
     openAccount();const form=document.querySelector('[data-account-form]');for(const key of ['name','nickname','phone'])if(preview[key]&&form?.elements[key])form.elements[key].value=preview[key];
     history.replaceState(history.state,'',location.pathname+location.search);close();form?.querySelector('input')?.focus();
-  }catch(error){status.textContent=error.payload?.message||error.message+' Zkus znovu; už propojenou účast nezdvojíme.';preview=null}finally{button.disabled=false}};
-  try{await load()}catch(error){status.textContent=error.payload?.message||'Pozvánka není dostupná pro tento účet.';button.disabled=true}
-  return true;
+  }catch(error){if(current()){status.textContent=error.payload?.message||error.message+' Zkus znovu; už propojenou účast nezdvojíme.';preview=null}}finally{if(current())button.disabled=false}};
+  try{await load()}catch(error){if(current()){status.textContent=error.payload?.message||'Pozvánka není dostupná pro tento účet.';button.disabled=true}}
+  return current();
 }

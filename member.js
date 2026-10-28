@@ -1,26 +1,26 @@
 import { firebaseConfig, portalConfig } from './firebase-config.js?v=20260924-merch2';
-import { renderAccountLinks } from './public-member-state.js?v=20261028-flow2';
-import { showArrivalInvitation } from './member/arrival-invite.js?v=20260930-arrivals2';
+import { renderAccountLinks } from './public-member-state.js?v=20261028-entry1';
+import { showArrivalInvitation } from './member/arrival-invite.js?v=20261028-entry1';
 import { performMemberLogout } from './member-logout.js?v=20260826-predeploy-fix';
 import { createMemberApiClient } from './member/api.js?v=20261028-flow2';
 import { loadMemberSessionSnapshot } from './member/refresh.js?v=20260907-feedback';
 import { apiError, authError, authOrApiError, createAccountAttempt, createMemberSession } from './member/session.js?v=20261028-flow2';
 import { createMemberData as defaultData, normalizeMember as normalizeMemberState } from './member/state.js?v=20260926-portal3';
 import { $, $$, setButtonBusy, toast } from './member/ui.js?v=20260924-merch2';
-import { createMemberShell } from './member/shell.js?v=20261025-flow1';
+import { createMemberShell } from './member/shell.js?v=20261028-entry1';
 import { createMemberOverview } from './member/modules/overview.js?v=20261028-flow1';
 import { createMemberGarage } from './member/modules/garage.js?v=20261028-flow2';
-import { createMemberPhotos } from './member/modules/photos.js?v=20261025-flow1';
-import { createMemberPlanner } from './member/modules/planner/index.js?v=20261025-flow1';
+import { createMemberPhotos } from './member/modules/photos.js?v=20261028-entry1';
+import { createMemberPlanner } from './member/modules/planner/index.js?v=20261028-entry1';
 import {verifyNewPasswordAccount} from './member/registration-verification.js?v=20261023-mail1';
 import { formatCzk } from './member/modules/planner/payments.js?v=20260924-merch2';
 import { createMemberClub } from './member/modules/club/index.js?v=20261028-flow2';
 import { achievementIcon, pictogram } from './member/modules/club/points.js?v=20261026-merch-mail1';
 import { createMemberAccount } from './member/modules/account.js?v=20261011-ui1';
-import { createMemberLive } from './member/modules/live.js?v=20261025-flow1';
+import { createMemberLive } from './member/modules/live.js?v=20261028-entry1';
 import { createMemberMerch } from './member/modules/merch.js?v=20261026-merch-mail1';
 import './member/club-tabs.js?v=20260924-workspace1';
-import { requestedMemberSection } from './member/deep-links.js?v=20260924-merch2';
+import { ACCOUNT_USED_KEY, accountAuthMode, rememberAccountUse, resolveAccountIntent } from './member/deep-links.js?v=20261028-entry1';
 import { renderMemberAvailability } from './member/availability.js?v=20260907-feedback';
 import { isAuthorizationFailure } from './member/refresh.js?v=20260907-feedback';
 
@@ -34,6 +34,20 @@ function apiRequest(path,options={}){
 }
 const memberMerch=createMemberMerch({request:apiRequest,getUser:()=>memberSession.currentUser});
 const memberUrlParams=new URLSearchParams(window.location.search);
+let accountLinkState={status:'loading'};
+function renderMemberAccountLinks(state){accountLinkState=state;renderAccountLinks(state)}
+window.addEventListener('storage',event=>{if(event.key===ACCOUNT_USED_KEY||event.key===null)renderAccountLinks(accountLinkState)});
+let accountEntryIntent=resolveAccountIntent(location.href),entryRevision=0,entryConsumed=false,arrivalInvitationController=null;
+function invalidateEntryNavigation(){entryRevision++;entryConsumed=true;arrivalInvitationController?.abort();arrivalInvitationController=null;memberLive?.cancelEntry()}
+function consumeEntryNavigation(revision){
+  if(entryConsumed||revision!==entryRevision)return null;
+  entryConsumed=true;
+  const url=new URL(location.href);for(const key of ['intent','returnTo','mode'])url.searchParams.delete(key);
+  if(accountEntryIntent.returnTo)url.searchParams.set('returnTo',accountEntryIntent.returnTo);
+  for(const [key,value] of Object.entries(accountEntryIntent.context||{}))url.searchParams.set(key,value);
+  history.replaceState(history.state,'',url);
+  return accountEntryIntent;
+}
 
 let data=defaultData();
 let memberPlanner=null,memberShell=null,memberLive=null;
@@ -105,6 +119,7 @@ async function ensureMemberProfile(user,attempt){
 }
 
 async function openAuthenticatedSession(user,{quiet=false,isCurrent=()=>memberSession.currentUser===user,attempt=accountAttempt}={}){
+  const navigationRevision=entryRevision;
   if(data.profile?.id&&data.profile.id!==user.uid)resetMemberState();
   memberSession.currentUser=user;
   void trackOnboarding('seen');
@@ -124,6 +139,7 @@ async function openAuthenticatedSession(user,{quiet=false,isCurrent=()=>memberSe
   startupErrors=errors;lastPlannerDraftResult=plannerDraftResult;
   optionalReadState={club:'pending',photos:'pending'};
   data={...defaultData(),profile:member,cars,reservation,club:club||defaultData().club};
+  rememberAccountUse();renderMemberAccountLinks({status:'authenticated'});
   setMode('AUTH + PROFIL LIVE');
   showApp();
   memberSession.authFlowActive=false;
@@ -133,24 +149,27 @@ async function openAuthenticatedSession(user,{quiet=false,isCurrent=()=>memberSe
   void memberClub.load().then(club=>{if(isCurrent()){optionalReadState.club='ready';data.club=club;memberOverview.renderMemberCard();memberClub.renderPoints();memberClub.renderAchievements();memberClub.renderMembers();memberClub.renderHistory();memberClub.renderRewards();renderMemberHero();renderMemberDomains()}}).catch(error=>{if(isCurrent()){optionalReadState.club='error';startupErrors.club=error;renderMemberDomains()}});
   void loadMemberGallery().then(()=>{if(isCurrent()){optionalReadState.photos='ready';renderMemberGallery();renderMemberDomains()}}).catch(error=>{if(isCurrent()){optionalReadState.photos='error';startupErrors.photos=error;handleMemberGalleryLoadError();renderMemberDomains()}});
   memberMerch.startup();
-  if(!errors.reservation)await memberPlanner.applyPlannerDraft(plannerDraftResult);
+  if(!errors.reservation)await memberPlanner.applyPlannerDraft(plannerDraftResult,{isCurrent});
   if(!isCurrent())return;
-  const initialSection=new URLSearchParams(window.location.search).has('draft')&&memberPlanner.hasActiveHandoff()?'reservation':requestedMemberSection(window.location.search);
+  const intent=consumeEntryNavigation(navigationRevision);
+  if(intent?.kind==='public'){location.replace(intent.destination);return}
+  const initialSection=intent?.section;
   if(initialSection==='live'){
     openSection('overview');
     await memberLive.startup({requested:true});
     if(!isCurrent())return;
-  }else{
+  }else if(initialSection){
     openSection(initialSection);
-    void memberLive.startup();
-  }
+    void memberLive.probe();
+  }else void memberLive.probe();
   renderMemberDomains();
   void trackOnboarding('portal');
   if(!quiet)toast(`Přihlášen jako ${member.nickname||member.name}.`);
-  if(await showArrivalInvitation({request:apiRequest,user,firebase:memberSession.firebase,openAccount:()=>openSection('account')}))return;
-  if(!isCurrent())return;
-  const returnTo=memberUrlParams.get('returnTo');
-  if(returnTo&&!memberUrlParams.has('draft')){try{const destination=new URL(returnTo,location.origin);if(destination.origin===location.origin&&!/\/member(?:\.html)?\/?$/.test(destination.pathname))location.replace(destination.href)}catch{/* Invalid return links leave the authenticated portal open. */}}
+  if(intent&&initialSection!=='live'){
+    arrivalInvitationController=new AbortController();
+    const signal=arrivalInvitationController.signal;
+    void showArrivalInvitation({request:apiRequest,user,firebase:memberSession.firebase,signal,isCurrent:()=>isCurrent()&&!signal.aborted,openAccount:()=>openSection('account')});
+  }
 }
 
 async function retryMemberDomain(key){
@@ -174,9 +193,10 @@ async function retryMemberDomain(key){
 }
 
 async function restoreAuthenticatedSession(user,{quiet=true,attempt=beginAccountAttempt()}={}){
+  arrivalInvitationController?.abort();arrivalInvitationController=null;
   const attemptNumber=++sessionAttempt;
   memberSession.currentUser=user;
-  renderAccountLinks({status:'authenticated'});
+  renderMemberAccountLinks({status:'authenticated'});
   const isCurrent=()=>attemptNumber===sessionAttempt&&memberSession.currentUser===user;
   showAuthStatus({title:'Načítám tvůj United.',copy:'Session je potvrzená. Připravuji profil, garáž a aktuální stav srazu.'});
   try{await openAuthenticatedSession(user,{quiet,isCurrent,attempt});return isCurrent()}
@@ -192,7 +212,7 @@ async function restoreAuthenticatedSession(user,{quiet=true,attempt=beginAccount
 }
 
 async function handleUnitedAuthState(state){
-  renderAccountLinks(state);
+  renderMemberAccountLinks(state);
   if(state.status==='loading'){
     if(!accountAttempt?.active)beginAccountAttempt(state.startedAt);
     showAuthStatus(state.slow?{title:'Připojení trvá déle.',copy:'Stále ověřuji účet. Do chvíle nabídnu výsledek nebo nové načtení.'}:undefined);setMode('AUTH LOADING');return;
@@ -206,6 +226,7 @@ async function handleUnitedAuthState(state){
   }
   if(memberSession.authFlowActive||accountNeedsRetry)return;
   if(state.status==='anonymous'){
+    arrivalInvitationController?.abort();arrivalInvitationController=null;
     accountAttempt?.finish();sessionAttempt++;
     memberSession.currentUser=null;resetMemberState();showAuth();setMode('AUTH READY');return;
   }
@@ -295,10 +316,11 @@ async function logoutMember(){
   if(memberSession.authFlowActive)return false;
   if(memberPlanner?.requestClose({restoreFocus:false,restoreScroll:false})===false)return false;
   accountAttempt?.finish();accountAttempt=null;sessionAttempt++;
+  invalidateEntryNavigation();
   memberSession.authFlowActive=true;
   const signedOut=await performMemberLogout({
     signOut:()=>{const firebase=memberSession.firebase;if(!firebase)throw new Error('firebase_unavailable');return firebase.signOut(firebase.auth)},
-    onSuccess:()=>{sessionAttempt++;memberPortalNavigation?.close({restoreFocus:false});closeMainMenu();memberSession.currentUser=null;resetMemberState();resetAuthForms();showAuth();setMode('AUTH READY');toast('Odhlášeno.')},
+    onSuccess:()=>{sessionAttempt++;accountEntryIntent={kind:'member',section:'overview'};entryConsumed=false;memberPortalNavigation?.close({restoreFocus:false});closeMainMenu();memberSession.currentUser=null;resetMemberState();resetAuthForms();showAuth();setMode('AUTH READY');toast('Odhlášeno.')},
     onFailure:error=>{console.warn('Firebase logout failed',error);toast('Odhlášení se nepodařilo. Tvoje přihlášení zůstalo aktivní. Zkus to znovu.')},
   });
   memberSession.authFlowActive=false;
@@ -366,6 +388,7 @@ memberShell=createMemberShell({
   onGarageHeroAction:()=>{if(!data.cars.length){openCarModal();return}requestAnimationFrame(()=>$('[data-primary-car-card]')?.scrollIntoView({behavior:'smooth',block:'center'}))},
   beforePortalAction:()=>memberPlanner?.requestClose({restoreFocus:false,restoreScroll:false})??true,
   onLiveEntry:()=>memberLive?.requestEntry(),
+  onSectionChange:invalidateEntryNavigation,
 });
 const {activateAuthTab,bindMainNavigation,closeMainMenu,memberPortalNavigation,openSection,renderMemberHero,resetAuthForms,setLiveMode,setMode,showApp,showAuth,showAuthStatus}=memberShell;
 
@@ -417,5 +440,5 @@ memberLive.bind();
 
 bindMainNavigation();
 memberPlanner.hydratePlannerHandoffFromUrl();
-const requestedAuthMode=memberUrlParams.get('mode');activateAuthTab(requestedAuthMode==='login'?'login':'register');
+activateAuthTab(accountAuthMode(window.location.search));
 initFirebase();

@@ -162,7 +162,8 @@ test('serialized autosave cannot restore an abandoned Planner or overwrite newer
 test('onboarding fits short visual viewport and mobile logout remains available',async({page},info)=>{
  const c=await plannerFixture(page,{empty:true});try{
   await page.setViewportSize({width:390,height:420});await page.goto('/member.html');const dialog=page.locator('[data-onboarding-intro-modal] [role=dialog]');await expect(dialog).toBeVisible();const box=await dialog.boundingBox();expect(box.y).toBeGreaterThanOrEqual(0);expect(box.y+box.height).toBeLessThanOrEqual(420);await dialog.locator('.united-onboarding-club li').last().scrollIntoViewIfNeeded();await expect(dialog.locator('.united-onboarding-club li').last()).toBeInViewport();await page.screenshot({path:info.outputPath('onboarding-short.png')});await dialog.getByRole('button',{name:'Zavřít úvod'}).click();
-  await page.locator('.member-bottom-nav [data-mobile-menu]').click();await page.locator('.united-mobile-menu [data-menu-logout]').click();await expect(page.locator('[data-auth-form=register]')).toBeVisible();
+  // A browser that has just used an account returns to login after logout.
+  await page.locator('.member-bottom-nav [data-mobile-menu]').click();await page.locator('.united-mobile-menu [data-menu-logout]').click();await expect(page.locator('[data-auth-form=login]')).toBeVisible();await expect(page.locator('[data-auth-form=register]')).toBeHidden();
  }finally{await page.close();c.r.db.close()}
 });
 

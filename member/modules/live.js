@@ -57,6 +57,7 @@ export function createMemberLive({apiBaseUrl,apiRequest,apiRequestForm,apiReques
   }
   function showEntry(opener=document.activeElement){entryOpener=opener;const dialog=entryDialog();if(!dialog)return;dialog.hidden=false;requestAnimationFrame(()=>dialog.querySelector('[data-live-entry-confirm]:not([hidden]),[data-live-entry-retry]:not([hidden]),[data-live-entry-cancel]')?.focus())}
   function closeEntry({restore=true}={}){const dialog=entryDialog();if(dialog)dialog.hidden=true;if(restore)entryOpener?.focus?.({preventScroll:true});entryOpener=null}
+  function cancelEntry(){if(modeActive||entryDialog()?.hidden!==false)return;++readSequence;closeEntry({restore:false})}
   function renderEntry(){
     const dialog=entryDialog();if(!dialog||dialog.hidden)return;
     const title=$('[data-live-entry-title]',dialog),copy=$('[data-live-entry-copy]',dialog),state=$('[data-live-entry-state]',dialog),confirm=$('[data-live-entry-confirm]',dialog),retry=$('[data-live-entry-retry]',dialog);
@@ -254,5 +255,5 @@ export function createMemberLive({apiBaseUrl,apiRequest,apiRequestForm,apiReques
     root()?.addEventListener('submit',event=>{const vote=event.target.closest('[data-live-vote]');if(vote){event.preventDefault();void submitVote(vote);return}const judge=event.target.closest('[data-live-judge]');if(judge){event.preventDefault();void submitJudge(judge,event.submitter?.hasAttribute('data-judge-submit'));return}const upload=event.target.closest('[data-live-upload]');if(upload){event.preventDefault();void submitPhotos(upload)}});
     document.addEventListener('click',event=>{if(!event.target.closest('[data-live-more-toggle],[data-live-more-menu]'))toggleMore(false)});document.addEventListener('keydown',event=>{if(event.key!=='Escape')return;if(!qrDialog()?.hidden){event.preventDefault();closeQr();return}if(!entryDialog()?.hidden){event.preventDefault();closeEntry();return}if(!$('[data-live-more-menu]')?.hidden){event.preventDefault();toggleMore(false)}})}
   function reset(){liveHistory.stop();voteWrites.clear();closeVote();categoryExpanded.clear();resultExpanded.clear();editingVotes.clear();editingJudges.clear();publicDrafts.clear();voteWrites.clear();newEntry=null;++readSequence;closeEntry({restore:false});if(payload?.event?.id)rememberEvent(payload.event.id,false);judgeDrafts.clear();confirmedScores.clear();judgeReadFailures.clear();scoreWrites.clear();judgeEntryId='';dismissedJudgeEntryId='';stopPolling();releaseMedia();closeQr();modeActive=false;modeContext='';setLiveMode(false);payload=null;liveStatus=null;requestState='idle';lastStateSignature='';activeView='program';navState()}
-  return{bind,load,probe,render,requestEntry,startup,reset};
+  return{bind,load,probe,render,requestEntry,startup,cancelEntry,reset};
 }

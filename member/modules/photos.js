@@ -2,7 +2,7 @@ import { createPhotoBatch, renderPhotoBatch } from '../../photo-batch.js?v=20260
 import { $, $$, esc, setButtonBusy, toast } from '../ui.js?v=20260924-merch2';
 
 export function createMemberPhotos({apiRequest,apiRequestForm,apiRequestBlob,getCurrentUser,formatApiError}){
-  let memberGallery=[],memberGalleryHasMore=false,memberGalleryLoading=false,memberGalleryRequestGeneration=0;
+  let memberGallery=[],memberGalleryHasMore=false,memberGalleryLoading=false,memberGalleryRequestGeneration=0,memberGalleryLoadSequence=0;
   const memberGalleryObjectUrls=new Map(),memberGalleryObjectUrlRequests=new Map();
   let memberGalleryObserver=null,activeMemberGalleryIndex=-1;
   const memberGalleryForm=$('[data-member-gallery-form]'),memberPhotoInput=$('[data-member-photo-input]'),memberPhotoDropzone=$('[data-member-photo-dropzone]');
@@ -26,18 +26,20 @@ export function createMemberPhotos({apiRequest,apiRequestForm,apiRequestBlob,get
   async function loadMemberGallery({append=false}={}){
     if(memberGalleryLoading)return memberGallery;
     memberGalleryLoading=true;
+    const sequence=++memberGalleryLoadSequence,actor=getCurrentUser()?.uid;
     try{
       const offset=append?memberGallery.length:0,payload=await apiRequest(`/api/gallery/mine?limit=24&offset=${offset}`),items=Array.isArray(payload?.submissions)?payload.submissions:[];
+      if(sequence!==memberGalleryLoadSequence||actor!==getCurrentUser()?.uid)return memberGallery;
       if(!append){clearMemberGalleryObjectUrls();memberGallery=[]}
       const known=new Set(memberGallery.map(item=>String(item.id)));
       memberGallery.push(...items.filter(item=>!known.has(String(item.id))));
       memberGalleryHasMore=payload?.pagination?.hasMore===true;
       renderMemberGallery();
       return memberGallery;
-    }finally{memberGalleryLoading=false}
+    }finally{if(sequence===memberGalleryLoadSequence)memberGalleryLoading=false}
   }
   function handleLoadError(){memberGallery=[]}
-  function reset(){clearMemberGalleryObjectUrls();memberGallery=[];memberGalleryHasMore=false;photoBatch.clear()}
+  function reset(){memberGalleryLoadSequence++;memberGalleryLoading=false;clearMemberGalleryObjectUrls();memberGallery=[];memberGalleryHasMore=false;photoBatch.clear()}
 
   function loadMemberGalleryThumbnail(img){
     const id=img.dataset.memberGalleryImage;if(!id||img.dataset.loading)return;img.dataset.loading='true';

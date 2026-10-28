@@ -56,7 +56,7 @@ test('main mobile menu adds unnumbered logout after its divider and reuses the s
   assert.doesNotMatch(mobile.slice(logout), /<span>\d{2}<\/span>/);
   assert.match(memberJs, /async function logoutMember\(\)/);
   assert.match(memberJs, /performMemberLogout/);
-  assert.match(memberJs, /onSuccess:\(\)=>\{sessionAttempt\+\+;memberPortalNavigation\?\.close/);
+  assert.match(memberJs, /onSuccess:\(\)=>\{sessionAttempt\+\+;accountEntryIntent=\{kind:\x27member\x27,section:\x27overview\x27\};entryConsumed=false;memberPortalNavigation\?\.close/);
   assert.match(memberJs, /Tvoje přihlášení zůstalo aktivní/);
   assert.match(memberJs, /\$\$\('\[data-logout\]'\)\.forEach\(button=>button\.addEventListener\('click',logoutMember\)\)/);
 });
@@ -109,7 +109,10 @@ test('authenticated entry keeps Overview fallback but applies a handoff before c
   assert.match(memberHtml, /member-section is-active" data-member-panel="overview"/);
   assert.match(memberJs, /showApp\(\);\s*memberSession.authFlowActive=false;[\s\S]*?attempt.finish\(\);/);
   assert.match(memberJs, /memberMerch.startup\(\);\s*if\(!errors.reservation\)await memberPlanner\.applyPlannerDraft/);
-  assert.match(memberJs, /const initialSection=new URLSearchParams\(window.location.search\).has\('draft'\)&&memberPlanner.hasActiveHandoff\(\)\?'reservation':requestedMemberSection\(window.location.search\);\s*if\(initialSection==='live'\)\{\s*openSection\('overview'\);\s*await memberLive\.startup\(\{requested:true\}\);\s*if\(!isCurrent\(\)\)return;\s*\}else\{\s*openSection\(initialSection\);\s*void memberLive\.startup\(\);/);
+  // One consumed intent replaces the former URL-provenance redirect. Optional reads cannot choose another destination.
+  assert.match(memberJs, /const intent=consumeEntryNavigation\(navigationRevision\);[\s\S]*?const initialSection=intent\?\.section;[\s\S]*?if\(initialSection==='live'\)[\s\S]*?memberLive\.startup\(\{requested:true\}\)/);
+  assert.match(memberJs, /onSectionChange:invalidateEntryNavigation/);
+  assert.doesNotMatch(memberJs, /await showArrivalInvitation|memberUrlParams\.get\('returnTo'\)/);
   assert.doesNotMatch(memberJs, /requestedMemberPanel/);
   assert.match(memberPlannerJs, /applyPlannerHandoffToForm\(\{navigate:false\}\)/);
   const draftFlow = memberPlannerJs.slice(memberPlannerJs.indexOf('async function applyPlannerDraft'), memberPlannerJs.indexOf('function handleGarageCarSaved'));
