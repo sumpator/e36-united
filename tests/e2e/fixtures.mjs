@@ -81,6 +81,7 @@ export function initializeApp(config) { const app = { config, name: '[DEFAULT]' 
 `;
 
 const firebaseAuthModule = `
+const restrictedPersistence=false;
 const sessionKey = ${JSON.stringify(MEMBER_SESSION_KEY)};
 const identityKey = ${JSON.stringify(MEMBER_IDENTITY_KEY)};
 const listeners = new Set();
@@ -93,19 +94,22 @@ const createUser = () => { const current = identity(); return ({
   emailVerified: true,
   getIdToken: async () => 'e2e-member-token'
 }); };
-const sessionUser = () => localStorage.getItem(sessionKey) === 'true' ? createUser() : null;
+let memoryUser = null;
+const sessionUser = () => restrictedPersistence ? memoryUser : localStorage.getItem(sessionKey) === 'true' ? createUser() : null;
 const publish = user => { auth.currentUser = user; for (const listener of listeners) listener(user); };
 export const browserLocalPersistence = { type: 'LOCAL' };
+export const inMemoryPersistence = { type: 'NONE' };
 export function getAuth() { return auth; }
-export async function setPersistence() {}
+export async function setPersistence(target, persistence) { if(restrictedPersistence && persistence?.type === 'LOCAL')throw Object.assign(new Error('Controlled Firebase local persistence unavailable'),{code:'auth/web-storage-unsupported'}); }
 export function onAuthStateChanged(target, next) {
   listeners.add(next);
   queueMicrotask(() => { const user = sessionUser(); target.currentUser = user; next(user); });
   return () => listeners.delete(next);
 }
-export async function signOut() { localStorage.setItem(sessionKey, 'false'); publish(null); }
-export async function signInWithEmailAndPassword() { localStorage.setItem(sessionKey, 'true'); const user = createUser(); publish(user); return { user }; }
-export async function createUserWithEmailAndPassword() { localStorage.setItem(sessionKey, 'true'); const user = createUser(); publish(user); return { user }; }
+export async function signOut() { if(restrictedPersistence)memoryUser=null;else localStorage.setItem(sessionKey, 'false'); publish(null); }
+const signIn = () => { const user=createUser(); if(restrictedPersistence)memoryUser=user;else localStorage.setItem(sessionKey,'true');publish(user);return {user}; };
+export async function signInWithEmailAndPassword() { return signIn(); }
+export async function createUserWithEmailAndPassword() { return signIn(); }
 export async function updateProfile() {}
 export async function sendEmailVerification() { throw new Error('Unexpected verification email'); }
 export async function sendPasswordResetEmail() {}
@@ -127,6 +131,7 @@ function jsonResponse(route, payload, status = 200) {
 
 export async function prepareE2ePage(page, {
   authenticated = false,
+  authMemoryOnly = false,
   carsFailure = false,
   memberStatus = 'active',
   registrationOpen = false,
@@ -204,7 +209,7 @@ export async function prepareE2ePage(page, {
   await page.route('https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js', route => route.fulfill({
     status: 200,
     contentType: 'text/javascript; charset=utf-8',
-    body: firebaseAuthModule
+    body: firebaseAuthModule.replace('const restrictedPersistence=false;',`const restrictedPersistence=${JSON.stringify(authMemoryOnly)};`)
       .replace(JSON.stringify(memberId), JSON.stringify(memberProfile.id))
       .replace("'eva@example.test'", JSON.stringify(memberProfile.email))
       .replace("'Eva Nováková'", JSON.stringify(memberProfile.name)),

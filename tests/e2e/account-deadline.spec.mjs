@@ -45,10 +45,41 @@ test('SDK plus profile share ten seconds instead of adding their own deadlines',
  }finally{sdkRelease.resolve();profileRelease.resolve()}
 });
 
+test('a reservation response from an expired attempt cannot change a successful retry',async({page})=>{
+ const observed=await prepareE2ePage(page,{authenticated:true,registrationOpen:true});await page.clock.install();
+ const started=Promise.withResolvers(),release=Promise.withResolvers(),fulfilled=Promise.withResolvers();let reads=0;
+ await page.route('https://api.e36united.cz/api/reservations/current',async route=>{
+  if(route.request().method()==='OPTIONS')return route.fallback();reads++;if(reads!==1)return route.fallback();
+  started.resolve();await release.promise;await route.fulfill({status:200,headers:{'Access-Control-Allow-Origin':'*'},json:{registrationOpen:false,event:{id:'united-2025',year:2025,title:'Old event'},reservation:null,accommodationOptions:[]}});fulfilled.resolve();
+ });
+ try{
+  await page.goto('/member.html?section=reservation');await started.promise;await page.clock.runFor(10_000);await expect(page.locator('[data-auth-retry]')).toBeVisible();
+  await page.locator('[data-auth-retry]').click();await expect(page.locator('[data-member-panel=reservation]')).toBeVisible();await expect(page.locator('[data-reservation-year]')).toHaveText('2026');await page.getByRole('button',{name:'Zavřít úvod',exact:true}).click();
+  release.resolve();await fulfilled.promise;await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+  await page.locator('[data-member-panel=reservation]').getByRole('button',{name:'Vyplnit registraci'}).click();await expect(page.locator('[data-member-planner-modal]')).toBeVisible();await expect(page.locator('[data-reservation-year]')).toHaveText('2026');expect(reads).toBe(2);expectNoUnexpectedClientErrors(observed);
+ }finally{release.resolve()}
+});
+
 test('slow optional Club and photo reads do not block the usable account',async({page})=>{
  const observed=await prepareE2ePage(page,{authenticated:true});const release=Promise.withResolvers();const pending=new Set();
  await page.route(/https:\/\/api\.e36united\.cz\/api\/(united-club|gallery\/mine)/,async route=>{if(route.request().method()==='OPTIONS')return route.fallback();pending.add(new URL(route.request().url()).pathname);await release.promise;return route.fallback()});
- try{await page.goto('/member.html?section=garage',{waitUntil:'domcontentloaded'});await expect(page.locator('[data-member-panel=garage]')).toBeVisible();await expect.poll(()=>pending.size).toBe(2);expectNoUnexpectedClientErrors(observed)}finally{release.resolve()}
+ try{await page.goto('/member.html?section=garage',{waitUntil:'domcontentloaded'});await expect(page.locator('[data-member-panel=garage]')).toBeVisible();await expect.poll(()=>pending.size).toBe(2);await expect(page.locator('[data-photos-loading-state]')).toHaveText('Načítám tvoje fotografie…');await expect(page.locator('[data-member-gallery-list]')).toBeHidden();expectNoUnexpectedClientErrors(observed)}finally{release.resolve()}
+});
+
+test('pending Club shows unknown values, then confirmed points; read failure offers retry without claiming zero',async({page})=>{
+ const observed=await prepareE2ePage(page,{authenticated:true});const started=Promise.withResolvers(),release=Promise.withResolvers();let fail=true;
+ await page.route('https://api.e36united.cz/api/united-club',async route=>{
+  if(route.request().method()==='OPTIONS')return route.fallback();started.resolve();await release.promise;
+  return fail?route.fulfill({status:403,headers:{'Access-Control-Allow-Origin':'*'},json:{message:'Controlled Club read unavailable'}}):route.fallback();
+ });
+ try{
+  await page.goto('/member.html?section=club');await started.promise;await expect(page.locator('[data-app-view]')).toBeVisible();
+  await expect(page.locator('[data-club-loading-state]')).toHaveText('Načítám United Club…');await expect(page.locator('[data-overview-points]')).toHaveText('—');await expect(page.locator('[data-points-journey-score]')).toBeHidden();
+  release.resolve();await expect(page.locator('[data-member-panel=club] [data-domain-retry-state=club]')).toContainText('nelze načíst');await expect(page.locator('[data-overview-points]')).toHaveText('—');await expect(page.locator('[data-points-journey-score]')).toBeHidden();
+  fail=false;await page.locator('[data-member-panel=club] [data-domain-retry-state=club]').getByRole('button',{name:'Zkusit znovu'}).click();
+  await expect(page.locator('[data-points-journey-score]')).toHaveText('7');await expect(page.locator('[data-points-journey-score]')).toBeVisible();await expect(page.locator('[data-overview-points]')).toHaveText('7');await expect(page.locator('[data-club-loading-state]')).toHaveCount(0);
+  expectNoUnexpectedClientErrors({...observed,consoleErrors:observed.consoleErrors.filter(e=>!(e.url.endsWith('/api/united-club')&&e.text.includes('403')))});
+ }finally{release.resolve()}
 });
 
 test('uncertain account bootstrap times out honestly and retry reads the existing account',async({page})=>{

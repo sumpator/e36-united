@@ -222,8 +222,17 @@ test('storage-restricted handoff survives login and reload through its URL fallb
 
 test('a transient Club read retries once and restores without an unavailable or login loop',async({page})=>{
   const observations=await prepareE2ePage(page,{authenticated:true});let calls=0;
-  await page.route('https://api.e36united.cz/api/united-club',async route=>{if(++calls===1)return route.abort('failed');return route.fallback()});
-  await page.goto('/member.html?section=club');await expect(page.locator('[data-member-panel="club"]')).toBeVisible();
+  const retryStarted=Promise.withResolvers(),releaseRetry=Promise.withResolvers();
+  await page.route('https://api.e36united.cz/api/united-club',async route=>{
+    if(++calls===1)return route.abort('failed');
+    retryStarted.resolve();await releaseRetry.promise;return route.fallback();
+  });
+  await page.goto('/member.html?section=club');const club=page.locator('[data-member-panel="club"]');
+  await expect(club).toBeVisible();
+  // The usable account shell precedes optional Club data. Hold the retry so
+  // visibility cannot accidentally masquerade as a completed Club read.
+  await retryStarted.promise;await expect(club.locator('[data-points-journey-score]')).not.toHaveText('7');
+  releaseRetry.resolve();await expect(club.locator('[data-points-journey-score]')).toHaveText('7');
   await expect(page.locator('[data-domain-retry-state]')).toHaveCount(0);expect(calls).toBe(2);
   expect(observations.pageErrors).toEqual([]);expect(observations.unhandledApi).toEqual([]);
 });

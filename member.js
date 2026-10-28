@@ -26,13 +26,19 @@ import { isAuthorizationFailure } from './member/refresh.js?v=20260907-feedback'
 
 const apiBaseUrl=(portalConfig.apiBaseUrl||'https://api.e36united.cz').replace(/\/$/,'');
 const memberSession=createMemberSession({config:firebaseConfig,onStateChange:handleUnitedAuthState});
-const {request:apiRequest,requestForm:apiRequestForm,requestBlob:apiRequestBlob}=createMemberApiClient({baseUrl:apiBaseUrl,getCurrentUser:()=>memberSession.currentUser});
+const {request:memberApiRequest,requestForm:apiRequestForm,requestBlob:apiRequestBlob}=createMemberApiClient({baseUrl:apiBaseUrl,getCurrentUser:()=>memberSession.currentUser});
+// Capture the current entry budget at request creation, including module-owned reads.
+function apiRequest(path,options={}){
+  const deadlineAt=accountAttempt?.active&&(!options.method||options.method==='GET')?accountAttempt.deadlineAt:undefined;
+  return memberApiRequest(path,deadlineAt===undefined?options:{...options,deadlineAt:options.deadlineAt??deadlineAt});
+}
 const memberMerch=createMemberMerch({request:apiRequest,getUser:()=>memberSession.currentUser});
 const memberUrlParams=new URLSearchParams(window.location.search);
 
 let data=defaultData();
 let memberPlanner=null,memberShell=null,memberLive=null;
 let startupErrors={},lastPlannerDraftResult=null;
+let optionalReadState={club:'pending',photos:'pending'};
 let sessionAttempt=0,accountAttempt=null,accountNeedsRetry=false,accountWritePending=false;
 function beginAccountAttempt(startedAt=Date.now()){
   accountAttempt?.finish();accountNeedsRetry=false;
@@ -43,8 +49,43 @@ function beginAccountAttempt(startedAt=Date.now()){
   }});accountAttempt=attempt;return attempt;
 }
 const trackOnboarding=stage=>apiRequest('/api/onboarding',{method:'POST',body:{stage}}).catch(error=>console.warn('Onboarding tracking unavailable',error));
-function resetMemberState(){startupErrors={};lastPlannerDraftResult=null;resetGarage();resetMemberPhotos();memberClub.reset();memberPlanner.reset();memberLive?.reset();memberMerch.reset();memberAccount.reset();memberOverview?.resetOnboarding();data=defaultData();renderAll()}
+function resetMemberState(){optionalReadState={club:'pending',photos:'pending'};startupErrors={};lastPlannerDraftResult=null;resetGarage();resetMemberPhotos();memberClub.reset();memberPlanner.reset();memberLive?.reset();memberMerch.reset();memberAccount.reset();memberOverview?.resetOnboarding();data=defaultData();renderAll()}
 function normalizeMember(payload,user=memberSession.currentUser){return normalizeMemberState(payload,user)}
+function renderOptionalReadState(){
+  const club=$('[data-member-panel="club"]'),clubPending=optionalReadState.club==='pending',clubReady=optionalReadState.club==='ready';
+  if(club){
+    club.setAttribute('aria-busy',String(clubPending));
+    [...club.children].filter(node=>!node.hasAttribute('data-domain-retry-state')&&!node.hasAttribute('data-club-loading-state')).forEach(node=>{
+      if(!clubReady){if(!node.hasAttribute('data-club-read-hidden'))node.dataset.clubReadHidden=String(node.hidden);node.hidden=true}
+      else if(node.hasAttribute('data-club-read-hidden')){node.hidden=node.dataset.clubReadHidden==='true';delete node.dataset.clubReadHidden}
+    });
+    let status=club.querySelector('[data-club-loading-state]');
+    if(clubPending&&!status){status=document.createElement('p');status.dataset.clubLoadingState='';status.setAttribute('role','status');status.textContent='Načítám United Club…';club.prepend(status)}
+    if(!clubPending)status?.remove();
+  }
+  if(!clubReady){
+    $$('[data-overview-points],[data-attendance-count]').forEach(node=>node.textContent='—');
+    const fill=$('[data-overview-points-fill]');if(fill)fill.style.width='0%';
+    const featured=$('[data-featured-achievements]');if(featured)featured.textContent=clubPending?'Načítám klubové údaje…':'Klubové údaje nejsou dostupné.';
+  }
+  const photos=$('[data-member-gallery-list]'),photosPending=optionalReadState.photos==='pending';
+  if(photos){
+    photos.hidden=optionalReadState.photos!=='ready';photos.setAttribute('aria-busy',String(photosPending));
+    if(optionalReadState.photos!=='ready'){const more=$('[data-member-gallery-more]');if(more)more.hidden=true}
+    let status=photos.parentElement.querySelector('[data-photos-loading-state]');
+    if(photosPending&&!status){status=document.createElement('p');status.dataset.photosLoadingState='';status.setAttribute('role','status');status.textContent='Načítám tvoje fotografie…';photos.before(status)}
+    if(!photosPending)status?.remove();
+  }
+}
+function renderMemorySessionNotice(){
+  const root=$('[data-app-view] .member-content');if(!root)return;
+  let notice=root.querySelector('[data-memory-session-notice]');
+  const memory=memberSession.firebase?.persistence==='memory'&&data.profile?.id===memberSession.currentUser?.uid&&Boolean(memberSession.currentUser);
+  if(!memory){notice?.remove();return}
+  if(!notice){notice=document.createElement('aside');notice.className='member-domain-error';notice.dataset.memorySessionNotice='';notice.setAttribute('role','status');notice.textContent='Úložiště prohlížeče není dostupné. Přihlášení platí jen v tomto panelu; po obnovení se přihlas znovu.';root.prepend(notice)}
+}
+function renderMemberDomains(){renderMemberAvailability(startupErrors,retryMemberDomain,{hasHandoff:memberPlanner.hasActiveHandoff()});renderOptionalReadState()}
+
 
 async function ensureMemberProfile(user,attempt){
   memberSession.currentUser=user;
@@ -81,15 +122,16 @@ async function openAuthenticatedSession(user,{quiet=false,isCurrent=()=>memberSe
   }));
   if(!isCurrent())return;
   startupErrors=errors;lastPlannerDraftResult=plannerDraftResult;
+  optionalReadState={club:'pending',photos:'pending'};
   data={...defaultData(),profile:member,cars,reservation,club:club||defaultData().club};
   setMode('AUTH + PROFIL LIVE');
   showApp();
   memberSession.authFlowActive=false;
   $$('[data-auth-form] button[type=submit]').forEach(button=>setButtonBusy(button,false));
   attempt.finish();
-  if(memberSession.firebase?.persistence==='memory')toast('Úložiště prohlížeče není dostupné. Přihlášení platí jen v tomto panelu; po obnovení se přihlas znovu.');
-  void memberClub.load().then(club=>{if(isCurrent()){data.club=club;memberClub.renderPoints();memberClub.renderAchievements();memberClub.renderMembers();memberClub.renderHistory();memberClub.renderRewards();renderMemberHero()}}).catch(error=>{if(isCurrent()){startupErrors.club=error;renderMemberAvailability(startupErrors,retryMemberDomain,{hasHandoff:memberPlanner.hasActiveHandoff()})}});
-  void loadMemberGallery().catch(error=>{if(isCurrent()){startupErrors.photos=error;handleMemberGalleryLoadError();renderMemberAvailability(startupErrors,retryMemberDomain,{hasHandoff:memberPlanner.hasActiveHandoff()})}});
+  renderMemorySessionNotice();
+  void memberClub.load().then(club=>{if(isCurrent()){optionalReadState.club='ready';data.club=club;memberOverview.renderMemberCard();memberClub.renderPoints();memberClub.renderAchievements();memberClub.renderMembers();memberClub.renderHistory();memberClub.renderRewards();renderMemberHero();renderMemberDomains()}}).catch(error=>{if(isCurrent()){optionalReadState.club='error';startupErrors.club=error;renderMemberDomains()}});
+  void loadMemberGallery().then(()=>{if(isCurrent()){optionalReadState.photos='ready';renderMemberGallery();renderMemberDomains()}}).catch(error=>{if(isCurrent()){optionalReadState.photos='error';startupErrors.photos=error;handleMemberGalleryLoadError();renderMemberDomains()}});
   memberMerch.startup();
   if(!errors.reservation)await memberPlanner.applyPlannerDraft(plannerDraftResult);
   if(!isCurrent())return;
@@ -102,7 +144,7 @@ async function openAuthenticatedSession(user,{quiet=false,isCurrent=()=>memberSe
     openSection(initialSection);
     void memberLive.startup();
   }
-  renderMemberAvailability(startupErrors,retryMemberDomain,{hasHandoff:memberPlanner.hasActiveHandoff()});
+  renderMemberDomains();
   void trackOnboarding('portal');
   if(!quiet)toast(`Přihlášen jako ${member.nickname||member.name}.`);
   if(await showArrivalInvitation({request:apiRequest,user,firebase:memberSession.firebase,openAccount:()=>openSection('account')}))return;
@@ -115,8 +157,8 @@ async function retryMemberDomain(key){
   try{
     if(key==='garage')data.cars=await loadCarsFromApi();
     if(key==='reservation')data.reservation=await memberPlanner.loadCurrentReservation();
-    if(key==='club')data.club=await memberClub.load();
-    if(key==='photos')await loadMemberGallery();
+    if(key==='club'){data.club=await memberClub.load();optionalReadState.club='ready'}
+    if(key==='photos'){await loadMemberGallery();optionalReadState.photos='ready'}
     if(key==='planner'){
       lastPlannerDraftResult=await memberPlanner.loadServerPlannerDraft();
       if(!lastPlannerDraftResult.available)throw lastPlannerDraftResult.error;
@@ -128,7 +170,7 @@ async function retryMemberDomain(key){
     if(isAuthorizationFailure(error)){await restoreAuthenticatedSession(memberSession.currentUser);return}
     startupErrors[key]=error;toast('Stále nedostupné. Zkus to prosím za chvíli.');
   }
-  renderMemberAvailability(startupErrors,retryMemberDomain,{hasHandoff:memberPlanner.hasActiveHandoff()});
+  renderMemberDomains();
 }
 
 async function restoreAuthenticatedSession(user,{quiet=true,attempt=beginAccountAttempt()}={}){
@@ -363,7 +405,7 @@ const memberAccount=createMemberAccount({
   formatApiError:apiError,
 });
 
-function renderAll(){renderProfile();memberClub.renderPoints();memberClub.renderAchievements();memberClub.renderMembers();renderGarage();memberClub.renderHistory();memberPlanner.renderReservation();memberClub.renderRewards();renderMemberGallery();memberAccount.render();memberLive?.render();renderMemberAvailability(startupErrors,retryMemberDomain,{hasHandoff:memberPlanner.hasActiveHandoff()})}
+function renderAll(){renderProfile();memberClub.renderPoints();memberClub.renderAchievements();memberClub.renderMembers();renderGarage();memberClub.renderHistory();memberPlanner.renderReservation();memberClub.renderRewards();renderMemberGallery();memberAccount.render();memberLive?.render();renderMemberDomains();renderMemorySessionNotice()}
 function renderProfile(){memberOverview.renderMemberCard();renderMemberHero();memberOverview.refreshOnboarding()}
 
 memberAccount.bind();

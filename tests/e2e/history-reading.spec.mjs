@@ -22,27 +22,38 @@ for(const width of [1366,390])test(`history reading line ignores reveal movement
  await expect(page.locator('[data-history-year]')).toHaveText('2025');
  await expect(entry).toHaveClass(/is-current/);
  await entry.evaluate(node=>{node.style.transform='';node.style.transition=''});
+ let previous;
  for(const index of [8,6,3,0,7]){
   const target=page.locator('.timeline-entry').nth(index);
+  // First scroll the desired year into the visible story, as a reader does.
+  // A marker becoming current is not evidence that the preceding native smooth
+  // scroll and the decorative reveal have finished moving the next click target.
+  await target.locator('.timeline-year a').evaluate(node=>node.scrollIntoView({block:'center',behavior:'instant'}));
+  await settleReading(page,target);
+  previous={url:page.url(),year:await page.locator('[data-history-year]').innerText(),title:await page.locator('[data-history-title]').innerText()};
   await target.locator('.timeline-year a').click();
   const year=await target.locator('.timeline-year').innerText();
   await expect(page).toHaveURL(new RegExp(`#history-${year}$`));
   await expect(page.locator('[data-history-year]')).toHaveText(year);
   await expect(target).toHaveClass(/is-current/);
+  await expect(page.locator('[data-history-title]')).toHaveText(await target.locator('.timeline-copy h2').innerText());
+  await settleReading(page,target);
  }
  await page.reload();await expect(page.locator('[data-history-year]')).toHaveText('2025');
  await page.goBack();await expect(page).toHaveURL(/#history-2007$/);
  // Back restores the prior scroll position, including scrolling to reach a
  // subsequent year link; the reading marker follows that restored position.
- await expectReadingPosition(page);
- await page.goForward();await expect(page).toHaveURL(/#history-2025$/);await expectReadingPosition(page);
+ await expect(page.locator('[data-history-year]')).toHaveText(previous.year);await expect(page.locator('[data-history-title]')).toHaveText(previous.title);
+ await page.goForward();await expect(page).toHaveURL(/#history-2025$/);await expect(page.locator('[data-history-year]')).toHaveText('2025');await expect(page.locator('.timeline-entry').nth(7)).toHaveClass(/is-current/);
  expect(observations.pageErrors).toEqual([]);expect(observations.unhandledApi).toEqual([]);
 });
-async function expectReadingPosition(page){
- await expect.poll(()=>page.evaluate(()=>{
-  const probe=document.querySelector('.site-header').getBoundingClientRect().bottom+70;
-  const entries=[...document.querySelectorAll('.timeline-entry')];
-  const current=entries.filter(node=>node.getBoundingClientRect().top-new DOMMatrixReadOnly(getComputedStyle(node).transform).m42<=probe).at(-1)||entries[0];
-  return document.querySelector('[data-history-year]').textContent===current.querySelector('.timeline-year').textContent;
- })).toBe(true);
+async function settleReading(page,target){
+ await target.evaluate(async node=>{
+  // Await the real reveal/active transforms, not a fixed duration.
+  for(let animations=node.getAnimations({subtree:true});animations.length;animations=node.getAnimations({subtree:true}))await Promise.all(animations.map(animation=>animation.finished.catch(()=>{})));
+ });
+ await page.evaluate(()=>new Promise(resolve=>{
+  let previousY=scrollY,stable=0;
+  const frame=()=>{if(scrollY===previousY)stable++;else{stable=0;previousY=scrollY}if(stable>=3)resolve();else requestAnimationFrame(frame)};requestAnimationFrame(frame);
+ }));
 }

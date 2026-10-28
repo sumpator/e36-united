@@ -50,3 +50,13 @@ Navazuje na `public-member-journeys-20261028.md`. Inventář veřejného webu a 
 - Syntax `garage.js`, `club/history.js`, nového testu a cílený `git diff --check`: PASS. Finální cache graf a publikaci přebírá hlavní dávka.
 
 Zde uvedené testy nejsou důkazem skutečné doručitelnosti potvrzovacího nebo resetovacího e-mailu, fyzické klávesnice iPhonu ani všech produkčních uploadových stavů. Žádná produkční členská data, rezervace, platby nebo obsah nebyly touto poddávkou změněny.
+
+## Doplnění: pouze paměťová autentizace
+
+`authMemoryOnly` ve stávající browser fixture vyvolá konkrétní Firebase `auth/web-storage-unsupported` pro LOCAL persistence. Paměťová session existuje pouze v instanci modulu; přihlášení nezapisuje příznak do localStorage a reload ji neobnoví. Výchozí chování ostatních členských i Admin fixtures zůstává LOCAL. Nejde o napodobení nefunkčnosti všech úložišť prohlížeče.
+
+První řízený browser test doložil skutečnou chybu nového vysvětlení: krátký memory-only toast byl ihned přepsán běžným „Přihlášen jako Eva“. Hlavní auth dávka jej nahradila trvalým stavovým upozorněním v obsahu účtu. Další vývojový běh selhal na chybně zadaném indexu pobytu v novém testu (index 2 je na otočku, index 1 je Sobota); opraven test podle skutečné definice STAYS, nikoli změna aplikace.
+
+Finálně `auth-memory-session.spec.mjs`: **3 PASS** (Chromium, WebKit, Firefox). Ověřuje viditelné vysvětlení po loginu, anonymní stav po reloadu, odstranění starého upozornění, nové přihlášení a skutečné převzetí strukturovaného API konceptu se sobotním pobytem, jednou nocí a třemi osobami. Kontroluje hodnoty v otevřeném Planneru, zachování `draft` a správného `returnTo=/index.html#planer`, nulový počet vytvořených aut/rezervací/předběžných registrací i nulové neočekávané chyby.
+
+Následné doplnění screenshotů 390 a 1440 px: cíleně **1 PASS WebKit**; oba obrázky skutečně otevřeny. Po změně společné fixture navíc **1 PASS** cílený Admin polling a **3 PASS** sousední členská navigace v Chromium. Browser fixture a nový test prošly syntax a diff kontrolou.

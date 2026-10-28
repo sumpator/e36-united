@@ -46,7 +46,7 @@ test('CI failure diagnostics are engine/attempt isolated, short-lived and do not
  });
  const steps=ci.split(/(?=^      - name:)/m);
  const attempt='${{ github.run_attempt }}',runId='${{ github.run_id }}';
- const critical=['account-entry','member-session-lifecycle','account-deadline','member-completion','history-reading','public-planner-stability','registration-live-continuity','appearance'];
+ const critical=['auth-memory-session','account-entry','member-session-lifecycle','account-deadline','member-completion','history-reading','public-planner-stability','registration-live-continuity','appearance'];
  for(const engine of ['chromium','webkit','firefox']){
   const runs=steps.filter(step=>new RegExp('^        id: '+engine+'\\s*$','m').test(step));
   assert.equal(runs.length,1,engine+' has one required execution step');

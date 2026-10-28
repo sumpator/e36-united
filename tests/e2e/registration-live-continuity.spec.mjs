@@ -63,7 +63,12 @@ for(const outcome of ['ok','failed','lost'])test('selected competition photograp
   // Replace via the real handler; the second client's existing LIVE poll must notice.
   const data=new FormData();data.set('file',new File([photo],'replacement.webp',{type:'image/webp'}));data.set('uploadId',crypto.randomUUID());const response=await live.saveCompetitionPhoto(new Request('https://api.e36united.cz/api/local',{method:'POST',body:data}),r.env,{uid:'a'},EVENT,'car-paid','https://e36united.cz');expect(response.status).toBe(201);
   await expect(viewer.locator('.live-rating-media img')).not.toHaveAttribute('src',first);await expect(viewer.locator('.live-rating-media img')).toBeVisible();
-  await viewer.screenshot({path:info.outputPath('competition-photo-second-client.png')});expect(c.observations.pageErrors).toEqual([]);expect(c.observations.unhandledApi).toEqual([]);expect(c.observations.consoleErrors.filter(error=>!((outcome==='failed'?/503/:outcome==='lost'?/ERR_FAILED/:/never-allowed/).test(error.text)&&error.url.endsWith('/cars/car-paid/media')))).toEqual([]);
+  await viewer.screenshot({path:info.outputPath('competition-photo-second-client.png')});expect(c.observations.pageErrors).toEqual([]);expect(c.observations.unhandledApi).toEqual([]);
+  const expectedLostUrl=`https://api.e36united.cz/api/admin/events/${EVENT}/live/cars/car-paid/media`;
+  const expectedFirefoxAbort=error=>outcome==='lost'&&error.url===''&&error.text.includes(expectedLostUrl+'. (Reason: CORS request did not succeed). Status code: (null).')&&error.text.startsWith('[JavaScript Error: "Cross-Origin Request Blocked: The Same Origin Policy disallows reading the remote resource at ');
+  // Firefox reports the explicitly aborted POST as a CORS network error with
+  // an empty location; accept only that exact injected endpoint and lost branch.
+  expect(c.observations.consoleErrors.filter(error=>!expectedFirefoxAbort(error)&&!((outcome==='failed'?/503/:outcome==='lost'?/ERR_FAILED/:/never-allowed/).test(error.text)&&error.url.endsWith('/cars/car-paid/media')))).toEqual([]);
  }finally{release.resolve();await viewer?.context().close();await page.close();r.db.close()}
 });
 
