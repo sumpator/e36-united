@@ -709,12 +709,14 @@ export function createMemberPlanner({
     let handoff=newerPlannerDraft(localHandoff,serverHandoff);
     plannerDraftSyncState=serverResult.available?'ready':'error';
     if(localHandoff&&handoff===localHandoff){
+      const editorBefore=editorDraft,formBefore=changePlannerFingerprint();
+      const promotionCurrent=()=>isCurrent()&&editorDraft===editorBefore&&changePlannerFingerprint()===formBefore;
       try{localStorage.setItem(`e36UnitedPlannerHandoffOwner:v1:${localHandoff.draftId}`,getCurrentUser().uid)}catch{}
       try{
         const payload=await apiRequest('/api/planner-draft',{method:'PUT',body:{draft:localHandoff}});
-        if(!isCurrent())return;
+        if(!promotionCurrent())return;
         handoff=validatePlannerHandoff(payload?.draft)||localHandoff;plannerDraftSyncState='ready';
-      }catch(error){if(!isCurrent())return;if(isAuthorizationFailure(error))throw error;console.warn('Planner handoff promotion failed; local fallback retained.',error);plannerDraftSyncState='error';handoff=localHandoff}
+      }catch(error){if(!promotionCurrent())return;if(isAuthorizationFailure(error))throw error;console.warn('Planner handoff promotion failed; local fallback retained.',error);plannerDraftSyncState='error';handoff=localHandoff}
     }
       if(handoff){
       void apiRequest('/api/planner-handoffs/claim',{method:'POST',body:{draft:handoff}}).catch(error=>console.warn('Planner tracking unavailable',error));

@@ -204,3 +204,29 @@ test('successful memory-only account use updates another tab without replacing i
   await expect(page.locator('.site-header .nav-member')).toHaveText('Přihlásit se');await expect(register).toBeVisible();await expect(register.locator('[name=name]')).toHaveValue('Unsent registration');await expect(page.locator('[data-auth-form=login]')).toBeHidden();expect(await page.evaluate(key=>localStorage.getItem(key),usedAccountKey)).toBe('1');expect(first.profileWrites).toEqual([]);expect(second.profileWrites).toEqual([]);expectNoUnexpectedClientErrors(first);expectNoUnexpectedClientErrors(second);
  }finally{await other.close()}
 });
+
+
+for(const kind of ['valid','invalid'])test(`late Planner promotion preserves newer ${kind} visible edits`,async({page},testInfo)=>{
+ const o=await prepareE2ePage(page,{member:{id:'m',email:'member@example.invalid'},preliminaryEnabled:true}),r=memberRuntime();r.db.exec("UPDATE events SET year=2028,is_current=0 WHERE id='e'; INSERT INTO events(id,year,title,is_current) VALUES('united-2026',2026,'United 2026',1)");
+ const initialStarted=Promise.withResolvers(),initialRelease=Promise.withResolvers(),editorStarted=Promise.withResolvers(),editorRelease=Promise.withResolvers();const writes=[];
+ await page.route('https://api.e36united.cz/api/planner-draft',async route=>{
+  const request=route.request();if(request.method()==='OPTIONS')return route.fallback();const body=request.method()==='PUT'?request.postDataJSON():null;
+  if(body){writes.push(body.draft);if(body.draft.editor){editorStarted.resolve();await editorRelease.promise}else{initialStarted.resolve();await initialRelease.promise}}
+  const response=body?await putPlannerDraft(new Request(request.url(),{method:'PUT',body:request.postData()}),r.env,{uid:'m'},'https://e36united.cz'):await getPlannerDraft(r.env,{uid:'m'},'https://e36united.cz');
+  return route.fulfill({status:response.status,headers:{'Access-Control-Allow-Origin':'*'},body:await response.text()});
+ });
+ const fields=()=>page.locator('[data-reservation-form]').evaluate(form=>({crew:form.elements.crew.value,note:form.elements.note.value,arrival:form.elements.arrival.value,sleep:form.elements.sleep.value,noteFocused:document.activeElement===form.elements.note,selectionStart:form.elements.note.selectionStart,selectionEnd:form.elements.note.selectionEnd,url:location.href}));
+ try{
+  await page.goto('/index.html#planer');await page.locator('[data-stay-index="2"]').click();await page.locator('.planner-shell').getByRole('button',{name:/Bez ubytování/}).click();await page.locator('[data-people-plus]').click();await page.locator('[data-planner-mail]').click();await page.locator('[data-planner-login]').click();await submitAccountForm(page);await initialStarted.promise;await expect(page.locator('[data-app-view]')).toBeVisible();
+  await page.locator('.member-sidebar [data-member-section=reservation]').click();await page.locator('[data-member-plan-open]').click();const modal=page.locator('[data-member-planner-modal]');await expect(modal).toBeVisible();
+  if(kind==='valid'){const count=Number(await modal.locator('[data-member-crew]').innerText());for(let i=count;i<5;i++)await modal.locator('[data-member-crew-plus]').click()}
+  const note=modal.locator('[name=note]'),status=modal.locator('[data-planner-draft-status]');await note.fill(kind==='valid'?'NEW USER CHOICE':'x'.repeat(1001));
+  if(kind==='valid')await editorStarted.promise;else{await expect(status).toContainText('Rozpracované údaje zatím nelze uložit');expect(writes.filter(draft=>draft.editor)).toEqual([])}
+  const before=await fields();expect(before.noteFocused).toBe(true);const initialResponse=page.waitForResponse(response=>new URL(response.url()).pathname==='/api/planner-draft'&&response.request().method()==='PUT'&&!response.request().postDataJSON().draft.editor);initialRelease.resolve();await (await initialResponse).finished();await renderOpportunity(page);const after=await fields();
+  await testInfo.attach('pending-promotion-visible-edit',{body:JSON.stringify({kind,before,after,writes},null,2),contentType:'application/json'});await expect(modal).toBeVisible();expect(after).toEqual(before);expect(o.requests.filter(request=>request==='POST /api/planner-handoffs/claim')).toEqual([]);
+  const editorResponse=page.waitForResponse(response=>new URL(response.url()).pathname==='/api/planner-draft'&&response.request().method()==='PUT'&&!!response.request().postDataJSON().draft.editor);
+  if(kind==='invalid'){await expect(status).toContainText('Rozpracované údaje zatím nelze uložit');await expect(status).not.toContainText('Rozpracovaný plán uložen');await note.fill('RECOVERED USER CHOICE')}
+  editorRelease.resolve();await (await editorResponse).finished();await expect(status).toHaveText('Rozpracovaný plán uložen');const saved=JSON.parse(r.db.prepare("SELECT payload_json FROM member_planner_drafts WHERE member_id='m'").get().payload_json),current=await fields();
+  expect(saved.editor.note).toBe(kind==='valid'?'NEW USER CHOICE':'RECOVERED USER CHOICE');expect(current.note).toBe(saved.editor.note);expect(Number(current.crew)).toBe(saved.crew);expect(current.arrival).toBe(before.arrival);expect(current.sleep).toBe(before.sleep);expect(current.url).toBe(before.url);for(const key of ['reservationWrites','preliminaryWrites','carWrites'])expect(o[key]).toEqual([]);expectNoUnexpectedClientErrors(o);
+ }finally{initialRelease.resolve();editorRelease.resolve();await page.close();r.db.close()}
+});

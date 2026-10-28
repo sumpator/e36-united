@@ -9,7 +9,9 @@ async function closeOnboarding(page) {
 }
 
 async function login(page,email='member@example.test') {
-  await page.locator('[data-auth-switch=login]').click();const form=page.locator('[data-auth-form="login"]');
+  // A returning member already sees login after logout. The persistent tab is
+  // available from either form; the inline switch exists only in registration.
+  await page.locator('.auth-tabs [data-auth-tab=login]').click();const form=page.locator('[data-auth-form="login"]');
   await expect(form).toBeVisible();await form.locator('[name="email"]').fill(email);await form.locator('[name="password"]').fill('fixture-password');await form.locator('[type="submit"]').click();
   await expect(page.locator('[data-app-view]')).toBeVisible();
 }
