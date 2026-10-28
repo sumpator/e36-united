@@ -6,7 +6,7 @@ export function createMemberPhotos({apiRequest,apiRequestForm,apiRequestBlob,get
   const memberGalleryObjectUrls=new Map(),memberGalleryObjectUrlRequests=new Map();
   let memberGalleryObserver=null,activeMemberGalleryIndex=-1;
   const memberGalleryForm=$('[data-member-gallery-form]'),memberPhotoInput=$('[data-member-photo-input]'),memberPhotoDropzone=$('[data-member-photo-dropzone]');
-  let bound=false;
+  let bound=false,privateRevision=0;
   const photoBatch=createPhotoBatch({onChange:renderMemberPhotoSelection,onNotice:toast});
   const uploadToggle=$('[data-member-photo-toggle]');
   function setUploadOpen(open){if(!memberGalleryForm)return;memberGalleryForm.hidden=!open;uploadToggle?.setAttribute('aria-expanded',String(open));if(uploadToggle)uploadToggle.innerHTML=open?'Sbalit formulář <span aria-hidden="true">−</span>':'Nahrát fotky <span aria-hidden="true">＋</span>'}
@@ -39,7 +39,13 @@ export function createMemberPhotos({apiRequest,apiRequestForm,apiRequestBlob,get
     }finally{if(sequence===memberGalleryLoadSequence)memberGalleryLoading=false}
   }
   function handleLoadError(){memberGallery=[]}
-  function reset(){memberGalleryLoadSequence++;memberGalleryLoading=false;clearMemberGalleryObjectUrls();memberGallery=[];memberGalleryHasMore=false;photoBatch.clear()}
+  function reset(){
+    privateRevision++;memberGalleryLoadSequence++;memberGalleryLoading=false;clearMemberGalleryObjectUrls();memberGallery=[];memberGalleryHasMore=false;
+    closeMemberGalleryLightbox();
+    const image=$('[data-member-gallery-lightbox-image]'),caption=$('[data-member-gallery-lightbox-caption]');
+    if(image){image.removeAttribute('src');image.alt=''}if(caption)caption.textContent='';
+    memberGalleryForm?.reset();setUploadOpen(false);setButtonBusy(memberGalleryForm?.querySelector('button[type="submit"]'),false);photoBatch.clear();
+  }
 
   function loadMemberGalleryThumbnail(img){
     const id=img.dataset.memberGalleryImage;if(!id||img.dataset.loading)return;img.dataset.loading='true';
@@ -101,25 +107,27 @@ export function createMemberPhotos({apiRequest,apiRequestForm,apiRequestBlob,get
     memberGalleryForm?.addEventListener('submit',async event=>{
       event.preventDefault();if(!getCurrentUser())return toast('Nejdřív se přihlas.');
       if(photoBatch.busy)return;
-      const form=event.currentTarget,caption=String(form.elements.caption?.value||'').trim(),button=form.querySelector('button[type="submit"]'),actor=getCurrentUser()?.uid;
+      const form=event.currentTarget,caption=String(form.elements.caption?.value||'').trim(),button=form.querySelector('button[type="submit"]'),actor=getCurrentUser()?.uid,revision=privateRevision;
+      const isCurrent=()=>revision===privateRevision&&actor===getCurrentUser()?.uid;
       if(!photoBatch.pending)return toast('Vyber alespoň jednu dosud neuloženou fotku.');
       setButtonBusy(button,true,'Nahrávám…');
       try{
         const result=await photoBatch.send(async(blob,item)=>{
-          if(actor!==getCurrentUser()?.uid)throw new Error('Přihlášení se změnilo.');
+          if(!isCurrent())throw new Error('Přihlášení se změnilo.');
           const upload=new FormData();upload.append('file',blob,'united.jpg');upload.append('caption',caption);upload.append('uploadId',item.id);
           const receipt=await apiRequestForm('/api/gallery/submissions',upload);
           if(!receipt?.submission?.id)throw new Error('Server nepotvrdil fotografii.');return receipt;
         },(receipt,selection)=>{
-          if(actor!==getCurrentUser()?.uid)return;
+          if(!isCurrent())return;
           const item=receipt.submission;if(!memberGallery.some(photo=>photo.id===item.id))memberGallery.unshift(item);
           if(!memberGalleryObjectUrls.has(String(item.id)))memberGalleryObjectUrls.set(String(item.id),URL.createObjectURL(selection.blob));
           renderMemberGallery();
         });
+        if(!isCurrent())return;
         if(!photoBatch.pending)form.elements.caption.value='';
         toast(result?.failed?'Část fotografií se neodeslala. Opakování odešle pouze neúspěšné.':'Fotky jsou uložené. Schválení se řídí United týmem.');
-      }catch(error){console.error('Gallery upload failed',error);toast(error?.status===429?'Dnešní limit nahrávání byl dosažen.':formatApiError(error))}
-      finally{setButtonBusy(button,false)}
+      }catch(error){if(!isCurrent())return;console.error('Gallery upload failed',error);toast(error?.status===429?'Dnešní limit nahrávání byl dosažen.':formatApiError(error))}
+      finally{if(isCurrent())setButtonBusy(button,false)}
     });
   }
 

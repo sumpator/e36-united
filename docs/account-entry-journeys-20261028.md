@@ -109,3 +109,21 @@ Verze `20261028-entry1` dosud nebyla publikována do produkce, proto zůstává 
 Pomocný login v `member-new-member.spec.mjs` nyní používá trvale dostupnou skutečnou záložku přihlášení z obou formulářů. Všechny následné A/B soukromé poznámky, obnovy a nulové zápisy/chyby zůstaly beze změny. Celý scénář **3/3 PASS**, C 4,953 s / W 7,859 s / F 6,866 s, 0 flaky/skipped/retries. První zkušební config měl nesprávný cwd a nespustil žádný test; opravena pouze ignorovaná konfigurace.
 
 Finální přímo dotčené Node soubory v této pracovní kopii **25/25 PASS**, syntax **21** změněných JS/MJS PASS, **9 modulů / 15 cache vazeb** jednotně entry1, Admin graph bez chyb/cyklů a diff PASS. Další lokální celé sady se neopakovaly. Následující nový pracovní kandidát zahrne tuto prokázanou ochranu i související testový helper, nikoli rerun stejného známě chybného kandidáta.
+
+## Závěr CI #143 a soukromé fotografické rozhraní (29. 10. místního času)
+
+CI #143 doběhlo: Node **650/650 PASS / 0 skipped**, syntax PASS, Chromium **493 PASS / 1 FAIL / 0 skipped** (20,0 min), WebKit **274 PASS / 1 FAIL / 0 skipped** (14,0 min), Firefox **138/138 PASS / 0 skipped** (5,8 min). Obě selhání jsou stejný výše doložený zastaralý login helper; žádná jiná chyba. Tento kandidát nebyl publikovaný. Nový `2b13268a9ef2ccdc2041d02fbcc441989b00a6bf` s Planner ochranou a helperem má automatický [CI #144](https://github.com/sumpator/e36-united/actions/runs/40782247532), pokus 1; jeho checkout zůstal neměnný.
+
+Poslední vymezená kontrola soukromého stavu stejného odhlášení prokázala ještě tři související UI chyby na `2b13268`:
+
+- Neodeslaný popisek fotografie zůstává po běžném logoutu a přihlášení druhého UID viditelný v jeho formuláři.
+- Už dekódovaná soukromá fotografie a popisek zůstávají v otevřeném lightboxu po odhlášení přes skutečnou auth-observer větev. Samotné revokeObjectURL neodstraní vykreslený obrázek.
+- Upload prvního člena je skutečně uložený izolovaným handlerem (201), ale jeho odpověď je zadržena. Logout → druhý člen → nový popisek → uvolnit starou odpověď: starý callback vymaže nový text a zobrazí falešný úspěch ve druhém účtu. D1/R2 přitom správně zůstávají vlastní původnímu členovi.
+
+Před opravou první dvě izolované Chromium regrese **0 PASS / 2 FAIL**, 19,693 s; třetí **1 FAIL**, 10,547 s. Bez neočekávaných API/konzolových/page chyb. Oba screenshoty původních soukromých zbytků byly skutečně otevřeny a prohlédnuty. Je to nevyčištěný DOM a neplatný starý callback na sdíleném zařízení, nikoli doložené zpřístupnění cizí fotografie přes serverové API.
+
+Minimální reset `photos.js` nyní zneplatní revizi soukromého formuláře, vyčistí a sbalí formulář, odstraní busy stav, zavře lightbox a vymaže jeho src/alt/popisek. Existující clear fronty zachovává vlastní ochranu generace. Uploadové pokračování, potvrzovací toast, chybová větev a finally smějí měnit UI pouze pro stejný účet **a** stejnou revizi. Uložené fotografie/objekty se nemažou, kvóty a pravidla uploadu se nemění. Nejsou změny `photo-batch`, backendu ani migrace.
+
+Finálně celý přímo dotčený soubor (původní opožděné čtení + tři nové regrese): **12/12 PASS**, C4/W4/F4, 31,242 s, 0 FAIL/skipped/flaky. Sousedení skutečné dokončení uploadu a retry **3/3 PASS**, 13,979 s. Potvrzené D1/R2 záznamy prvního člena zůstávají; galerie druhého je prázdná, nový popisek zůstane a staré potvrzení se nezobrazí. Pro zápis a média jsou použité skutečné izolované `uploadGallerySubmission/listMyGallery/privateMemberGalleryMedia` a paměťové R2, Firebase a ostatní čtení jsou zavedené fixtures. Není to produkční upload ani nová veřejná testovací fotografie.
+
+Přímo dotčené Node kontroly ve dvou oddělených souborech běhů **30/30 PASS** a **18/18 PASS**; nejde o celou Node sadu. Syntax **21 JS/MJS PASS**, cache **9 modulů / 15 vazeb** na dosud nepublikovanou entry1, Admin module graph bez chyb a diff PASS. Všechny uvedené důkazy jsou v ignorované lokální evidenci. Původní checkout pro CI #144 zůstal nedotčený; tento konečný úklid je připraven na samostatné navazující pracovní větvi. Další plošný audit nebo nesouvisející práce se nezahajují.
