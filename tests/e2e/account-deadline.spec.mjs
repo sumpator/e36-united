@@ -16,6 +16,23 @@ for(const stage of ['SDK','profile','cars'])test(`account total deadline include
  }finally{release.resolve()}
 });
 
+test('explicit login allows logout while an optional invitation read is pending',async({page})=>{
+ const observed=await prepareE2ePage(page);const started=Promise.withResolvers(),release=Promise.withResolvers();
+ await page.route('https://api.e36united.cz/api/arrivals/claim',async route=>{
+  if(route.request().method()==='OPTIONS')return route.fulfill({status:204,headers:{'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'Authorization, Content-Type','Access-Control-Allow-Methods':'POST, OPTIONS'}});
+  expect(route.request().postDataJSON()).toEqual({token:'isolated-invitation',preview:true});started.resolve();await release.promise;
+  return route.fulfill({status:200,headers:{'Access-Control-Allow-Origin':'*'},json:{preview:{model:'Isolated E36',eventId:'united-2026'},alreadyLinked:false}});
+ });
+ try{
+  await page.goto('/member.html?mode=login&section=garage#arrival-invite=isolated-invitation');const form=page.locator('[data-auth-form=login]');await expect(form).toBeVisible();
+  await form.locator('[name=email]').fill('isolated@example.test');await form.locator('[name=password]').fill('isolated-password');await form.locator('[type=submit]').click();
+  await started.promise;await expect(page.locator('[data-app-view]')).toBeVisible();await page.locator('[data-invite-close]').click();
+  await page.locator('.member-sidebar-logout').click();await expect(page.locator('[data-auth-view]')).toBeVisible();
+  release.resolve();await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+  await expect(page.locator('[data-auth-view]')).toBeVisible();await expect(page.locator('[data-app-view]')).toBeHidden();await expect(page.locator('[data-arrival-invite]')).toHaveCount(0);await page.locator('[data-auth-tab=login]').click();await expect(page.locator('[data-auth-form=login] [type=submit]')).toBeEnabled();expectNoUnexpectedClientErrors(observed);
+ }finally{release.resolve()}
+});
+
 test('SDK plus profile share ten seconds instead of adding their own deadlines',async({page})=>{
  const observed=await prepareE2ePage(page,{authenticated:true});await page.clock.install();
  const sdkStarted=Promise.withResolvers(),sdkRelease=Promise.withResolvers(),profileStarted=Promise.withResolvers(),profileRelease=Promise.withResolvers();

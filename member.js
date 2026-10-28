@@ -38,6 +38,7 @@ function beginAccountAttempt(startedAt=Date.now()){
   accountAttempt?.finish();accountNeedsRetry=false;
   const attempt=createAccountAttempt({startedAt,onSlow:()=>showAuthStatus({title:'Připojení trvá déle.',copy:'Stále ověřuji účet. Do chvíle nabídnu výsledek nebo nové načtení.'}),onTimeout:()=>{
     accountNeedsRetry=true;sessionAttempt++;
+    $$('[data-auth-form] button[type=submit]').forEach(button=>setButtonBusy(button,false));
     showAuthStatus({title:'Účet se nepodařilo načíst včas.',copy:accountWritePending?'Požadavek na účet mohl proběhnout. Obnov načtení; nový účet znovu nezakládej.':'Zkontroluj připojení a obnov načtení. Uložené přihlášení jsme nezměnili.',retry:true});
   }});accountAttempt=attempt;return attempt;
 }
@@ -83,6 +84,8 @@ async function openAuthenticatedSession(user,{quiet=false,isCurrent=()=>memberSe
   data={...defaultData(),profile:member,cars,reservation,club:club||defaultData().club};
   setMode('AUTH + PROFIL LIVE');
   showApp();
+  memberSession.authFlowActive=false;
+  $$('[data-auth-form] button[type=submit]').forEach(button=>setButtonBusy(button,false));
   attempt.finish();
   if(memberSession.firebase?.persistence==='memory')toast('Úložiště prohlížeče není dostupné. Přihlášení platí jen v tomto panelu; po obnovení se přihlas znovu.');
   void memberClub.load().then(club=>{if(isCurrent()){data.club=club;memberClub.renderPoints();memberClub.renderAchievements();memberClub.renderMembers();memberClub.renderHistory();memberClub.renderRewards();renderMemberHero()}}).catch(error=>{if(isCurrent()){startupErrors.club=error;renderMemberAvailability(startupErrors,retryMemberDomain,{hasHandoff:memberPlanner.hasActiveHandoff()})}});
@@ -197,9 +200,9 @@ $('[data-auth-form="login"]')?.addEventListener('submit',async event=>{
   if(credential){
     memberSession.currentUser=credential.user;
     const restored=await restoreAuthenticatedSession(credential.user,{quiet:false,attempt});
-    if(!restored)toast('Přihlášení je aktivní, ale profil se teď nepodařilo načíst.');
+    if(!restored&&accountAttempt===attempt&&memberSession.currentUser===credential.user)toast('Přihlášení je aktivní, ale profil se teď nepodařilo načíst.');
   }
-  memberSession.authFlowActive=false;setButtonBusy(button,false);
+  if(accountAttempt===attempt){memberSession.authFlowActive=false;setButtonBusy(button,false)}
 });
 
 $('[data-auth-form="register"]')?.addEventListener('submit',async event=>{
@@ -227,7 +230,7 @@ $('[data-auth-form="register"]')?.addEventListener('submit',async event=>{
   }finally{
     accountWritePending=false;
     if(!createdUser&&!accountNeedsRetry){showAuth();activateAuthTab('register')}
-    memberSession.authFlowActive=false;setButtonBusy(button,false);
+    if(accountAttempt===attempt){memberSession.authFlowActive=false;setButtonBusy(button,false)}
   }
 });
 
@@ -249,6 +252,7 @@ $('[data-auth-retry]')?.addEventListener('click',async()=>{
 async function logoutMember(){
   if(memberSession.authFlowActive)return false;
   if(memberPlanner?.requestClose({restoreFocus:false,restoreScroll:false})===false)return false;
+  accountAttempt?.finish();accountAttempt=null;sessionAttempt++;
   memberSession.authFlowActive=true;
   const signedOut=await performMemberLogout({
     signOut:()=>{const firebase=memberSession.firebase;if(!firebase)throw new Error('firebase_unavailable');return firebase.signOut(firebase.auth)},

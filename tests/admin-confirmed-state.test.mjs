@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
+import {runInNewContext} from 'node:vm';
 import {mergeReservation,confirmedFields,commandReceiptMatches} from '../admin/confirmed-state.js';
 
 const current=()=>({id:'r',eventId:'e',revision:4,status:'pending',reviewContext:{qrIssued:false,selectedCarPhoto:'/private/selected'},payment:{amountDueCzk:1000,amountPaidCzk:200,spayd:'synthetic'},carSnapshot:{model:'BMW 325i'},member:{id:'m',name:'Synthetic'}});
@@ -36,13 +37,39 @@ test('history components and a dashboard configuration snapshot remain independe
  assert.deepEqual(confirmedFields({':configuration':'old'},{':configuration':'later'},{':configuration':'sent'}).delta,{':configuration':'later'});
 });
 test('CI failure diagnostics are engine/attempt isolated, short-lived and do not relax failures',()=>{
- const ci=readFileSync(new URL('../.github/workflows/ci.yml',import.meta.url),'utf8'),config=readFileSync(new URL('../playwright.config.mjs',import.meta.url),'utf8');
- for(const engine of ['chromium','webkit']){
-  assert.ok(ci.includes(`--output=test-results/${engine}-\${{ github.run_attempt }}`));
-  assert.ok(ci.includes(`name: browser-${engine}-\${{ github.run_id }}-\${{ github.run_attempt }}`));
-  assert.ok(ci.includes(`failure() && steps.${engine}.outcome == 'failure'`));
+ const ci=readFileSync(new URL('../.github/workflows/ci.yml',import.meta.url),'utf8');
+ // CI runs Node checks before installing Playwright. Evaluate the actual config
+ // with its identity defineConfig wrapper, without requiring browser dependencies.
+ const configSource=readFileSync(new URL('../playwright.config.mjs',import.meta.url),'utf8');
+ const config=runInNewContext(configSource.replace(/^import \{ defineConfig \} from '@playwright\/test';\r?\n/,'').replace('export default defineConfig(','globalThis.config = defineConfig(')+'\nconfig',{
+  defineConfig:value=>value,process:{env:{CI:'true'}},
+ });
+ const steps=ci.split(/(?=^      - name:)/m);
+ const attempt='${{ github.run_attempt }}',runId='${{ github.run_id }}';
+ const critical=['account-entry','member-session-lifecycle','account-deadline','member-completion','history-reading','public-planner-stability','registration-live-continuity','appearance'];
+ for(const engine of ['chromium','webkit','firefox']){
+  const runs=steps.filter(step=>new RegExp('^        id: '+engine+'\\s*$','m').test(step));
+  assert.equal(runs.length,1,engine+' has one required execution step');
+  const run=runs[0];
+  // Every engine runs after setup even when an earlier browser failed.
+  assert.ok(run.includes("if: ${{ !cancelled() && steps.browser_setup.outcome == 'success' }}"));
+  assert.ok(run.includes('--project='+engine));
+  assert.ok(run.includes(`PLAYWRIGHT_HTML_OUTPUT_DIR: playwright-report/${engine}-${attempt}`));
+  assert.ok(run.includes(`--output=test-results/${engine}-${attempt}`));
+  const uploads=steps.filter(step=>step.includes(`name: browser-${engine}-${runId}-${attempt}`));
+  assert.equal(uploads.length,1,engine+' has isolated failure evidence');
+  const upload=uploads[0];
+  assert.ok(upload.includes(`failure() && steps.${engine}.outcome == 'failure'`));
+  assert.ok(upload.includes(`test-results/${engine}-${attempt}/`));
+  assert.ok(upload.includes(`playwright-report/${engine}-${attempt}/`));
+  assert.match(upload,/retention-days: 5(?:\r?\n|$)/);
+  const project=config.projects.find(project=>project.name===engine);
+  assert.equal(project?.use?.browserName,engine);
+  if(engine!=='chromium')for(const suite of critical)assert.ok(project.testMatch.includes('**/'+suite+'.spec.mjs'),engine+' includes '+suite);
  }
- assert.equal((ci.match(/retention-days: 5/g)||[]).length,2);assert.doesNotMatch(ci,/continue-on-error/);assert.match(config,/retries: 0/);assert.match(config,/timeout: 7_000/);assert.match(config,/trace: 'retain-on-failure'/);assert.match(config,/screenshot: 'only-on-failure'/);
+ assert.doesNotMatch(ci,/continue-on-error/);
+ assert.equal(config.retries,0);assert.equal(config.expect.timeout,7_000);
+ assert.equal(config.use.trace,'retain-on-failure');assert.equal(config.use.screenshot,'only-on-failure');
 });
 
 test('receipt must match actor, operation, entity, event, operation ID and CAS base',()=>{

@@ -107,7 +107,7 @@ test('Můj United active underline belongs to its label, not the decorative mark
 test('authenticated entry keeps Overview fallback but applies a handoff before canonical navigation', () => {
   assert.match(memberHtml, /member-nav-item is-active" data-member-section="overview"/);
   assert.match(memberHtml, /member-section is-active" data-member-panel="overview"/);
-  assert.match(memberJs, /showApp\(\);\s*attempt.finish\(\);/);
+  assert.match(memberJs, /showApp\(\);\s*memberSession.authFlowActive=false;[\s\S]*?attempt.finish\(\);/);
   assert.match(memberJs, /memberMerch.startup\(\);\s*if\(!errors.reservation\)await memberPlanner\.applyPlannerDraft/);
   assert.match(memberJs, /const initialSection=new URLSearchParams\(window.location.search\).has\('draft'\)&&memberPlanner.hasActiveHandoff\(\)\?'reservation':requestedMemberSection\(window.location.search\);\s*if\(initialSection==='live'\)\{\s*openSection\('overview'\);\s*await memberLive\.startup\(\{requested:true\}\);\s*if\(!isCurrent\(\)\)return;\s*\}else\{\s*openSection\(initialSection\);\s*void memberLive\.startup\(\);/);
   assert.doesNotMatch(memberJs, /requestedMemberPanel/);

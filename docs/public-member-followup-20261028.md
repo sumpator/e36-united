@@ -61,6 +61,12 @@ Oba projekty WebKit/Firefox obsahují `account-entry`, `member-session-lifecycle
 
 Syntax **25 JS/MJS PASS**. Dotčené importy mají jediný token `20261028-flow2`, Admin graph manifest odpovídá změněným rodičům. Graph a diff check PASS; nezměněné závislosti mají původní tokeny.
 
+První kontrola pracovní větve, CI #131 (`40714719447`), zadržela kandidáta před produkčním main: Node **641 PASS / 1 FAIL / 0 skipped**. Starý test workflow očekával dvě diagnostické přílohy, zatímco nově jsou povinné tři (`3 !== 2`). `tests/admin-confirmed-state.test.mjs` nyní ověřuje každý engine, jeho nezávislé spuštění, izolaci artefaktů/pokusu, pětidenní uchování, původní diagnostiku a zákaz oslabení chyby. Konfigurace je při této Node kontrole vyhodnocena bez závislosti na ještě nenainstalovaném Playwrightu. Cílený soubor **9/9 PASS**, samostatná izolovaná kopie bez node_modules také **9/9 PASS**. První neúspěšný běh nebyl rerunován; následuje nový commit konkrétního testovacího kontraktu.
+
+Dodatečně prokázaná související chyba: při explicitním loginu byl účet již viditelný, ale příznak authFlowActive čekal na volitelnou pozvánku a blokoval logout. Zadržení jejího preview reprodukovalo **1 FAIL**. Nyní se po otevření shellu uvolní akce; logout ihned zneplatní starý pokus a pozdní finalizer nemění novější akci. Nová regrese + čtyři sousední registrace/logout scénáře: **15 PASS**, pět na engine. Node phase-a **18 PASS**. Finální deadline soubor má osm scénářů; discovery se tím mění na **Chromium 459 / WebKit 240 / Firefox 103**. Předchozí 33/33 a další dílčí výsledky výše nejsou vydávány za nový kompletní běh této poslední úpravy.
+
+Persistence fallback do paměti je řízeně pokrytý Node testem a vysvětlený v UI. Browser simulace tohoto konkrétního Firebase fallbacku ani skutečné omezené úložiště na postiženém zařízení nebyly provedeny; nelze za těchto podmínek garantovat trvalou session po reloadu. Odmítnuté ukládání veřejného Planneru je samostatně ověřeno ve všech třech enginech.
+
 ## Skutečné přihlášení — odděleně od simulací
 
 Existující schválený účet se nemazal ani znovu nezakládal. Kandidát byl před publikací načten ze statické pracovní kopie pod www originem; Firebase ani členské API nebyly nahrazeny. Localhost produkční API správně odmítlo přes CORS. Serverová ochrana se kvůli tomu neměnila.
