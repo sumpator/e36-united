@@ -10,6 +10,13 @@ const jsonResponse = (status, payload) => new Response(JSON.stringify(payload), 
   headers: { 'Content-Type': 'application/json' },
 });
 
+for(const kind of ['JSON','FormData','blob'])test(`late ${kind} response cannot deliver a previous user's private data`,async()=>{
+ const original={uid:'a',getIdToken:async()=> 'token'},gate=Promise.withResolvers(),started=Promise.withResolvers();let current=original;
+ const api=createMemberApiClient({baseUrl:'https://local.test',getCurrentUser:()=>current,fetchRequest:async()=>{started.resolve();await gate.promise;return jsonResponse(200,{private:'old account'})}});
+ const request=kind==='JSON'?api.request('/api/me'):kind==='FormData'?api.requestForm('/api/photo',new FormData()):api.requestBlob('/api/photo');
+ await started.promise;current=null;gate.resolve();await assert.rejects(request,/api_auth_required/);
+});
+
 test('Member API JSON requests preserve auth, serialization, cache and response parsing', async () => {
   const calls = [];
   const user = { getIdToken: async () => 'member-token' };

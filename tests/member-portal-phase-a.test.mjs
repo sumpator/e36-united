@@ -56,7 +56,7 @@ test('main mobile menu adds unnumbered logout after its divider and reuses the s
   assert.doesNotMatch(mobile.slice(logout), /<span>\d{2}<\/span>/);
   assert.match(memberJs, /async function logoutMember\(\)/);
   assert.match(memberJs, /performMemberLogout/);
-  assert.match(memberJs, /onSuccess:\(\)=>\{memberPortalNavigation\?\.close/);
+  assert.match(memberJs, /onSuccess:\(\)=>\{sessionAttempt\+\+;memberPortalNavigation\?\.close/);
   assert.match(memberJs, /Tvoje přihlášení zůstalo aktivní/);
   assert.match(memberJs, /\$\$\('\[data-logout\]'\)\.forEach\(button=>button\.addEventListener\('click',logoutMember\)\)/);
 });
@@ -98,7 +98,7 @@ test('main mobile submenu delegates section state to openSection and closes the 
 });
 
 test('Můj United active underline belongs to its label, not the decorative marker', () => {
-  assert.match(memberHtml, /nav-member-label">Můj United<\/span>/);
+  assert.match(memberHtml, /nav-member-label">Účet<\/span>/);
   assert.match(memberCss, /\.member-top-nav a\.nav-member\.active::after\{display:none\}/);
   assert.match(memberCss, /\.member-top-nav \.nav-member\.active \.nav-member-label::after/);
   assert.match(memberCss, /\.member-top-nav a\.nav-member\.active\{text-decoration:none\}/);
@@ -108,7 +108,7 @@ test('authenticated entry keeps Overview fallback but applies a handoff before c
   assert.match(memberHtml, /member-nav-item is-active" data-member-section="overview"/);
   assert.match(memberHtml, /member-section is-active" data-member-panel="overview"/);
   assert.match(memberJs, /showApp\(\);\s*memberMerch.startup\(\);\s*if\(!errors.reservation\)await memberPlanner\.applyPlannerDraft/);
-  assert.match(memberJs, /const initialSection=new URLSearchParams\(window.location.search\).has\('draft'\)&&memberPlanner.hasActiveHandoff\(\)\?'reservation':requestedMemberSection\(window.location.search\);\s*if\(initialSection==='live'\)\{\s*openSection\('overview'\);\s*await memberLive\.startup\(\{requested:true\}\);\s*\}else\{\s*openSection\(initialSection\);\s*void memberLive\.startup\(\);/);
+  assert.match(memberJs, /const initialSection=new URLSearchParams\(window.location.search\).has\('draft'\)&&memberPlanner.hasActiveHandoff\(\)\?'reservation':requestedMemberSection\(window.location.search\);\s*if\(initialSection==='live'\)\{\s*openSection\('overview'\);\s*await memberLive\.startup\(\{requested:true\}\);\s*if\(!isCurrent\(\)\)return;\s*\}else\{\s*openSection\(initialSection\);\s*void memberLive\.startup\(\);/);
   assert.doesNotMatch(memberJs, /requestedMemberPanel/);
   assert.match(memberPlannerJs, /applyPlannerHandoffToForm\(\{navigate:false\}\)/);
   const draftFlow = memberPlannerJs.slice(memberPlannerJs.indexOf('async function applyPlannerDraft'), memberPlannerJs.indexOf('function handleGarageCarSaved'));

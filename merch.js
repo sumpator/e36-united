@@ -1,8 +1,8 @@
 import {initPointsGuide} from './member/points-guide.js?v=20261026-merch-mail1';
 import { firebaseConfig, portalConfig } from './firebase-config.js?v=20260924-merch2';
-import {initShop} from './merch/shop.js?v=20261026-merch-mail1';
+import {initShop} from './merch/shop.js?v=20261028-flow1';
 import {rewardProgress,pointWord} from './member/reward-progress.js?v=20260926-portal3';
-import { initUnitedAuth } from './united-auth.js?v=20260825-phase-a1';
+import { initUnitedAuth } from './united-auth.js?v=20261028-flow1';
 
 export function normalizeMemberBenefit(club={}){
   const cycle=rewardProgress(club.points?.available);

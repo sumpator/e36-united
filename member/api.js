@@ -22,11 +22,14 @@ function responseError(response, payload) {
 }
 
 export function createMemberApiClient({ baseUrl, getCurrentUser, fetchRequest = fetch, timeoutMs = 20_000, retryDelayMs = 250 }) {
+  function requireSameUser(user) {
+    if (getCurrentUser() !== user) throw new Error('api_auth_required');
+  }
   async function getToken(user, force) {
     let timer;
     try {
       const token = await Promise.race([user.getIdToken(force),new Promise((_,reject)=>{timer=setTimeout(()=>reject(networkError(new Error('token_timeout'))),timeoutMs)})]);
-      if (getCurrentUser()?.uid !== user.uid || !getCurrentUser()) throw new Error('api_auth_required');
+      requireSameUser(user);
       return token;
     } finally { clearTimeout(timer); }
   }
@@ -77,6 +80,7 @@ export function createMemberApiClient({ baseUrl, getCurrentUser, fetchRequest = 
       return request(path, { method, body, token: freshToken, retry: false });
     }
     const payload = response.payload;
+    requireSameUser(currentUser);
     if (!response.ok) throw responseError(response, payload);
     return payload;
   }
@@ -102,6 +106,7 @@ export function createMemberApiClient({ baseUrl, getCurrentUser, fetchRequest = 
       return requestForm(path, formData, { method, token: freshToken, retry: false });
     }
     const payload = response.payload;
+    requireSameUser(currentUser);
     if (!response.ok) throw responseError(response, payload);
     return payload;
   }
@@ -124,6 +129,7 @@ export function createMemberApiClient({ baseUrl, getCurrentUser, fetchRequest = 
       const freshToken = await getToken(currentUser, true);
       return requestBlob(path, { token: freshToken, retry: false });
     }
+    requireSameUser(currentUser);
     if (!response.ok) {
       const error = new Error(`API ${response.status}`);
       error.status = response.status;

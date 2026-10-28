@@ -10,22 +10,20 @@ const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').match
 
 const publicMemberStateListeners=new Set();
 let publicMemberState={status:'loading',authenticated:false,hasWaitingPlan:false,hasReservation:false,showJoinCta:false};
+let renderAccountLinks=null;
 const publishPublicMemberState=state=>{
 publicMemberState={...publicMemberState,...state};
 qsa('.nav-cta').forEach(cta=>{cta.hidden=true});
-qsa('.nav-member').forEach(link=>{
-  const authenticated=publicMemberState.authenticated===true;
-  link.textContent='Můj United';
-  link.href=authenticated?'member.html':`member.html?returnTo=${encodeURIComponent(location.pathname+location.search+location.hash)}`;
-});
+renderAccountLinks?.(publicMemberState);
 for(const listener of publicMemberStateListeners)listener(publicMemberState);
 };
 const subscribePublicMemberState=listener=>{publicMemberStateListeners.add(listener);listener(publicMemberState);return()=>publicMemberStateListeners.delete(listener)};
-document.addEventListener('click',event=>{const link=event.target.closest('.nav-member');if(link&&!publicMemberState.authenticated)link.href=`member.html?returnTo=${encodeURIComponent(location.pathname+location.search+location.hash)}`},true);
+document.addEventListener('click',event=>{if(event.target.closest('.nav-member'))renderAccountLinks?.(publicMemberState)},true);
 qsa('.nav-cta').forEach(cta=>{cta.hidden=true});
 void (async()=>{
 try{
-const [{firebaseConfig,portalConfig},{initPublicMemberState}]=await Promise.all([import('./firebase-config.js?v=20260823-auth2'),import('./public-member-state.js?v=20261025-flow1')]);
+const [{firebaseConfig,portalConfig},memberStateModule]=await Promise.all([import('./firebase-config.js?v=20260823-auth2'),import('./public-member-state.js?v=20261028-flow1')]);
+const {initPublicMemberState}=memberStateModule;renderAccountLinks=memberStateModule.renderAccountLinks;
 initPublicMemberState({config:firebaseConfig,apiBaseUrl:portalConfig.apiBaseUrl,onStateChange:publishPublicMemberState});
 }catch(error){publishPublicMemberState({status:'error',authenticated:false,showJoinCta:false,error});console.debug('Public member state unavailable; join CTA remains hidden.',error)}
 })();
@@ -303,10 +301,28 @@ const entries = qsa('.timeline-entry', historySection);
 const currentYear = qs('[data-history-year]', historySection);
 const currentTitle = qs('[data-history-title]', historySection);
 const progress = qs('[data-history-progress]', historySection);
+const readingLine = () => (header?.getBoundingClientRect().bottom || 0) + 70;
+// Reveal animations move the paint, not the article's place in the story.
+const articleTop = entry => entry.getBoundingClientRect().top - new DOMMatrixReadOnly(getComputedStyle(entry).transform).m42;
+entries.forEach(entry => {
+const year = qs('.timeline-year', entry);
+if (!year) return;
+entry.id = `history-${year.textContent.trim()}`;
+const link = document.createElement('a');
+link.href = `#${entry.id}`;
+link.textContent = year.textContent;
+link.setAttribute('aria-label', `Přejít na rok ${year.textContent.trim()}`);
+year.replaceChildren(link);
+});
 
 const setHistoryEntry = entry => {
 if (!entry) return;
-entries.forEach(item => item.classList.toggle('is-current', item === entry));
+entries.forEach(item => {
+item.classList.toggle('is-current', item === entry);
+const link = qs('.timeline-year a', item);
+if (item === entry) link?.setAttribute('aria-current', 'location');
+else link?.removeAttribute('aria-current');
+});
 const year = qs('.timeline-year', entry)?.textContent?.trim() || '';
 const title = qs('.timeline-copy h2', entry)?.textContent?.trim() || '';
 if (currentYear) currentYear.textContent = year;
@@ -314,8 +330,9 @@ if (currentTitle) currentTitle.textContent = title;
 };
 
 const updateHistoryProgress = () => {
-const probe=(header?.getBoundingClientRect().bottom||0)+70;
-setHistoryEntry(entries.filter(entry=>entry.getBoundingClientRect().top<=probe).at(-1)||entries[0]);
+const probe=readingLine();
+entries.forEach(entry => { entry.style.scrollMarginTop = `${probe - 1}px`; });
+setHistoryEntry(entries.filter(entry=>articleTop(entry)<=probe).at(-1)||entries[0]);
 if (!progress) return;
 const rect = historySection.getBoundingClientRect();
 const total = Math.max(1, rect.height - window.innerHeight * .72);
@@ -323,9 +340,16 @@ const travelled = Math.min(total, Math.max(0, -rect.top + window.innerHeight * .
 progress.style.width = `${Math.round((travelled / total) * 100)}%`;
 };
 updateHistoryProgress();
+const initialArticle = entries.find(entry => `#${entry.id}` === location.hash);
+if (initialArticle) {
+window.scrollTo({top:articleTop(initialArticle)+window.scrollY-readingLine()+1,behavior:'instant'});
+updateHistoryProgress();
+}
 window.addEventListener('scroll', updateHistoryProgress, {passive:true});
 window.addEventListener('resize', updateHistoryProgress, {passive:true});
 window.addEventListener('hashchange',updateHistoryProgress);
+window.addEventListener('pageshow',updateHistoryProgress);
+document.fonts?.ready.then(updateHistoryProgress);
 historySection.addEventListener('load',updateHistoryProgress,true);
 historySection.addEventListener('transitionend',event=>{
 if(event.propertyName==='transform'&&event.target.matches('.timeline-entry'))updateHistoryProgress();
@@ -612,6 +636,10 @@ let updatePlanner = () => {};
 let setPlannerChoice = () => {};
 let memberPlannerMode = false;
 let memberPlannerHasReservation = false;
+const publicPlannerDraftKey='e36UnitedPublicPlanner:v1';
+let publicPlannerReady=false,publicPlannerEdited=false,publicPlannerDraftId=crypto.randomUUID();
+planner?.addEventListener('click',event=>{if(event.target.closest('[data-stay-index],.choice,[data-people-plus],[data-people-minus],[data-accommodation-option-id],[data-accommodation-units-plus],[data-accommodation-units-minus]'))publicPlannerEdited=true},true);
+planner?.addEventListener('input',()=>{publicPlannerEdited=true},true);
 const plannerNights = () => plannerState.arrival === 'Pátek' ? (plannerState.departure === 'Sobota' ? 1 : Number(plannerEventData?.fullWeekendNights ?? 2)) : plannerState.arrival === 'Sobota' ? Number(plannerEventData?.saturdayOnlyNights ?? 1) : 0;
 const plannerNightLabel = count => count === 1 ? '1 noc' : `${count} noci`;
 const plannerStayLabel = () => plannerState.arrival === 'Jen na otočku' ? 'Jen na otočku' : `${plannerState.arrival} → ${plannerState.departure}`;
@@ -670,7 +698,7 @@ const slug = (value, fallback) => value.normalize('NFD').replace(/[\u0300-\u036f
 const personLabel = count => count === 1 ? 'osoba' : (count >= 2 && count <= 4 ? 'osoby' : 'osob');
 const plannerMoney = new Intl.NumberFormat('cs-CZ',{style:'currency',currency:'CZK',maximumFractionDigits:0});
 const plannerEscapeHtml = value => String(value||'').replace(/[&<>'"]/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[char]));
-void Promise.all([import('./accommodation-visual.js?v=20260928-flow1'),import('./accommodation-gallery.js?v=20260912-accommodation-gallery-r1')]).then(([visuals,gallery])=>{accommodationVisualTools=visuals;accommodationGalleryTools=gallery;renderPlannerAccommodationOptions(plannerState.accommodationOptionId||'');updatePlanner()}).catch(error=>console.debug('Accommodation visuals unavailable.',error));
+void Promise.all([import('./accommodation-visual.js?v=20260928-flow1'),import('./accommodation-gallery.js?v=20260912-accommodation-gallery-r1')]).then(([visuals,gallery])=>{accommodationVisualTools=visuals;accommodationGalleryTools=gallery;updatePlanner()}).catch(error=>console.debug('Accommodation visuals unavailable.',error));
 const plannerAccommodationKind = () => plannerState.sleep === 'Apartmán' ? 'apartment' : plannerState.sleep === 'Chatka' ? 'cabin' : plannerState.sleep === 'Stan' ? 'tent' : null;
 const matchingPlannerAccommodation = () => plannerAccommodationOptions.filter(option => option.active && option.kind === plannerAccommodationKind()).sort((a,b)=>a.sortOrder-b.sortOrder||a.name.localeCompare(b.name,'cs'));
 const selectedPlannerAccommodation = () => matchingPlannerAccommodation().find(option => option.id === plannerState.accommodationOptionId) || null;
@@ -820,7 +848,7 @@ syncStayPicker();
 const needsAccommodation = !dayPass && plannerState.sleep !== 'Bez ubytování';
 const partialAccommodationRelevant = needsAccommodation && plannerState.people > 1;
 if (!partialAccommodationRelevant && partialAccommodationInput) partialAccommodationInput.checked = false;
-plannerState.partialAccommodation=partialAccommodationRelevant&&Boolean(partialAccommodationInput?.checked);
+plannerState.partialAccommodation=partialAccommodationRelevant&&plannerState.partialAccommodation;
 plannerState.accommodationUnits = needsAccommodation ? (plannerState.partialAccommodation?Math.max(1,Math.min(plannerState.people,Number(plannerState.accommodationUnits)||plannerState.people)):plannerState.people) : 0;
 if (sleepStep) sleepStep.hidden = dayPass;
 if (sleepPreviewCard) sleepPreviewCard.hidden = dayPass;
@@ -896,7 +924,7 @@ qs('[data-accommodation-units-minus]', planner)?.addEventListener('click', () =>
 qs('[data-accommodation-units-plus]', planner)?.addEventListener('click', () => {plannerState.accommodationUnits=Math.min(plannerState.people,plannerState.accommodationUnits+1);updatePlanner()});
 partialAccommodationInput?.addEventListener('change',()=>{plannerState.partialAccommodation=partialAccommodationInput.checked;if(!plannerState.partialAccommodation)plannerState.accommodationUnits=plannerState.people;updatePlanner()});
 accommodationOptionSelect?.addEventListener('change',()=>{plannerState.accommodationOptionId=accommodationOptionSelect.value||null;updatePlanner()});
-accommodationOptionCards?.addEventListener('click',event=>{const card=event.target.closest('[data-accommodation-option-id]');if(!card||card.disabled)return;plannerState.accommodationOptionId=card.dataset.accommodationOptionId;accommodationOptionSelect.value=plannerState.accommodationOptionId;renderPlannerAccommodationOptions(plannerState.accommodationOptionId);updatePlanner()});
+accommodationOptionCards?.addEventListener('click',event=>{const card=event.target.closest('[data-accommodation-option-id]');if(!card||card.disabled)return;plannerState.accommodationOptionId=card.dataset.accommodationOptionId;accommodationOptionSelect.value=plannerState.accommodationOptionId;qsa('[data-accommodation-option-id]',accommodationOptionCards).forEach(option=>{const selected=option===card;option.classList.toggle('is-active',selected);option.setAttribute('aria-pressed',String(selected))});updatePlanner()});
 
 const loadPlannerCurrentEvent=async()=>{
   try{
@@ -910,6 +938,19 @@ const loadPlannerCurrentEvent=async()=>{
       unitPriceCzk:Number(option.unitPriceCzk||0),personPriceCzk:Number(option.personPriceCzk||0),beddingFeePerPersonCzk:Number(option.beddingFeePerPersonCzk||0),cityTaxPerPersonPerNightCzk:Number(option.cityTaxPerPersonPerNightCzk||0),active:option.active!==false,soldOut:option.soldOut===true,sortOrder:option.sortOrder==null?index:Number(option.sortOrder),visual:option.visual||{hasCustomPhoto:false,imageUrl:null,version:null},photos:Array.isArray(option.photos)?option.photos.filter(photo=>photo?.imageUrl).slice(0,5):[],
     })).filter(option=>option.id&&option.name);
     if(plannerSection&&plannerEventData){plannerSection.dataset.eventId=plannerEventData.id;plannerSection.dataset.eventYear=plannerEventData.year}
+    if(!publicPlannerEdited&&plannerEventData){
+      try{
+        const {validatePlannerDraft}=await import('./planner-state.js?v=20261025-flow1');
+        const saved=validatePlannerDraft(JSON.parse(localStorage.getItem(publicPlannerDraftKey)||'null'));
+        if(!publicPlannerEdited&&saved&&saved.eventId===plannerEventData.id&&saved.eventYear===Number(plannerEventData.year)){
+          publicPlannerDraftId=saved.draftId;
+          Object.assign(plannerState,{arrival:saved.arrival,departure:saved.departure,sleep:saved.accommodation,accommodationOptionId:saved.accommodationOptionId,people:saved.crew,accommodationUnits:saved.accommodationUnits,partialAccommodation:saved.accommodationUnits>0&&saved.accommodationUnits<saved.crew,showshine:{Ano:'Chci soutěžit',Ne:'Jedu se podívat','Možná':'Možná'}[saved.showShine]});
+          if(plannerState.sleep!=='Bez ubytování')lastOvernightSleep=plannerState.sleep;
+          groups.forEach(group=>qsa('.choice',group).forEach(choice=>choice.classList.toggle('is-active',choice.dataset.value===plannerState[group.dataset.choiceGroup])));
+        }
+      }catch(error){console.debug('Uložený Planner není dostupný.',error)}
+    }
+    publicPlannerReady=Boolean(plannerEventData);
     renderPlannerAccommodationOptions();updatePlanner();
   }catch(error){console.debug('Aktuální nabídka ubytování není dostupná; Planner pokračuje bez live ceníku.',error);plannerEventData=null;plannerAccommodationOptions=[];renderPlannerAccommodationOptions();updatePlanner()}
 };
@@ -1001,18 +1042,21 @@ const encodePlannerHandoff=draft=>{
   let binary='';for(const byte of bytes)binary+=String.fromCharCode(byte);
   return btoa(binary).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
 };
-const createPlannerHandoff=()=>{
+const createPlannerHandoff=({persist=true,draftId=crypto.randomUUID()}={})=>{
   cleanupPlannerHandoffs();
-  const draftId=crypto.randomUUID();
   const now=Date.now(),createdAt=new Date(now).toISOString(),expiresAt=new Date(now+7*24*60*60*1000).toISOString();
   const eventSection=planner?.closest('[data-event-start]'),eventStart=eventSection?.dataset.eventStart||'',eventId=plannerEventData?.id||eventSection?.dataset.eventId||null;
   const eventYear=Number(plannerEventData?.year||eventSection?.dataset.eventYear||eventStart.slice(0,4))||new Date().getFullYear();
   const attendanceType={Pátek:'full_weekend',Sobota:'saturday_only','Jen na otočku':'day_visit'}[plannerState.arrival];
   const showShine={'Chci soutěžit':'Ano','Možná':'Možná','Jedu se podívat':'Ne'}[plannerState.showshine];
   const draft={version:1,draftId,source:'weekend-planner',eventYear,eventId:eventId||null,createdAt,expiresAt,arrival:plannerState.arrival,departure:plannerState.departure,nights:plannerNights(),attendanceType,accommodation:plannerState.sleep,accommodationOptionId:plannerState.accommodationOptionId||null,accommodationUnits:plannerState.accommodationUnits,crew:plannerState.people,showShine};
-  try{localStorage.setItem(`${handoffStoragePrefix}${draftId}`,JSON.stringify(draft))}catch(error){console.debug('Planner handoff local storage unavailable.',error)}
+  if(persist)try{localStorage.setItem(`${handoffStoragePrefix}${draftId}`,JSON.stringify(draft))}catch(error){console.debug('Planner handoff local storage unavailable.',error)}
   return draft;
 };
+document.addEventListener('e36:planner',()=>{
+  if(!publicPlannerReady)return;
+  try{localStorage.setItem(publicPlannerDraftKey,JSON.stringify(createPlannerHandoff({persist:false,draftId:publicPlannerDraftId})))}catch(error){console.debug('Planner nelze uložit v tomto prohlížeči.',error)}
+});
 let memberHandoffNavigating=false;
 const plannerActionStatus=qs('[data-planner-action-status]');
 const setPlannerNavigationState=(busy,message='')=>{

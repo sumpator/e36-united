@@ -12,11 +12,12 @@ function configured(config) {
   );
 }
 
-export function initUnitedAuth({ config, onStateChange, importModule = specifier => import(specifier) }) {
+export function initUnitedAuth({ config, onStateChange, importModule = specifier => import(specifier), timeoutMs = 20_000 }) {
   let attempt = 0;
   let unsubscribe = null;
   let context = null;
   let stopped = false;
+  let startupTimer = null;
   let state = { status: 'loading', user: null, error: null, context: null };
 
   const emit = next => {
@@ -26,6 +27,7 @@ export function initUnitedAuth({ config, onStateChange, importModule = specifier
 
   const start = async () => {
     const activeAttempt = ++attempt;
+    clearTimeout(startupTimer);
     unsubscribe?.();
     unsubscribe = null;
     emit({ status: 'loading', error: null, context });
@@ -37,6 +39,16 @@ export function initUnitedAuth({ config, onStateChange, importModule = specifier
     }
 
     try {
+      // Bound all startup stages, including SDK loading and the first observer
+      // notification. A late completion cannot revive a failed attempt.
+      startupTimer = setTimeout(() => {
+        if (stopped || activeAttempt !== attempt) return;
+        attempt += 1;
+        unsubscribe?.();
+        unsubscribe = null;
+        emit({ status: 'error', error: new Error('auth_startup_timeout'), context });
+      }, timeoutMs);
+      startupTimer.unref?.();
       const [appMod, authMod] = await Promise.all([
         importModule(FIREBASE_APP_URL),
         importModule(FIREBASE_AUTH_URL),
@@ -47,7 +59,14 @@ export function initUnitedAuth({ config, onStateChange, importModule = specifier
       const auth = authMod.getAuth(app);
 
       // Persistence must be selected before the first auth-state decision is rendered.
-      await authMod.setPersistence(auth, authMod.browserLocalPersistence);
+      try {
+        await authMod.setPersistence(auth, authMod.browserLocalPersistence);
+      } catch (error) {
+        if (!['auth/web-storage-unsupported', 'auth/unsupported-persistence-type'].includes(error?.code)) throw error;
+        // Private/storage-restricted browsers may still authenticate in memory.
+        // Do not turn network or credential errors into a persistence fallback.
+        await authMod.setPersistence(auth, authMod.inMemoryPersistence);
+      }
       if (stopped || activeAttempt !== attempt) return null;
 
       context = { ...authMod, auth };
@@ -55,16 +74,21 @@ export function initUnitedAuth({ config, onStateChange, importModule = specifier
         auth,
         user => {
           if (stopped || activeAttempt !== attempt) return;
+          clearTimeout(startupTimer);
           emit({ status: user ? 'authenticated' : 'anonymous', user: user || null, error: null, context });
         },
         error => {
           if (stopped || activeAttempt !== attempt) return;
+          clearTimeout(startupTimer);
           emit({ status: 'error', error, context });
         }
       );
       return context;
     } catch (error) {
-      if (!stopped && activeAttempt === attempt) emit({ status: 'error', error, context });
+      if (!stopped && activeAttempt === attempt) {
+        clearTimeout(startupTimer);
+        emit({ status: 'error', error, context });
+      }
       return null;
     }
   };
@@ -75,6 +99,7 @@ export function initUnitedAuth({ config, onStateChange, importModule = specifier
     retry: start,
     stop() {
       stopped = true;
+      clearTimeout(startupTimer);
       attempt += 1;
       unsubscribe?.();
       unsubscribe = null;

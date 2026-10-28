@@ -78,9 +78,16 @@ body.united-menu-open,body.account-qr-open{overflow:hidden;overscroll-behavior:n
 :root[data-theme="light"] .planner-shell{background:#fff;border-color:#d2dfe9;box-shadow:0 16px 42px rgba(30,61,91,.07)}
 :root[data-theme="light"] .planner-topbar{background:#f8f6f1;border-left-color:#0869c4}
 :root[data-theme="light"] :is(.planner-form,.planner-form-v8,.planner-step){background:transparent}
-:root[data-theme="light"] .planner-section :is([data-stay-index],.choice,.planner-accommodation-card){background:#f7f9fb;border-color:#d5dfe8;color:#294057}
+:root[data-theme="light"] .planner-section :is([data-stay-index],.choice,.planner-accommodation-card){background:#f7f9fb;border:2px solid #d5dfe8;color:#294057}
 :root[data-theme="light"] .planner-section :is([data-stay-index].is-active,.choice.is-active,.planner-accommodation-card.is-active){background:#edf5ff;border:2px solid #076ed0;box-shadow:inset 0 -3px #076ed0;color:#064f99}
-:root[data-theme="light"] .planner-section :is([data-stay-index].is-active,.segmented button.is-active)::before{content:'✓';margin-right:6px;font-weight:900}
+:root[data-theme="light"] .planner-section [data-stay-index]{position:relative}
+:root[data-theme="light"] .planner-section [data-stay-index].is-active::before{content:'✓';position:absolute;top:2px;right:4px;font-size:10px;line-height:1;font-weight:900}
+:root[data-theme="light"] .planner-section .segmented button.is-active::before{content:'✓';margin-right:6px;font-weight:900}
+/* Form updates must not use changing descendants as page scroll anchors, and
+   interactive controls must not translate into place while already usable. */
+.planner-section{overflow-anchor:none}
+.planner-shell.reveal{opacity:1;transform:none;transition:none}
+.planner-section .planner-accommodation-card:hover:not(:disabled){transform:none}
 :root[data-theme="light"] .showshine-winners--v8{background:#fff}.home-page .nav-cta{display:none!important}
 :root[data-theme="light"] .home-page .stats-strip{background-color:#f4f7fb;background-image:url('united-logo-blue-silver-transparent.png');background-repeat:no-repeat;background-position:calc(100% + 40px) center;background-size:110px;background-blend-mode:soft-light}
 @media(max-height:800px) and (min-width:1051px){.member-page[data-member-section="overview"] .member-logged-hero,.member-page[data-member-section="overview"] .member-logged-hero-inner{min-height:160px}.member-page[data-member-section="overview"] .member-logged-hero-inner{padding-block:11px}.member-page[data-member-section="overview"] .member-logged-copy h1{font-size:40px}}

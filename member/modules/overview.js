@@ -46,7 +46,7 @@ export function createMemberOverview({
     const card=$('[data-reservation-overview-card]'),empty=$('[data-action-center-empty]'),emptyCopy=$('[data-action-center-empty-copy]'),eventElement=$('[data-reservation-overview-event]'),label=$('[data-reservation-overview-label]'),copy=$('[data-reservation-overview-copy]'),action=$('[data-reservation-overview-action]');
     const view=deriveOverviewState({reservation,registrationOpen,plan,planEnabled,plannerWaiting,plannerDraft,plannerUnavailable,eventYear:event?eventYear:null,eventName:event?.title||'',formatAmount});if(card){card.hidden=!view.active;card.dataset.jump=view.target||'reservation';card.toggleAttribute('data-reservation-form-jump',view.openEditor===true)}if(empty)empty.hidden=view.active;if(emptyCopy)emptyCopy.textContent=view.emptyCopy;
     if(eventElement)eventElement.textContent=`UNITED ${eventYear}`;
-    if(label)label.textContent=view.label;if(copy)copy.textContent=view.copy;if(action)action.innerHTML=view.action?`${view.action} <b>→</b>`:'';
+    if(label)label.textContent=view.label;if(copy)copy.textContent=view.copy;if(action)action.hidden=!view.action;if(action)action.innerHTML=view.action?`${view.action} <b>→</b>`:'';
     onboardingContext={reservation,registrationOpen};renderOnboarding();
   }
 

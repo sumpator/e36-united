@@ -10,15 +10,15 @@ test('public homepage loads and opens a representative section', async ({ page }
   await expect(page).toHaveTitle(/E36 United/i);
   await expect(page.locator('.hero h1')).toContainText('E36');
   await expect(page.locator('.nav-links')).toContainText('Program');
-  await expect(page.locator('.nav-links .nav-member')).toHaveText('Můj United');
-  await expect(page.locator('.nav-links .nav-member')).toHaveAttribute('href', 'member.html?returnTo=%2F');
+  await expect(page.locator('.nav-links .nav-member')).toHaveText('Registrovat se');
+  await expect(page.locator('.nav-links .nav-member')).toHaveAttribute('href', 'member.html?mode=register&returnTo=%2F');
   await expect(page.locator('.site-wip, .hero-badge')).toHaveCount(0);
 
   await page.locator('.nav-links a[href="#experience"]').click();
   await expect(page).toHaveURL(/#experience$/);
   await expect(page.locator('#experience')).toBeInViewport();
   await page.locator('.nav-links .nav-member').click();
-  await expect(page).toHaveURL(/member\.html\?returnTo=%2F%23experience$/);
+  await expect(page).toHaveURL(/member\.html\?mode=register&returnTo=%2F%23experience$/);
   await expect(page.locator('[data-auth-form="register"]')).toBeVisible();
 
   expectNoUnexpectedClientErrors(observations);
@@ -32,7 +32,7 @@ for (const width of [390, 1440]) test(`public readability layout remains usable 
   if (width === 390) {
     await page.locator('.menu-btn').click();
     await expect(page.locator('.united-mobile-menu .nav-member')).toBeVisible();
-    await expect(page.locator('.united-mobile-menu .nav-member')).toHaveAttribute('href', 'member.html?returnTo=%2F');
+    await expect(page.locator('.united-mobile-menu .nav-member')).toHaveAttribute('href', 'member.html?mode=register&returnTo=%2F');
     await page.locator('.united-mobile-menu [data-menu-close]').click();
   }
 
