@@ -81,6 +81,16 @@ Trvalý výběr nově obsahuje také `auth-memory-session`. Finální discovery:
 
 Finální historie: upravené dva scénáře WebKit **2 PASS**, stejné finální scénáře Chromium/Firefox **4 PASS**; původní přirozené scrollování Chromium **1 PASS**, WebKit/Firefox **2 PASS** přes úzce vybranou lokální konfiguraci. Jde o oddělené běhy stejného finálního kódu, nikoli o jeden kompletní browser průchod. Konečná syntax všech souvisejících změněných JS/MJS **31 souborů PASS**, Admin graph a diff check PASS. Následuje nový plný kontrolní běh pracovní větve před přesunem na produkční main.
 
+## Další úplný kontrolní běh #133
+
+SHA `96002ae15aad3d680d10053638bf00a4c90764f3`, run `40724294572`: Node **642/642 PASS**, syntax PASS, Chromium **462/462 PASS**, WebKit **241 PASS / 2 FAIL**, Firefox **105 PASS / 1 FAIL**; všechny sady **0 skipped**. Nové rozšířené pokrytí tedy skutečně běželo. Produkční main zůstal na předchozí publikaci. Není to zelený kompletní výsledek.
+
+WebKit odhalil chybu předchozí úpravy samotného helperu historie: `getAnimations()` může obsahovat dokončenou animaci s fill forwards, čekání na již vyřešené Promise v opakované smyčce pak blokuje vykreslování. Izolovaný původní helper zůstal v běhu do Node watchdogu 1010 ms; nová permanentní regrese dokončenou animaci zachová a ověří návrat helperu. Nové čekání probíhá na vykreslovacích snímcích a ignoruje dokončené animace. Navíc samotné scrollY nestačí: zaznamenaný rok se při konstantním scrollY pohnul ve WebKitu o **5,55 px na mobilu / 14,73 px na desktopu**. Helper proto měří i skutečný obdélník odkazu. Finální cílená historie **9/9 PASS**, tři scénáře v každém enginu. Žádná spekulativní změna produkční historie nebo CSS.
+
+Firefox appearance test nedokončil výběr Cabrio. Trace zaznamenala vstupní bod 720/842 a posun scrollTop **2120 → 2258** během interakce; posouvání pokračovalo už mezi předchozími kontrolami. Přesný zdroj tohoto posunu se lokálně neprokázal. Lokální původní Firefox scénáře **3 PASS**, cílená dvě měření nepotvrdila samotný fokus jako příčinu; aplikační handler kategorie je synchronní a neposouvá stránku. Nebyla přidána spekulativní změna fokusu.
+
+Appearance kontrola nyní začne z viditelné ustálené skutečné karty a běžně klikne; zachovává všech sedm kategorií, fotografie, barvy a chyby. Případné selhání přiloží pointerdown/up/click, jejich skutečné cíle, souřadnice a scroll. Nové `showshine-pointer.spec.mjs` navíc používá dva skutečné částečně viditelné stavy u okraje viewportu, normální myš a kontroluje přesné cíle všech tří událostí, geometrii a výběr. Kombinovaný vývojový běh **13 PASS / 2 FAIL**: devět původních appearance scénářů prošlo; nové dva WebKit testy chybně očekávaly automatický fokus myší. Tato neplatná očekávání byla nahrazena přísnější kontrolou skutečných pointer cílů. Konečné pointer regrese **6/6 PASS**, dva na engine. Tyto testy jsou součástí trvalého kritického výběru. Původní příčina posunu není vydávána za prokázanou chybu aplikace ani opravený browser engine.
+
 ## Skutečné přihlášení — odděleně od simulací
 
 Existující schválený účet se nemazal ani znovu nezakládal. Kandidát byl před publikací načten ze statické pracovní kopie pod www originem; Firebase ani členské API nebyly nahrazeny. Localhost produkční API správně odmítlo přes CORS. Serverová ochrana se kvůli tomu neměnila.

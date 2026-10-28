@@ -84,17 +84,26 @@ for(const width of [1440,390])test(`appearance polish gallery media ${width}`,as
  }
  await page.locator('[data-gallery-nav="user-photos"]').click();await page.locator('#user-photos [data-lightbox]').first().click();await expect(page.locator('.lightbox')).toHaveClass(/open/);await capture(page,`polish-public-lightbox-${width}`);await page.locator('.lightbox-close').click();expect(o.pageErrors).toEqual([]);
 });
-for(const width of [1440,390,360])test(`appearance polish Show Shine and Info ${width}`,async({page})=>{
+for(const width of [1440,390,360])test(`appearance polish Show Shine and Info ${width}`,async({page},testInfo)=>{
  const o=await prepareE2ePage(page);await photos(page);await seed(page);await page.setViewportSize({width,height:900});await page.goto('/index.html');
  await expect(page.locator('.site-header [data-appearance-select]')).toHaveCount(0);
  await expect(page.locator('[data-event-hud]')).toHaveCount(0);
  const cards=page.locator('.category-selector .winner-card');await expect(cards).toHaveCount(7);
- for(let i=0;i<7;i++){
-  const card=cards.nth(i);await card.click();await expect(card).toHaveClass(/is-active/);
+ await page.evaluate(()=>{window.__categoryPointerTrace=[];for(const type of ['pointerdown','pointerup','click'])document.addEventListener(type,event=>{const rail=document.querySelector('.category-selector');window.__categoryPointerTrace.push({type,target:event.target.closest('[data-category]')?.dataset.category||event.target.tagName,x:event.clientX,y:event.clientY,scrollY,railLeft:rail.scrollLeft,railTop:rail.scrollTop})},true)});
+ try{for(let i=0;i<7;i++){
+  const card=cards.nth(i);
+  // This appearance check selects a settled card. Firefox's automatic locator
+  // scroll can still be moving after a previous click; arrange the actual rail,
+  // then wait for its geometry rather than clicking at an obsolete hit point.
+  await card.evaluate(async card=>{
+   await document.fonts.ready;card.scrollIntoView({behavior:'instant',block:'center',inline:'nearest'});
+   await new Promise(resolve=>{let previous='',stable=0;const sample=()=>{const r=card.getBoundingClientRect(),rail=card.closest('.category-selector');const current=[scrollX,scrollY,rail.scrollLeft,rail.scrollTop,r.x,r.y,r.width,r.height].join('|');stable=current===previous?stable+1:0;previous=current;if(stable===3)resolve();else requestAnimationFrame(sample)};requestAnimationFrame(sample)});
+  });
+  await card.click();await expect(card).toHaveClass(/is-active/);
   await expect(page.locator('[data-category-showcase-image]')).toHaveJSProperty('complete',true);
   expect(await card.locator('img').evaluate(img=>img.complete&&img.naturalWidth>0)).toBe(true);
   expect(await card.locator('img').evaluate(img=>getComputedStyle(img).filter)).toBe('none');
- }
+ }}catch(error){await testInfo.attach('category-pointer-events',{body:JSON.stringify(await page.evaluate(()=>window.__categoryPointerTrace),null,2),contentType:'application/json'});throw error}
  await page.locator('.category-console').scrollIntoViewIfNeeded();await capture(page,`polish-categories-${width}`);
  if(width>680){await page.locator('.showshine-disclosure summary').click();await expect(page.locator('.showshine-disclosure')).toHaveAttribute('open','');
  await page.locator('.showshine-scorecard').scrollIntoViewIfNeeded();await capture(page,`polish-judging-${width}`);}else await expect(page.locator('.showshine-disclosure')).toBeHidden();

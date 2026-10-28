@@ -8,7 +8,7 @@ async function setup(page){
  await page.route('https://static.wixstatic.com/**',route=>route.fulfill({contentType:'image/webp',body:image}));
  return observations;
 }
-for(const width of [1366,390])test(`history reading line ignores reveal movement and supports year links ${width}`,async({page})=>{
+for(const width of [1366,390])test(`history reading line ignores reveal movement and supports year links ${width}`,async({page},info)=>{
  const observations=await setup(page);await page.setViewportSize({width,height:844});await page.goto('/o-nas.html');
  await page.evaluate(()=>document.fonts.ready);
  const entry=page.locator('.timeline-entry').nth(7);
@@ -29,7 +29,7 @@ for(const width of [1366,390])test(`history reading line ignores reveal movement
   // A marker becoming current is not evidence that the preceding native smooth
   // scroll and the decorative reveal have finished moving the next click target.
   await target.locator('.timeline-year a').evaluate(node=>node.scrollIntoView({block:'center',behavior:'instant'}));
-  await settleReading(page,target);
+  const geometry=await settleReading(page,target);await info.attach('year-target-'+index,{body:JSON.stringify(geometry),contentType:'application/json'});
   previous={url:page.url(),year:await page.locator('[data-history-year]').innerText(),title:await page.locator('[data-history-title]').innerText()};
   await target.locator('.timeline-year a').click();
   const year=await target.locator('.timeline-year').innerText();
@@ -48,12 +48,28 @@ for(const width of [1366,390])test(`history reading line ignores reveal movement
  expect(observations.pageErrors).toEqual([]);expect(observations.unhandledApi).toEqual([]);
 });
 async function settleReading(page,target){
- await target.evaluate(async node=>{
-  // Await the real reveal/active transforms, not a fixed duration.
-  for(let animations=node.getAnimations({subtree:true});animations.length;animations=node.getAnimations({subtree:true}))await Promise.all(animations.map(animation=>animation.finished.catch(()=>{})));
- });
- await page.evaluate(()=>new Promise(resolve=>{
-  let previousY=scrollY,stable=0;
-  const frame=()=>{if(scrollY===previousY)stable++;else{stable=0;previousY=scrollY}if(stable>=3)resolve();else requestAnimationFrame(frame)};requestAnimationFrame(frame);
+ return await target.evaluate(node=>new Promise(resolve=>{
+  const samples=[];let previous=null,stable=0;
+  const frame=()=>{
+   const link=node.querySelector('.timeline-year a')||node,rect=link.getBoundingClientRect();
+   const active=node.getAnimations({subtree:true}).filter(animation=>animation.pending||animation.playState==='running');
+   const sample={scrollY,x:rect.x,y:rect.y,width:rect.width,height:rect.height,activeAnimations:active.length};
+   samples.push(sample);if(samples.length>120)samples.shift();
+   // Finished fill-forwards animations intentionally remain in getAnimations().
+   // Sampling on rendering frames avoids repeatedly awaiting their resolved
+   // finished promise, which can starve rendering indefinitely.
+   const unchanged=previous&&['scrollY','x','y','width','height'].every(key=>sample[key]===previous[key]);
+   stable=unchanged&&!active.length?stable+1:0;previous=sample;
+   if(stable>=3)resolve(samples);else requestAnimationFrame(frame);
+  };requestAnimationFrame(frame);
  }));
 }
+
+test('history settling leaves completed fill-forwards animation intact and keeps rendering',async({page})=>{
+ await page.setContent('<article>Finished decorative movement</article>');
+ await page.locator('article').evaluate(async node=>{const animation=node.animate([{transform:'translateX(0)'},{transform:'translateX(4px)'}],{duration:1,fill:'forwards'});await animation.finished;});
+ const samples=await settleReading(page,page.locator('article'));
+ expect(samples.length).toBeGreaterThanOrEqual(4);expect(samples.at(-1).activeAnimations).toBe(0);
+ await expect(page.locator('article')).toHaveCSS('transform','matrix(1, 0, 0, 1, 4, 0)');
+ expect(await page.locator('article').evaluate(node=>node.getAnimations().map(animation=>animation.playState))).toEqual(['finished']);
+});
