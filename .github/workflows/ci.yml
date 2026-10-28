@@ -39,23 +39,17 @@ jobs:
         id: browser_setup
         run: pnpm exec playwright install --with-deps chromium webkit firefox
 
-      - name: Compare supported Linux rendering backends for history
+      - name: Isolate history rendering effects on Linux
         id: history_preflight
         if: ${{ !cancelled() && steps.browser_setup.outcome == 'success' && github.ref == 'refs/heads/fix/member-journeys-20261028' }}
         shell: bash
         run: |
           result=0
           mkdir -p .local-evidence/history-linux
-          for mode in cpu software; do
-            render=()
-            if [ "$mode" = cpu ]; then
-              render=(WEBKIT_SKIA_ENABLE_CPU_RENDERING=1)
-            else
-              render=(LIBGL_ALWAYS_SOFTWARE=true GALLIUM_DRIVER=llvmpipe)
-            fi
+          for mode in no-filter no-backdrop no-transform no-smooth; do
             log=".local-evidence/history-linux/$mode.log"
             memory=".local-evidence/history-linux/$mode-memory.log"
-            env "${render[@]}" DEBUG=pw:browser E36_HISTORY_SETUP_MODE=natural PLAYWRIGHT_HTML_OUTPUT_DIR="playwright-report/history-preflight-$mode-${{ github.run_attempt }}" pnpm test:e2e tests/e2e/history-reading.spec.mjs --project=webkit --grep 'reading line' --trace=on --output="test-results/history-preflight-$mode-${{ github.run_attempt }}" > "$log" 2>&1 &
+            env DEBUG=pw:browser E36_HISTORY_SETUP_MODE=natural E36_HISTORY_STYLE_MODE="$mode" PLAYWRIGHT_HTML_OUTPUT_DIR="playwright-report/history-preflight-$mode-${{ github.run_attempt }}" pnpm test:e2e tests/e2e/history-reading.spec.mjs --project=webkit --grep 'reading line' --trace=on --output="test-results/history-preflight-$mode-${{ github.run_attempt }}" > "$log" 2>&1 &
             test_pid=$!
             (while kill -0 "$test_pid" 2>/dev/null; do date -u +%FT%TZ; ps -eo pid,ppid,pcpu,rss,comm --sort=-rss | head -16; sleep 1; done) > "$memory" &
             monitor_pid=$!
