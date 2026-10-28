@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 
 const read = path => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 
-test('member LIVE entry switches the whole portal immediately and restores per account and event', () => {
+test('explicit member LIVE entry switches the portal and restores per account and event without overriding another entry', () => {
   const html = read('member.html');
   const main = read('member.js');
   const shell = read('member/shell.js');
@@ -28,7 +28,11 @@ test('member LIVE entry switches the whole portal immediately and restores per a
   assert.match(shell, /if\(id==='live'&&!liveConfirmed\)\{void onLiveEntry\?\.\(\);return false\}/);
   assert.match(navigation, /if \(selected === false\) return;/);
   assert.match(main, /await memberLive\.startup\(\{requested:true\}\)/);
-  assert.match(main, /void memberLive\.startup\(\)/);
+  // A background status read must respect the chosen account destination.
+  // Remembered LIVE is restored only through the explicit requested entry above.
+  assert.match(main, /void memberLive\.probe\(\)/);
+  assert.doesNotMatch(main, /void memberLive\.startup\(\)/);
+  assert.match(main, /memberLive\?\.cancelEntry\(\)/);
   // LIVE uses session storage only to deduplicate notices; its account/event
   // mode remains in localStorage and independent of transient notice state.
   assert.match(live, /sessionStorage\.getItem\('live-notice:'\+key\)/);
