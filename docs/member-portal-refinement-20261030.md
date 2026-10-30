@@ -44,3 +44,29 @@ Snímky jsou odděleně v `.local-evidence/portal-refinement-20261030/screenshot
 Cache token **`20261030-refine1`**, nezměněné závislosti mají své dosavadní tokeny. `payments.js` exportuje také původní QR generátor používaný sdíleným Merch `order-view.js`; proto je nezbytná návazná změna URL i v konzumentech Merche/Adminu. Tyto širší soubory mají výhradně změněné cache odkazy, žádné funkční změny. Kontrola porovnává jejich obsah po odstranění pouze tokenu s HEAD a hlídá jednu runtime URL na modul. Registr `scripts/admin-module-releases.mjs` eviduje nová vydání; logika auditoru se nemění.
 
 Finální syntax **43 změněných/přidaných JS/MJS PASS**, cache **31 cílů / 50 odkazů**, vždy jediná správná verze; **24 souborů** ověřených jako výhradně cache změny. Admin graf bez chyb a cyklů, testy auditoru 6/6 PASS, diff PASS. Samostatný commit, push bez force a jedno automatické CI/Pages budou doplněny podle skutečných výsledků. Worker a schéma se nemění; transport zůstává vypnutý a Merch pozastavený. Po commitu bude závěrečné doplnění reportu ponecháno lokálně, aby samo nespustilo další nasazení.
+
+## Stav publikace — lokální doplnění po commitu
+
+Připraven samostatný commit **`8793dabe0ea02c4a720bb3cbbb00f6c0b9bfaf62`**, `feat(member): refine navigation, Club and reservation payments`, 51 výslovně ověřených souborů. Po čerstvém fetchi byl `origin/main` stále přímým rodičem `6a1fe04…`, bez divergence. Původní čtyři reporty a nesledovaný audit/diagnostiky nejsou v commitu.
+
+První push zablokovala automatická kontrola oprávnění **před provedením**. Odůvodnění: u změny sdíleného main neuznala širší souhlas z přílohy a považuje za jednoznačný jen poslední textový požadavek na popisky. V chatu je proto požadováno přímé potvrzení konkrétního připraveného SHA; blokace se neobchází. Z této dávky dosud nevznikl automatický CI ani Pages deployment.
+
+Před publikací read-only: Worker stále `a458c9f7-ad43-4564-a516-4a65b9fec70c` na 100 %, preview URL vypnuté, `transport_enabled=0`, `merch_paused=1`. Dosavadní Pages `0dd3db4f-4080-4711-852d-d31250ed9eb3`, SUCCESS, source `6a1fe04…`. Žádný nový produkční obchodní zápis, skutečný e-mail nebo upload.
+
+Po výslovném schválení tohoto SHA přímo v chatu proběhl nový fetch, kontrola přímého rodiče a běžný push **bez force**. Push úspěšný; čerstvé `ls-remote`, `HEAD` a `origin/main` potvrdily **`8793dabe0ea02c4a720bb3cbbb00f6c0b9bfaf62`**. Publikovaná aplikace odpovídá tomuto SHA; níže uvedená návazná oprava řeší pouze přehlédnuté vstupy testů.
+
+Pages **`73a3fd1c-efe9-4d09-8076-80828525bc98`**, **SUCCESS**, source **`8793dabe0ea02c4a720bb3cbbb00f6c0b9bfaf62`**. HTTP obsahové porovnání **37/37 PASS**: dotčené HTML, loader, nové/změněné moduly, CSS i nezbytné sdílené cache návaznosti. JS/CSS hashově shodné; HTML pouze se známou normalizací Cloudflare obfuskace e-mailu. Veřejný katalog stále osm produktů, `paused=true`.
+
+Read-only porovnání před/po potvrzuje stejnou aktivní Worker verzi na 100 %, bindings, cron, preview URL, registr migrací a provozní přepínače. **0 nových skutečných e-mailů**, žádný produkční upload ani obchodní objekt, žádný Worker deployment nebo migrace.
+
+Automatický [CI #149](https://github.com/sumpator/e36-united/actions/runs/41074367751), run **41074367751**, job **124126493845**, pokus **1**, přesné publikované SHA, skončil FAILURE. Node **657/657 PASS**, syntax SUCCESS; Chromium **514 PASS / 5 FAIL** (21,5 min), WebKit **299 PASS / 1 FAIL** (15,2 min), Firefox **162 PASS / 1 FAIL** (7,0 min), všechny sady **0 skipped**. WebKit i Firefox mají stejný přesný neúspěšný `account-deadline` případ jako Chromium; ostatní čtyři FAIL jsou pouze Chromium parametrizace Merche. Nedošlo k jinému selhání. Žádný ruční workflow/rerun.
+
+## Návazné testové vstupy doložené CI #149
+
+Chromium artefakt **`browser-chromium-41074367751-1`**, ID **12988511844**, přesné SHA `8793dabe…`: pět error-contextů, jeden v `account-deadline.spec.mjs` a čtyři parametrizace `merch-no-discount.spec.mjs`. Artefakt je uložený mimo Git a rozbalené jsou jen neúspěšné scénáře.
+
+Screenshot a DOM prvního selhání výslovně ukazují aktivní **Moje účasti**, načtených **7 bodů** v členské kartě a skrytý panel bodů. Test přitom po úspěšném retry požaduje viditelnost `data-points-journey-score`, aniž by si zvolil body. V Merchi už před timeoutem prošla všechna textová očekávání podmínek; `scrollIntoViewIfNeeded` pak čeká na skrytý `data-points-reward-state` téže výchozí historie. Nejde o chybějící data, neúspěšný handler nebo Windows/Linux hypotézu. Jde o pět dalších starých předpokladů, které v předpublikační kontrole návazností zůstaly přehlédnuté.
+
+Minimální oprava: **pouze dva testové URL** `section=club` → `section=club&clubTab=points`, protože oba testy mají výslovný cíl ověřit body/výhody. Běžný první vstup na historii nadále ověřuje nový test navigace, včetně dalších explicitních cílů. Žádné očekávání, negativní odpověď 403, bariéra požadavku, kontrola neznámých API/konzole, obou motivů, bodových hranic nebo nulových objednávek není odstraněné nebo oslabené.
+
+Těchto pět opravených scénářů dokončilo všechny následné kroky ve všech třech enginech: **15/15 PASS**, C5/W5/F5, **38,5 s**, bez retries. Syntax obou MJS PASS, diff PASS. Produkční zdroje, cache URL, workflow, závislosti, Node a jejich společné prostředí se nemění; další celá lokální sada se proto neopakuje. Následný samostatný testovací commit a jeho nový automatický běh se doplní podle skutečného stavu; první CI #149 se nererunuje. Původní aplikace je na Pages nadále úspěšně nasazená, stav CI není zaměňovaný se stavem deploymentu.

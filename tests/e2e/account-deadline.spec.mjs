@@ -73,7 +73,7 @@ test('pending Club shows unknown values, then confirmed points; read failure off
   return fail?route.fulfill({status:403,headers:{'Access-Control-Allow-Origin':'*'},json:{message:'Controlled Club read unavailable'}}):route.fallback();
  });
  try{
-  await page.goto('/member.html?section=club');await started.promise;await expect(page.locator('[data-app-view]')).toBeVisible();
+  await page.goto('/member.html?section=club&clubTab=points');await started.promise;await expect(page.locator('[data-app-view]')).toBeVisible();
   await expect(page.locator('[data-club-loading-state]')).toHaveText('Načítám United Club…');await expect(page.locator('[data-overview-points]')).toHaveText('—');await expect(page.locator('[data-points-journey-score]')).toBeHidden();
   release.resolve();await expect(page.locator('[data-member-panel=club] [data-domain-retry-state=club]')).toContainText('nelze načíst');await expect(page.locator('[data-overview-points]')).toHaveText('—');await expect(page.locator('[data-points-journey-score]')).toBeHidden();
   fail=false;await page.locator('[data-member-panel=club] [data-domain-retry-state=club]').getByRole('button',{name:'Zkusit znovu'}).click();
