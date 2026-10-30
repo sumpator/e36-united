@@ -1,5 +1,6 @@
 import { deriveOverviewState } from '../../member-portal-state.js?v=20261025-flow1';
 import { $, esc } from '../ui.js?v=20260924-merch2';
+import {admissionInfoMarkup} from '../admission-info.js?v=20261030-portal1';
 
 export function createMemberOverview({
   getData,
@@ -47,6 +48,14 @@ export function createMemberOverview({
     const view=deriveOverviewState({reservation,registrationOpen,plan,planEnabled,plannerWaiting,plannerDraft,plannerUnavailable,eventYear:event?eventYear:null,eventName:event?.title||'',formatAmount});if(card){card.hidden=!view.active;card.dataset.jump=view.target||'reservation';card.toggleAttribute('data-reservation-form-jump',view.openEditor===true)}if(empty)empty.hidden=view.active;if(emptyCopy)emptyCopy.textContent=view.emptyCopy;
     if(eventElement)eventElement.textContent=`UNITED ${eventYear}`;
     if(label)label.textContent=view.label;if(copy)copy.textContent=view.copy;if(action)action.hidden=!view.action;if(action)action.innerHTML=view.action?`${view.action} <b>→</b>`:'';
+    const summary=$('[data-portal-overview-summary]'),data=getData(),car=data.cars.find(item=>item.id===reservation?.carId)||(reservation?reservation.carSnapshot:null),primary=data.cars.find(item=>item.primary)||data.cars[0];
+    if(summary){
+      const selected=car||primary,carLabel=selected?[selected.nickname,selected.model,selected.body].filter(Boolean).join(' · '):'Zatím nemáš přidané auto';
+      const stay=reservation?`${reservation.arrival} · ${reservation.crew} ${reservation.crew===1?'osoba':'osob'} · ${reservation.sleep}`:plan?.preferences?`${plan.preferences.arrival} · ${plan.preferences.accommodation}`:plannerDraft?'Rozpracovaný plán najdeš v rezervaci.':'Zatím nemáš odeslanou rezervaci.';
+      summary.innerHTML=`<div class="portal-overview-rows"><div><small>${reservation?'Auto rezervace':'Tvoje garáž'}</small><strong>${esc(carLabel)}</strong><button type="button" data-overview-open="${reservation?'reservation':'garage'}">${selected?'Otevřít':'Přidat auto'} →</button></div><div><small>Účast a pobyt</small><strong>${esc(stay)}</strong><button type="button" data-overview-open="reservation">Otevřít rezervaci →</button></div><div><small>Profil</small><strong>${esc(data.profile?.name||'Doplň osobní údaje')}</strong><button type="button" data-overview-open="account">Upravit profil →</button></div><div><small>United Club</small><strong>Ověřené účasti, body a ocenění</strong><button type="button" data-overview-open="club">Můj Club →</button></div></div>`;
+      summary.querySelectorAll('[data-overview-open]').forEach(button=>button.addEventListener('click',()=>openSection(button.dataset.overviewOpen)));
+    }
+    document.querySelectorAll('[data-portal-admission-info]').forEach(root=>{root.innerHTML=admissionInfoMarkup(event);root.hidden=!root.innerHTML});
     onboardingContext={reservation,registrationOpen};renderOnboarding();
   }
 

@@ -1,0 +1,160 @@
+/* One authenticated workspace. Dialogs and the public/authentication pages retain their own layouts. */
+html:has(body.member-page){scrollbar-gutter:stable}
+.member-page[data-member-section]{--portal-line:var(--appearance-border,#2c4054);--portal-panel:var(--appearance-surface,#111a24);--portal-gap:24px}
+.member-page[data-member-section] .member-app{padding:24px 0 80px}
+.member-page .site-header .nav{width:min(1440px,calc(100% - 64px));max-width:none;margin-inline:auto;padding-inline:0}
+.member-page[data-member-section] .member-shell{padding-top:0;width:min(1440px,calc(100% - 64px));max-width:none;margin-inline:auto}
+.member-page[data-member-section] .member-layout{display:grid;grid-template-columns:236px minmax(0,1fr);gap:var(--portal-gap);align-items:start}
+.member-page[data-member-section] .member-portal-nav{position:sticky;top:100px;min-width:0;padding:16px 10px;border:1px solid var(--portal-line);border-radius:14px;background:var(--portal-panel);box-shadow:none}
+.member-page[data-member-section] .portal-nav-viewport{overflow:visible}
+.member-page[data-member-section] .member-sidebar{display:grid;position:static;padding:0;border:0;border-radius:0;gap:4px;background:none;backdrop-filter:none}
+.member-page[data-member-section] .member-nav-group{display:grid;gap:2px;border-top:1px solid var(--portal-line);padding-top:10px;margin-top:8px;min-width:0}
+.member-nav-group-label{margin:0 12px 7px;color:var(--appearance-muted,#a2b4c8);font-size:11px;font-weight:750;text-transform:uppercase;letter-spacing:.06em}
+.member-page[data-member-section] .member-nav-item{display:grid;grid-template-columns:24px minmax(0,1fr);gap:12px;min-height:48px;height:auto;padding:10px 12px;border:0;border-radius:7px;position:relative;color:var(--appearance-muted,#a2b4c8);background:none}
+.member-page[data-member-section] .member-nav-item :is(b,strong){font-family:inherit;font-size:14px;line-height:1.35;white-space:normal}
+.member-page[data-member-section] .member-nav-item.is-active{background:var(--appearance-selected,#102d46);color:var(--appearance-action,#70bdff);box-shadow:none}
+.member-page[data-member-section] .member-nav-item.is-active::before{content:"";position:absolute;left:-5px;top:7px;bottom:7px;width:3px;background:var(--appearance-action,#70bdff);border-radius:3px}
+.member-page .member-nav-icon{width:24px;height:24px;flex:none;color:var(--appearance-action,#70bdff)}
+.member-page[data-member-section] .member-nav-label small{font-family:inherit;font-size:11px;line-height:1.35;color:var(--appearance-muted,#a2b4c8);letter-spacing:0}
+.member-page[data-member-section] .member-nav-live{margin:0;padding-top:10px;border:0;opacity:1}
+.member-page[data-member-section] .member-nav-live-title{font-family:inherit;letter-spacing:0;color:inherit;display:flex;align-items:center;flex-wrap:wrap;gap:5px}
+.member-page[data-member-section] .member-nav-reservation-status{position:static;grid-column:2;width:auto;height:auto;max-width:100%;border:0;background:none!important;box-shadow:none!important;font-family:inherit;font-style:normal;font-size:11px;line-height:1.35;color:var(--appearance-muted,#a2b4c8)}
+.member-page[data-member-section] .member-nav-reservation-status::after{content:attr(title)}
+.member-page[data-member-section] .member-nav-reservation-status.is-status-none{display:none}
+.member-page[data-member-section] .member-nav-live.is-disabled .member-live-indicator{color:var(--appearance-muted,#a2b4c8);border-color:var(--portal-line);background:none}
+.member-page[data-member-section] .member-sidebar-logout{margin-top:20px;border:0;border-top:1px solid var(--portal-line);border-radius:0;background:none;color:var(--appearance-danger,#ff8b9b);font-size:14px}
+.member-page[data-member-section] .member-nav-merch{border-top:1px solid var(--portal-line);margin-top:12px;padding-top:10px}
+.member-page[data-member-section] .member-logged-hero{display:grid;grid-template-columns:56px minmax(0,1fr);align-items:center;gap:12px;min-height:0!important;height:auto;padding:8px 4px 20px;margin:0 0 14px;border:0;border-bottom:1px solid var(--portal-line);border-radius:0;background:none;overflow:visible}
+.member-page[data-member-section] .member-logged-hero-bg{position:relative;inset:auto!important;width:56px!important;height:56px!important;min-height:0;border-radius:11px;overflow:hidden;background:var(--appearance-selected,#102d46)}
+.member-page[data-member-section] .member-logged-hero-bg:empty::after{content:"U";display:grid;place-items:center;height:100%;font-weight:900;color:var(--appearance-action,#70bdff)}
+.member-page[data-member-section] .member-logged-hero-bg img{position:static;display:block;width:100%;height:100%;object-fit:cover;transform:none;filter:none;opacity:1}
+.member-page[data-member-section] .member-logged-copy{position:static;min-width:0;max-width:none;width:auto;margin:0;padding:0;transform:none;text-align:left;color:var(--appearance-ink,#edf5ff)}
+.member-page[data-member-section] .member-logged-copy>[data-member-nickname]{display:block;font-size:17px;line-height:1.25;overflow-wrap:anywhere}
+.member-page[data-member-section] .member-logged-copy>.member-kicker{display:block!important;margin-top:5px;font-size:9px;letter-spacing:.1em;color:var(--appearance-muted,#a2b4c8)}
+.member-page[data-member-section] .member-hero-car{display:block!important;font-size:11px;line-height:1.4;margin:6px 0 0;color:var(--appearance-muted,#a2b4c8);overflow-wrap:anywhere}
+.member-page[data-member-section] .member-hero-cta{display:inline-flex!important;min-height:32px;padding:3px 0;border:0;background:none;color:var(--appearance-action,#70bdff);font-size:11px;line-height:1.3;box-shadow:none}
+.member-page[data-member-section] .member-hero-cta[hidden]{display:none!important}
+.member-page[data-member-section] .member-content{min-width:0;padding:28px 32px;border:1px solid var(--portal-line);border-radius:14px;background:var(--portal-panel);box-shadow:none}
+.member-page .member-agenda-head{display:flex;align-items:center;justify-content:space-between;gap:20px;margin:0 0 24px;min-width:0}
+.member-agenda-head>div:first-child{min-width:0}
+.member-page .member-agenda-head h1{margin:0;font-size:clamp(30px,3.2vw,46px);line-height:1.12;letter-spacing:-.04em;scroll-margin-top:105px;overflow-wrap:anywhere}
+.member-agenda-head p{margin:9px 0 0;color:var(--appearance-muted,#a2b4c8);font-size:15px;line-height:1.5}
+.member-page[data-member-section] .member-section{animation:none;min-width:0;margin:0;scroll-margin-top:105px}
+.member-page .club-members-link-row{margin:0;padding:0;flex:none}
+.member-page .club-members-entry{min-height:44px;padding:10px 14px;border-radius:7px;font-family:inherit;font-weight:700;font-size:13px;line-height:1.3;box-shadow:none;white-space:normal}
+.member-page .club-members-entry svg{width:20px;height:20px}
+.member-page .member-content:has([data-member-panel=club][aria-busy=true]) [data-club-heading-action],.member-page .member-content:has([data-member-panel=club].domain-unavailable) [data-club-heading-action]{display:none}
+.member-page[data-member-section] :is(.portal-tabs,.club-navigation-cards){display:flex;flex-wrap:wrap;gap:6px;margin:0 0 22px;padding:0;border:0;border-bottom:1px solid var(--portal-line);border-radius:0;background:none}
+.member-page[data-member-section] :is(.portal-tabs,.club-navigation-cards) button{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:46px;padding:10px 16px;border:0;border-bottom:3px solid transparent;border-radius:0;background:none;color:var(--appearance-muted,#a2b4c8);box-shadow:none;font-family:inherit;font-size:14px;font-weight:650;line-height:1.4;min-width:0;text-align:center}
+.member-page[data-member-section] :is(.portal-tabs,.club-navigation-cards) button[aria-pressed=true]{border-bottom-color:var(--appearance-action,#70bdff);color:var(--appearance-action,#70bdff);background:none;box-shadow:none}
+.member-page[data-member-section] .club-navigation-cards :is(i,small){display:none}
+.member-page[data-member-section] .club-navigation-cards b{font-size:inherit}
+.member-page[data-member-section] :is(.portal-tabs,.club-navigation-cards) button:focus-visible{outline:2px solid var(--appearance-action,#70bdff);outline-offset:-2px}
+.member-page[data-member-section] :is(.member-primary,.member-secondary){border-radius:7px;min-height:44px;line-height:1.35;font-size:14px;box-shadow:none}
+.member-page[data-member-section] :is(.reservation-workbench,.reservation-unified-card,.points-command-panel,.member-account-card,.member-photo-upload,.member-gallery-moderation,.united-onboarding){border:0;border-radius:0;background:none;box-shadow:none}
+.member-page[data-member-section] .reservation-workbench{padding:0;margin-top:0;gap:20px}
+.member-page[data-member-section] .reservation-unified-card{padding:0}
+.member-page[data-member-section] .reservation-detail-grid{gap:20px}
+.member-page[data-member-section] :is(.reservation-control-stack,.reservation-card-large){border:0;border-radius:0;background:none;box-shadow:none}
+.member-page[data-member-section] .reservation-hero-strip{height:auto;min-height:100px;padding:20px;background:var(--appearance-selected,#102d46);border-radius:8px}
+.member-page[data-member-section] .reservation-large-year{font-size:48px}
+.member-page[data-member-section] .reservation-summary{gap:0;border-bottom:1px solid var(--portal-line)}
+.member-page[data-member-section] .reservation-summary>div{border:0;border-bottom:1px solid var(--portal-line);border-radius:0;background:none;min-height:70px;padding:16px 12px}
+.member-page[data-member-section] .reservation-control-stack .reservation-form{border:0;border-top:1px solid var(--portal-line);border-radius:0;background:none;padding:20px 0}
+.member-page[data-member-section] .reservation-form-row{gap:16px}
+.member-page[data-member-section] .points-command-panel{padding:0}
+.member-page[data-member-section] .club-points-summary{padding:0 0 24px;margin:0 0 24px;border-bottom:1px solid var(--portal-line)}
+.member-page[data-member-section] .earn-strip{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0;overflow:visible;padding:0;border:0}
+.member-page[data-member-section] .earn-card{min-width:0;min-height:110px;border:0;border-radius:0;padding:16px;background:none;box-shadow:none}
+.member-page[data-member-section] .earn-card{display:grid;grid-template-columns:42px minmax(0,1fr);gap:8px 14px;text-align:left;overflow:visible;transform:none}
+.member-page[data-member-section] .earn-card>i{position:static;grid-column:1;grid-row:1/3;margin:0;width:40px;height:40px}
+.member-page[data-member-section] .earn-card>span{grid-column:2;min-width:0;overflow-wrap:anywhere}
+.member-page[data-member-section] .earn-card>em{grid-column:2;margin:0}
+.member-page[data-member-section] .member-card{margin:0 0 24px;padding:16px 0;border:0;border-top:1px solid var(--portal-line);border-bottom:1px solid var(--portal-line);border-radius:0;background:none;box-shadow:none}
+.member-page[data-member-section] .member-card-identity .member-identity-name>strong{font-size:20px}
+.member-page[data-member-section] .member-card-stat{background:none}
+.member-page[data-member-section] .member-card-achievements{background:none;border-radius:0;min-height:52px;padding:12px 0}
+.member-page[data-member-section] .member-card-stat--points .member-card-points b{font-size:26px}
+.member-page[data-member-section] .member-card{grid-template-columns:minmax(200px,1.4fr) repeat(3,minmax(0,1fr));gap:12px;overflow:visible}
+.member-page[data-member-section] .member-card-identity{min-height:0;padding:4px 0;border:0;border-radius:0;background:none;grid-column:auto;grid-row:auto}
+.member-page[data-member-section] .member-card-stat{min-height:0;padding:8px 4px;border:0}
+.member-page[data-member-section] .member-card-achievements{min-height:28px;padding:8px 0}
+.member-page[data-member-section] .member-card-stat small{font-family:inherit;font-size:11px;letter-spacing:0}
+.member-page[data-member-section] .member-photo-upload-grid{padding:0}
+.member-page[data-member-section] .member-gallery-moderation{padding:20px 0;border-top:1px solid var(--portal-line)}
+.member-page[data-member-section] .member-account-card{padding:0}
+.member-page[data-member-section] .united-onboarding{padding:22px 0;margin-top:24px;border-top:1px solid var(--portal-line)}
+.member-page[data-member-section] .united-onboarding>header{padding:0;min-height:0}
+.member-page[data-member-section] .united-onboarding>header img{width:50px;height:50px;object-fit:contain}
+.member-page[data-member-section] .united-onboarding>header h2{font-size:24px;line-height:1.2}
+.member-page[data-member-section] :is(.united-onboarding-grid,.united-onboarding-flow){display:none}
+.member-page[data-member-section] .united-onboarding-club{padding:16px 0;border:0;background:none}
+.member-page[data-member-section] .overview-reservation-status{margin:0 0 24px;padding:22px;min-height:0;border:1px solid var(--portal-line);border-radius:8px;background:var(--appearance-selected,#102d46);box-shadow:none;gap:16px}
+.member-page[data-member-section] .overview-reservation-main strong{font-size:24px;line-height:1.25}
+.member-page[data-member-section] .overview-reservation-action{font-size:14px;white-space:normal}
+.member-page[data-member-section] .overview-reservation-status::before,.member-page[data-member-section] .overview-reservation-status::after{display:none}
+.member-page[data-member-section] .overview-reservation-main{min-width:0;text-align:left}
+.member-page[data-member-section] .overview-reservation-status{grid-template-columns:minmax(0,1fr) auto;align-items:center}
+.member-page[data-member-section] .overview-reservation-meta{grid-column:1/-1}
+.member-page[data-member-section] .overview-reservation-main{grid-column:1}
+.member-page[data-member-section] .overview-reservation-action{grid-column:2}
+.member-page[data-member-section] .action-center-empty{padding:16px 0;border:0;border-bottom:1px solid var(--portal-line);border-radius:0;background:none}
+.member-page[data-member-section] .member-content .portal-empty-state{border:0;border-radius:0;padding:24px 0;background:none;box-shadow:none;min-height:0}
+.portal-overview-rows{margin:0 0 20px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0}
+.portal-overview-rows>div{min-width:0;padding:20px 16px;border-bottom:1px solid var(--portal-line)}
+.portal-overview-rows small{display:block;font-size:12px;color:var(--appearance-muted,#a2b4c8)}
+.portal-overview-rows strong{display:block;margin:6px 0 10px;font-size:16px;line-height:1.5;overflow-wrap:anywhere}
+.portal-overview-rows button{border:0;background:none;color:var(--appearance-action,#70bdff);padding:5px 0;min-height:34px;font-size:14px;cursor:pointer;text-align:left}
+.portal-admission-info{padding:20px 0;margin:16px 0;border-block:1px solid var(--portal-line)}
+.portal-admission-info h2{margin:0;font-size:23px;line-height:1.3}
+.portal-admission-info p{margin:8px 0;font-size:14px;color:var(--appearance-muted,#a2b4c8)}
+.portal-admission-rates{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;margin:20px 0}
+.portal-admission-rates>div{padding:6px 16px;text-align:center;border-inline-end:1px solid var(--portal-line)}
+.portal-admission-rates>div:last-child{border:0}
+.portal-admission-rates strong{display:block;color:var(--appearance-action,#70bdff);font-size:30px;line-height:1.3}
+.portal-admission-rates span{display:block;font-size:13px;margin-top:6px;line-height:1.5;color:var(--appearance-muted,#a2b4c8)}
+.member-page[data-member-section] input,.member-page[data-member-section] select,.member-page[data-member-section] textarea{border-radius:7px}
+@media(max-width:1050px){
+ .member-page .site-header .nav{width:calc(100% - 40px)}
+ .member-page[data-member-section] .member-shell{width:calc(100% - 40px)}
+ .member-page[data-member-section] .member-layout{display:block}
+ .member-page[data-member-section] .member-portal-nav{display:block;position:static;padding:0;border:0;background:none;margin-bottom:16px}
+ .member-page[data-member-section] .member-portal-nav .portal-nav-viewport,.member-page[data-member-section] .member-sidebar-logout{display:none}
+ .member-page[data-member-section] .member-logged-hero{grid-template-columns:48px minmax(0,1fr);max-width:none;padding:0 0 12px;margin:0;gap:12px;border-bottom:0}
+ .member-page[data-member-section] .member-logged-hero-bg{width:48px!important;height:48px!important}
+ .member-page[data-member-section] .member-hero-car{display:none!important}
+ .member-page[data-member-section] .member-hero-cta{min-height:32px}
+ .member-page[data-member-section] .member-content{padding:24px}
+ .member-page[data-member-section] .member-app{padding-top:20px;padding-bottom:calc(90px + env(safe-area-inset-bottom))}
+ .united-mobile-menu .member-nav-item{display:grid;grid-template-columns:24px minmax(0,1fr);gap:12px}
+ .united-mobile-menu .member-nav-icon{width:24px;height:24px;color:var(--appearance-action,#70bdff)}
+ .united-mobile-menu .member-nav-label small{display:block;font-size:11px;line-height:1.4}
+}
+@media(max-width:600px){
+ .member-page .site-header .nav{width:calc(100% - 24px)}
+ .member-page[data-member-section] .member-shell{width:calc(100% - 24px)}
+ .member-page[data-member-section] .member-content{padding:20px 16px;border-radius:11px}
+ .member-page .member-agenda-head{align-items:flex-start;flex-wrap:wrap;gap:12px;margin-bottom:20px}
+ .member-page .member-agenda-head h1{font-size:32px}
+ .member-agenda-head p{font-size:14px}
+ .member-page[data-member-section] :is(.portal-tabs,.club-navigation-cards){gap:0;flex-wrap:wrap}
+ .member-page[data-member-section] :is(.portal-tabs,.club-navigation-cards) button{padding:10px 8px;font-size:13px;flex:1 1 auto}
+ .member-page[data-member-section] .club-navigation-cards button{flex:1 1 85px}
+ .member-page[data-member-section] .club-points-summary{grid-template-columns:minmax(0,1fr);gap:20px}
+ .member-page[data-member-section] .portal-club-benefits .portal-benefit-card{border:0;border-top:1px solid var(--portal-line);padding:18px 0 0}
+ .member-page[data-member-section] .earn-strip{grid-template-columns:minmax(0,1fr)}
+ .member-page[data-member-section] .earn-card{padding:12px 0;min-height:0;flex:none}
+ .member-page[data-member-section] .member-card{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+ .member-page[data-member-section] .member-card-identity{grid-column:1/-1}
+ .member-page[data-member-section] .member-card-stat{padding:12px 0;min-width:0;border:0}
+ .member-page[data-member-section] .member-card-stat small{font-size:9px;letter-spacing:0}
+ .member-page[data-member-section] .member-card-stat b{font-size:15px}
+ .member-page[data-member-section] .overview-reservation-status{display:flex;flex-direction:column;align-items:flex-start;padding:16px}
+ .member-page[data-member-section] .overview-reservation-main strong{font-size:22px}
+ .portal-overview-rows{grid-template-columns:minmax(0,1fr)}
+ .portal-overview-rows>div{padding:16px 0}
+ .portal-admission-rates>div{padding:4px 8px}
+ .portal-admission-rates strong{font-size:23px}
+ .portal-admission-rates span{font-size:12px}
+ .member-page[data-member-section] .reservation-form-row{grid-template-columns:minmax(0,1fr)}
+}

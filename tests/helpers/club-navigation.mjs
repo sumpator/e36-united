@@ -4,7 +4,7 @@ import vm from 'node:vm';
 
 // Approved portal-next / portal-composition: three Club views, with Members a
 // separate secondary action. Exercise the real tab controller, including fallback.
-export function assertClubNavigation(club) {
+export function assertClubNavigation(club,html=club) {
   const names = ['points', 'history', 'achievements'];
   assert.deepEqual([...club.matchAll(/data-club-tab="([^"]+)"/g)].map(m => m[1]), names);
   assert.deepEqual([...club.matchAll(/data-club-anchor="([^"]+)"/g)].map(m => m[1]), names);
@@ -22,5 +22,5 @@ export function assertClubNavigation(club) {
   buttons[1].click();
   assert.equal(panels[1].hidden, false);
   assert.equal(panels.filter(p => !p.hidden).length, 1);
-  assert.match(club, /data-open-club-members/);
+  assert.match(html, /data-open-club-members/);
 }

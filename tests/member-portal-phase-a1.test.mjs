@@ -16,13 +16,13 @@ function panel(name, nextName) {
 }
 
 test('hero keeps identity and onboarding CTA without session controls', () => {
-  const hero = html.slice(html.indexOf('data-member-hero='), html.indexOf('<div class="container member-shell">'));
+  const hero = html.slice(html.indexOf('data-member-hero='), html.indexOf('<div class="portal-nav-viewport">',html.indexOf('data-member-hero=')));
   assert.match(hero, /UNITED MEMBER/);
   // public-member-ux removed duplicated attendance metadata from the greeting;
   // authoritative attendance remains on the Member Card.
-  assert.match(hero, /data-member-greeting[\s\S]*data-member-nickname/);
+  assert.match(hero, /data-member-nickname/);
   assert.doesNotMatch(hero, /data-member-hero-attended/);
-  assert.match(panel('overview','reservation'), /data-attendance-count/);
+  assert.match(panel('club','photos'), /data-attendance-count/);
   assert.doesNotMatch(hero, /data-logout|member-logged-actions|member-hero-logout/);
   assert.match(js, /cta\.hidden=!view\.cta/);
   assert.match(js, /cta\.hidden=false/);
@@ -46,7 +46,7 @@ test('mobile auth is compact while desktop auth content and tab behavior remain 
 });
 
 test('Member Card renders real profile identity and meaningful progress data', () => {
-  const overview = panel('overview', 'reservation');
+  const overview = panel('club', 'photos');
   for (const attribute of ['data-summary-name', 'data-summary-member-code', 'data-member-since', 'data-attendance-count', 'data-overview-points', 'data-profile-complete']) assert.match(overview, new RegExp(attribute));
   assert.match(overview, /aria-label="United Member Card"/);
   assert.match(overview, /<strong data-summary-name/);

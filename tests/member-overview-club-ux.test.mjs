@@ -23,23 +23,25 @@ const js = [
 const overview = html.slice(html.indexOf('data-member-panel="overview"'), html.indexOf('data-member-panel="reservation"'));
 const club = html.slice(html.indexOf('data-member-panel="club"'), html.indexOf('data-member-panel="photos"'));
 
-test('authenticated hero remains dominant and nickname-led while the Member Card uses real identity', () => {
-  assert.match(html, /<h1 data-member-page-title[^>]*><span data-member-greeting>Ahoj, <span data-member-nickname/);
+test('compact identity accompanies a shared agenda title while full member details live in Club', () => {
+  assert.match(html, /class="member-agenda-head"[\s\S]*<h1 data-member-page-title/);
+  assert.match(html, /<strong data-member-nickname>United Member<\/strong>/);
+  assert.doesNotMatch(overview, /aria-label="United Member Card"/);
   assert.match(html, /data-member-hero-media/);
-  assert.match(overview, /aria-label="United Member Card"/);
-  assert.match(overview, /member-card-identity[\s\S]*data-summary-name[\s\S]*data-summary-member-code/);
-  assert.doesNotMatch(overview, /data-summary-nickname/);
+  assert.match(club, /aria-label="United Member Card"/);
+  assert.match(club, /member-card-identity[\s\S]*data-summary-name[\s\S]*data-summary-member-code/);
+  assert.doesNotMatch(club, /data-summary-nickname/);
 });
 
 test('Member Card keeps three centered core stats without the retired rating', () => {
-  const stats = [...overview.matchAll(/class="member-card-stat(?: [^"]*)?" data-member-help="([^"]+)"/g)].map(match => match[1]);
+  const stats = [...club.matchAll(/class="member-card-stat(?: [^"]*)?" data-member-help="([^"]+)"/g)].map(match => match[1]);
   assert.deepEqual(stats, ['since', 'verified', 'points']);
-  for (const label of ['UNITED OD', 'OVĚŘENÉ UNITED', 'UNITED POINTS']) assert.match(overview, new RegExp(label));
-  assert.doesNotMatch(overview, /MEMBER RATING|data-member-rating/);
-  assert.match(overview, /data-overview-points="">0<\/b><em>bodů<\/em>/);
-  assert.doesNotMatch(overview, /data-overview-points="">0<\/b><em>\/ 12 bodů<\/em>/);
-  assert.match(overview, /Hranice konkrétní odměny: 12 bodů/);
-  assert.match(overview, /data-overview-points-fill/);
+  for (const label of ['UNITED OD', 'OVĚŘENÉ UNITED', 'UNITED POINTS']) assert.match(club, new RegExp(label));
+  assert.doesNotMatch(club, /MEMBER RATING|data-member-rating/);
+  assert.match(club, /data-overview-points="">0<\/b><em>bodů<\/em>/);
+  assert.doesNotMatch(club, /data-overview-points="">0<\/b><em>\/ 12 bodů<\/em>/);
+  assert.match(club, /Hranice konkrétní odměny: 12 bodů/);
+  assert.match(club, /data-overview-points-fill/);
   assert.match(js, /overviewFill\.style\.width/);
   assert.match(css, /\.member-card-stat\{[^}]*align-items:center[^}]*text-align:center/);
   assert.match(css, /\.member-card-stat>small\{[^}]*justify-content:center[^}]*text-align:center/);
@@ -47,8 +49,8 @@ test('Member Card keeps three centered core stats without the retired rating', (
 });
 
 test('Member Card has a readable bottom server-featured Achievements strip with no ID-side chip', () => {
-  assert.match(overview, /member-card-achievements[\s\S]*>ACHIEVEMENTS<[\s\S]*data-featured-achievements/);
-  assert.doesNotMatch(overview, /data-identity-markers|member-identity-marker/);
+  assert.match(club, /member-card-achievements[\s\S]*>ACHIEVEMENTS<[\s\S]*data-featured-achievements/);
+  assert.doesNotMatch(club, /data-identity-markers|member-identity-marker/);
   assert.match(css, /\.member-card-achievements\{grid-column:1\/-1[^}]*min-height:68px/);
   assert.match(css, /\.featured-achievement b\{[^}]*font-size:11px/);
   assert.match(js, /featuredAchievements[\s\S]*slice\(0,4\)/);
@@ -72,7 +74,7 @@ test('idle Action Center is compact while active reservation and Planner content
 });
 
 test('United Club keeps Points, history and Achievements in the approved three-view navigation', () => {
-  assertClubNavigation(club);
+  assertClubNavigation(club,html);
   for (const label of ['UNITED POINTS', 'Moje účasti', 'ACHIEVEMENTS']) assert.match(club, new RegExp(label, 'i'));
   assert.ok(club.indexOf('data-club-anchor="points"') < club.indexOf('data-club-anchor="history"'));
   assert.ok(club.indexOf('data-club-anchor="history"') < club.indexOf('data-club-anchor="achievements"'));

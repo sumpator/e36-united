@@ -19,7 +19,7 @@ const club=memberHtml.slice(memberHtml.indexOf('data-member-panel="club"'),membe
 
 test('United Club uses the approved compact title, three views and four informative earning cards',()=>{
   assert.match(memberShellJs,/club:'United Club'/);
-  assertClubNavigation(club);
+  assertClubNavigation(club,memberHtml);
   assert.doesNotMatch(club,/Body\. Historie\. Achievements\./);
   assert.match(club,/UNITED POINTS/);
   assert.match(club,/data-reward-terms[\s\S]*Jak získáš body[\s\S]*Ověřené aktivity a jejich podmínky/);

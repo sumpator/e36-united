@@ -24,8 +24,8 @@ const authStatesCss = read('auth-states.css');
 test('main navigation contains the approved nine internal panels in target order', () => {
   const sidebar = memberHtml.slice(memberHtml.indexOf('<aside class="member-sidebar"'), memberHtml.indexOf('</aside>'));
   const labels = [...sidebar.matchAll(/data-member-section="([^"]+)"/g)].map(match => match[1]);
-  assert.deepEqual(labels, ['overview', 'reservation', 'garage', 'payments', 'club', 'photos', 'account', 'merch', 'live']);
-  assert.match(sidebar, /data-member-section="reservation"[\s\S]*?<strong>Registrace<\/strong><small>Účast &amp; ubytování<\/small>/);
+  assert.deepEqual(labels, ['overview', 'reservation', 'payments', 'live', 'garage', 'club', 'photos', 'account', 'merch']);
+  assert.match(sidebar, /data-member-section="reservation"[\s\S]*?<strong>Rezervace<\/strong><small>Účast &amp; ubytování<\/small>/);
   for (const panel of labels) assert.match(memberHtml, new RegExp(`data-member-panel="${panel}"`));
 });
 
@@ -42,7 +42,7 @@ test('authenticated main mobile menu contains all Member Portal sections', () =>
   const start = memberHtml.indexOf('data-member-main-mobile-nav');
   const mobile = memberHtml.slice(start, memberHtml.indexOf('</div>', start));
   const labels = [...mobile.matchAll(/data-main-member-section="[^"]+"[^>]*>([^<]+)<\/button>/g)].map(match => match[1].replace('&amp;', '&'));
-  assert.deepEqual(labels, ['Přehled', 'Registrace', 'Garáž', 'Platby', 'United Club', 'Moje fotky', 'Účet', 'UNITED LIVE']);
+  assert.deepEqual(labels, ['Přehled', 'Rezervace', 'Garáž', 'Platby', 'United Club', 'Moje fotky', 'Účet', 'UNITED LIVE']);
   assert.match(memberHtml, /data-member-main-mobile-nav="" hidden=""/);
   assert.match(memberShellJs, /setMainMobileMemberNavigation\(!liveModeActive\)/);
   assert.match(memberShellJs, /setMainMobileMemberNavigation\(false\)/);
@@ -63,7 +63,7 @@ test('main mobile menu adds unnumbered logout after its divider and reuses the s
 
 test('desktop sidebar action, main mobile menu and Account expose shared logout outside the bordered navigation card', () => {
   const heroStart = memberHtml.indexOf('data-member-hero=');
-  const hero = memberHtml.slice(heroStart, memberHtml.indexOf('<div class="container member-shell">', heroStart));
+  const hero = memberHtml.slice(heroStart, memberHtml.indexOf('<div class="portal-nav-viewport">', heroStart));
   const navStart = memberHtml.indexOf('<div class="member-portal-nav');
   const nav = memberHtml.slice(navStart, memberHtml.indexOf('<div class="member-content">', navStart));
   const sidebarStart = memberHtml.indexOf('<aside class="member-sidebar"');
@@ -85,7 +85,7 @@ test('duplicate internal mobile hamburger is removed while the horizontal scroll
   const navStart = memberHtml.indexOf('<div class="member-portal-nav');
   const nav = memberHtml.slice(navStart, memberHtml.indexOf('<div class="member-content">', navStart));
   assert.doesNotMatch(nav, /portal-menu-button|data-portal-menu-open|portal-nav-sheet|data-portal-sheet/);
-  assert.match(nav, /portal-nav-viewport[\s\S]*?<aside class="member-sidebar" data-portal-tablist>/);
+  assert.match(nav, /portal-nav-viewport[\s\S]*?<aside class="member-sidebar" data-portal-tablist[^>]*>/);
   assert.equal((nav.match(/data-member-section="/g)||[]).length,9);
   assert.match(memberCss, /@media\(max-width:1050px\)\{\.member-portal-nav\{grid-template-columns:minmax\(0,1fr\)\}\}/);
   assert.match(portalNavigationJs, /scrollIntoView/);
@@ -191,7 +191,7 @@ test('community submissions keep the existing flow in their own main panel', () 
 test('United Club is one coherent Points, history and Achievements page on every viewport', () => {
   const clubStart = memberHtml.indexOf('data-member-panel="club"');
   const club = memberHtml.slice(clubStart, memberHtml.indexOf('data-member-panel="photos"', clubStart));
-  assertClubNavigation(club);
+  assertClubNavigation(club,memberHtml);
   assert.doesNotMatch(club, /data-club-panel/);
   assert.ok(club.indexOf('data-club-anchor="points"') < club.indexOf('data-club-anchor="history"'));
   assert.ok(club.indexOf('data-club-anchor="history"') < club.indexOf('data-club-anchor="achievements"'));

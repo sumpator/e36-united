@@ -43,11 +43,12 @@ test('explicit member LIVE entry switches the portal and restores per account an
 test('member LIVE exposes only Program, Show and Shine and Photos with QR and no reservation detail', () => {
   const html = read('member.html');
   const live = read('member/modules/live.js');
-  const sidebarStart = html.indexOf('<aside class="member-sidebar" data-portal-tablist>');
+  const sidebarStart = html.indexOf('<aside class="member-sidebar"');
   const sidebarEnd = html.indexOf('</aside>', sidebarStart);
   const sidebar = html.slice(sidebarStart, sidebarEnd);
 
-  assert.ok(sidebar.indexOf('data-member-section="account"') < sidebar.indexOf('data-member-section="live"'));
+  assert.ok(sidebar.indexOf('data-member-section="payments"') < sidebar.indexOf('data-member-section="live"'));
+  assert.ok(sidebar.indexOf('data-member-section="live"') < sidebar.indexOf('data-member-section="garage"'));
   assert.ok(sidebar.indexOf('data-member-section="live"') < html.indexOf('data-logout', sidebarStart));
   assert.deepEqual([...html.matchAll(/data-live-tab="([^"]+)"/g)].map(match => match[1]), ['program', 'showshine', 'photos']);
   assert.deepEqual([...html.matchAll(/data-live-view="([^"]+)"/g)].map(match => match[1]), ['program', 'showshine', 'photos']);

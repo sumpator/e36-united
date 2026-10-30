@@ -37,7 +37,7 @@ for(const authenticated of [false,true])for(const path of ['/index.html','/o-nas
 test('Overview prioritizes reservation over points and keeps details accessible',async({page})=>{
  const observations=await prepareE2ePage(page,{authenticated:true,registrationOpen:true});await page.goto('/member.html');const intro=page.locator('[data-onboarding-intro-modal]');await expect(intro).toBeVisible();await intro.locator('button[data-onboarding-intro-close]').click();await expect(intro).toBeHidden();
  const action=page.locator('[data-reservation-overview-card]');await expect(action).toBeVisible();expect(await action.evaluate(el=>!!(el.compareDocumentPosition(document.querySelector('.member-card'))&Node.DOCUMENT_POSITION_FOLLOWING))).toBe(true);
- await page.locator('[data-member-help="points"]').click();await expect(page.locator('#member-card-help')).toBeVisible();expectNoUnexpectedClientErrors(observations);
+ await page.locator('[data-overview-open=club]').click();await expect(page.locator('[data-member-panel=club]')).toBeVisible();await page.locator('[data-member-help="points"]').click();await expect(page.locator('#member-card-help')).toBeVisible();expectNoUnexpectedClientErrors(observations);
 });
 
 test('Closed registration hides the empty action badge without hiding its status',async({page})=>{
