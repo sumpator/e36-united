@@ -6,7 +6,8 @@
 .home-page .home-hero-copy h1{font-size:clamp(52px,6.4vw,92px);line-height:1;letter-spacing:-.06em;margin:0;white-space:nowrap;color:#fff}
 .home-page .home-hero-copy h1 span{display:inline}
 .home-page .home-hero-copy h1 .solid{color:#fff}
-.home-page .home-hero-copy h1 span:not(.solid){color:transparent;-webkit-text-stroke:1px #fff}
+.home-page .home-hero-copy h1 span:not(.solid){color:#fff;-webkit-text-stroke:0;text-shadow:none}
+.home-page .home-hero-copy h1{letter-spacing:-.035em;line-height:1.08}
 .home-page .home-hero-copy .hero-sub{max-width:none;margin:14px 0 0;color:#fff;font-size:clamp(17px,1.7vw,23px)}
 .home-page .home-hero-copy .hero-actions{max-width:none;margin-top:24px}
 .home-page .home-hero-copy .hero-meta{max-width:650px;margin-top:26px}
@@ -53,6 +54,7 @@
  :root .page-hero.public-about-hero,:root .page-hero.public-gallery-hero{padding-top:70px}
  .public-about-layout{display:flex;flex-direction:column;min-height:0}
  .public-about-copy{padding:22px 0 18px}
+ .public-about-hero + .history-section{padding-top:26px}
  .public-about-hero h1,.public-gallery-hero h1{font-size:42px}
  .public-about-hero p{font-size:15px}
  .public-about-hero .about-hero-meta{margin-top:16px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr))}

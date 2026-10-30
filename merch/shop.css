@@ -140,3 +140,28 @@
  .shop-footer .appearance-control{margin-left:0}
 }
 @media(prefers-reduced-motion:reduce){.united-shop *{scroll-behavior:auto!important;transition:none!important}}
+
+/* The header and catalogue open the same basket. */
+.shop-header-cart{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-width:44px;min-height:44px;padding:7px 10px;border:1px solid var(--shop-border);border-radius:999px;background:var(--shop-surface);color:var(--shop-ink);cursor:pointer;flex:none}
+.shop-header-cart svg{width:21px;height:21px}
+.shop-header-cart span{font-size:13px;font-weight:800}
+.shop-toast:not(:empty){display:flex;align-items:center;flex-wrap:wrap;gap:12px;bottom:calc(16px + env(safe-area-inset-bottom));max-width:calc(100vw - 24px);z-index:110}
+.shop-toast button{min-height:44px;border:0;background:transparent;color:inherit;text-decoration:underline;font:inherit;cursor:pointer;pointer-events:auto}
+@media(max-width:700px){
+ .shop-card-options{min-height:0;padding:3px 8px 9px}
+ .shop-card-copy{padding:10px 10px 4px}
+ .shop-card-copy p{margin:0;font-size:12px;line-height:1.35}
+ .shop-card-copy h2{margin:4px 0;font-size:17px}
+ .shop-swatches{gap:0}
+ .shop-swatch{width:44px;height:44px}
+ .shop-swatch i{width:15px;height:15px}
+ .shop-product-form{gap:10px;padding:14px}
+ .shop-product-form fieldset{margin:0}
+ .shop-product-form legend{margin-bottom:4px}
+ .shop-variants{display:flex;flex-wrap:wrap;gap:4px}
+ .shop-variants button{min-height:44px;padding:7px 10px;flex:0 1 auto;font-size:13px}
+ .shop-sizes button{min-width:44px;min-height:44px}
+ .shop-product-form>p{margin:4px 0;line-height:1.45}
+ .united-shop .site-header .nav{gap:8px}
+ .united-shop .site-header .brand{margin-right:auto}
+}

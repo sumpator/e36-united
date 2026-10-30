@@ -13,12 +13,17 @@ export function initShop(){
  const apiBase=(portalConfig.apiBaseUrl||'https://api.e36united.cz').replace(/\/$/,'');
  const {request}=createMemberApiClient({baseUrl:apiBase,getCurrentUser:()=>identity});
  let cart=readCart(storage),active=null,selected=null,size='',viewIndex=0,identity=null,filter='all',detailOpener=null;
- let pageOverflow=null,toastTimer=0,closingHistory=false;
+ let pageOverflow=null,toastTimer=0,closingHistory=false,adding=false,completedAdd=false;
  const detail=$('[data-product-dialog]'),basket=$('[data-cart-dialog]'),zoom=$('[data-image-dialog]');
  const dialogs=[detail,basket,zoom];
+ // The second activation of the same physical double-click must not fall
+ // through the now-closed product dialog into the catalogue underneath it.
+ document.addEventListener('mousedown',event=>{if(completedAdd&&event.detail>1)event.preventDefault();else completedAdd=false},true);
+ document.addEventListener('click',event=>{if(completedAdd&&event.detail>1){event.preventDefault();event.stopPropagation()}},true);
+ document.addEventListener('keydown',()=>{completedAdd=false},true);
  const form=$('[data-checkout-form]');
  const choices=new Map(catalog.map(p=>[p.id,p.variants[0].id]));
- const toast=message=>{clearTimeout(toastTimer);$('[data-shop-toast]').textContent=message;toastTimer=setTimeout(()=>{$('[data-shop-toast]').textContent=''},4500)};
+ const toast=(message,{cartAction=false}={})=>{clearTimeout(toastTimer);const host=$('[data-shop-toast]');host.replaceChildren(document.createTextNode(message));if(cartAction){const button=document.createElement('button');button.type='button';button.textContent='Zobrazit košík';button.addEventListener('click',()=>{renderCart();show(basket)});host.append(button)}toastTimer=setTimeout(()=>{if(!host.contains(document.activeElement))host.replaceChildren()},4500)};
  const syncLock=()=>{
   if(dialogs.some(d=>d.open)){if(!pageOverflow){pageOverflow={value:document.body.style.getPropertyValue('overflow'),priority:document.body.style.getPropertyPriority('overflow')};document.body.style.setProperty('overflow','hidden');}}
   else if(pageOverflow){if(pageOverflow.value)document.body.style.setProperty('overflow',pageOverflow.value,pageOverflow.priority);else document.body.style.removeProperty('overflow');pageOverflow=null;}
@@ -32,7 +37,7 @@ export function initShop(){
   $('[data-checkout]').hidden=value!=='contact';$('[data-order-review]').hidden=value!=='review';
  }
  function persist(){if(!writeCart(storage,cart))toast('Košík zůstává jen v této otevřené stránce. Prohlížeč nepovolil uložení.');updateCount();invalidateReview()}
- function updateCount(){$('[data-cart-count]').textContent=cart.reduce((n,l)=>n+l.quantity,0)}
+ function updateCount(){const count=cart.reduce((n,l)=>n+l.quantity,0);$$('[data-cart-count]').forEach(node=>node.textContent=count);$('.shop-header-cart')?.setAttribute('aria-label',`Otevřít košík, ${count} kusů`)}
  function productURL(product,variant){const url=new URL(location.href);url.searchParams.set('product',product.id);url.searchParams.set('variant',variant.id);return url.pathname+url.search+url.hash}
  const colorButton=(variant,current)=>`<button type="button" class="shop-swatch" data-variant="${escape(variant.id)}" aria-pressed="${current===variant.id}" aria-label="${escape(variant.color)}" title="${escape(variant.color)}"><i style="--swatch:${variant.swatch}"></i></button>`;
  function renderCatalog(){
@@ -76,7 +81,7 @@ export function initShop(){
   $('[data-product-error]').textContent='';$('[data-add-status]').textContent='';viewIndex=0;renderImages();
  }
  function readDetailURL(){
-  closingHistory=false;
+  closingHistory=false;adding=false;
   const params=new URL(location.href).searchParams,p=catalog.find(p=>p.id===params.get('product'));
   if(!p){hide(zoom);hide(basket);hide(detail);active=null;detailOpener?.focus({preventScroll:true});return;}
   active=p;selected=p.variants.find(v=>v.id===params.get('variant'))||p.variants[0];size='';
@@ -102,8 +107,13 @@ export function initShop(){
  $('[data-zoom-close]').addEventListener('click',()=>hide(zoom));
  zoom.addEventListener('close',syncLock);basket.addEventListener('close',syncLock);
  $('[data-product-form]').addEventListener('submit',event=>{
-  event.preventDefault();try{cart=addToCart(cart,catalog,selected.id,size,Number($('[data-product-quantity]').value));persist();$('[data-add-status]').textContent=`${active.name} / ${size} je v košíku.`;$('[data-product-error]').textContent='';}
-  catch(error){$('[data-product-error]').textContent=error.message;if(!size)$('[data-size]')?.focus()}
+  event.preventDefault();if(adding||closingHistory||!detail.open||!active)return;adding=true;
+  try{const next=addToCart(cart,catalog,selected.id,size,Number($('[data-product-quantity]').value));if(!writeCart(storage,next))throw new Error('Košík se nepodařilo uložit. Výběr zůstal zachovaný, zkus to znovu.');cart=next;updateCount();invalidateReview();$('[data-product-error]').textContent='';
+   // The cart mutation is synchronous. Retire this exact detail synchronously too:
+   // a delayed history.back must never close a different product opened next.
+   const url=new URL(location.href);url.searchParams.delete('product');url.searchParams.delete('variant');const state={...history.state};delete state.merchProduct;history.replaceState(state,'',url);readDetailURL();
+   completedAdd=true;toast('Přidáno do košíku.',{cartAction:true});
+  }catch(error){adding=false;$('[data-product-error]').textContent=error.message;if(!size)$('[data-size]')?.focus()}
  });
  function renderCart(){
   const priced=priceCart(cart,catalog);

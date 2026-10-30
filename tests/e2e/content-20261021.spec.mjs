@@ -55,10 +55,8 @@ for(const width of [1440,390])for(const theme of ['light','dark'])test(`Content 
     await dialog.locator(`[data-size="${size}"]`).click();await expect(dialog.locator(`[data-size="${size}"]`)).toHaveAttribute('aria-pressed','true');
     await expect(dialog.locator('[data-detail-image]')).toHaveAttribute('src',new RegExp(imageURL+'$'));
    }
-   await dialog.locator('[data-size="M"]').click();await dialog.locator('[data-add-cart]').click();
-   await expect(dialog.locator('[data-add-status]')).toContainText(product.name+' / M je v košíku.');
-   if(width===390)await capture(page,info,'detail-options-'+product.id);
-   await page.keyboard.press('Escape');await expect(dialog).not.toBeVisible();
+   await dialog.locator('[data-size="M"]').click();if(width===390)await capture(page,info,'detail-options-'+product.id);
+   await dialog.locator('[data-add-cart]').click();await expect(dialog).toBeHidden();await expect(page.locator('[data-shop-toast]')).toContainText('Přidáno do košíku');
   }
   await page.locator('.shop-cart-launch').click();await expect(page.locator('.shop-cart-line')).toHaveCount(2);
   await expect(page.locator('[data-cart-total]')).toHaveText(/^1\s*380(?:,00)?\s*Kč$/);

@@ -6,7 +6,7 @@ import { createReservationPayments, formatCzk } from './payments.js?v=20261030-r
 import { normalizeAccommodationOption, normalizeReservation } from './reservation.js?v=20261030-refine1';
 import { isAuthorizationFailure } from '../../refresh.js?v=20260907-feedback';
 import { createMemberPlannerExperience } from './experience.js?v=20261025-flow1';
-import { reservationStatusPresentation } from '../../reservation-status.js?v=20261030-refine1';
+import { reservationStatusPresentation } from '../../reservation-status.js?v=20261030-mobile1';
 
 const plannerHandoffPrefix='e36UnitedPlannerHandoff:v1:';
 
@@ -538,7 +538,7 @@ export function createMemberPlanner({
     const elements=[$('.reservation-status-card'),$('.reservation-unified-card'),$('[data-reservation-card]'),$('[data-reservation-overview-card]'),$('.reservation-mini'),$('[data-reservation-nav-status]')].filter(Boolean);
     for(const element of elements){for(const value of [...Object.keys(reservationStatusNames),'preliminary','none'])element.classList.remove(`is-status-${value}`);element.classList.add(`is-status-${key}`)}
     const view=reservationStatusPresentation(getData().reservation,{plan:status==='preliminary',draft:Boolean(draftApplicable(editorDraft)||activePlannerHandoff),open:reservationState.registrationOpen||preliminaryEnabled});
-    const navStatus=$('[data-reservation-nav-status]');if(navStatus){navStatus.dataset.tone=view.tone;navStatus.title=view.label;navStatus.textContent=`${view.symbol} ${view.label}`;if(view.payment){const payment=document.createElement('span');payment.dataset.tone=view.paymentTone;payment.textContent=view.payment;navStatus.append(payment)}}
+    const navStatus=$('[data-reservation-nav-status]');if(navStatus){navStatus.dataset.tone=view.tone;navStatus.title=view.label;navStatus.textContent=`${view.symbol} ${view.label}`;if(view.payment){const payment=document.createElement('span');payment.dataset.tone=view.paymentTone;payment.textContent=`${view.paymentSymbol||'·'} ${view.payment}`;navStatus.append(payment)}}
     const paymentState=$('[data-reservation-payment-state]');if(paymentState){paymentState.hidden=!view.payment;paymentState.textContent=view.payment;paymentState.dataset.tone=view.paymentTone||'neutral'}
   }
   function reservationDescription(reservation){

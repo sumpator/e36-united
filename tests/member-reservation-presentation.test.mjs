@@ -4,9 +4,16 @@ import {reservationStatusPresentation as present} from '../member/reservation-st
 import {normalizeReservation} from '../member/modules/planner/reservation.js';
 
 test('menu separates confirmed attendance from server payment status',()=>{
- for(const [status,label]of [['unpaid','K úhradě'],['underpaid','K doplacení'],['paid','Zaplaceno'],['overpaid','Přeplatek'],['not_required','Bez platby']]){
+ for(const [status,label]of [['unpaid','Nedoplatek'],['underpaid','Nedoplatek'],['paid','Zaplaceno'],['overpaid','Přeplatek'],['not_required','Bez platby']]){
   const view=present({status:'approved',payment:{status,remainingCzk:123}});assert.equal(view.symbol,'✓');assert.equal(view.label,'Potvrzeno');assert.equal(view.tone,'confirmed');assert.equal(view.payment,label);
  }
+});
+
+test('missing payment instructions and unknown states never claim a debt or payment',()=>{
+ assert.equal(present({status:'approved',payment:{status:'unpaid',configurationReady:false}}).payment,'Platební údaje chybí');
+ assert.equal(present({status:'approved',payment:{status:'unknown'}}).payment,'Platební stav nedostupný');
+ assert.equal(present({status:'approved',payment:{status:'paid',configurationReady:false}}).payment,'Zaplaceno');
+ assert.equal(present({status:'pending',payment:{status:'unpaid'}}).payment,'');
 });
 test('waiting, rejection, cancellation and technical failure are distinct',()=>{
  assert.equal(present({status:'pending'}).tone,'waiting');assert.equal(present({status:'pending'}).symbol,'◷');assert.equal(present({status:'pending'}).payment,'');

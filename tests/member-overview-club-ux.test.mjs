@@ -48,8 +48,8 @@ test('Member Card keeps three centered core stats without the retired rating', (
   assert.match(css, /\.member-card-points\{[^}]*justify-content:center/);
 });
 
-test('Member Card has a readable bottom server-featured Achievements strip with no ID-side chip', () => {
-  assert.match(club, /member-card-achievements[\s\S]*>ACHIEVEMENTS<[\s\S]*data-featured-achievements/);
+test('server-featured Achievements remain available inside their own view without an ID-side chip', () => {
+  assert.match(club, /data-club-anchor="achievements"[\s\S]*member-card-achievements[\s\S]*>ACHIEVEMENTS<[\s\S]*data-featured-achievements/);
   assert.doesNotMatch(club, /data-identity-markers|member-identity-marker/);
   assert.match(css, /\.member-card-achievements\{grid-column:1\/-1[^}]*min-height:68px/);
   assert.match(css, /\.featured-achievement b\{[^}]*font-size:11px/);

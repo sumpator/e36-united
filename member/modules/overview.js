@@ -1,4 +1,4 @@
-import { reservationStatusPresentation } from '../reservation-status.js?v=20261030-refine1';
+import { reservationStatusPresentation } from '../reservation-status.js?v=20261030-mobile1';
 import { deriveOverviewState } from '../../member-portal-state.js?v=20261025-flow1';
 import { $, esc } from '../ui.js?v=20260924-merch2';
 import {admissionInfoMarkup} from '../admission-info.js?v=20261030-portal1';

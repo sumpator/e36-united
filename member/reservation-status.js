@@ -7,8 +7,10 @@ export function reservationStatusPresentation(reservation,{plan=false,draft=fals
   if(reservation.changePending||reservation.cancellationPending)view.label+=' · žádost čeká na tým';
   const payment=reservation.payment;
   if(reservation.status==='approved'&&payment){
-    view.payment=payment.awaitingApproval||reservation.changePending?'Platba čeká na schválení změny':({unpaid:'K úhradě',underpaid:'K doplacení',paid:'Zaplaceno',overpaid:'Přeplatek',not_required:'Bez platby'})[payment.status]||'';
-    view.paymentTone=['unpaid','underpaid'].includes(payment.status)?'action':'neutral';
+    const unavailable=payment.configurationReady===false&&!['paid','overpaid','not_required'].includes(payment.status);
+    view.payment=payment.awaitingApproval||reservation.changePending?'Platba čeká na schválení změny':unavailable?'Platební údaje chybí':({unpaid:'Nedoplatek',underpaid:'Nedoplatek',paid:'Zaplaceno',overpaid:'Přeplatek',not_required:'Bez platby'})[payment.status]||'Platební stav nedostupný';
+    view.paymentTone=unavailable?'error':payment.status==='paid'?'confirmed':['unpaid','underpaid'].includes(payment.status)?'action':'neutral';
+    view.paymentSymbol=unavailable?'!':({unpaid:'!',underpaid:'!',paid:'✓',overpaid:'+',not_required:'—'})[payment.status]||'?';
   }
   return view;
 }
