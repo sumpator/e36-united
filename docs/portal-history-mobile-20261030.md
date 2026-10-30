@@ -51,3 +51,19 @@ Pouze cílené lokální běhy, bez retries a bez celých nezměněných sad:
 Screenshoty byly skutečně otevřené: 360, 390, 820 a 1440 px, oba motivy, detail historie, čitelná ocenění, menu, rezervace, přehled i počáteční/posunutý onboarding. Další výsledky kontrol, automatického CI a publikace budou doplněny zvlášť. Emulace Windows Chromium/WebKit/Firefox není ověřením na fyzickém iPhonu; Linux prověří jediný automatický běh publikovaného SHA.
 
 Cache uzávěr `20261030-history1`: 15 cílových modulů/stylů, 30 verzovaných odkazů. Nezměněné závislosti ponechávají své tokeny. Syntax, kontrola návaznosti Admin modulů a `git diff --check` prošly. Worker, migrace, dopravní/platební pravidla, ročník, uzávěry, transport, LIVE, preview URL a pozastavení Merche se nemění.
+
+## Publikace — následné provozní doplnění
+
+Commit `55030f41da49fba67d83079b79ba96a7d27557b7` byl běžně pushnut na `main`; vzdálené SHA bylo čerstvě ověřeno. Pages `56efd2b7-6df5-4812-8b82-3c6ba0505e63` má SUCCESS a stejné source SHA. HTTP porovnání 21 dotčených HTML/JS/CSS odpovídá přesnému commitu (u HTML se normalizovala pouze automatická Cloudflare ochrana e-mailových adres). Katalog stále obsahuje 8 produktů a má pozastavené objednávání.
+
+Automatický [CI #152](https://github.com/sumpator/e36-united/actions/runs/41133922493), pokus 1, ověřuje stejné SHA; Node a syntax již úspěšně skončily, browser kroky při tomto zápisu ještě běží. Ruční workflow ani rerun se nespouští. Worker stále `a458c9f7-ad43-4564-a516-4a65b9fec70c`, transport 0, Merch paused 1, preview URL vypnuté. Jde o lokální doplnění po publikaci, nikoli další opravný commit.
+
+## Související regrese odhalená v CI #152
+
+Chromium odhalil dvě selhání veřejného průchodu v `mobile-content-polish.spec.mjs` (360 světlý a 390 tmavý). Oba skončily při následném přepnutí na 820 × 390: kliknutí na kategorii Cabrio zachytávala ikona účtu z pevné hlavičky. Stažený artefakt `13017061861`, oba trace a otevřený screenshot dokazují nepřiměřeně velké SVG. `mobile-navigation.js` na veřejných stránkách kopíruje odkaz účtu do `.mobile-auth-link` mimo `.nav-links`; nové společné CSS mělo rozměry pouze pro původní navigaci. Jde o aplikační regresi této dávky, nikoli o rozdíl Windows/Linux.
+
+Oprava pouze rozšiřuje stejný rozměrový selektor na existující kopii `.mobile-auth-link`. Regrese hlavičky nově zahrnuje nízký tablet 820 × 390 v obou motivech a kontroluje také skutečné rozměry SVG v kopii odkazu. Otevřené screenshoty WebKit/Firefox potvrzují běžnou velikost a kontrast. Cache `styles.css` a návazného `main.js` je `20261030-history2`; ostatní moduly zůstávají jednotně `20261030-history1`.
+
+První rozšířený cílený průchod: 20 PASS / 1 FAIL z 21 v Chromium/WebKit/Firefox. Všech 12 kontrol hlavičky prošlo. Zbývající Firefox 360 po opravení ikony narazil na jiný doložený testový stav: test nejprve posunul fotografický panel, čímž řádek kategorií zůstal pod běžnou pevnou navigací. Screenshot již ukazuje normální 17px ikonu; trace uvádí překrytí samotnou navigací. Příprava testu nyní před klikáním a po změně orientace přivede řádek kategorií doprostřed viditelné plochy. Zachovává běžné kliknutí, všech sedm kategorií a všechny následné kontroly; nepoužívá force, retry ani čekání. Výsledek tohoto samostatného cíleného průchodu je doplněn níže, předchozí neúspěch zůstává evidovaný.
+
+Následné ověření pouze změněných veřejných průchodů: 9/9 PASS Chromium/WebKit/Firefox (360 světlý, 390 tmavý, 1440 světlý, v mobilních scénářích také 820 × 390 a všech sedm kategorií). Nejde o nový celý browser průchod. Syntax tří dotčených JS/MJS, konzistence 30 odkazů na 15 modulů/stylů a `git diff --check` prošly. Aplikační změna navíc je jediný CSS selektor; Worker, databáze, závislosti a workflow se nemění.

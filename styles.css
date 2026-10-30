@@ -1519,7 +1519,7 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid var(-
 :root[data-theme=light] .site-header .brand-mark{background:transparent;border:0}
 :root[data-theme=dark] .site-header .brand-mark{background:#f2f7fc;-webkit-mask:url('united-logo-blue-silver-transparent.png') center/contain no-repeat;mask:url('united-logo-blue-silver-transparent.png') center/contain no-repeat}
 :root[data-theme=dark] .site-header .brand-mark img{opacity:0}
-.site-header .nav-links a>svg{width:17px;height:17px;flex-shrink:0;vertical-align:middle;margin-right:6px;display:inline-block}
+.site-header .nav-links a>svg,.site-header .mobile-auth-link>svg{width:17px;height:17px;flex-shrink:0;vertical-align:middle;margin-right:6px;display:inline-block}
 .united-mobile-menu nav>a>svg{width:22px;height:22px;flex-shrink:0;margin-right:10px}
 .gallery-video-feature{grid-column:1/-1}
 .youtube-channel-link{grid-column:1/-1;justify-self:end;display:inline-flex;align-items:center;gap:8px;min-height:44px;font-size:14px;color:var(--appearance-action,#1689e8)}

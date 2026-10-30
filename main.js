@@ -29,7 +29,7 @@ initPublicMemberState({config:firebaseConfig,apiBaseUrl:portalConfig.apiBaseUrl,
 })();
 
 const coreStyles = qs('link[href^="styles.css"]');
-if (coreStyles && !coreStyles.href.includes('v=20261028-flow2')) coreStyles.href = 'styles.css?v=20261030-history1';
+if (coreStyles && !coreStyles.href.includes('v=20261028-flow2')) coreStyles.href = 'styles.css?v=20261030-history2';
 if (!qs('link[href^="accommodation-visual.css"]')) {
 const accommodationStyles=document.createElement('link');accommodationStyles.rel='stylesheet';accommodationStyles.href='accommodation-visual.css?v=20260912-accommodation-gallery-r1';document.head.append(accommodationStyles);
 }
