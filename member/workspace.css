@@ -1,5 +1,7 @@
 /* One authenticated workspace. Dialogs and the public/authentication pages retain their own layouts. */
 html:has(body.member-page){scrollbar-gutter:stable}
+/* Fullscreen overlays belong to the viewport, including its reserved scrollbar gutter. */
+.member-page .member-modal{width:100vw}
 .member-page[data-member-section]{--portal-line:var(--appearance-border,#2c4054);--portal-panel:var(--appearance-surface,#111a24);--portal-gap:24px}
 .member-page[data-member-section] .member-app{padding:24px 0 80px}
 .member-page .site-header .nav{width:min(1440px,calc(100% - 64px));max-width:none;margin-inline:auto;padding-inline:0}
@@ -55,6 +57,9 @@ html:has(body.member-page){scrollbar-gutter:stable}
 .member-page[data-member-section] .reservation-workbench{padding:0;margin-top:0;gap:20px}
 .member-page[data-member-section] .reservation-unified-card{padding:0}
 .member-page[data-member-section] .reservation-detail-grid{gap:20px}
+.member-page[data-member-section] .reservation-workbench[data-registration-mode=plan] .reservation-detail-grid{grid-template-columns:minmax(0,1fr);gap:20px}
+.member-page[data-member-section] .reservation-workbench[data-registration-mode=plan] .reservation-unified-card .reservation-hero-strip h3{position:static;margin:0;font-size:24px;line-height:1.4}
+.member-page[data-member-section] .member-plan-actions :is(.member-primary,.member-secondary){transform:none}
 .member-page[data-member-section] :is(.reservation-control-stack,.reservation-card-large){border:0;border-radius:0;background:none;box-shadow:none}
 .member-page[data-member-section] .reservation-hero-strip{height:auto;min-height:100px;padding:20px;background:var(--appearance-selected,#102d46);border-radius:8px}
 .member-page[data-member-section] .reservation-large-year{font-size:48px}

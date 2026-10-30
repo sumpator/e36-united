@@ -133,7 +133,7 @@ test('secondary reservation failure opens shell with unavailable state and manua
   const state=page.locator('[data-member-panel="reservation"] [data-domain-retry-state="reservation"]');
   await expect(state).toBeVisible();expect(calls).toBe(2);await expect(page.locator('[data-auth-view]')).toBeHidden();
   failed=false;await state.getByRole('button',{name:'Zkusit znovu'}).click();await expect(state).toHaveCount(0);
-  await expect(page.locator('[data-reservation-section]')).toBeVisible();await expect(page.locator('[data-member-section-title]')).toHaveText('Registrace');
+  await expect(page.locator('[data-reservation-section]')).toBeVisible();await expect(page.locator('[data-member-section-title]')).toHaveText('Rezervace');
   expectNoUnexpectedClientErrors(observations);
 });
 
@@ -152,8 +152,10 @@ test('authenticated Planner without a reservation transfers one plan and gives p
 });
 
 test('approved reservation change supports sold-out inquiry, compact layouts and persistent acknowledgement',async({page},info)=>{
+  const expectedRejectionLogs=[];
+  page.on('console',message=>{if(message.type()==='error'&&message.text().startsWith('Reservation save failed'))expectedRejectionLogs.push(message.args()[1].evaluate(error=>({message:error.message,status:error.status})))});
   const accommodations=accommodationOptions.map(option=>option.id==='cabin-standard'?{...option,freeUnits:0,soldOut:true}:option);
-  const observations=await prepareE2ePage(page,{authenticated:true,registrationOpen:true,reservation:paidReservation,cars:reservationCars,accommodations,ignoreConsoleError:entry=>(entry.text.includes('Reservation save failed')&&entry.text.includes('Žádost obsahuje nepovolené údaje'))||(entry.url.endsWith('/api/reservations/current/requests')&&entry.text.includes('status of 400'))});let rejectOnce=true;
+  const observations=await prepareE2ePage(page,{authenticated:true,registrationOpen:true,reservation:paidReservation,cars:reservationCars,accommodations,ignoreConsoleError:entry=>(entry.url.includes('/member/modules/planner/index.js?')&&entry.text.startsWith('Reservation save failed')&&(entry.text.includes('Žádost obsahuje nepovolené údaje')||entry.text==='Reservation save failed Error'))||(entry.url.endsWith('/api/reservations/current/requests')&&entry.text.includes('status of 400'))});let rejectOnce=true;
   await page.route('https://api.e36united.cz/api/reservations/current/requests',async route=>{if(route.request().method()==='POST'&&rejectOnce){rejectOnce=false;await route.fulfill({status:400,contentType:'application/json',body:JSON.stringify({ok:false,error:'invalid_fields',message:'Žádost obsahuje nepovolené údaje.'})});return}await route.fallback()});
   await page.setViewportSize({width:1440,height:1000});
   await page.goto('/member.html?section=reservation');
@@ -170,13 +172,17 @@ test('approved reservation change supports sold-out inquiry, compact layouts and
   const statusBox=await statusCard.boundingBox(),detailBox=await detailCard.boundingBox();
   expect(detailBox.y-statusBox.y-statusBox.height).toBeGreaterThanOrEqual(10);
   const heroBox=await page.locator('.reservation-hero-strip').boundingBox();
-  expect(heroBox.height).toBeGreaterThanOrEqual(160);expect(heroBox.height).toBeLessThanOrEqual(220);
+  // The approved shared workspace replaces the large hero with a compact title area.
+  expect(heroBox.height).toBeGreaterThanOrEqual(100);expect(heroBox.height).toBeLessThanOrEqual(220);
+  const heroTitleBox=await page.locator('.reservation-hero-strip h3').boundingBox();
+  expect(heroTitleBox.x).toBeGreaterThanOrEqual(heroBox.x);expect(heroTitleBox.x+heroTitleBox.width).toBeLessThanOrEqual(heroBox.x+heroBox.width+1);expect(heroTitleBox.y+heroTitleBox.height).toBeLessThanOrEqual(heroBox.y+heroBox.height+1);
   const detailGeometry=await detailCard.evaluate(node=>{
     const grid=node.querySelector('.reservation-detail-grid'),left=node.querySelector('[data-reservation-card]'),right=node.querySelector('.reservation-control-stack'),tiles=[...node.querySelectorAll('[data-reservation-summary]>div')];
     const gridRect=grid.getBoundingClientRect(),leftRect=left.getBoundingClientRect(),rightRect=right.getBoundingClientRect();
     return{columns:getComputedStyle(grid).gridTemplateColumns.split(' ').length,gap:rightRect.left-leftRect.right,left:leftRect,right:rightRect,leftRatio:leftRect.width/gridRect.width,tileRects:tiles.map(tile=>tile.getBoundingClientRect()),valueStyles:tiles.map(tile=>{const style=getComputedStyle(tile.querySelector('b'));return{fontSize:parseFloat(style.fontSize),fontWeight:Number(style.fontWeight),lineHeight:parseFloat(style.lineHeight)}}),leftRadius:parseFloat(getComputedStyle(left).borderRadius),rightRadius:parseFloat(getComputedStyle(right).borderRadius)};
   });
-  expect(detailGeometry.columns).toBe(2);expect(Math.abs(detailGeometry.left.y-detailGeometry.right.y)).toBeLessThanOrEqual(1);expect(detailGeometry.gap).toBeGreaterThanOrEqual(12);expect(detailGeometry.leftRatio).toBeGreaterThan(.35);expect(detailGeometry.leftRatio).toBeLessThan(.45);expect(detailGeometry.leftRadius).toBeGreaterThan(0);expect(detailGeometry.rightRadius).toBeGreaterThan(0);
+  expect(detailGeometry.columns).toBe(2);expect(Math.abs(detailGeometry.left.y-detailGeometry.right.y)).toBeLessThanOrEqual(1);expect(detailGeometry.gap).toBeGreaterThanOrEqual(12);expect(detailGeometry.leftRatio).toBeGreaterThan(.35);expect(detailGeometry.leftRatio).toBeLessThan(.45);expect(detailGeometry.leftRadius).toBe(0);expect(detailGeometry.rightRadius).toBe(0);
+  expect(await page.locator('.member-content').evaluate(node=>parseFloat(getComputedStyle(node).borderTopWidth))).toBeGreaterThan(0);
   for(const [index,tile] of detailGeometry.tileRects.entries()){expect(tile.left,`reservation tile ${index+1} starts inside the summary panel`).toBeGreaterThanOrEqual(detailGeometry.left.left-1);expect(tile.right,`reservation tile ${index+1} ends inside the summary panel`).toBeLessThanOrEqual(detailGeometry.left.right+1)}
   for(const style of detailGeometry.valueStyles){expect(style.fontSize).toBe(16);expect(style.fontWeight).toBeGreaterThanOrEqual(700);expect(style.lineHeight/style.fontSize).toBeGreaterThanOrEqual(1.2);expect(style.lineHeight/style.fontSize).toBeLessThanOrEqual(1.3)}
   expect(Math.abs(detailGeometry.tileRects[0].height-detailGeometry.tileRects[1].height)).toBeLessThanOrEqual(1);expect(Math.abs(detailGeometry.tileRects[2].height-detailGeometry.tileRects[3].height)).toBeLessThanOrEqual(1);
@@ -206,7 +212,7 @@ test('approved reservation change supports sold-out inquiry, compact layouts and
   expect(observations.reservationRequestWrites[0]).not.toHaveProperty('carId');expect(observations.reservationRequestWrites[0]).not.toHaveProperty('attendanceType');expect(observations.reservationWrites).toEqual([]);await expect(page.locator('[data-reservation-request-status]')).toContainText('čeká na rozhodnutí');await expect(feedback).toHaveAttribute('data-state','success');await expect(feedback).toContainText('Žádost o změnu byla odeslána ke schválení');await expect(form).toHaveClass(/is-view-mode/);
   const approvedRequest={...observations.reservationRequestWrites[0],id:'request-e2e',type:'change',status:'approved',proposed:{...observations.reservationRequestWrites[0],amountDueCzk:1700,accommodationSnapshot:{optionId:'cabin-standard',optionName:'Chatka Standard'}},memberNote:'Prosím o změnu.',adminComment:'Změna je schválená.',memberAcknowledgedAt:null,createdAt:'2026-09-11T10:00:00Z'};
   observations.setReservation({...paidReservation,crew:3,accommodationSnapshot:{...paidReservation.accommodationSnapshot,optionId:'cabin-standard',optionName:'Chatka Standard'},request:approvedRequest,changePending:false});await page.reload();
-  const result=page.locator('[data-reservation-request-status]');await expect(result).toContainText('Žádost byla schválena');await expect(result).toContainText('Změna je schválená.');await clickReady(result.locator('[data-reservation-request-acknowledge]'));await expect(result).toBeHidden();expect(observations.reservationRequestAcknowledgements).toEqual(['/api/reservations/reservation-flow-e2e/requests/request-e2e/acknowledge']);await page.reload();await expect(result).toBeHidden();expectNoUnexpectedClientErrors(observations);
+  const result=page.locator('[data-reservation-request-status]');await expect(result).toContainText('Žádost byla schválena');await expect(result).toContainText('Změna je schválená.');await clickReady(result.locator('[data-reservation-request-acknowledge]'));await expect(result).toBeHidden();expect(observations.reservationRequestAcknowledgements).toEqual(['/api/reservations/reservation-flow-e2e/requests/request-e2e/acknowledge']);await page.reload();await expect(result).toBeHidden();expect(await Promise.all(expectedRejectionLogs)).toEqual([{message:'Žádost obsahuje nepovolené údaje.',status:400}]);expectNoUnexpectedClientErrors(observations);
 });
 
 test('existing rejected reservation hides a stale Planner handoff and never presents a closed registration action',async({page})=>{

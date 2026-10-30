@@ -55,3 +55,38 @@ Finální syntax/import/diff kontroly, přesný commit, automatické CI a Pages/
 Před commitem: syntax **19 změněných JS/MJS PASS**; **7 verzovaných cílů / 11 odkazů**, každý cíl pouze `20261030-portal1`; Admin module graph PASS, diff PASS. Finální klasický scrollbar navíc ověřil stejnou výšku kompaktní identity **137,4375 px** napříč čtyřmi agendami i ve větvi bez fotografie s dostupnou akcí doplnění. Původní navazující scénář `portal-next-ux` (Club, QR, mobilní menu, vzhled a návraty) **1/1 PASS**, 4,8 s. Pro jeho starou přesnou výšku velkého pozdravu byla použita schválená kompaktní horní mez a zároveň kontrola nového skutečného názvu Přehledu; ostatní assertions zachovány.
 
 Před nasazením read-only metadata stále potvrzují Worker `a458c9f7-ad43-4564-a516-4a65b9fec70c` na 100 %, `transport_enabled=0`, `merch_paused=1`, preview URL vypnuté. Původní produkční Pages `61f3e942-2a50-47cd-ae49-9bdb8a8943aa` pro výchozí SHA. Nejsou připravené ani potřebné změny Workeru, schématu nebo konfigurace služeb.
+
+## Publikovaná verze — lokální doplnění po commitu
+
+Samostatný commit **`9b66141d2e7310bce1230e9ade8fede0b61d8907`**, `feat(member): unify portal workspace and navigation`, 26 souvisejících souborů. Po přímém schválení pushnutí v chatu, čerstvém fetchi a kontrole předka byl main běžně pushnut bez force. Vzdálené refs/heads/main i origin/main potvrdily totéž SHA.
+
+Produkční Pages **`64c13573-4573-4376-b192-62180af4f6c4`**, **SUCCESS**, source **`9b66141d2e7310bce1230e9ade8fede0b61d8907`**. HTTP obsahově ověřilo **12/12** změněných produkčních vstupů/modulů/CSS; JavaScript/CSS hashově, HTML s jedinou známou normalizací Cloudflare obfuskace e-mailu. Importy používají jednotnou verzi. Katalog má stále osm produktů, `paused=true`.
+
+Skutečný **již publikovaný frontend**, bez podstrčených souborů, Firebase SDK a produkční API; dosavadní schválený účet nebyl mazán ani znovu zakládán:
+
+| Engine | První přihlášení z registračního formuláře | Logout → homepage/reload → login → konečný Přehled | Přímá Garáž/reload/logout |
+| --- | ---: | ---: | --- |
+| Chromium | PASS, 1357 ms | PASS, 839 ms | PASS |
+| WebKit | PASS, 2029 ms | PASS, 1474 ms | PASS |
+| Firefox | PASS, 1418 ms | PASS, 1402 ms | PASS |
+
+Všechny enginy 0 pageerror / 0 console error a žádná chybová HTTP odpověď; kontrola cílové sekce pokračuje i po dokončení nepovinných požadavků. Před publikací stejný kandidátní SDK/API smoke prošel také C/W/F, ale tehdy s lokálním kandidátním frontendem na www; tyto důkazy nejsou zaměňované. Zápisové obchodní scénáře zůstaly izolované. Běžný produkční login používá stávající idempotentní onboarding/claim požadavky, nikoli novou rezervaci, auto, platbu, upload nebo úpravu profilu.
+
+Finální srovnatelné snímky přesného commitu byly po posledním zploštění prázdných stavů znovu vykreslené cíleným výběrem **4/4 Chromium PASS**, 12,9 s: čtyři agendy při 1440 a 390 px v obou motivech, následné původní akce. Snímky byly otevřené a prohlédnuté; nejde o novou kompletní browser sadu všech enginů.
+
+Porovnání před/po potvrzuje nezměněný Worker na 100 %, bindings, cron, registry migrací a vypnuté preview URL. Provozní transport zůstává vypnutý, Merch pozastavený, **0 nových skutečných e-mailů**, žádný produkční upload ani nové obchodní záznamy. Nebyl proveden Worker deployment, migrace, změna domén nebo nastavení služeb.
+
+Automatický [CI #147](https://github.com/sumpator/e36-united/actions/runs/41050838007), run 41050838007, job 124046184784, pokus 1, přesné publikované SHA. Node a syntax prošly; konečné browser výsledky se doplní po dokončení, žádný ruční rerun.
+
+## Navazující oprava doložená CI #147
+
+První automatický běh skončil FAILURE: Node **651/651 PASS**, syntax SUCCESS; Chromium **503 PASS / 4 FAIL**, WebKit **284 PASS / 4 FAIL**, Firefox **151 PASS / 0 FAIL**. Všechny sady mají 0 přeskočených scénářů. Původní výsledek se neopakuje ručním rerunem a není nahrazen dílčím lokálním úspěchem.
+
+- Tři očekávání zůstala ve staré prezentaci: název Registrace místo schválené Rezervace, minimálně 160px fotografická hlavička a zaoblené vnitřní karty místo kompaktního titulku/jediného obrysu, a značka kompletního členského profilu v Přehledu místo Clubu. Testy nyní kontrolují skutečný nový název, celý titulek uvnitř kompaktní hlavičky a vnější obrys, a přejdou do Clubu před kontrolou stejné značky. Finanční, chybové, schvalovací a per-account kontroly zůstaly.
+- Mobilní předběžný Planner odhalil skutečnou prezentační chybu. V Chromium s rezervovaným scrollbar gutterem měla pravá mezera dialogu **25 px místo 10–12 px**; původní test to lokálně reprodukoval. Existující overlay nyní používá šířku viewportu, nikoli užšího layoutu. Tolerance testu se nemění.
+- Po průchodu tímto bodem zůstával při zavření dialogu pohyb návratového tlačítka **5,36 px**; CI WebKit doložil **5,390625 px**. Záznam geometrie ukázal, že starý selektor `:has(.reservation-form.is-editing)` mění po vrácení formuláře do pozadí velikost/margin titulku a grid gap. Hover navíc přidával transformaci tlačítka. Pravidla této předběžné agendy jsou nyní stejná při přesunu formuláře do dialogu i zpět a akce nemění polohu na hover. Scrollování, focus a ukládání se neupravují. Původní limit návratové polohy **≤ 1 px** zůstal zachovaný; diagnostika přikládá geometrii před/po.
+- Následný širší dotčený výběr C/W/F: **14 PASS / 1 FAIL** z 15, 1,2 min. Poslední Firefox případ dokončil celý obchodní průchod, ale jeho konzole vypisuje očekávaný objekt Error bez message v textu. Pouze tento test nyní čte skutečné argumenty konzole a vyžaduje právě jednu chybu s přesným `message` a `status=400`, z přesného Planner modulu. Nejde o ignorování obecných chyb. Poté stejný kompletní scénář **3/3 PASS**, C/W/F, 23,2 s.
+
+Po opravě mobilní předběžný průchod C/W **2/2 PASS**, 13,2 s, včetně jediného vytvořeného auta, databázově ověřeného uložení plánu, nové relace, opětovné editace a storna. Kompletní nový vizuální soubor na finálním CSS: **24/24 PASS**, C8/W8/F8, 1,0 min. Následné cílené výsledky nejsou vydávány za nový celý browser suite. Nové výsledné snímky dialogu při 360 × 520 px v obou motivech byly otevřené a prohlédnuté: akce jsou dostupné a obě mezery odpovídají. Dokončená vizuální matice ostatních agend se zbytečně neopakuje.
+
+Navazující produkční změna jsou pouze čtyři CSS pravidla v `member/workspace.css` a jeho URL v `member.html`: **`20261030-portal2`**. JavaScript se nemění a jednotné importy zachovávají **`20261030-portal1`**. Ostatní změny jsou tři přímo dotčené browser testy a tento report. Žádná změna Workeru, schématu, migrací, závislostí, workflow, cen, oprávnění nebo provozních přepínačů. Následný nový automatický CI a Pages budou ověřeny pro přesné navazující SHA.
