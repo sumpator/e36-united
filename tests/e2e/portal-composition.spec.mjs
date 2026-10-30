@@ -42,7 +42,7 @@ test('section titles, account save, identity and mobile links remain connected',
  expect(errors.pageErrors).toEqual([]);expect(errors.unhandledApi).toEqual([]);
 });
 test('compact Club, next milestone and actionable points guide',async({page})=>{
- const {errors}=await setup(page,{points:24});await page.setViewportSize({width:1440,height:1000});await page.goto('/member.html?section=club');
+ const {errors}=await setup(page,{points:24});await page.setViewportSize({width:1440,height:1000});await page.goto('/member.html?section=club&clubTab=points');
  await expect(page.locator('[data-reward-name]')).toContainText('10 %');await expect(page.locator('[data-reward-progress]')).toContainText('Do další odměny');await expect(page.locator('[data-reward-progress] [role=progressbar]')).toHaveAttribute('aria-valuenow','0');await expect(page.locator('.reward-achieved')).toHaveCount(0);
  for(const [w,h,theme,label] of [[1440,1000,'light','club-desktop'],[1366,768,'dark','club-notebook'],[390,844,'light','club-mobile'],[360,800,'dark','club-360']]){await page.setViewportSize({width:w,height:h});await page.evaluate(()=>scrollTo({top:0,behavior:'instant'}));await capture(page,label,theme);}
  await page.locator('[data-points-guide-open]').click();await expect(page.locator('#points-guide')).toBeVisible();await capture(page,'points-guide-360','dark');await page.keyboard.press('Escape');await expect(page.locator('[data-points-guide-open]')).toBeFocused();
@@ -66,7 +66,7 @@ test('public compositions and anonymous points keep meaningful states',async({pa
 });
 
 test('final visual review of adjusted mobile surfaces and compact cards',async({page})=>{
- await setup(page,{points:24});await page.setViewportSize({width:1440,height:1000});await page.goto('/member.html?section=club');
+ await setup(page,{points:24});await page.setViewportSize({width:1440,height:1000});await page.goto('/member.html?section=club&clubTab=points');
  await expect(page.locator('[data-reward-name]')).toContainText('10 %');await capture(page,'club-desktop');
  await page.locator('[data-points-guide-open]').click();await capture(page,'points-guide-desktop');await page.keyboard.press('Escape');
  await page.setViewportSize({width:390,height:844});await page.goto('/member.html?section=account');await page.locator('.account-appearance').scrollIntoViewIfNeeded();await capture(page,'account-mobile-bottom');

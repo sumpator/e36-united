@@ -2,7 +2,7 @@ import { deriveMemberHeroState } from '../member-portal-state.js?v=20261025-flow
 import { initPortalNavigation } from '../portal-navigation.js?v=20260924-merch2';
 import { $, $$ } from './ui.js?v=20260924-merch2';
 import { accountAuthMode, memberSection, requestedMemberSection } from './deep-links.js?v=20261028-entry1';
-import { initMobileNavigation } from '../mobile-navigation.js?v=20261030-portal1';
+import { initMobileNavigation } from '../mobile-navigation.js?v=20261030-refine1';
 
 export function createMemberShell({
   renderApp,
@@ -29,6 +29,7 @@ export function createMemberShell({
   function setMainMobileMemberNavigation(authenticated){const mobileNavigation=$('[data-member-main-mobile-nav]');if(mobileNavigation)mobileNavigation.hidden=!authenticated;if(!authenticated)closeMainMenu()}
   function showAuth(){
     document.body.classList.remove('member-authenticated');
+    mobileNavigation?.reset();
     setMainMobileMemberNavigation(false);
     const authView=$('[data-auth-view]'),appView=$('[data-app-view]'),statusView=$('[data-auth-status-view]');
     if(statusView)statusView.hidden=true;
@@ -37,6 +38,7 @@ export function createMemberShell({
   }
   function showAuthStatus({title='Ověřuji přihlášení.',copy='Počkám na potvrzený stav Firebase session.',retry=false}={}){
     document.body.classList.remove('member-authenticated');
+    mobileNavigation?.reset();
     setMainMobileMemberNavigation(false);
     const authView=$('[data-auth-view]'),appView=$('[data-app-view]'),statusView=$('[data-auth-status-view]');
     if(authView)authView.hidden=true;
@@ -76,8 +78,8 @@ export function createMemberShell({
     if(id==='live'&&!liveConfirmed){void onLiveEntry?.();return false}
     onSectionChange?.(id);
     const url=new URL(window.location.href);url.searchParams.set('section',id);url.searchParams.delete('panel');
-    if(id!=='club'){url.searchParams.delete('profile');url.searchParams.delete('members')}
-    const changed=currentSection!==id,wasInitialized=currentSection!==null;
+    if(id!=='club'){url.searchParams.delete('profile');url.searchParams.delete('members');url.searchParams.delete('clubTab');if(['#points','#history','#achievements'].includes(url.hash))url.hash=''}
+    const previousSection=currentSection,changed=currentSection!==id,wasInitialized=currentSection!==null;
     if(!fromHistory){if(changed&&wasInitialized)window.history.pushState(null,'',url);else window.history.replaceState(window.history.state,'',url)}
     currentSection=id;document.body.dataset.memberSection=id;
     const titles={overview:'Přehled',reservation:'Rezervace',live:'Program LIVE',garage:'Garáž',payments:'Platby',club:'United Club',photos:'Moje fotky',merch:'United Merch',account:'Účet'};
@@ -90,7 +92,7 @@ export function createMemberShell({
     $$('.member-nav-item[data-member-section]').forEach(button=>{button.classList.toggle('is-active',button.dataset.memberSection===id);if(button.dataset.memberSection===id)button.setAttribute('aria-current','page');else button.removeAttribute('aria-current')});
     $$('[data-main-member-section]').forEach(button=>button.classList.toggle('is-active',button.dataset.mainMemberSection===id));
     $$('[data-member-panel]').forEach(panel=>panel.classList.toggle('is-active',panel.dataset.memberPanel===id));
-    window.dispatchEvent(new CustomEvent('member:sectionchange',{detail:{section:id}}));
+    window.dispatchEvent(new CustomEvent('member:sectionchange',{detail:{section:id,previousSection,fromHistory}}));
     memberPortalNavigation?.sync(id,{scroll:false});
     if(changed)requestAnimationFrame(()=>{const panel=$(`[data-member-panel="${id}"]`);if(!panel)return;const title=$('[data-member-page-title]');if(title){title.tabIndex=-1;title.focus({preventScroll:true})}if(wasInitialized)$('[data-member-page-title]').scrollIntoView({block:'start',behavior:'instant'})});return true;
   }
@@ -111,12 +113,12 @@ export function createMemberShell({
     const hero=$('[data-member-hero]'),media=$('[data-member-hero-media]'),carCopy=$('[data-member-hero-car]'),cta=$('[data-member-hero-cta]');if(!hero||!media||!carCopy||!cta)return;
     const view=deriveMemberHeroState({cars:data.cars,memberSince:getMemberSince()}),car=view.car;
     media.replaceChildren();memberHeroPhotoId='';
-    hero.dataset.heroState=view.state;carCopy.textContent=view.carText;cta.textContent=view.cta;cta.hidden=!view.cta;if(!car||!view.photoId)return;
+    hero.dataset.heroState=view.state;carCopy.textContent=view.carText;cta.textContent=view.cta;cta.hidden=!view.cta;window.dispatchEvent(new Event('member:identitychange'));if(!car||!view.photoId)return;
     const photoId=view.photoId;memberHeroPhotoId=photoId;
     const img=document.createElement('img');img.alt='';img.decoding='async';media.append(img);
     void (async()=>{
-      try{const url=await getPrivateCarPhotoUrl(photoId);if(memberHeroPhotoId!==photoId||!img.isConnected)return;img.src=url;await img.decode().catch(()=>{});if(memberHeroPhotoId===photoId)hero.dataset.heroState='photo'}
-      catch(error){if(memberHeroPhotoId===photoId){hero.dataset.heroState='no-photo';media.replaceChildren();cta.textContent='Přidat fotku auta →';cta.hidden=false}console.warn('Member hero photo unavailable',photoId,error)}
+      try{const url=await getPrivateCarPhotoUrl(photoId);if(memberHeroPhotoId!==photoId||!img.isConnected)return;img.src=url;await img.decode().catch(()=>{});if(memberHeroPhotoId===photoId){hero.dataset.heroState='photo';window.dispatchEvent(new Event('member:identitychange'))}}
+      catch(error){if(memberHeroPhotoId===photoId){hero.dataset.heroState='no-photo';media.replaceChildren();cta.textContent='Přidat fotku auta →';cta.hidden=false;window.dispatchEvent(new Event('member:identitychange'))}console.warn('Member hero photo unavailable',photoId,error)}
     })();
   }
 

@@ -1,5 +1,5 @@
 import {money,imageSource} from './catalog.js?v=20260924-merch2';
-import {paymentQrSvg} from '../member/modules/planner/payments.js?v=20260924-merch2';
+import {paymentQrSvg} from '../member/modules/planner/payments.js?v=20261030-refine1';
 export const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 export const statusLabel={new:'Nová',preparing:'Připravuje se',ready:'Připraveno k převzetí',sent:'Odesláno',completed:'Dokončeno',cancelled:'Zrušeno',expired:'Vypršela',unpaid:'Nezaplaceno',underpaid:'Nedoplatek',paid:'Zaplaceno',overpaid:'Přeplatek'};
 export const orderStatusLabel=(order,status=order.state.status)=>status==='ready'&&order.snapshot.shipping==='address'?'Připraveno k odeslání':statusLabel[status];

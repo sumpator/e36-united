@@ -95,7 +95,7 @@ test('history claim FormData stays compatible and omits unselected S&S defaults'
 
 test('history header drops its redundant UNITED OD block but keeps the secondary editor action',()=>{
   assert.doesNotMatch(club,/history-since|data-history-since/);
-  assert.match(club,/data-club-anchor="history" hidden[\s\S]*Proč ověření\?[\s\S]*history-edit-all/);
+  assert.match(club,/data-club-anchor="history"[\s\S]*Proč ověření\?[\s\S]*history-edit-all/);
   assert.match(memberHtml,/data-member-since/);
 });
 

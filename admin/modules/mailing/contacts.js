@@ -1,4 +1,4 @@
-import { canonicalMemberLink } from '../../member-detail.js?v=20261026-merch-mail1';
+import { canonicalMemberLink } from '../../member-detail.js?v=20261030-refine1';
 import {renderListPagination} from '../../lists.js?v=20260930-arrivals2';
 import { apiRequest } from '../../api.js?v=20260930-arrivals2';
 import { $, escapeHtml, numeric } from '../../ui.js?v=20260924-merch2';

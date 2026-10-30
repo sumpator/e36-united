@@ -81,8 +81,9 @@ test('Payments are driven only by approved reservation payment data', () => {
   assert.doesNotMatch(reservation, /data-member-payment|reservation-payment-brief/);
   assert.doesNotMatch(js, /data-payment-open/);
   assert.match(reservation, /data-reservation-payment-detail/);
-  assert.match(js, /PLATBA K REZERVACI/);
-  assert.match(js, /Cena, úhrada a QR/);
+  assert.match(js, /const fullCard=paymentCard\(reservation\)/);
+  assert.match(js, /paymentsList\.innerHTML=fullCard/);
+  assert.match(js, /detail\.innerHTML=fullCard/);
   for (const label of ['Cena rezervace', 'Již zaplaceno', 'Variabilní symbol', 'Splatnost']) assert.match(js, new RegExp(label));
   assert.match(js, /member-payment-qr/);
   assert.match(js, /Naskenuj v bankovní aplikaci/);

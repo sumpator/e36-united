@@ -2,10 +2,11 @@ import { accommodationVisualMarkup, bindAccommodationVisualFallbacks } from '../
 import { accommodationGalleryCue, accommodationPhotos, bindAccommodationGalleryTrigger } from '../../../accommodation-gallery.js?v=20260912-reservation-detail-ux-r1';
 import { MAX_RESERVATION_CREW, newerPlannerDraft, validatePlannerDraft, plannerBaseKey } from '../../../planner-state.js?v=20261025-flow1';
 import { $, esc, setButtonBusy, toast } from '../../ui.js?v=20260924-merch2';
-import { createReservationPayments, formatCzk } from './payments.js?v=20260924-merch2';
-import { normalizeAccommodationOption, normalizeReservation } from './reservation.js?v=20260930-arrivals2';
+import { createReservationPayments, formatCzk } from './payments.js?v=20261030-refine1';
+import { normalizeAccommodationOption, normalizeReservation } from './reservation.js?v=20261030-refine1';
 import { isAuthorizationFailure } from '../../refresh.js?v=20260907-feedback';
 import { createMemberPlannerExperience } from './experience.js?v=20261025-flow1';
+import { reservationStatusPresentation } from '../../reservation-status.js?v=20261030-refine1';
 
 const plannerHandoffPrefix='e36UnitedPlannerHandoff:v1:';
 
@@ -530,13 +531,15 @@ export function createMemberPlanner({
   }
 
   const reservationStatusNames={pending:'Registrace čeká na schválení',approved:'Tvoje účast je potvrzená',rejected:'Registrace nebyla schválena',cancelled:'Registrace byla zrušena'};
-  const reservationStatusLoudNames={pending:'REGISTRACE ČEKÁ NA SCHVÁLENÍ.',approved:'TVOJE ÚČAST JE POTVRZENÁ.',rejected:'REGISTRACE NEBYLA SCHVÁLENA.',cancelled:'REGISTRACE BYLA ZRUŠENA.'};
-  const reservationStatusSymbols={pending:'!',approved:'✓',rejected:'×',cancelled:'—'};
+  const reservationStatusLoudNames={pending:'REGISTRACE ČEKÁ NA SCHVÁLENÍ.',approved:'Tvoje účast je potvrzená.',rejected:'REGISTRACE NEBYLA SCHVÁLENA.',cancelled:'REGISTRACE BYLA ZRUŠENA.'};
+  const reservationStatusSymbols={pending:'◷',approved:'✓',rejected:'×',cancelled:'—'};
   function setReservationCardStatus(status){
     const key=status==='preliminary'?'preliminary':reservationStatusNames[status]?status:'none';
     const elements=[$('.reservation-status-card'),$('.reservation-unified-card'),$('[data-reservation-card]'),$('[data-reservation-overview-card]'),$('.reservation-mini'),$('[data-reservation-nav-status]')].filter(Boolean);
     for(const element of elements){for(const value of [...Object.keys(reservationStatusNames),'preliminary','none'])element.classList.remove(`is-status-${value}`);element.classList.add(`is-status-${key}`)}
-    const navStatus=$('[data-reservation-nav-status]');if(navStatus)navStatus.title=reservationStatusNames[status]||'Bez registrace';
+    const view=reservationStatusPresentation(getData().reservation,{plan:status==='preliminary',draft:Boolean(draftApplicable(editorDraft)||activePlannerHandoff),open:reservationState.registrationOpen||preliminaryEnabled});
+    const navStatus=$('[data-reservation-nav-status]');if(navStatus){navStatus.dataset.tone=view.tone;navStatus.title=view.label;navStatus.textContent=`${view.symbol} ${view.label}`;if(view.payment){const payment=document.createElement('span');payment.dataset.tone=view.paymentTone;payment.textContent=view.payment;navStatus.append(payment)}}
+    const paymentState=$('[data-reservation-payment-state]');if(paymentState){paymentState.hidden=!view.payment;paymentState.textContent=view.payment;paymentState.dataset.tone=view.paymentTone||'neutral'}
   }
   function reservationDescription(reservation){
     if(!reservation)return reservationState.message||(reservationState.registrationOpen?'':'');

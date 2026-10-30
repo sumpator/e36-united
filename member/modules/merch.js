@@ -1,6 +1,6 @@
-import {esc,date,statusLabel,orderStatusLabel,orderMarkup,bindOrder,addressFields,readAddress} from '../../merch/order-view.js?v=20261026-merch-mail1';
+import {esc,date,statusLabel,orderStatusLabel,orderMarkup,bindOrder,addressFields,readAddress} from '../../merch/order-view.js?v=20261030-refine1';
 import {money,imageSource} from '../../merch/catalog.js?v=20260924-merch2';
-import {renderMerchAddress} from './merch-address.js?v=20261026-merch-mail1';
+import {renderMerchAddress} from './merch-address.js?v=20261030-refine1';
 export function createMemberMerch({request,getUser}){
  let generation=0,loadedFor=null,orders=[],page=1,filter='active',listScroll=0;
  const panel=document.querySelector('[data-member-panel="merch"]'),list=panel.querySelector('[data-merch-orders]'),detail=panel.querySelector('[data-merch-detail]');
@@ -16,7 +16,7 @@ export function createMemberMerch({request,getUser}){
  panel.querySelectorAll('[data-merch-filter]').forEach(b=>b.onclick=()=>{filter=b.dataset.merchFilter;page=1;detail.hidden=true;list.hidden=false;void load();});
  panel.querySelector('[data-merch-next]').onclick=()=>{page++;void load();};panel.querySelector('[data-merch-prev]').onclick=()=>{page=Math.max(1,page-1);void load();};
  const overview=document.querySelector('[data-merch-overview]'),payments=document.querySelector('[data-merch-payments]');overview.classList.add('merch-connected');payments.classList.add('merch-connected');
- function syncPaymentTab(){const merch=new URL(location.href).searchParams.get('payment')==='merch';payments.hidden=!merch;document.querySelector('[data-payments-list]').hidden=merch;document.querySelector('[data-member-panel="payments"] .member-section-head p').textContent=merch?'Přehled plateb za tvoje objednávky UNITED MERCH.':'Přehled plateb za tvoji účast na United.';document.querySelectorAll('[data-member-payment-tab]').forEach(b=>b.setAttribute('aria-pressed',String((b.dataset.memberPaymentTab==='merch')===merch)));if(merch)void summary();}
+ function syncPaymentTab(){const merch=new URL(location.href).searchParams.get('payment')==='merch';payments.hidden=!merch;document.querySelector('[data-payments-list]').hidden=merch;document.querySelectorAll('[data-member-payment-tab]').forEach(b=>b.setAttribute('aria-pressed',String((b.dataset.memberPaymentTab==='merch')===merch)));if(merch)void summary();}
  document.querySelectorAll('[data-member-payment-tab]').forEach(button=>button.onclick=()=>{const url=new URL(location.href);url.searchParams.set('payment',button.dataset.memberPaymentTab);history.pushState(history.state,'',url);syncPaymentTab();});
  window.addEventListener('popstate',syncPaymentTab);
  window.addEventListener('member:sectionchange',event=>{if(event.detail.section==='payments')syncPaymentTab();});

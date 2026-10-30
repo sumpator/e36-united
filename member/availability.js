@@ -25,4 +25,5 @@ export function renderMemberAvailability(errors, retry, { hasHandoff = false } =
   document.body.classList.toggle('member-garage-unavailable', Boolean(errors.garage));
   document.body.classList.toggle('member-club-unavailable', Boolean(errors.club));
   document.body.classList.toggle('member-process-unavailable', Boolean(errors.reservation || (errors.planner && !hasHandoff)));
+  if(errors.reservation){const status=document.querySelector('[data-reservation-nav-status]');if(status){status.dataset.tone='error';status.title='Chyba načtení';status.textContent='! Chyba načtení'}}
 }

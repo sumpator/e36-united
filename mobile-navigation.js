@@ -13,17 +13,34 @@ export function initMobileNavigation({member=false,onSelect,beforeOpen=()=>true}
  function sync(section){bottom?.querySelectorAll('button').forEach(button=>{const active=button.dataset.mobileSection===section||button.hasAttribute('data-mobile-menu')&&!['overview','reservation','payments'].includes(section);button.classList.toggle('is-active',active);active?button.setAttribute('aria-current','page'):button.removeAttribute('aria-current')});}
  function finish(){if(!dialog.open)return;dialog.close();document.body.classList.remove('united-menu-open');trigger.setAttribute('aria-expanded','false');bottom?.querySelector('[data-mobile-menu]')?.setAttribute('aria-expanded','false');const action=pending;pending=null;closing=false;requestAnimationFrame(()=>{if(action)action();else opener?.focus({preventScroll:true})});}
  function close(action=null){if(!dialog.open||closing)return;pending=action;closing=true;if(history.state?.unitedMobileMenu)history.back();else finish();}
+ function cloneMemberBlock(source){
+  const clone=source.cloneNode(true);
+  clone.querySelectorAll('[data-member-section]').forEach(button=>{button.dataset.mobileSection=button.dataset.memberSection;button.removeAttribute('data-member-section');button.removeAttribute('data-portal-target')});
+  if(clone.hasAttribute('data-member-section')){clone.dataset.mobileSection=clone.dataset.memberSection;clone.removeAttribute('data-member-section');clone.removeAttribute('data-portal-target')}
+  clone.querySelectorAll('[data-live-nav-copy],[data-reservation-nav-status]').forEach(node=>{node.removeAttribute('data-live-nav-copy');node.removeAttribute('data-reservation-nav-status')});
+  return clone;
+ }
+ function syncIdentity(){
+  const old=dialog.querySelector('[data-menu-identity]'),source=document.querySelector('[data-member-hero]');
+  if(!dialog.open||!member||!document.body.classList.contains('member-authenticated')){old?.remove();return}
+  if(!source)return;
+  const clone=source.cloneNode(true);clone.dataset.menuIdentity='';clone.removeAttribute('data-member-hero');
+  clone.querySelectorAll('*').forEach(node=>{for(const attribute of [...node.attributes])if(attribute.name.startsWith('data-member-'))node.removeAttribute(attribute.name)});
+  const cta=clone.querySelector('.member-hero-cta');if(cta)cta.dataset.menuHeroCta='';
+  if(old)old.replaceWith(clone);else dialog.querySelector('nav').prepend(clone);
+ }
  function open(button=trigger){if(dialog.open||beforeOpen()===false)return;opener=button;const target=dialog.querySelector('nav');target.replaceChildren();
-  if(member&&document.body.classList.contains('member-authenticated')){document.querySelectorAll('.member-sidebar [data-member-section]').forEach(source=>{const clone=source.cloneNode(true);clone.removeAttribute('data-member-section');clone.removeAttribute('data-portal-target');clone.dataset.mobileSection=source.dataset.memberSection;clone.querySelectorAll('[data-live-nav-copy],[data-reservation-nav-status]').forEach(node=>{node.removeAttribute('data-live-nav-copy');node.removeAttribute('data-reservation-nav-status')});target.append(clone)});const publicLinks=document.createElement('div');publicLinks.className='mobile-public-links';publicLinks.setAttribute('aria-label','Veřejný web');publicLinks.innerHTML=[['index.html','⌂','Web'],['galerie.html','▧','Galerie'],['merch.html','♧','Merch']].map(([href,icon,label])=>`<a href="${href}" aria-label="${label} · veřejný web"><i aria-hidden="true">${icon}</i><span>${label}</span></a>`).join('');target.append(publicLinks);const logout=document.createElement('button');logout.type='button';logout.className='mobile-member-logout';logout.textContent='Odhlásit se';logout.dataset.menuLogout='';target.append(logout);}
+  if(member&&document.body.classList.contains('member-authenticated')){document.querySelectorAll('.member-sidebar > :not(.member-nav-footer)').forEach(source=>target.append(cloneMemberBlock(source)));const publicLinks=document.createElement('div');publicLinks.className='mobile-public-links';publicLinks.setAttribute('aria-label','Veřejný web');publicLinks.innerHTML=[['index.html','⌂','Web'],['galerie.html','▧','Galerie'],['merch.html','♧','Merch']].map(([href,icon,label])=>`<a href="${href}" aria-label="${label} · veřejný web"><i aria-hidden="true">${icon}</i><span>${label}</span></a>`).join('');target.append(publicLinks);const footer=document.createElement('div');footer.className='mobile-member-footer';const live=document.querySelector('.member-sidebar [data-member-section=live]');if(live)footer.append(cloneMemberBlock(live));const logout=document.createElement('button');logout.type='button';logout.className='mobile-member-logout';logout.textContent='Odhlásit se';logout.dataset.menuLogout='';footer.append(logout);target.append(footer);}
   else{header.querySelectorAll('.nav-links a:not(.nav-cta)').forEach(source=>{const clone=source.cloneNode(true);clone.removeAttribute('id');target.append(clone)});}
-  history.pushState({...history.state,unitedMobileMenu:true},'');dialog.showModal();document.body.classList.add('united-menu-open');trigger.setAttribute('aria-expanded','true');bottom?.querySelector('[data-mobile-menu]')?.setAttribute('aria-expanded','true');dialog.querySelector('[data-menu-close]').focus();
+  history.pushState({...history.state,unitedMobileMenu:true},'');dialog.showModal();syncIdentity();document.body.classList.add('united-menu-open');trigger.setAttribute('aria-expanded','true');bottom?.querySelector('[data-mobile-menu]')?.setAttribute('aria-expanded','true');dialog.querySelector('[data-menu-close]').focus();
  }
  trigger.addEventListener('click',()=>open());
  dialog.addEventListener('cancel',event=>{event.preventDefault();close()});
- dialog.addEventListener('click',event=>{if(event.target===dialog||event.target.closest('[data-menu-close]'))return close();if(event.target.closest('[data-menu-logout]'))return close(()=>document.querySelector('.member-sidebar-logout[data-logout]')?.click());const button=event.target.closest('[data-mobile-section]');if(button)return close(()=>onSelect(button.dataset.mobileSection));const link=event.target.closest('a');if(link){event.preventDefault();close(()=>location.assign(link.href));}});
+ dialog.addEventListener('click',event=>{if(event.target===dialog||event.target.closest('[data-menu-close]'))return close();if(event.target.closest('[data-menu-hero-cta]'))return close(()=>document.querySelector('[data-member-hero-cta]')?.click());if(event.target.closest('[data-menu-logout]'))return close(()=>document.querySelector('.member-sidebar-logout[data-logout]')?.click());const button=event.target.closest('[data-mobile-section]');if(button)return close(()=>onSelect(button.dataset.mobileSection));const link=event.target.closest('a');if(link){event.preventDefault();close(()=>location.assign(link.href));}});
  window.addEventListener('popstate',()=>{if(dialog.open&&!history.state?.unitedMobileMenu)finish()});
  const viewport=()=>{const keyboard=!!window.visualViewport&&innerHeight-visualViewport.height>150&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName||'');document.body.classList.toggle('member-keyboard-open',keyboard);if(innerWidth>1050&&dialog.open)close()};
  window.visualViewport?.addEventListener('resize',viewport);window.addEventListener('resize',viewport);
  window.addEventListener('member:sectionchange',event=>sync(event.detail.section));
- return {sync,close};
+ window.addEventListener('member:identitychange',syncIdentity);
+ return {sync,close,reset(){close();dialog.querySelector('nav').replaceChildren()}};
 }

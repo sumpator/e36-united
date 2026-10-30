@@ -1,4 +1,4 @@
-import {esc,addressFields,readAddress,linesMarkup,orderMarkup,bindOrder} from './order-view.js?v=20261026-merch-mail1';
+import {esc,addressFields,readAddress,linesMarkup,orderMarkup,bindOrder} from './order-view.js?v=20261030-refine1';
 export function createCheckout({basket,getCart,clearCart,getIdentity,request,onCart}){
  let quote=null,pending=null,generation=0,busy=false;
  const contact=basket.querySelector('[data-checkout]'),review=basket.querySelector('[data-order-review]');

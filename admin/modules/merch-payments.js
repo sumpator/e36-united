@@ -1,4 +1,4 @@
-import {esc,statusLabel,orderMarkup,bindOrder} from '../../merch/order-view.js?v=20261026-merch-mail1';
+import {esc,statusLabel,orderMarkup,bindOrder} from '../../merch/order-view.js?v=20261030-refine1';
 import {money} from '../../merch/catalog.js?v=20260924-merch2';
 
 export function initializeMerchPayments({panel,request,state}){

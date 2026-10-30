@@ -24,8 +24,8 @@ const authStatesCss = read('auth-states.css');
 test('main navigation contains the approved nine internal panels in target order', () => {
   const sidebar = memberHtml.slice(memberHtml.indexOf('<aside class="member-sidebar"'), memberHtml.indexOf('</aside>'));
   const labels = [...sidebar.matchAll(/data-member-section="([^"]+)"/g)].map(match => match[1]);
-  assert.deepEqual(labels, ['overview', 'reservation', 'payments', 'live', 'garage', 'club', 'photos', 'account', 'merch']);
-  assert.match(sidebar, /data-member-section="reservation"[\s\S]*?<strong>Rezervace<\/strong><small>Účast &amp; ubytování<\/small>/);
+  assert.deepEqual(labels, ['overview', 'reservation', 'payments', 'garage', 'club', 'photos', 'account', 'merch', 'live']);
+  assert.match(sidebar, /data-member-section="reservation"[\s\S]*?<strong>Rezervace<\/strong><small>Účast a ubytování<\/small>/);
   for (const panel of labels) assert.match(memberHtml, new RegExp(`data-member-panel="${panel}"`));
 });
 
@@ -61,7 +61,7 @@ test('main mobile menu adds unnumbered logout after its divider and reuses the s
   assert.match(memberJs, /\$\$\('\[data-logout\]'\)\.forEach\(button=>button\.addEventListener\('click',logoutMember\)\)/);
 });
 
-test('desktop sidebar action, main mobile menu and Account expose shared logout outside the bordered navigation card', () => {
+test('desktop sidebar action, main mobile menu and Account expose shared logout in a separated footer and Account', () => {
   const heroStart = memberHtml.indexOf('data-member-hero=');
   const hero = memberHtml.slice(heroStart, memberHtml.indexOf('<div class="portal-nav-viewport">', heroStart));
   const navStart = memberHtml.indexOf('<div class="member-portal-nav');
@@ -71,8 +71,8 @@ test('desktop sidebar action, main mobile menu and Account expose shared logout 
   const sidebar = memberHtml.slice(sidebarStart, sidebarEnd);
   const account = memberHtml.slice(memberHtml.indexOf('data-member-panel="account"'));
   assert.doesNotMatch(hero, /data-logout|member-hero-logout/);
-  assert.doesNotMatch(sidebar, /data-logout/);
-  assert.ok(nav.indexOf('member-sidebar-logout') > nav.indexOf('</aside>'));
+  assert.match(sidebar, /member-nav-footer[\s\S]*data-member-section="live"[\s\S]*data-logout/);
+  assert.ok(nav.indexOf('member-sidebar-logout') > nav.indexOf('member-nav-footer'));
   assert.doesNotMatch(nav, /data-portal-menu-open|data-portal-sheet/);
   assert.match(account, /account-logout" data-logout(?:="")? type="button"/);
   assert.equal((memberHtml.match(/\bdata-logout(?:="")?(?=[\s>])/g)||[]).length,3);
@@ -193,7 +193,7 @@ test('United Club is one coherent Points, history and Achievements page on every
   const club = memberHtml.slice(clubStart, memberHtml.indexOf('data-member-panel="photos"', clubStart));
   assertClubNavigation(club,memberHtml);
   assert.doesNotMatch(club, /data-club-panel/);
-  assert.ok(club.indexOf('data-club-anchor="points"') < club.indexOf('data-club-anchor="history"'));
+  assert.ok(club.indexOf('data-club-anchor="history"') < club.indexOf('data-club-anchor="points"'));
   assert.ok(club.indexOf('data-club-anchor="history"') < club.indexOf('data-club-anchor="achievements"'));
   assert.match(club, /Moje účasti/);
   assert.match(club, /ACHIEVEMENTS/);

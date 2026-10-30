@@ -1,11 +1,11 @@
 import {apiRequest,apiUpload} from '../api.js?v=20260930-arrivals2';
 import {adminState} from '../state.js?v=20260930-arrivals2';
-import {esc,date,statusLabel,orderStatusLabel,orderMarkup,bindOrder} from '../../merch/order-view.js?v=20261026-merch-mail1';
+import {esc,date,statusLabel,orderStatusLabel,orderMarkup,bindOrder} from '../../merch/order-view.js?v=20261030-refine1';
 import {money,imageSource} from '../../merch/catalog.js?v=20260924-merch2';
 import {merchandiseDocuments} from '../../merch/documents.js?v=20260924-merch2';
-import {editMerchProduct,productStatus,productGender,productPrice} from './merch-product-editor.js?v=20261026-merch-mail1';
-import {initializeMerchPayments} from './merch-payments.js?v=20261026-merch-mail1';
-import {layoutMerchSettings} from './merch-settings-layout.js?v=20261026-merch-mail1';
+import {editMerchProduct,productStatus,productGender,productPrice} from './merch-product-editor.js?v=20261030-refine1';
+import {initializeMerchPayments} from './merch-payments.js?v=20261030-refine1';
+import {layoutMerchSettings} from './merch-settings-layout.js?v=20261030-refine1';
 export function initializeMerch(){
  const panel=document.querySelector('[data-admin-panel="merch"]'),body=panel.querySelector('[data-merch-admin-body]');let tab='orders',page=1,catalog=null,generation=0,productEditor=null;
  const leaveProduct=()=>!productEditor||productEditor.allowLeave();

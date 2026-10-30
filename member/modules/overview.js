@@ -1,3 +1,4 @@
+import { reservationStatusPresentation } from '../reservation-status.js?v=20261030-refine1';
 import { deriveOverviewState } from '../../member-portal-state.js?v=20261025-flow1';
 import { $, esc } from '../ui.js?v=20260924-merch2';
 import {admissionInfoMarkup} from '../admission-info.js?v=20261030-portal1';
@@ -46,7 +47,8 @@ export function createMemberOverview({
     const eventYear=reservation?.year&&reservation.year!=='NEXT'?reservation.year:(event?.year||plannerWaiting&&plannerEventYear||new Date().getFullYear());
     const card=$('[data-reservation-overview-card]'),empty=$('[data-action-center-empty]'),emptyCopy=$('[data-action-center-empty-copy]'),eventElement=$('[data-reservation-overview-event]'),label=$('[data-reservation-overview-label]'),copy=$('[data-reservation-overview-copy]'),action=$('[data-reservation-overview-action]');
     const view=deriveOverviewState({reservation,registrationOpen,plan,planEnabled,plannerWaiting,plannerDraft,plannerUnavailable,eventYear:event?eventYear:null,eventName:event?.title||'',formatAmount});if(card){card.hidden=!view.active;card.dataset.jump=view.target||'reservation';card.toggleAttribute('data-reservation-form-jump',view.openEditor===true)}if(empty)empty.hidden=view.active;if(emptyCopy)emptyCopy.textContent=view.emptyCopy;
-    if(eventElement)eventElement.textContent=`UNITED ${eventYear}`;
+    if(eventElement)eventElement.textContent=event?.title||`UNITED ${eventYear}`;
+    const status=reservationStatusPresentation(reservation,{plan:plan?.status==='active',draft:plannerWaiting||plannerDraft,open:registrationOpen||planEnabled,error:plannerUnavailable});if(card)card.dataset.tone=status.tone;const symbol=$('[data-overview-state-symbol]');if(symbol)symbol.textContent=status.symbol;
     if(label)label.textContent=view.label;if(copy)copy.textContent=view.copy;if(action)action.hidden=!view.action;if(action)action.innerHTML=view.action?`${view.action} <b>→</b>`:'';
     const summary=$('[data-portal-overview-summary]'),data=getData(),car=data.cars.find(item=>item.id===reservation?.carId)||(reservation?reservation.carSnapshot:null),primary=data.cars.find(item=>item.primary)||data.cars[0];
     if(summary){

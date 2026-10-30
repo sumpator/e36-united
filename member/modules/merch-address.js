@@ -1,4 +1,4 @@
-import {esc,addressFields,readAddress} from '../../merch/order-view.js?v=20261026-merch-mail1';
+import {esc,addressFields,readAddress} from '../../merch/order-view.js?v=20261030-refine1';
 
 // The default delivery address is independent of identity and order snapshots.
 export function renderMerchAddress(host,{address,user,request,isCurrent}){

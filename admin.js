@@ -1,6 +1,6 @@
-import {initializeDashboard,renderDashboard,receiveDashboardPreferences,dashboardWantsPlanner,dashboardWantsMailing,clearDashboard} from './admin/dashboard.js?v=20261026-merch-mail1';
+import {initializeDashboard,renderDashboard,receiveDashboardPreferences,dashboardWantsPlanner,dashboardWantsMailing,clearDashboard} from './admin/dashboard.js?v=20261030-refine1';
 import {initializeCommandShell} from './admin/command-shell.js?v=20261014-admin1';
-import {initializeMembers,openMember,closeMember,clearMemberPrivateState,memberContextKey,memberRefreshTasks,renderMemberReadState} from './admin/member-detail.js?v=20261026-merch-mail1';
+import {initializeMembers,openMember,closeMember,clearMemberPrivateState,memberContextKey,memberRefreshTasks,renderMemberReadState} from './admin/member-detail.js?v=20261030-refine1';
 import {ADMIN_REFRESH,resourceDue} from './admin/refresh-policy.js?v=20260924-merch2';
 import {reservationRequestPath,galleryRequestPath} from './admin/lists.js?v=20260930-arrivals2';
 import { initializeAdminNavigation } from './admin/navigation.js?v=20260930-arrivals2';
@@ -16,16 +16,16 @@ import { initializeAdminShell, setAdminSectionCollapsed, setAdminView, setDenied
 import { $, toast } from './admin/ui.js?v=20260924-merch2';
 import { renderEventSelector, renderEventSettings, renderOverview, saveEventSettings } from './admin/modules/dashboard-events.js?v=20261014-admin1';
 import { moveAccommodationGalleryPhoto, previewAccommodationGalleryPhoto, previewAccommodationPhoto, removeAccommodationGalleryPhoto, resetAccommodationMedia, removeAccommodationPhoto, renderAccommodation, saveAccommodation, uploadAccommodationGalleryPhoto, uploadAccommodationPhoto } from './admin/modules/accommodation.js?v=20261014-admin1';
-import { clearReservationDetailFilters, closeReservationDrawer, openReservationDrawer, renderReservations, renderReservationDetail, reviewReservationRequest, saveReservationNotes, setPaymentFilter, setPaymentSearch, setReservationFilter, setReservationSearch, setReservationViewMode, toggleReservationDetailFilter, toggleReservationFilters, updateReservation, updateReservationPayment } from './admin/modules/reservations-payments.js?v=20261026-merch-mail1';
-import { changeHistoryPage, clearHistoryFilters, closeGalleryLightbox, closeHistoryEvidence, historyRequestPath, hydrateOpenHistoryCard, openGalleryLightbox, openHistoryEvidence, releaseGalleryMedia, releaseHistoryEvidence, renderGallery, renderHistoryClaims, reviewHistoryClaim, setGalleryFilter, setGalleryMode, setHistoryClaimType, setHistoryFilter, setHistorySearch, setHistoryYear, updateGallery } from './admin/modules/moderation.js?v=20261026-merch-mail1';
-import { initializeMailingCenter, resetMailingCenter, refreshMailingCenter } from './admin/modules/mailing/index.js?v=20261028-flow2';
+import { clearReservationDetailFilters, closeReservationDrawer, openReservationDrawer, renderReservations, renderReservationDetail, reviewReservationRequest, saveReservationNotes, setPaymentFilter, setPaymentSearch, setReservationFilter, setReservationSearch, setReservationViewMode, toggleReservationDetailFilter, toggleReservationFilters, updateReservation, updateReservationPayment } from './admin/modules/reservations-payments.js?v=20261030-refine1';
+import { changeHistoryPage, clearHistoryFilters, closeGalleryLightbox, closeHistoryEvidence, historyRequestPath, hydrateOpenHistoryCard, openGalleryLightbox, openHistoryEvidence, releaseGalleryMedia, releaseHistoryEvidence, renderGallery, renderHistoryClaims, reviewHistoryClaim, setGalleryFilter, setGalleryMode, setHistoryClaimType, setHistoryFilter, setHistorySearch, setHistoryYear, updateGallery } from './admin/modules/moderation.js?v=20261030-refine1';
+import { initializeMailingCenter, resetMailingCenter, refreshMailingCenter } from './admin/modules/mailing/index.js?v=20261030-refine1';
 import { renderAdminFunnel } from './admin/modules/funnel.js?v=20260930-arrivals2';
-import {releaseHistoryCardMedia} from './admin/modules/moderation.js?v=20261026-merch-mail1';
+import {releaseHistoryCardMedia} from './admin/modules/moderation.js?v=20261030-refine1';
 import { refreshHistoryAttention } from './admin/modules/dashboard-events.js?v=20261014-admin1';
 import {initializePreliminary,clearPreliminary,preliminaryContext,preliminaryTasks} from './admin/modules/preliminary.js?v=20260930-arrivals2';
 import {initializeAdminLive} from './admin/modules/live.js?v=20261025-flow1';
 import { initializeArrivals } from './admin/modules/arrivals.js?v=20261014-admin1';
-import {initializeMerch} from './admin/modules/merch.js?v=20261026-merch-mail1';
+import {initializeMerch} from './admin/modules/merch.js?v=20261030-refine1';
 
 const app=initializeApp(firebaseConfig);
 const auth=getAuth(app);

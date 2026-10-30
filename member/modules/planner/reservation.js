@@ -35,7 +35,7 @@ export function normalizeReservation(source){
     id:source.id||'',
     eventId:source.eventId||'',
     year:source.eventYear||source.year||'NEXT',
-    title:source.title||'Příští E36 United',
+    title:source.title||'E36 United',
     carId:source.carId||snapshot.id||'',
     carSnapshot:{
       id:snapshot.id||source.carId||'',

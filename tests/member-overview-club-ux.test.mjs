@@ -76,7 +76,7 @@ test('idle Action Center is compact while active reservation and Planner content
 test('United Club keeps Points, history and Achievements in the approved three-view navigation', () => {
   assertClubNavigation(club,html);
   for (const label of ['UNITED POINTS', 'Moje účasti', 'ACHIEVEMENTS']) assert.match(club, new RegExp(label, 'i'));
-  assert.ok(club.indexOf('data-club-anchor="points"') < club.indexOf('data-club-anchor="history"'));
+  assert.ok(club.indexOf('data-club-anchor="history"') < club.indexOf('data-club-anchor="points"'));
   assert.ok(club.indexOf('data-club-anchor="history"') < club.indexOf('data-club-anchor="achievements"'));
   assert.doesNotMatch(club, /data-club-panel|data-perks-list/);
   assert.match(club, /data-earn-strip/);

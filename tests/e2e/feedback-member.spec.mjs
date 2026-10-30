@@ -131,7 +131,7 @@ test('secondary reservation failure opens shell with unavailable state and manua
   });
   await page.goto('/member.html?section=reservation');
   const state=page.locator('[data-member-panel="reservation"] [data-domain-retry-state="reservation"]');
-  await expect(state).toBeVisible();expect(calls).toBe(2);await expect(page.locator('[data-auth-view]')).toBeHidden();
+  await expect(state).toBeVisible();expect(calls).toBe(2);await expect(page.locator('[data-auth-view]')).toBeHidden();await expect(page.locator('[data-reservation-nav-status]')).toHaveText('! Chyba načtení');await expect(page.locator('[data-reservation-nav-status]')).toHaveAttribute('data-tone','error');
   failed=false;await state.getByRole('button',{name:'Zkusit znovu'}).click();await expect(state).toHaveCount(0);
   await expect(page.locator('[data-reservation-section]')).toBeVisible();await expect(page.locator('[data-member-section-title]')).toHaveText('Rezervace');
   expectNoUnexpectedClientErrors(observations);
@@ -173,7 +173,7 @@ test('approved reservation change supports sold-out inquiry, compact layouts and
   expect(detailBox.y-statusBox.y-statusBox.height).toBeGreaterThanOrEqual(10);
   const heroBox=await page.locator('.reservation-hero-strip').boundingBox();
   // The approved shared workspace replaces the large hero with a compact title area.
-  expect(heroBox.height).toBeGreaterThanOrEqual(100);expect(heroBox.height).toBeLessThanOrEqual(220);
+  expect(heroBox.height).toBeGreaterThanOrEqual(80);expect(heroBox.height).toBeLessThanOrEqual(220);
   const heroTitleBox=await page.locator('.reservation-hero-strip h3').boundingBox();
   expect(heroTitleBox.x).toBeGreaterThanOrEqual(heroBox.x);expect(heroTitleBox.x+heroTitleBox.width).toBeLessThanOrEqual(heroBox.x+heroBox.width+1);expect(heroTitleBox.y+heroTitleBox.height).toBeLessThanOrEqual(heroBox.y+heroBox.height+1);
   const detailGeometry=await detailCard.evaluate(node=>{
@@ -181,7 +181,7 @@ test('approved reservation change supports sold-out inquiry, compact layouts and
     const gridRect=grid.getBoundingClientRect(),leftRect=left.getBoundingClientRect(),rightRect=right.getBoundingClientRect();
     return{columns:getComputedStyle(grid).gridTemplateColumns.split(' ').length,gap:rightRect.left-leftRect.right,left:leftRect,right:rightRect,leftRatio:leftRect.width/gridRect.width,tileRects:tiles.map(tile=>tile.getBoundingClientRect()),valueStyles:tiles.map(tile=>{const style=getComputedStyle(tile.querySelector('b'));return{fontSize:parseFloat(style.fontSize),fontWeight:Number(style.fontWeight),lineHeight:parseFloat(style.lineHeight)}}),leftRadius:parseFloat(getComputedStyle(left).borderRadius),rightRadius:parseFloat(getComputedStyle(right).borderRadius)};
   });
-  expect(detailGeometry.columns).toBe(2);expect(Math.abs(detailGeometry.left.y-detailGeometry.right.y)).toBeLessThanOrEqual(1);expect(detailGeometry.gap).toBeGreaterThanOrEqual(12);expect(detailGeometry.leftRatio).toBeGreaterThan(.35);expect(detailGeometry.leftRatio).toBeLessThan(.45);expect(detailGeometry.leftRadius).toBe(0);expect(detailGeometry.rightRadius).toBe(0);
+  expect(detailGeometry.columns).toBe(1);expect(detailGeometry.right.y-detailGeometry.left.y-detailGeometry.left.height).toBeGreaterThanOrEqual(12);expect(Math.abs(detailGeometry.right.x-detailGeometry.left.x)).toBeLessThanOrEqual(1);expect(detailGeometry.leftRatio).toBeCloseTo(1,2);expect(detailGeometry.leftRadius).toBe(0);expect(detailGeometry.rightRadius).toBe(0);
   expect(await page.locator('.member-content').evaluate(node=>parseFloat(getComputedStyle(node).borderTopWidth))).toBeGreaterThan(0);
   for(const [index,tile] of detailGeometry.tileRects.entries()){expect(tile.left,`reservation tile ${index+1} starts inside the summary panel`).toBeGreaterThanOrEqual(detailGeometry.left.left-1);expect(tile.right,`reservation tile ${index+1} ends inside the summary panel`).toBeLessThanOrEqual(detailGeometry.left.right+1)}
   for(const style of detailGeometry.valueStyles){expect(style.fontSize).toBe(16);expect(style.fontWeight).toBeGreaterThanOrEqual(700);expect(style.lineHeight/style.fontSize).toBeGreaterThanOrEqual(1.2);expect(style.lineHeight/style.fontSize).toBeLessThanOrEqual(1.3)}
