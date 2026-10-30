@@ -3,7 +3,7 @@ import {mkdirSync,readFileSync} from 'node:fs';
 import {resolve} from 'node:path';
 import {prepareE2ePage,expectNoUnexpectedClientErrors} from './fixtures.mjs';
 import {waitForScreenshotContent} from './screenshot-readiness.mjs';
-const dir=resolve('.local-evidence/mobile-completion-20261030/screenshots');
+const dir=resolve(process.env.E36_SCREENSHOT_DIR||'.local-evidence/mobile-completion-20261030/screenshots');
 const carPhoto=readFileSync('assets/images/showshine/ss_coupe.webp');
 async function capture(page,name){mkdirSync(dir,{recursive:true});const component=name.startsWith('showshine')?page.locator('.showshine-winners'):name.startsWith('gallery')?page.locator('.gallery-video-grid'):null;if(component)await component.scrollIntoViewIfNeeded();else await page.evaluate(()=>scrollTo({top:0,behavior:'instant'}));await waitForScreenshotContent(page,{label:name});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBe(true);const options={path:resolve(dir,`${name}-${test.info().project.name}.png`),animations:'disabled'};if(component)await component.screenshot(options);else await page.screenshot({...options,fullPage:!name.startsWith('home')&&!name.startsWith('about')})}
 async function select(page,id){if(page.viewportSize().width>1050)await page.locator(`.member-sidebar [data-member-section=${id}]`).click();else{await page.locator('[data-mobile-menu]').click();await page.locator(`.united-mobile-menu [data-mobile-section=${id}]`).click()}await expect(page.locator(`[data-member-panel=${id}]`)).toBeVisible()}

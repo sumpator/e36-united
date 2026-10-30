@@ -140,12 +140,21 @@ test('garage initial focus is available for creating and editing a car',async({p
 for(const empty of [true,false])test('Planner keeps confirmed new car and draft through refresh '+(empty?'empty garage':'existing primary'),async({page},info)=>{
  const c=await plannerFixture(page,{empty});try{
   await c.open();const modal=page.locator('[data-member-planner-modal]');await modal.locator('[data-member-stay="2"]').click();await modal.locator('[name=note]').fill('Rozpracované údaje zůstávají');await modal.locator('[data-member-crew-plus]').click();
-  await modal.locator('[data-member-planner-add-car]').click();const car=page.locator('[data-car-modal]');await car.locator('[name=nickname]').fill('Nová E36');await car.locator('[name=model]').fill('328i');c.failNextRefresh();await car.locator('button[type=submit]').click();
+  await modal.locator('[data-member-planner-add-car]').click();const car=page.locator('[data-car-modal]');await expect(car.locator('[name=primary]')).toBeChecked({checked:empty});await car.locator('[name=nickname]').fill('Nová E36');await car.locator('[name=model]').fill('328i');c.failNextRefresh();await car.locator('button[type=submit]').click();
   await expect(page.locator('.member-toast')).toContainText('Uložení se nepodařilo dokončit');const id=c.r.db.prepare("SELECT id FROM cars WHERE nickname='Nová E36'").get().id;
   c.restoreReads();await car.locator('button[type=submit]').click();await expect(car).toBeHidden();await expect(modal.locator('[name=carId]')).toHaveValue(id);await expect(modal.locator('[name=note]')).toHaveValue('Rozpracované údaje zůstávají');await expect(modal.locator('[data-planner-draft-status]')).toContainText('Rozpracovaný plán uložen');
   expect(c.calls.filter(value=>value==='POST /api/cars')).toHaveLength(1);expect(c.r.db.prepare("SELECT is_primary FROM cars WHERE id=?").get(empty?id:'c').is_primary).toBe(1);expect(c.r.db.prepare('SELECT COUNT(*) n FROM reservations').get().n).toBe(0);expect(c.r.db.prepare('SELECT COUNT(*) n FROM preliminary_reservations').get().n).toBe(0);
   await modal.getByRole('button',{name:'Zavřít Planner',exact:true}).click();await expect(page.locator('[data-member-plan-open]')).toContainText('Dokončit předběžnou registraci');await c.open();await expect(modal.locator('[name=carId]')).toHaveValue(id);await expect(modal.locator('[name=note]')).toHaveValue('Rozpracované údaje zůstávají');await page.screenshot({path:info.outputPath('planner-restored.png')});
   expect(c.observations.pageErrors).toEqual([]);expect(c.observations.unhandledApi).toEqual([]);expect(c.observations.consoleErrors.filter(error=>!/Failed to load resource/.test(error.text)||!error.url.endsWith('/api/cars'))).toEqual([]);
+ }finally{await page.close();c.r.db.close()}
+});
+
+for(const empty of [true,false])test('Garage defaults primary from the current car list '+(empty?'first car':'additional car'),async({page})=>{
+ const c=await plannerFixture(page,{empty});try{
+  await c.open();await page.locator('[data-member-planner-modal]').getByRole('button',{name:'Zavřít Planner',exact:true}).click();await page.locator('.member-sidebar [data-member-section=garage]').click();
+  const before=c.r.db.prepare("SELECT count(*) n FROM cars WHERE member_id='m'").get().n;
+  await page.locator('[data-open-car]').click();const modal=page.locator('[data-car-modal]');await expect(modal.locator('[name=primary]')).toBeChecked({checked:empty});await modal.locator('[name=nickname]').fill('Garage E36');await modal.locator('[name=model]').fill('328i');await modal.locator('[type=submit]').click();await expect(modal).toBeHidden();
+  expect(c.r.db.prepare("SELECT count(*) n FROM cars WHERE member_id='m'").get().n).toBe(before+1);expect(c.r.db.prepare("SELECT is_primary FROM cars WHERE nickname='Garage E36'").get().is_primary).toBe(empty?1:0);if(!empty)expect(c.r.db.prepare("SELECT is_primary FROM cars WHERE id='c'").get().is_primary).toBe(1);expectNoUnexpectedClientErrors(c.observations);
  }finally{await page.close();c.r.db.close()}
 });
 
@@ -164,6 +173,12 @@ test('onboarding fits short visual viewport and mobile logout remains available'
   await page.setViewportSize({width:390,height:420});await page.goto('/member.html');const dialog=page.locator('[data-onboarding-intro-modal] [role=dialog]');await expect(dialog).toBeVisible();const box=await dialog.boundingBox();expect(box.y).toBeGreaterThanOrEqual(0);expect(box.y+box.height).toBeLessThanOrEqual(420);await dialog.locator('.united-onboarding-club li').last().scrollIntoViewIfNeeded();await expect(dialog.locator('.united-onboarding-club li').last()).toBeInViewport();await page.screenshot({path:info.outputPath('onboarding-short.png')});await dialog.getByRole('button',{name:'Zavřít úvod'}).click();
   // A browser that has just used an account returns to login after logout.
   await page.locator('.member-bottom-nav [data-mobile-menu]').click();await page.locator('.united-mobile-menu [data-menu-logout]').click();await expect(page.locator('[data-auth-form=login]')).toBeVisible();await expect(page.locator('[data-auth-form=register]')).toBeHidden();
+ }finally{await page.close();c.r.db.close()}
+});
+
+for(const theme of ['light','dark'])test('onboarding primary action fits iPhone reading area '+theme,async({page},info)=>{
+ const c=await plannerFixture(page,{empty:true});try{
+  await page.addInitScript(theme=>localStorage.setItem('e36UnitedAppearance',theme),theme);await page.setViewportSize({width:390,height:724});await page.goto('/member.html');const dialog=page.locator('[data-onboarding-intro-modal] [role=dialog]');await expect(dialog).toBeVisible();await expect(dialog.locator('[data-onboarding-reservation] strong')).toHaveText('Registruj se na sraz!');await expect(dialog.locator('[data-onboarding-reservation-state]')).toHaveText('Připravit plán →');await expect(dialog.locator('[data-onboarding-reservation]')).toBeInViewport();await expect(dialog.getByRole('button',{name:'Zavřít úvod'})).toBeInViewport();await expect(dialog.locator('h2 em')).toHaveCSS('-webkit-text-stroke-width','0px');await page.screenshot({path:info.outputPath('onboarding-initial-'+theme+'.png')});expect(c.r.db.prepare('SELECT count(*) n FROM reservations').get().n).toBe(0);expectNoUnexpectedClientErrors(c.observations);
  }finally{await page.close();c.r.db.close()}
 });
 

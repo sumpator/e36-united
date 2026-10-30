@@ -39,15 +39,24 @@ test('public Planner does not restore another event or invalid saved draft',asyn
  await page.evaluate(()=>localStorage.setItem('e36UnitedPublicPlanner:v1','invalid-json'));await page.reload();await expect(page.locator('[data-accommodation-option-id="cabin-standard"]')).toBeVisible();await expect(page.locator('[data-stay-index="0"]')).toHaveAttribute('aria-pressed','true');expectNoUnexpectedClientErrors(observations);
 });
 
-test('public Planner explains unavailable storage and still transfers the current choice',async({page})=>{
+test('public Planner explains unavailable storage and still transfers the current choice',async({page},info)=>{
  const observations=await prepareE2ePage(page);
  await page.addInitScript(()=>{const set=Storage.prototype.setItem;Storage.prototype.setItem=function(key,value){if(String(key).startsWith('e36UnitedPublicPlanner')||String(key).startsWith('e36UnitedPlanner'))throw new DOMException('Denied','SecurityError');return set.call(this,key,value)}});
- await page.goto('/#planer');await page.locator('[data-stay-index="2"]').click();await page.locator('[data-people-plus]').click();
+ await page.goto('/#planer');await page.locator('[data-stay-index="2"]').click();
+ await expect(page.locator('[data-stay-index="2"]')).toHaveAttribute('aria-pressed','true');
+ await expect(page.locator('[data-people]')).toHaveText('2');
+ await page.evaluate(()=>{window.__crewClickEvidence=[];for(const type of ['pointerdown','pointerup','click'])document.addEventListener(type,event=>{if(event.target.closest('[data-people-plus]')){const rect=document.querySelector('[data-people-plus]').getBoundingClientRect();window.__crewClickEvidence.push({type,at:performance.now(),people:document.querySelector('[data-people]').textContent,target:event.target.tagName,x:event.clientX,y:event.clientY,rect:{top:rect.top,left:rect.left,width:rect.width,height:rect.height},scrollY})}},true)});
+ await page.locator('[data-people-plus]').click();
+ try{await expect(page.locator('[data-people]')).toHaveText('3')}finally{await info.attach('crew-click-phases',{body:JSON.stringify(await page.evaluate(()=>window.__crewClickEvidence)),contentType:'application/json'})}
  await expect(page.locator('[data-planner-storage-status]')).toContainText('neumožňuje uchovat plán');
+ await expect(page.locator('[data-people]')).toHaveText('3');
  await page.locator('[data-planner-mail]').click();await page.locator('[data-planner-login]').click();
  await expect(page).toHaveURL(/member.html\?mode=login/);
  const draft=await page.evaluate(()=>{const encoded=new URLSearchParams(location.hash.slice(1)).get('handoff');return JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(encoded.replace(/-/g,'+').replace(/_/g,'/')),c=>c.charCodeAt(0))))});
- expect(draft).toMatchObject({crew:3,arrival:'Sobota'});expectNoUnexpectedClientErrors(observations);
+ expect(draft).toMatchObject({crew:3,arrival:'Sobota'});
+ const login=page.locator('[data-auth-form=login]');await login.locator('[name=email]').fill('eva@example.test');await login.locator('[name=password]').fill('isolated-password');await login.locator('[type=submit]').click();
+ await expect(page.locator('[data-app-view]')).toBeVisible();await expect(page.locator('[data-reservation-form] [name=crew]')).toHaveValue('3');
+ expect(observations.reservationWrites).toEqual([]);expectNoUnexpectedClientErrors(observations);
 });
 
 test('public Planner second tab cannot silently overwrite choices already being edited',async({page,context})=>{

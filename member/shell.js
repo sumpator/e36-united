@@ -2,7 +2,7 @@ import { deriveMemberHeroState } from '../member-portal-state.js?v=20261025-flow
 import { initPortalNavigation } from '../portal-navigation.js?v=20260924-merch2';
 import { $, $$ } from './ui.js?v=20260924-merch2';
 import { accountAuthMode, memberSection, requestedMemberSection } from './deep-links.js?v=20261028-entry1';
-import { initMobileNavigation } from '../mobile-navigation.js?v=20261030-mobile1';
+import { initMobileNavigation } from '../mobile-navigation.js?v=20261030-history1';
 
 export function createMemberShell({
   renderApp,
@@ -17,6 +17,10 @@ export function createMemberShell({
   onSectionChange,
 }) {
   const menuBtn=$('.menu-btn'),nav=$('.nav-links');
+  const hero=$('[data-member-hero]'),heroHome=hero?.parentElement,heroNext=hero?.nextSibling;
+  const mobileHeader=matchMedia('(max-width:1050px)');
+  function placeIdentity(){if(!hero)return;if(mobileHeader.matches)$('.member-agenda-head')?.append(hero);else if(heroHome)heroHome.insertBefore(hero,heroNext?.parentElement===heroHome?heroNext:null)}
+  mobileHeader.addEventListener('change',placeIdentity);placeIdentity();
   let memberHeroPhotoId='',liveModeActive=false,currentSection=null;
   const mobileNavigation=initMobileNavigation({member:true,onSelect:id=>openSection(id),beforeOpen:()=>beforePortalAction?.()});
 

@@ -29,7 +29,7 @@ initPublicMemberState({config:firebaseConfig,apiBaseUrl:portalConfig.apiBaseUrl,
 })();
 
 const coreStyles = qs('link[href^="styles.css"]');
-if (coreStyles && !coreStyles.href.includes('v=20261028-flow2')) coreStyles.href = 'styles.css?v=20261030-mobile1';
+if (coreStyles && !coreStyles.href.includes('v=20261028-flow2')) coreStyles.href = 'styles.css?v=20261030-history1';
 if (!qs('link[href^="accommodation-visual.css"]')) {
 const accommodationStyles=document.createElement('link');accommodationStyles.rel='stylesheet';accommodationStyles.href='accommodation-visual.css?v=20260912-accommodation-gallery-r1';document.head.append(accommodationStyles);
 }
@@ -42,7 +42,7 @@ const updateHeader = () => header?.classList.toggle('scrolled', window.scrollY >
 updateHeader();
 window.addEventListener('scroll', updateHeader, { passive: true });
 
-void import('./mobile-navigation.js?v=20261030-mobile1').then(({initMobileNavigation})=>initMobileNavigation());
+void import('./mobile-navigation.js?v=20261030-history1').then(({initMobileNavigation})=>initMobileNavigation());
 navLinks.forEach(a => a.addEventListener('click', () => {
 document.body.classList.remove('menu-open');
 menuBtn?.setAttribute('aria-expanded', 'false');

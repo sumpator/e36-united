@@ -1,7 +1,8 @@
+import {merchBenefit} from '../../../merch/benefit.js?v=20261030-history1';
 import { $, $$, esc } from '../../ui.js?v=20260924-merch2';
 import {rewardProgress} from '../../reward-progress.js?v=20260926-portal3';
 
-import {initPointsGuide,pictogram,achievementIcon} from '../../points-guide.js?v=20261026-merch-mail1';
+import {initPointsGuide,pictogram,achievementIcon} from '../../points-guide.js?v=20261030-history1';
 export {pictogram,achievementIcon};
 
 export function createMemberPoints({getData,apiRequest,renderOverviewPoints,renderFeaturedAchievements}){
@@ -11,7 +12,7 @@ export function createMemberPoints({getData,apiRequest,renderOverviewPoints,rend
     verified:{kicker:'OVĚŘENÉ UNITED',title:'Potvrzené účasti',intro:'Počítají se jen ročníky ověřené United týmem.'},
     points:{kicker:'UNITED POINTS',title:'Tvoje United Points',intro:'Každých 12 bodů znamená další dosažený odměnový milník. Počet milníků není evidence nevyčerpaných odměn.'},
     verification:{kicker:'MOJE STOPA',title:'Proč ověření?',intro:'Účast můžeš přidat hned. Body a související Achievements se započítají až po potvrzení United týmem.'},
-    'points-system':{kicker:'UNITED POINTS',title:'Jak fungují body?',intro:'Body odměňují ověřenou účast a přínos komunitě. Odměnové milníky přicházejí každých 12 bodů. Podmínky případné nákupní výhody najdeš v nabídce Merche; dosažený milník sám o sobě nezakládá slevu. Body se nákupem neodečítají.',sections:[{label:'MILNÍKY',rows:[['12 / 24 / 36 bodů','1 / 2 / 3 milníky','U']]}]},
+    'points-system':{kicker:'UNITED POINTS',title:'Jak fungují body?',intro:'Body odměňují ověřenou účast a přínos komunitě. Odměnové milníky přicházejí každých 12 bodů. Výši nákupní slevy určuje společné nastavení Merche a ověřuje rekapitulace objednávky. Body se nákupem neodečítají.',sections:[{label:'MILNÍKY',rows:[['12 / 24 / 36 bodů','1 / 2 / 3 milníky','U']]}]},
     'earn-attendance':{kicker:'ÚČAST NA SRAZU',title:'Ověřené United',sections:[{label:'BODY ZA ÚČAST',rows:[['Každý ověřený sraz','+1 bod','•'],['3 ověřené srazy','+3 body navíc','3'],['5 ověřených srazů','+3 body navíc','5']]}]},
     'earn-showshine':{kicker:'SHOW & SHINE',title:'Ověřené umístění',sections:[{label:'UMÍSTĚNÍ',rows:[['3. místo','+1 bod','3'],['2. místo','+2 body','2'],['1. místo','+3 body','1']]},{label:'BONUSY',rows:[['Best of the Best','+1 bod','◆'],['Nej zvuk výfuku','+1 bod','◈']]}]},
     'earn-photos':{kicker:'NAHRÁVÁNÍ FOTEK',title:'Schválené komunitní fotky',sections:[{label:'MILNÍKY',rows:[['5 schválených fotek','+1 bod','5'],['25 schválených fotek','+1 bod','25'],['50 schválených fotek','+3 body','50']]}],note:'Po 50 schválených fotkách už další United Points nepřibývají.'},
@@ -36,7 +37,7 @@ export function createMemberPoints({getData,apiRequest,renderOverviewPoints,rend
     const trigger=memberHelpTrigger;memberHelpTrigger=null;if(restoreFocus)trigger?.focus();
   }
   function openMemberHelp(button){
-    const content=memberHelpContent[button.dataset.memberHelp];if(!content||!memberHelpPopover)return;
+    const original=memberHelpContent[button.dataset.memberHelp],content=button.dataset.memberHelp==='points-system'?{...original,intro:merchBenefit(rewardSettings).copy+' Každých 12 bodů je další milník, nikoliv násobení slevy. Body se nákupem neodečítají.'}:original;if(!content||!memberHelpPopover)return;
     const same=memberHelpTrigger===button&&!memberHelpPopover.hidden;closeMemberHelp();if(same)return;
     closeAchievementDetail();memberHelpTrigger=button;button.setAttribute('aria-expanded','true');$('[data-member-help-kicker]',memberHelpPopover).textContent=content.kicker;$('[data-member-help-title]',memberHelpPopover).textContent=content.title;$('[data-member-help-content]',memberHelpPopover).innerHTML=contextRowsMarkup(content);memberHelpPopover.hidden=false;positionContextPopover(memberHelpPopover,button,370);
   }
@@ -78,7 +79,7 @@ export function createMemberPoints({getData,apiRequest,renderOverviewPoints,rend
     if(progressHost)progressHost.innerHTML=`<div class="reward-cycle"><div class="reward-metrics"><span>Do další odměny</span><b>${formatPoints(cycle.remaining)}</b></div><div class="reward-segments" role="progressbar" aria-label="Postup k další odměně" aria-valuemin="0" aria-valuemax="12" aria-valuenow="${cycle.cycle}">${Array.from({length:12},(_,i)=>`<i class="${i<cycle.cycle?'is-on':''}"></i>`).join('')}</div><p class="reward-scale"><span>${cycle.milestones*12} bodů</span><span>${(cycle.milestones+1)*12} bodů</span></p></div>`;
     const rewardName=$('[data-reward-name]'),rate=rewardSettings?.discountBasisPoints;
     const discountActive=Number.isInteger(rate)&&rate>0;
-    if(rewardName)rewardName.textContent=discountActive?`Členská sleva ${new Intl.NumberFormat('cs-CZ').format(rate/100)} % na Merch`:'United Merch';
+    if(rewardName)rewardName.textContent=merchBenefit(rewardSettings).title;
     const rewardTerms=$('[data-reward-terms]');if(rewardTerms)rewardTerms.textContent=discountActive?'Uplatní se v rekapitulaci podle nastavení obchodu.':rate===0?'Nákupní sleva nyní není aktivní.':'Podmínky případné nákupní výhody najdeš v nabídce Merche.';
     const thresholdLabel=$('[data-club-reward-threshold]');if(thresholdLabel)thresholdLabel.textContent=String(threshold);
     const rewardState=$('[data-points-reward-state]'),rewardRemaining=$('[data-reward-remaining]');if(rewardState)rewardState.classList.toggle('is-unlocked',p>=threshold);if(rewardRemaining)rewardRemaining.textContent=p>=threshold?'BODOVÁ HRANICE SPLNĚNA':`${formatPoints(remaining)} ${pointsRemainingVerb(remaining)}`;

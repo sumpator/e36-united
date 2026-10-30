@@ -1,3 +1,4 @@
+import {navigationIcon} from '../../navigation-icons.js?v=20261030-history1';
 import { reservationStatusPresentation } from '../reservation-status.js?v=20261030-mobile1';
 import { deriveOverviewState } from '../../member-portal-state.js?v=20261025-flow1';
 import { $, esc } from '../ui.js?v=20260924-merch2';
@@ -53,8 +54,8 @@ export function createMemberOverview({
     const summary=$('[data-portal-overview-summary]'),data=getData(),car=data.cars.find(item=>item.id===reservation?.carId)||(reservation?reservation.carSnapshot:null),primary=data.cars.find(item=>item.primary)||data.cars[0];
     if(summary){
       const selected=car||primary,carLabel=selected?[selected.nickname,selected.model,selected.body].filter(Boolean).join(' · '):'Zatím nemáš přidané auto';
-      const stay=reservation?`${reservation.arrival} · ${reservation.crew} ${reservation.crew===1?'osoba':'osob'} · ${reservation.sleep}`:plan?.preferences?`${plan.preferences.arrival} · ${plan.preferences.accommodation}`:plannerDraft?'Rozpracovaný plán najdeš v rezervaci.':'Zatím nemáš odeslanou rezervaci.';
-      summary.innerHTML=`<div class="portal-overview-rows"><div><small>${reservation?'Auto rezervace':'Tvoje garáž'}</small><strong>${esc(carLabel)}</strong><button type="button" data-overview-open="${reservation?'reservation':'garage'}">${selected?'Otevřít':'Přidat auto'} →</button></div><div><small>Účast a pobyt</small><strong>${esc(stay)}</strong><button type="button" data-overview-open="reservation">Otevřít rezervaci →</button></div><div><small>Profil</small><strong>${esc(data.profile?.name||'Doplň osobní údaje')}</strong><button type="button" data-overview-open="account">Upravit profil →</button></div><div><small>United Club</small><strong>Ověřené účasti, body a ocenění</strong><button type="button" data-overview-open="club">Můj Club →</button></div></div>`;
+      const stay=reservation?`${reservation.arrival} · ${reservation.crew} ${reservation.crew===1?'osoba':reservation.crew>=2&&reservation.crew<=4?'osoby':'osob'} · ${reservation.sleep}`:plan?.preferences?`${plan.preferences.arrival} · ${plan.preferences.accommodation}`:plannerDraft?'Rozpracovaný plán najdeš v rezervaci.':'Zatím nemáš odeslanou rezervaci.';
+      summary.innerHTML=`<div class="portal-overview-rows"><div><i aria-hidden="true">${navigationIcon('garage')}</i><small>${reservation?'Auto rezervace':'Tvoje garáž'}</small><strong>${esc(carLabel)}</strong><button type="button" data-overview-open="${reservation?'reservation':'garage'}">${selected?'Otevřít':'Přidat auto'} →</button></div><div><i aria-hidden="true">${navigationIcon('reservation')}</i><small>Účast a pobyt</small><strong>${esc(stay)}</strong><button type="button" data-overview-open="reservation">Otevřít rezervaci →</button></div><div><i aria-hidden="true">${navigationIcon('account')}</i><small>Profil</small><strong>${esc(data.profile?.name||'Doplň osobní údaje')}</strong><button type="button" data-overview-open="account">Upravit profil →</button></div><div><i aria-hidden="true">${navigationIcon('club')}</i><small>United Club</small><strong>Ověřené účasti, body a ocenění</strong><button type="button" data-overview-open="club">Můj Club →</button></div></div>`;
       summary.querySelectorAll('[data-overview-open]').forEach(button=>button.addEventListener('click',()=>openSection(button.dataset.overviewOpen)));
     }
     document.querySelectorAll('[data-portal-admission-info]').forEach(root=>{root.innerHTML=admissionInfoMarkup(event);root.hidden=!root.innerHTML});
@@ -81,7 +82,7 @@ export function createMemberOverview({
     if(title)title.innerHTML='Doplň profil.<br><em>Získej víc z United.</em>';
     const profileTitle=root.querySelector('[data-onboarding-profile] strong');if(profileTitle)profileTitle.textContent=profileReady?'United profil':'Založ si United profil';
     setStep(root.querySelector('[data-onboarding-profile]'),profileReady?'Profil je založený ✓':'Dokončit profil →',profileReady);
-    setStep(root.querySelector('[data-onboarding-reservation]'),reservation?'Registrace je připravená ✓':registrationOpen?'Otevřít registraci →':'Připravit registraci →',!!reservation);
+    setStep(root.querySelector('[data-onboarding-reservation]'),reservation?'Registrace je připravená ✓':registrationOpen?'Otevřít registraci →':'Připravit plán →',!!reservation);
     const states=new Map([
       ['garage',data.cars.length>0],
       ['club',(data.club?.history||[]).some(item=>item.attendance?.status==='approved')],

@@ -89,7 +89,8 @@ export function createMemberGarage({
     if(kicker)kicker.textContent=editingCarId?'MY GARAGE · ÚPRAVA':'MY GARAGE · NOVÉ AUTO';
     if(copy)copy.textContent=editingCarId?'Změň jen to, co potřebuješ. Auto zůstane stejné a současná fotka se nahradí až po úspěšném uložení nové. Hlavní auto se používá v tvém profilu. Fotografie auta zůstává soukromá.':'Můžeš přidat více aut a jedno nastavit jako hlavní pro svůj profil. Fotografie není povinná a zůstává soukromá; není určena do veřejné galerie.';
     if(submit)submit.innerHTML=editingCarId?'Uložit změny <span>→</span>':'Přidat auto <span>→</span>';
-    if(car){for(const field of ['nickname','body','model','year','color'])if(carForm.elements[field])carForm.elements[field].value=car[field]??'';if(carForm.elements.primary)carForm.elements.primary.checked=car.primary===true}
+    if(carForm.elements.primary)carForm.elements.primary.checked=car?car.primary===true:getCars().length===0;
+    if(car){for(const field of ['nickname','body','model','year','color'])if(carForm.elements[field])carForm.elements[field].value=car[field]??''}
     if(current){current.hidden=true;delete current.dataset.available}
     const photoId=car?.photos?.[0]?.id;
     if(photoId&&current&&currentImage){void getPrivateCarPhotoUrl(String(photoId)).then(url=>{if(editingCarId!==String(car.id)||selectedCarPhoto)return;currentImage.src=url;current.dataset.available='true';current.hidden=false;syncCarPhotoSelection()}).catch(error=>console.warn('Current car photo preview unavailable',error))}

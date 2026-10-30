@@ -1,4 +1,5 @@
-import {initPointsGuide} from './member/points-guide.js?v=20261026-merch-mail1';
+import {merchBenefit,loadMerchBenefitSettings} from './merch/benefit.js?v=20261030-history1';
+import {initPointsGuide} from './member/points-guide.js?v=20261030-history1';
 import { firebaseConfig, portalConfig } from './firebase-config.js?v=20260924-merch2';
 import {initShop} from './merch/shop.js?v=20261030-mobile1';
 import {rewardProgress,pointWord} from './member/reward-progress.js?v=20260926-portal3';
@@ -14,6 +15,7 @@ if(typeof document==='undefined')return;
 const qs=(s,r=document)=>r.querySelector(s), qsa=(s,r=document)=>[...r.querySelectorAll(s)];
 const shop=initShop();
 initPointsGuide();
+const benefitRule=document.querySelector('[data-merch-benefit-rule]');if(benefitRule)void loadMerchBenefitSettings().then(settings=>{const view=merchBenefit(settings);benefitRule.textContent=view.copy+(view.paused?' Objednávání je zatím pozastavené.':'')}).catch(()=>{benefitRule.textContent='Nastavení členské výhody se nepodařilo načíst. Ověř je v rekapitulaci objednávky.'});
 
 const memberBenefit=qs('[data-member-merch-benefit]');
 if(memberBenefit){

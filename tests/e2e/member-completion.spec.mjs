@@ -27,10 +27,10 @@ test('history explains each missing condition before enabling its existing confi
  const observations=await prepareE2ePage(page,{authenticated:true,clubPayload:{history:[{eventId:'united-2024',eventYear:2024,concluded:true,attendance:{status:'not_claimed'},showShine:{competed:false,status:'not_claimed'},evidence:[]}]}});
  await page.goto('/member.html?section=club');await page.locator('[data-club-tab=history]').click();await page.locator('[data-open-history-editor]').click();
  const form=page.locator('[data-history-claim-form]'),submit=form.locator('[data-history-submit]'),hint=form.locator('[data-history-submit-hint]');
- await expect(submit).toBeDisabled();await expect(hint).toContainText('přilož alespoň jednu');
+ await expect(submit).toBeEnabled();await submit.click();await expect(form.locator('[data-history-evidence-error]')).toHaveText('Přidej alespoň jednu fotografii účasti.');await expect(form.locator('[data-history-evidence-field]')).toBeFocused();
  await form.locator('[data-history-sns-choice=yes]').click();await form.locator('[data-history-evidence-input]').setInputFiles({name:'evidence.webp',mimeType:'image/webp',buffer:readFileSync('assets/images/showshine/ss_z3.webp')});
- await expect(submit).toBeDisabled();await expect(hint).toHaveText('Ještě vyber soutěžní kategorii.');
+ await expect(submit).toBeEnabled();await expect(hint).toHaveText('Ještě vyber soutěžní kategorii.');await submit.click();await expect(page.locator('[data-toast]')).toHaveText('Vyber Show & Shine kategorii.');
  await form.locator('[data-history-category-trigger]').click();await form.locator('[data-history-category-value=coupe]').click();
  await expect(submit).toBeEnabled();await expect(hint).toContainText('Připraveno k odeslání');await expect(submit).toHaveAttribute('aria-describedby',await hint.getAttribute('id'));
- await page.getByRole('button',{name:'Zavřít editor historie',exact:true}).click();await expect(page.locator('[data-history-editor]')).toBeHidden();expectNoUnexpectedClientErrors(observations);
+ page.once('dialog',dialog=>{expect(dialog.message()).toBe('Zahodit neodeslané změny tohoto ročníku?');return dialog.accept()});await page.getByRole('button',{name:'Zavřít editor historie',exact:true}).click();await expect(page.locator('[data-history-editor]')).toBeHidden();expectNoUnexpectedClientErrors(observations);
 });

@@ -64,11 +64,11 @@ test('history proof and category complete actual pending review without awarding
  const c=await taskFixture(page);try{
   const before=c.r.db.prepare("SELECT SUM(delta) n FROM united_points_ledger WHERE member_id='m'").get().n;
   await page.goto('/member.html?section=club');await page.locator('[data-club-tab=history]').click();await page.locator('[data-open-history-editor]').click();
-  const form=page.locator('[data-history-claim-form]'),submit=form.locator('[data-history-submit]');await expect(submit).toBeDisabled();
+  const form=page.locator('[data-history-claim-form]'),submit=form.locator('[data-history-submit]');await expect(submit).toBeEnabled();
   await form.locator('[data-history-evidence-input]').setInputFiles({name:'cancelled-proof.webp',mimeType:'image/webp',buffer:bytes});
-  await page.getByRole('button',{name:'Zavřít editor historie',exact:true}).click();expect(c.objects.size).toBe(0);expect(c.r.db.prepare("SELECT COUNT(*) n FROM united_history_claims WHERE member_id='m'").get().n).toBe(0);expect(c.calls).not.toContain('POST /api/history/claims');
-  await page.locator('[data-open-history-editor]').click();await expect(submit).toBeDisabled();expect(await form.locator('[data-history-evidence-input]').evaluate(input=>input.files.length)).toBe(0);
-  await form.locator('[data-history-evidence-input]').setInputFiles({name:'proof.webp',mimeType:'image/webp',buffer:bytes});await form.locator('[data-history-sns-choice=yes]').click();await expect(submit).toBeDisabled();
+  page.once('dialog',dialog=>{expect(dialog.message()).toBe('Zahodit neodeslané změny tohoto ročníku?');return dialog.accept()});await page.getByRole('button',{name:'Zavřít editor historie',exact:true}).click();expect(c.objects.size).toBe(0);expect(c.r.db.prepare("SELECT COUNT(*) n FROM united_history_claims WHERE member_id='m'").get().n).toBe(0);expect(c.calls).not.toContain('POST /api/history/claims');
+  await page.locator('[data-open-history-editor]').click();await expect(submit).toBeEnabled();expect(await form.locator('[data-history-evidence-input]').evaluate(input=>input.files.length)).toBe(0);
+  await form.locator('[data-history-evidence-input]').setInputFiles({name:'proof.webp',mimeType:'image/webp',buffer:bytes});await form.locator('[data-history-sns-choice=yes]').click();await expect(submit).toBeEnabled();await submit.click();await expect(page.locator('[data-toast]')).toHaveText('Vyber Show & Shine kategorii.');expect(c.calls).not.toContain('POST /api/history/claims');
   await form.locator('[data-history-category-trigger]').click();await form.locator('[data-history-category-value=coupe]').click();await expect(submit).toBeEnabled();await submit.click();
   await expect(page.locator('[data-history-editor-list]')).toContainText('ODESLÁNO KE KONTROLE');await expect(page.locator('[data-history-editor-list]')).toContainText('Coupé');
   const claim=c.r.db.prepare("SELECT * FROM united_history_claims WHERE member_id='m'").get();expect(claim).toMatchObject({event_id:'old',attendance_status:'pending',sns_status:'pending',sns_category:'coupe'});

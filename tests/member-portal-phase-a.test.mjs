@@ -35,7 +35,9 @@ test('United Merch has a member order panel and a distinct public catalogue link
   assert.match(sidebar, /member-nav-shop" data-member-section="merch" data-portal-target="merch"/);
   assert.doesNotMatch(sidebar, /member-nav-shop[^>]*href=/);
   assert.match(memberHtml, /data-member-panel="merch"[\s\S]*href="merch.html"/);
-  assert.match(read('mobile-navigation.js'), /\['merch.html','♧','Merch'\]/);
+  // Public links retain their destination and use the shared SVG icon set.
+  assert.match(read('mobile-navigation.js'), /\['merch.html','merch','Merch'\]/);
+  assert.match(read('mobile-navigation.js'), /navigationIcon\(icon\)/);
 });
 
 test('authenticated main mobile menu contains all Member Portal sections', () => {
