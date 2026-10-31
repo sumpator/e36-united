@@ -58,7 +58,6 @@ export function createMemberPlannerExperience(form){
         <div class="member-planner-step-controls">
           <div class="planner-step-head"><span>03</span><b>Kolik vás bude?</b></div>
           <div class="people-picker people-picker--v8"><button aria-label="Ubrat osobu" data-member-crew-minus type="button">−</button><strong data-member-crew></strong><span data-member-crew-label></span><button aria-label="Přidat osobu" data-member-crew-plus type="button">+</button></div>
-          <div class="member-planner-slot" data-member-partial-slot></div>
         </div>
         <aside class="planner-context-preview planner-context-preview--crew"><div aria-hidden="true" class="planner-context-crew-icons" data-member-crew-icons></div><div class="planner-context-crew-number" data-member-crew-number></div><strong data-member-crew-copy></strong><small>Společně na United.</small></aside>
       </section>
@@ -97,7 +96,6 @@ export function createMemberPlannerExperience(form){
   choicesRow?.classList.add('member-planner-source-fields');
   move(form.querySelector('[data-accommodation-option-field]'),shell.querySelector('[data-member-accommodation-option-slot]'));
   move(form.querySelector('[data-accommodation-preview]'),shell.querySelector('[data-member-accommodation-preview-slot]'));
-  move(form.querySelector('.reservation-partial-stack'),shell.querySelector('[data-member-partial-slot]'));
   move(form.querySelector('[data-reservation-form-car]'),shell.querySelector('[data-member-car-slot]'));
   // Keep existing crew details in the form for saved-data round trips, outside the editor.
   const crewDetails=form.querySelector('[data-preliminary-crew]');

@@ -7,7 +7,7 @@ import * as live from '../../worker/domains/live.js';
 import {memberRuntime} from '../helpers/admin-member-runtime.mjs';
 import * as garage from '../../worker/domains/garage.js';
 import {getPlannerDraft,putPlannerDraft,deletePlannerDraft} from '../../worker/domains.js';
-import {getCurrentReservation} from '../../worker/domains/reservations/index.js';
+import {getCurrentReservation,putCurrentReservation} from '../../worker/domains/reservations/index.js';
 import {getPreliminaryReservation} from '../../worker/domains/reservations/preliminary.js';
 import {privateMemberGalleryMedia} from '../../worker/domains/member-gallery.js';
 import {waitForScreenshotContent} from './screenshot-readiness.mjs';
@@ -209,4 +209,29 @@ for(const [width,height,theme] of [[360,800,'light'],[390,844,'dark'],[820,980,'
   if(width===390){await page.evaluate(()=>document.documentElement.style.fontSize='20px');await page.screenshot({path:info.outputPath('photo-cards-large-text.png')});}
   const overflow=await page.evaluate(()=>({width:innerWidth,scrollWidth:document.documentElement.scrollWidth,nodes:[...document.querySelectorAll('body *')].filter(node=>node.checkVisibility()&&node.getBoundingClientRect().right>innerWidth+1).slice(0,12).map(node=>({tag:node.tagName,classes:node.className,width:node.getBoundingClientRect().width,right:node.getBoundingClientRect().right,parent:node.parentElement?.className}))}));await info.attach('layout-geometry',{body:JSON.stringify(overflow,null,2),contentType:'application/json'});expect(overflow.scrollWidth,JSON.stringify(overflow)).toBeLessThanOrEqual(overflow.width+1);expectNoUnexpectedClientErrors(c.observations);
  }finally{await page.close();c.r.db.close()}
+});
+
+for(const without of [false,true])test(`whole-crew lodging uses current crew for price, capacity and actual reservation ${without?'without lodging':'with lodging'}`,async({page},info)=>{
+ const r=memberRuntime(),writes=[];r.db.exec("DELETE FROM reservations;UPDATE events SET registration_status='open',admission_registered_czk=500 WHERE id='e';INSERT INTO event_accommodation_options(id,event_id,name,kind,inventory_mode,units_total,capacity_per_unit,unit_price_czk,bedding_fee_per_person_czk,city_tax_per_person_per_night_czk) VALUES('whole','e','Chatka pro dva','cabin','limited',1,2,1000,100,20)");
+ const option={id:'whole',eventId:'e',name:'Chatka pro dva',kind:'cabin',inventoryMode:'limited',unitsTotal:1,freeUnits:1,capacityPerUnit:2,unitPriceCzk:1000,beddingFeePerPersonCzk:100,cityTaxPerPersonPerNightCzk:20,active:true};
+ const observations=await prepareE2ePage(page,{authenticated:true,registrationOpen:true,member:{id:'m'},cars:[{id:'c',nickname:'Blue',model:'328i',body:'Coupé',primary:true}],accommodations:[option]});
+ await page.route('**/api/reservations/current',async route=>{if(route.request().method()==='OPTIONS')return route.fulfill({status:204,headers});const q=route.request();if(q.method()==='PUT')writes.push(q.postDataJSON());const response=q.method()==='PUT'?await putCurrentReservation(incoming(q),r.env,{uid:'m'},'https://e36united.cz'):await getCurrentReservation(r.env,{uid:'m'},'https://e36united.cz');await route.fulfill({status:response.status,headers,body:await response.text()})});
+ try{
+  await page.setViewportSize({width:390,height:844});await page.goto('/member.html?section=reservation');const intro=page.locator('[data-onboarding-intro-modal]');await expect(intro).toBeVisible();await intro.getByRole('button',{name:'Zavřít úvod',exact:true}).click();await page.locator('[data-member-plan-open]').click();const form=page.locator('[data-reservation-form]');await expect(page.locator('[data-member-planner-modal]')).toBeVisible();await expect(form.locator('[name=partialAccommodation], [data-accommodation-people-field]')).toHaveCount(0);
+  await page.locator('[data-member-stay="1"]').click();await page.locator('[data-member-sleep="Chatka"]').click();await expect(form.locator('[name=accommodationUnits]')).toHaveValue('2');await expect(page.locator('.reservation-price-estimate')).toContainText('1 240');
+  await page.locator('[data-member-crew-plus]').click();await expect(form.locator('[name=crew]')).toHaveValue('3');await expect(form.locator('[name=accommodationUnits]')).toHaveValue('3');await expect(page.locator('.reservation-price-estimate')).toContainText('2 360');await expect(page.locator('[data-accommodation-availability]')).toContainText('není dostatek volné kapacity');
+  await page.screenshot({path:info.outputPath('whole-crew-form.png'),fullPage:true});await form.locator('[data-reservation-submit]').click();await expect(page.locator('[data-reservation-form-status]')).toContainText('nemá dost volné kapacity');expect(writes).toEqual([]);
+  if(without){await page.locator('[data-member-sleep="Bez ubytování"]').click();await expect(form.locator('[name=accommodationUnits]')).toHaveValue('0');await expect(page.locator('[data-accommodation-preview]')).toBeHidden()}
+  else{await page.locator('[data-member-crew-minus]').click();await expect(page.locator('.reservation-price-estimate')).toContainText('1 240')}
+  // A stale hidden value is not authoritative even if changed without an event.
+  await form.locator('[name=accommodationUnits]').evaluate(el=>el.value='1');await form.locator('[data-reservation-submit]').click();await expect.poll(()=>writes.length).toBe(1);await expect(page.locator('[data-member-planner-modal]')).toBeHidden();
+  expect(writes[0]).toMatchObject({crew:without?3:2,accommodationUnits:without?0:2,accommodation:without?'Bez ubytování':'Chatka'});
+  const row=r.db.prepare("SELECT crew,accommodation_units,amount_due_czk FROM reservations WHERE member_id='m'").get();expect({...row}).toEqual({crew:without?3:2,accommodation_units:without?0:2,amount_due_czk:without?500:1740});expect(r.db.prepare('SELECT count(*) n FROM reservations').get().n).toBe(1);
+  await page.screenshot({path:info.outputPath('whole-crew-saved.png'),fullPage:true});expectNoUnexpectedClientErrors(observations);
+ }finally{await page.close();r.db.close()}
+});
+
+test('whole-crew editor does not rewrite an existing partial reservation or its saved price',async({page})=>{
+ const reservation={id:'legacy-partial',eventId:'united-2026',eventYear:2026,status:'approved',arrival:'Sobota',crew:3,accommodation:'Chatka',accommodationUnits:1,accommodationSnapshot:{optionId:'cabin-standard',optionName:'Chatka Standard',peopleCount:1,unitCount:1,nights:1,totalCzk:1345},admissionCzk:500,amountDueCzk:1845,carId:'car-001'};
+ const observations=await prepareE2ePage(page,{authenticated:true,reservation});await page.goto('/member.html?section=reservation');await expect(page.locator('[data-reservation-saved-price]')).toContainText('1 osoba');await expect(page.locator('[data-reservation-saved-price]')).toContainText('1 345');await page.reload();await expect(page.locator('[data-reservation-summary]')).toContainText('3 osoby');await expect(page.locator('[data-reservation-saved-price]')).toContainText('1 345');expect(observations.reservationWrites).toEqual([]);expect(observations.reservationRequestWrites).toEqual([]);expectNoUnexpectedClientErrors(observations);
 });

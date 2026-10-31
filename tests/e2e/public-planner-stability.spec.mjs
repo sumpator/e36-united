@@ -1,5 +1,5 @@
 import {test,expect} from '@playwright/test';
-import {prepareE2ePage,expectNoUnexpectedClientErrors} from './fixtures.mjs';
+import {prepareE2ePage,expectNoUnexpectedClientErrors,accommodationOptions} from './fixtures.mjs';
 for(const width of [390,1366]) test(`public Planner keeps accommodation control and viewport ${width}`,async({page})=>{
  await page.setViewportSize({width,height:844});const observations=await prepareE2ePage(page);await page.goto('/#planer');
  const card=page.locator('[data-accommodation-option-id="cabin-premium"]');await expect(card).toBeVisible();await card.scrollIntoViewIfNeeded();await card.focus();
@@ -11,8 +11,8 @@ for(const width of [390,1366]) test(`public Planner keeps accommodation control 
 test('public Planner restores latest valid choices after reload',async({page})=>{
  const observations=await prepareE2ePage(page);await page.goto('/#planer');
  await page.locator('[data-stay-index="2"]').click();await page.locator('[data-accommodation-option-id="cabin-premium"]').click();await page.locator('[data-people-plus]').click();
- await page.locator('[data-planner-partial-accommodation]').check();await page.locator('[data-accommodation-units-minus]').click();
- await page.reload();await expect(page.locator('[data-stay-index="2"]')).toHaveAttribute('aria-pressed','true');await expect(page.locator('[data-accommodation-option-id="cabin-premium"]')).toHaveAttribute('aria-pressed','true');await expect(page.locator('[data-people]')).toHaveText('3');await expect(page.locator('[data-accommodation-units]')).toHaveText('2');expectNoUnexpectedClientErrors(observations);
+ await expect(page.locator('[data-planner-partial-accommodation], [data-accommodation-units-step]')).toHaveCount(0);
+ await page.reload();await expect(page.locator('[data-stay-index="2"]')).toHaveAttribute('aria-pressed','true');await expect(page.locator('[data-accommodation-option-id="cabin-premium"]')).toHaveAttribute('aria-pressed','true');await expect(page.locator('[data-people]')).toHaveText('3');await expect(page.locator('[data-planner-price-preview]')).toContainText('3 osoby · 1× Chatka Premium');expectNoUnexpectedClientErrors(observations);
 });
 for(const width of [390,768,1920])test(`public Planner dependent choices keep controls under the pointer ${width}`,async({page})=>{
  await page.setViewportSize({width,height:1024});const observations=await prepareE2ePage(page);await page.goto('/');await expect(page.locator('[data-accommodation-option-id="cabin-standard"]')).toBeVisible();
@@ -24,9 +24,9 @@ for(const width of [390,768,1920])test(`public Planner dependent choices keep co
   await control.click();const before=await page.evaluate(()=>window.__controlBefore);await expect.poll(async()=>Math.abs((await control.boundingBox()).y-before.y)).toBeLessThan(3);
  });
  for(const index of [1,2,3,0])await change(`[data-stay-index="${index}"]`);
- await change('[data-accommodation-option-id="cabin-standard"]');await change('[data-people-plus]');await change('[data-planner-partial-accommodation]');await change('[data-accommodation-units-minus]');
- await expect.poll(()=>page.evaluate(()=>window.__lastPlan)).toMatchObject({people:3,accommodationUnits:2,partialAccommodation:true});
- await change('[data-people-minus]');await change('[data-people-minus]');await expect.poll(()=>page.evaluate(()=>window.__lastPlan)).toMatchObject({people:1,accommodationUnits:1,partialAccommodation:false});
+ await change('[data-accommodation-option-id="cabin-standard"]');await change('[data-people-plus]');
+ await expect.poll(()=>page.evaluate(()=>window.__lastPlan)).toMatchObject({people:3,accommodationUnits:3});
+ await change('[data-people-minus]');await change('[data-people-minus]');await expect.poll(()=>page.evaluate(()=>window.__lastPlan)).toMatchObject({people:1,accommodationUnits:1});
  await change('[data-choice-group="sleep"] [data-value="Bez ubytování"]');await expect.poll(()=>page.evaluate(()=>window.__lastPlan)).toMatchObject({accommodationUnits:0,accommodationOptionId:null});
  await change('[data-choice-group="sleep"] [data-value="Chatka"]');await change('[data-accommodation-option-id="cabin-premium"]');
  await change('[data-choice-group="showshine"] [data-value="Chci soutěžit"]');await expect(page.locator('[data-planner-recap]')).toContainText('Ano!');
@@ -66,4 +66,19 @@ test('public Planner second tab cannot silently overwrite choices already being 
  await expect(page.locator('[data-stay-index="2"]')).toHaveAttribute('aria-pressed','true');
  await page.reload();await expect(page.locator('[data-stay-index="1"]')).toHaveAttribute('aria-pressed','true');
  expectNoUnexpectedClientErrors(observations);expectNoUnexpectedClientErrors(otherErrors);
+});
+
+test('public Planner replaces legacy partial lodging with the whole crew before pricing and handoff',async({page},info)=>{
+ const observations=await prepareE2ePage(page,{accommodations:accommodationOptions.map(option=>({...option,...(option.id==='cabin-standard'?{freeUnits:1}:{})}))});await page.setViewportSize({width:390,height:844});await page.goto('/#planer');await expect(page.locator('[data-accommodation-option-id="cabin-standard"]')).toBeVisible();
+ await page.evaluate(()=>{const key='e36UnitedPublicPlanner:v1',draft=JSON.parse(localStorage.getItem(key));draft.crew=3;draft.accommodationUnits=1;draft.accommodationOptionId='cabin-standard';draft.partialAccommodation=true;localStorage.setItem(key,JSON.stringify(draft))});await page.reload();
+ await expect(page.locator('[data-people]')).toHaveText('3');await expect(page.locator('[data-planner-price-preview]')).toContainText('3 osoby · 1× Chatka Standard');await expect(page.locator('.planner-price-estimate')).toContainText('2 910');
+ await page.locator('[data-people-plus]').click();await page.locator('[data-people-plus]').click();await expect(page.locator('.planner-price-title')).toContainText('5 osob · 2× Chatka Standard');await expect(page.locator('.planner-price-estimate')).toContainText('5 650');await expect(page.locator('[data-planner-accommodation-availability]')).toContainText('není dostatek volné kapacity');await page.screenshot({path:info.outputPath('whole-crew-public.png')});
+ await page.locator('[data-planner-mail]').click();await page.locator('[data-planner-login]').click();await expect(page).toHaveURL(/member.html\?mode=login/);
+ const draft=await page.evaluate(()=>{const value=new URLSearchParams(location.hash.slice(1)).get('handoff');return JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(value.replace(/-/g,'+').replace(/_/g,'/')),c=>c.charCodeAt(0))))});expect(draft).toMatchObject({crew:5,accommodationUnits:5});
+ const login=page.locator('[data-auth-form=login]');await login.locator('[name=email]').fill('eva@example.test');await login.locator('[name=password]').fill('isolated-password');await login.locator('[type=submit]').click();const form=page.locator('[data-reservation-form]');await expect(form.locator('[name=crew]')).toHaveValue('5');await expect(form.locator('[name=accommodationUnits]')).toHaveValue('5');await expect(form.locator('[name=partialAccommodation]')).toHaveCount(0);expect(observations.reservationWrites).toEqual([]);expectNoUnexpectedClientErrors(observations);
+});
+
+for(const accommodation of ['Chatka','Bez ubytování'])test(`old encoded handoff derives lodging from the whole crew: ${accommodation}`,async({page})=>{
+ const observations=await prepareE2ePage(page,{authenticated:true});const now=Date.now(),draft={version:1,source:'weekend-planner',draftId:crypto.randomUUID(),eventId:'united-2026',eventYear:2026,createdAt:new Date(now).toISOString(),expiresAt:new Date(now+86400000).toISOString(),arrival:'Sobota',departure:'Neděle',nights:1,attendanceType:'saturday_only',crew:3,accommodation,accommodationOptionId:accommodation==='Chatka'?'cabin-standard':null,accommodationUnits:1,showShine:'Ne'};
+ await page.goto('/member.html?section=reservation&draft='+draft.draftId+'#handoff='+Buffer.from(JSON.stringify(draft)).toString('base64url'));const form=page.locator('[data-reservation-form]');await expect(form.locator('[name=crew]')).toHaveValue('3');await expect(form.locator('[name=accommodationUnits]')).toHaveValue(accommodation==='Chatka'?'3':'0');expect(observations.reservationWrites).toEqual([]);expectNoUnexpectedClientErrors(observations);
 });
