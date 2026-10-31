@@ -32,11 +32,11 @@ test('history year follows visible section in both scroll directions',async({pag
  const indices=Array.from({length:count},(_,index)=>index);
  for(const index of [...indices,...indices.toReversed()]){
   const entry=entries.nth(index);
-  // An unrevealed entry crosses the reading line as its translateY settles.
-  await entry.evaluate(node=>{const probe=document.querySelector('.site-header').getBoundingClientRect().bottom+70;scrollTo({top:node.getBoundingClientRect().top+scrollY-probe-8,behavior:'instant'})});
+  // Read the actual body in the viewport, independent of decorative reveal movement.
+  await entry.evaluate(node=>{const header=document.querySelector('.site-header').getBoundingClientRect().bottom,top=node.getBoundingClientRect().top-new DOMMatrixReadOnly(getComputedStyle(node).transform).m42,height=node.offsetHeight-parseFloat(getComputedStyle(node).paddingBottom);scrollTo({top:top+scrollY+height/2-(header+innerHeight)/2,behavior:'instant'})});
   await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
   await entry.evaluate(async node=>{await Promise.all([...node.querySelectorAll('img')].map(image=>image.decode().catch(()=>{})));while(node.getAnimations().length)await Promise.all(node.getAnimations().map(animation=>animation.finished.catch(()=>{})))});
-  await expect.poll(()=>page.evaluate(()=>{const probe=document.querySelector('.site-header').getBoundingClientRect().bottom+70;const entries=[...document.querySelectorAll('.timeline-entry')];const active=entries.filter(n=>n.getBoundingClientRect().top<=probe).at(-1)||entries[0];return document.querySelector('[data-history-year]').textContent.trim()===active.querySelector('.timeline-year').textContent.trim()}),{message:`Active history year after settled entry ${index}`}).toBe(true);
+  await expect(entry.locator('.timeline-copy')).toBeInViewport();await expect(page.locator('[data-history-year]')).toHaveText(await entry.locator('.timeline-year').innerText());await expect(entry).toHaveClass(/is-current/);await expect(entry.locator('.timeline-year a')).toHaveAttribute('aria-current','location');
  }
  await page.locator('.timeline-entry').nth(2).scrollIntoViewIfNeeded();
  const directYear=await page.locator('.timeline-entry').nth(2).locator('.timeline-year').innerText();
