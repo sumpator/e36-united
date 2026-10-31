@@ -1,8 +1,8 @@
-import { deriveMemberHeroState } from '../member-portal-state.js?v=20261025-flow1';
+import { deriveMemberHeroState } from '../member-portal-state.js?v=20261031-compose1';
 import { initPortalNavigation } from '../portal-navigation.js?v=20260924-merch2';
 import { $, $$ } from './ui.js?v=20260924-merch2';
 import { accountAuthMode, memberSection, requestedMemberSection } from './deep-links.js?v=20261028-entry1';
-import { initMobileNavigation } from '../mobile-navigation.js?v=20261030-history1';
+import { initMobileNavigation } from '../mobile-navigation.js?v=20261031-compose1';
 
 export function createMemberShell({
   renderApp,
@@ -86,9 +86,10 @@ export function createMemberShell({
     const previousSection=currentSection,changed=currentSection!==id,wasInitialized=currentSection!==null;
     if(!fromHistory){if(changed&&wasInitialized)window.history.pushState(null,'',url);else window.history.replaceState(window.history.state,'',url)}
     currentSection=id;document.body.dataset.memberSection=id;
-    const titles={overview:'Přehled',reservation:'Rezervace',live:'Program LIVE',garage:'Garáž',payments:'Platby',club:'United Club',photos:'Moje fotky',merch:'United Merch',account:'Účet'};
+    const titles={overview:'Přehled',reservation:'Rezervace na sraz & ubytování',live:'Program LIVE',garage:'Garáž',payments:'Platby',club:'United Club',photos:'Moje fotky',merch:'Moje objednávky',account:'Účet'};
     const greeting=$('[data-member-greeting]'),sectionTitle=$('[data-member-section-title]');
     $$('[data-agenda-action]').forEach(action=>action.hidden=action.dataset.agendaAction!==id);
+    const clubStats=$('[data-club-statistics]');if(clubStats)clubStats.hidden=id!=='club';
     const clubAction=$('[data-club-heading-action]');if(clubAction)clubAction.hidden=id!=='club';
     const description=$('[data-member-agenda-description]');if(description)description.textContent=({overview:'Tvoje účast na jednom místě.',reservation:'Účast, auto a volitelné ubytování.',garage:'Tvoje auta na United.',payments:'Platby za sraz a Merch na jednom místě.',club:'Tvoje ověřené aktivity, historie a členské výhody.',photos:'Tvoje fotografie a stav jejich schválení.',account:'Osobní údaje a nastavení účtu.',merch:'Tvoje objednávky a jejich historie.',live:'Program a soutěže vybraného ročníku.'})[id]||'';
     {if(greeting){greeting.hidden=id!=='overview';greeting.textContent=id==='overview'?'Přehled':'';}if(sectionTitle){sectionTitle.hidden=id==='overview';sectionTitle.textContent=id==='overview'?'':titles[id]||''}}

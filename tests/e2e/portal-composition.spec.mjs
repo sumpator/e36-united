@@ -32,7 +32,7 @@ test('section titles, account save, identity and mobile links remain connected',
  await page.locator('[data-account-form] [name=nickname]').fill('Testová přezdívka');await page.locator('[data-account-form] [type=submit]').click();await expect(page.locator('[data-account-save-status]')).toHaveText('Profil byl uložen.');expect(errors.profileWrites.at(-1).nickname).toBe('Testová přezdívka');
  await expect(page.locator('[data-account-email]')).toHaveAttribute('readonly','');await expect(page.locator('.portal-address-summary')).toContainText('delivery@example.test');
  await page.locator('[data-address-edit]').click();await page.locator('[data-merch-address] [name=street]').fill('Jiná 24');await page.locator('[data-merch-address] [type=submit]').click();await expect(page.locator('.portal-address-summary')).toContainText('Jiná 24');expect(addressWrites).toHaveLength(1);expect(errors.profileWrites).toHaveLength(1);
- for(const [id,title] of Object.entries({garage:'Garáž',payments:'Platby',reservation:'Rezervace',photos:'Moje fotky',merch:'United Merch',club:'United Club',account:'Účet'})){
+ for(const [id,title] of Object.entries({garage:'Garáž',payments:'Platby',reservation:'Rezervace na sraz & ubytování',photos:'Moje fotky',merch:'Moje objednávky',club:'United Club',account:'Účet'})){
   await page.locator(`.member-sidebar [data-member-section=${id}]`).click();await expect(page.locator('[data-member-section-title]')).toHaveText(title);await expect(page.locator('[data-member-page-title]')).toBeFocused();expect(await page.locator(`[data-member-panel=${id}] > .member-section-head h2`).count()).toBe(0);
   expect(await page.locator('[data-member-page-title]').evaluate(el=>el.getBoundingClientRect().top>=document.querySelector('.site-header').getBoundingClientRect().bottom)).toBe(true);
  }
@@ -41,9 +41,9 @@ test('section titles, account save, identity and mobile links remain connected',
  await page.locator('.member-bottom-nav [data-mobile-section=payments]').click();await page.locator('[data-member-payment-tab=merch]').click();await expect(page.locator('[data-merch-payments]')).toBeVisible();await expect(page.locator('[data-payments-list]')).toBeHidden();await page.locator('[data-member-payment-tab=sraz]').click();await expect(page.locator('[data-payments-list]')).toBeVisible();
  expect(errors.pageErrors).toEqual([]);expect(errors.unhandledApi).toEqual([]);
 });
-test('compact Club, next milestone and actionable points guide',async({page})=>{
+test('compact Club, unlocked benefit and actionable points guide',async({page})=>{
  const {errors}=await setup(page,{points:24});await page.setViewportSize({width:1440,height:1000});await page.goto('/member.html?section=club&clubTab=points');
- await expect(page.locator('[data-reward-name]')).toContainText('10 %');await expect(page.locator('[data-reward-progress]')).toContainText('Do další odměny');await expect(page.locator('[data-reward-progress] [role=progressbar]')).toHaveAttribute('aria-valuenow','0');await expect(page.locator('.reward-achieved')).toHaveCount(0);
+ await expect(page.locator('[data-reward-name]')).toContainText('10 %');await expect(page.locator('[data-reward-progress]')).toContainText('Sleva odemčena');await expect(page.locator('[data-reward-progress] [role=progressbar]')).toHaveAttribute('aria-valuenow','12');await expect(page.locator('.reward-achieved')).toHaveCount(0);
  for(const [w,h,theme,label] of [[1440,1000,'light','club-desktop'],[1366,768,'dark','club-notebook'],[390,844,'light','club-mobile'],[360,800,'dark','club-360']]){await page.setViewportSize({width:w,height:h});await page.evaluate(()=>scrollTo({top:0,behavior:'instant'}));await capture(page,label,theme);}
  await page.locator('[data-points-guide-open]').click();await expect(page.locator('#points-guide')).toBeVisible();await capture(page,'points-guide-360','dark');await page.keyboard.press('Escape');await expect(page.locator('[data-points-guide-open]')).toBeFocused();
  await page.locator('[data-points-guide-open]').click();await page.locator('[data-points-guide-target=photos]').click();await expect(page.locator('#points-guide')).not.toBeVisible();await expect(page.locator('[data-member-section-title]')).toHaveText('Moje fotky');
@@ -51,7 +51,7 @@ test('compact Club, next milestone and actionable points guide',async({page})=>{
 });
 test('public Merch filters combine and points are not capped',async({page})=>{
  const {errors}=await setup(page,{points:22});await page.setViewportSize({width:1440,height:1000});await page.goto('/merch.html#drop');
- await expect(page.locator('[data-benefit-points]')).toHaveText('22');await expect(page.locator('[data-benefit-next]')).toHaveText('Do další odměny: 2 body');await expect(page.locator('[data-benefit-progress]')).toHaveAttribute('aria-valuenow','10');
+ await expect(page.locator('[data-benefit-points]')).toHaveText('22');await expect(page.locator('[data-benefit-next]')).toHaveText('Sleva odemčena');await expect(page.locator('[data-benefit-progress]')).toHaveAttribute('aria-valuenow','12');
  await expect(page.locator('[data-product]')).toHaveCount(6);await page.locator('[data-gender=women]').click();await page.locator('[data-merch-filter="Trička"]').click();await expect(page.locator('[data-product]')).toHaveCount(2);await capture(page,'merch-filters-desktop');
  await page.locator('[data-merch-filter="Limitovaná kolekce"]').click();await expect(page.locator('[data-product]')).toHaveCount(0);await page.locator('[data-clear-filters]').click();await expect(page.locator('[data-product]')).toHaveCount(6);
  await page.setViewportSize({width:360,height:800});await capture(page,'merch-filters-360','dark');expect(errors.pageErrors).toEqual([]);

@@ -1,4 +1,4 @@
-const fallbackLogo = 'united-logo-blue-silver-transparent.png';
+const fallbackLogo = 'united-logo-blue.svg';
 
 const escapeHtml = (value = '') => String(value).replace(/[&<>"']/g, character => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
@@ -226,7 +226,7 @@ export function createClubProfileViewer({ apiBaseUrl, apiRequest, apiRequestBlob
       if (activeRef === ref) renderProfile(payload.profile || {});
     } catch {
       if (activeRef !== ref || !root) return;
-      root.innerHTML = '<article class="club-profile-unavailable"><img alt="" src="united-logo-blue-silver-transparent.png"><h2 id="club-profile-title">Profil není dostupný.</h2><p>Člen může mít klubový profil skrytý nebo už není aktivní.</p></article>';
+      root.innerHTML = '<article class="club-profile-unavailable"><img alt="" src="united-logo-blue.svg"><h2 id="club-profile-title">Profil není dostupný.</h2><p>Člen může mít klubový profil skrytý nebo už není aktivní.</p></article>';
     }
   }
 

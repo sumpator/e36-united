@@ -452,6 +452,7 @@ export async function prepareAdminE2ePage(page,{authUid=memberId}={}) {
 
   await page.route('https://static.wixstatic.com/**', route => route.fulfill({ status: 200, contentType: 'image/svg+xml', body: imageSvg }));
   await page.route('https://e36united.cz/united-logo-blue-silver-transparent.png', route => route.fulfill({ status: 200, contentType: 'image/svg+xml', body: imageSvg }));
+  await page.route('https://e36united.cz/united-logo-blue.svg', route => route.fulfill({ status: 200, contentType: 'image/svg+xml', path: 'united-logo-blue.svg' }));
   await page.route('https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js', route => route.fulfill({ status: 200, contentType: 'text/javascript; charset=utf-8', body: firebaseAppModule }));
   await page.route('https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js', route => route.fulfill({ status: 200, contentType: 'text/javascript; charset=utf-8', body: firebaseAuthModule.replace(JSON.stringify(memberId),JSON.stringify(authUid)) }));
 

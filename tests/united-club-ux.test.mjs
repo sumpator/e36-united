@@ -148,8 +148,8 @@ test('verified attendance is protected while safe S&S amendments are prefilled',
   const claim=memberJs.slice(memberJs.indexOf('function historyClaimForm'),memberJs.indexOf('function closeHistoryCategoryField'));
   assert.match(claim,/Schválenou účast nelze odebrat/);
   assert.match(claim,/if\(approved\)return[\s\S]*historyEvidenceMarkup\(item\)/);
-  assert.match(claim,/Schválené Show &amp; Shine nelze bezpečně přepsat/);
-  assert.match(claim,/Současné API neumí schválené S&S bezpečně měnit/);
+  assert.match(claim,/Tento výsledek už ověřil United tým/);
+  assert.match(claim,/Pokud potřebuješ opravu, napiš nám na united@e36united.cz/);
   assert.match(sns,/\['not_claimed','rejected'\]\.includes\(sns\.status\)/);
   assert.match(sns,/value="\$\{esc\(category\)\}"/);
   assert.match(sns,/placement==='2'\?'checked':''/);

@@ -50,7 +50,7 @@ test('member navigation, milestones, account QR and compact layouts',async({page
  await page.setViewportSize({width:1440,height:1000});await page.goto('/member.html?section=club&clubTab=points');
  await expect(page.locator('[data-club-anchor=points]')).toBeVisible();await expect(page.locator('[data-reward-name]')).toContainText('10 %');
  await expect(page.locator('.reward-ledger-note')).toHaveCount(0);await capture(page,'club-desktop');
- await expect(page.locator('.reward-achieved')).toHaveCount(0);await expect(page.locator('[data-reward-progress]')).toContainText('Do další odměny');
+ await expect(page.locator('.reward-achieved')).toHaveCount(0);await expect(page.locator('[data-reward-progress]')).toContainText('Sleva odemčena');
  await page.locator('[data-earn-strip]').scrollIntoViewIfNeeded();await capture(page,'club-activities-desktop');
  await page.locator('[data-club-tab=history]').click();await expect(page.locator('[data-history-grid]')).toBeVisible();await page.locator('[data-club-tab=achievements]').click();await expect(page.locator('[data-achievement-catalog]')).toBeVisible();
  await page.setViewportSize({width:1366,height:768});await page.locator('.member-sidebar [data-member-section=overview]').click();expect(await page.locator('[data-member-hero]').evaluate(el=>el.getBoundingClientRect().height)).toBeLessThan(260);await expect(page.locator('[data-member-page-title]')).toHaveText('Přehled');await page.evaluate(()=>scrollTo({top:0,behavior:'instant'}));await capture(page,'overview-notebook','dark');

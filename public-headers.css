@@ -1,6 +1,6 @@
 /* Public header compositions only; Member, LIVE and Merch keep their own heroes. */
 .home-page .hero-content.home-hero-layout{display:grid;grid-template-columns:150px minmax(0,1fr);gap:34px;align-items:start;position:relative;padding-top:130px;padding-bottom:65px}
-.home-hero-layout .home-united-mark{position:static;width:150px;height:auto;opacity:1;filter:brightness(0) invert(1);margin-top:4px;pointer-events:none}
+.home-hero-layout .home-united-mark{position:static;width:150px;height:auto;opacity:1;filter:none;margin-top:4px;pointer-events:none}
 .home-hero-layout .home-hero-copy{position:relative;padding-left:34px;min-width:0}
 .home-hero-layout .home-hero-copy::before{content:"";position:absolute;left:0;top:4px;width:3px;height:150px;background:#4da3ff}
 .home-page .home-hero-copy h1{font-size:clamp(52px,6.4vw,92px);line-height:1;letter-spacing:-.06em;margin:0;white-space:nowrap;color:#fff}

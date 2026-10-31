@@ -22,7 +22,7 @@ test('hero keeps identity and onboarding CTA without session controls', () => {
   // authoritative attendance remains on the Member Card.
   assert.match(hero, /data-member-nickname/);
   assert.doesNotMatch(hero, /data-member-hero-attended/);
-  assert.match(panel('club','photos'), /data-attendance-count/);
+  assert.match(html, /data-club-statistics[\s\S]*data-attendance-count/);
   assert.doesNotMatch(hero, /data-logout|member-logged-actions|member-hero-logout/);
   assert.match(js, /cta\.hidden=!view\.cta/);
   assert.match(js, /cta\.hidden=false/);
@@ -46,11 +46,12 @@ test('mobile auth is compact while desktop auth content and tab behavior remain 
 });
 
 test('Member Card renders real profile identity and meaningful progress data', () => {
-  const overview = panel('club', 'photos');
-  for (const attribute of ['data-summary-name', 'data-summary-member-code', 'data-member-since', 'data-attendance-count', 'data-overview-points', 'data-profile-complete']) assert.match(overview, new RegExp(attribute));
+  const overview = html.slice(html.indexOf('<article aria-label="United Member Card"'),html.indexOf('</article>',html.indexOf('<article aria-label="United Member Card"'))),account=panel('account');
+  for (const attribute of ['data-member-since', 'data-attendance-count', 'data-overview-points']) assert.match(overview, new RegExp(attribute));
+  for (const attribute of ['data-summary-name', 'data-summary-member-code', 'data-profile-complete']) assert.match(account, new RegExp(attribute));
   assert.match(overview, /aria-label="United Member Card"/);
-  assert.match(overview, /<strong data-summary-name/);
-  assert.match(overview, /<span class="member-card-code" data-summary-member-code/);
+  assert.match(account, /<strong data-summary-name/);
+  assert.match(account, /<span class="member-card-code" data-summary-member-code/);
   assert.doesNotMatch(overview, /data-summary-nickname|MEMBER SUMMARY/);
   assert.match(js, /summaryName\.textContent=p\.name\|\|'United Member'/);
   assert.match(js, /summaryCode\.textContent=p\.memberCode/);

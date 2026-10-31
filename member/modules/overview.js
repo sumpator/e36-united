@@ -1,11 +1,12 @@
 import {navigationIcon} from '../../navigation-icons.js?v=20261030-history1';
 import { reservationStatusPresentation } from '../reservation-status.js?v=20261030-mobile1';
-import { deriveOverviewState } from '../../member-portal-state.js?v=20261025-flow1';
+import { deriveOverviewState } from '../../member-portal-state.js?v=20261031-compose1';
 import { $, esc } from '../ui.js?v=20260924-merch2';
 import {admissionInfoMarkup} from '../admission-info.js?v=20261030-portal1';
 
 export function createMemberOverview({
   getData,
+  onAddCar,
   getMemberSince,
   getVerified,
   getPoints,
@@ -55,8 +56,8 @@ export function createMemberOverview({
     if(summary){
       const selected=car||primary,carLabel=selected?[selected.nickname,selected.model,selected.body].filter(Boolean).join(' · '):'Zatím nemáš přidané auto';
       const stay=reservation?`${reservation.arrival} · ${reservation.crew} ${reservation.crew===1?'osoba':reservation.crew>=2&&reservation.crew<=4?'osoby':'osob'} · ${reservation.sleep}`:plan?.preferences?`${plan.preferences.arrival} · ${plan.preferences.accommodation}`:plannerDraft?'Rozpracovaný plán najdeš v rezervaci.':'Zatím nemáš odeslanou rezervaci.';
-      summary.innerHTML=`<div class="portal-overview-rows"><div><i aria-hidden="true">${navigationIcon('garage')}</i><small>${reservation?'Auto rezervace':'Tvoje garáž'}</small><strong>${esc(carLabel)}</strong><button type="button" data-overview-open="${reservation?'reservation':'garage'}">${selected?'Otevřít':'Přidat auto'} →</button></div><div><i aria-hidden="true">${navigationIcon('reservation')}</i><small>Účast a pobyt</small><strong>${esc(stay)}</strong><button type="button" data-overview-open="reservation">Otevřít rezervaci →</button></div><div><i aria-hidden="true">${navigationIcon('account')}</i><small>Profil</small><strong>${esc(data.profile?.name||'Doplň osobní údaje')}</strong><button type="button" data-overview-open="account">Upravit profil →</button></div><div><i aria-hidden="true">${navigationIcon('club')}</i><small>United Club</small><strong>Ověřené účasti, body a ocenění</strong><button type="button" data-overview-open="club">Můj Club →</button></div></div>`;
-      summary.querySelectorAll('[data-overview-open]').forEach(button=>button.addEventListener('click',()=>openSection(button.dataset.overviewOpen)));
+      summary.innerHTML=`<div class="portal-overview-rows"><div><i aria-hidden="true">${navigationIcon('garage')}</i><small>Jakým autem přijedeš?</small><strong>${esc(carLabel)}</strong><button type="button" data-overview-open="${reservation?'reservation':'garage'}"${selected?'':' data-overview-add-car'}>${selected?'Otevřít':'Přidat auto'} →</button></div><div><i aria-hidden="true">${navigationIcon('reservation')}</i><small>Účast na srazu a ubytování</small><strong>${esc(stay)}</strong><button type="button" data-overview-open="reservation">Otevřít rezervaci →</button></div><div><i aria-hidden="true">${navigationIcon('account')}</i><small>Profil</small><strong>${esc(data.profile?.name||'Doplň osobní údaje')}</strong><button type="button" data-overview-open="account">Upravit profil →</button></div><div><i aria-hidden="true">${navigationIcon('club')}</i><small>United Club</small><strong>Ověřené účasti, body a ocenění</strong><button type="button" data-overview-open="club">Můj Club →</button></div></div>`;
+      summary.querySelectorAll('[data-overview-open]').forEach(button=>button.addEventListener('click',()=>{if(button.hasAttribute('data-overview-add-car'))onAddCar?.();else openSection(button.dataset.overviewOpen)}));
     }
     document.querySelectorAll('[data-portal-admission-info]').forEach(root=>{root.innerHTML=admissionInfoMarkup(event);root.hidden=!root.innerHTML});
     onboardingContext={reservation,registrationOpen};renderOnboarding();

@@ -54,7 +54,7 @@ test('overview: open registration without reservation exposes the event CTA', ()
 
 test('overview: pending and approved states are concise', () => {
   assert.equal(deriveOverviewState({ reservation: { status: 'pending' } }).label, 'REGISTRACE ČEKÁ NA SCHVÁLENÍ.');
-  assert.equal(deriveOverviewState({ reservation: { status: 'approved' } }).label, 'TVOJE ÚČAST JE POTVRZENÁ.');
+  assert.equal(deriveOverviewState({ reservation: { status: 'approved' } }).label, 'Registrace na sraz je schválená.');
 });
 
 test('overview: changed pending reservation and overpayment are explicit non-payment states', () => {
@@ -63,14 +63,15 @@ test('overview: changed pending reservation and overpayment are explicit non-pay
   assert.match(pending.copy, /nic nedoplácej/i);
   assert.equal(pending.target, 'reservation');
   const overpaid = deriveOverviewState({ reservation: { status: 'approved', payment: { status: 'overpaid', overpaymentCzk: 1800 } }, formatAmount: value => `${value} Kč` });
-  assert.equal(overpaid.label, 'PŘEPLATEK 1800 Kč');
+  assert.equal(overpaid.label, 'Registrace na sraz je schválená.');
+  assert.match(overpaid.copy, /PŘEPLATEK 1800 Kč/);
   assert.match(overpaid.copy, /není potřeba nic platit/i);
 });
 
 test('overview: approved reservation with remaining payment is actionable', () => {
   const view = deriveOverviewState({ reservation: { status: 'approved', payment: { status: 'underpaid', remainingCzk: 3600 } }, formatAmount: value => `${value} Kč` });
-  assert.equal(view.label, 'DOPLATEK 3600 Kč');
-  assert.match(view.copy, /Platební údaje/);
+  assert.equal(view.label, 'Registrace na sraz je schválená.');
+  assert.equal(view.copy, 'DOPLATEK 3600 Kč');
   assert.equal(view.action, 'Otevřít platbu');
   assert.equal(view.target, 'payments');
 });

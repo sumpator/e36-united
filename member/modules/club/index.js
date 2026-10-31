@@ -1,6 +1,6 @@
-import { createMemberHistory } from './history.js?v=20261030-history1';
-import { createMemberPoints } from './points.js?v=20261030-history1';
-import { createClubMembers } from './members.js?v=20261011-ui1';
+import { createMemberHistory } from './history.js?v=20261031-compose1';
+import { createMemberPoints } from './points.js?v=20261031-compose1';
+import { createClubMembers } from './members.js?v=20261031-compose1';
 
 export function createMemberClub({
   apiBaseUrl,

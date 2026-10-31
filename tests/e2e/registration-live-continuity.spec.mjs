@@ -72,9 +72,10 @@ for(const outcome of ['ok','failed','lost'])test('selected competition photograp
  }finally{release.resolve();await viewer?.context().close();await page.close();r.db.close()}
 });
 
-async function plannerFixture(page,{empty=false}={}){
+async function plannerFixture(page,{empty=false,approved=false}={}){
  const observations=await prepareE2ePage(page,{authenticated:true,member:{id:'m'},registrationOpen:false,preliminaryEnabled:true,cars:[]}),r=memberRuntime();
- r.db.exec("DELETE FROM reservations;INSERT INTO event_preliminary_settings(event_id,enabled,write_token) VALUES('e',1,'local');UPDATE cars SET body='Cabrio' WHERE id='c';");if(empty)r.db.exec("DELETE FROM car_photos WHERE car_id IN ('c','c2');DELETE FROM cars WHERE member_id='m'");
+ if(!approved)r.db.exec('DELETE FROM reservations');
+ r.db.exec("INSERT INTO event_preliminary_settings(event_id,enabled,write_token) VALUES('e',1,'local');UPDATE cars SET body='Cabrio' WHERE id='c';");if(empty)r.db.exec("DELETE FROM car_photos WHERE car_id IN ('c','c2');DELETE FROM cars WHERE member_id='m'");
  let failRefresh=false,draftResponse=null;const calls=[];
  await page.route('https://api.e36united.cz/api/**',async route=>{
   const q=route.request(),u=new URL(q.url()),p=u.pathname,method=q.method();if(!['/api/cars','/api/planner-draft','/api/reservations/current','/api/preliminary-reservations/current'].includes(p)&&!p.startsWith('/api/cars/'))return route.fallback();
@@ -109,10 +110,10 @@ async function holdGarageInitialFocus(page){
 for(const state of ['another field','closed','reopened'])test('garage initial focus cannot take over '+state,async({page},info)=>{
  await holdGarageInitialFocus(page);const c=await plannerFixture(page,{empty:true});try{
   await page.setViewportSize({width:390,height:844});await c.open();const planner=page.locator('[data-member-planner-modal]'),car=page.locator('[data-car-modal]');
-  await planner.locator('[data-member-planner-add-car]').click();
+  await planner.locator('[data-car-select]').selectOption('__add_car__');
   if(state!=='another field'){
    await car.getByRole('button',{name:'Zavřít formulář auta',exact:true}).click();await expect(car).toBeHidden();
-   if(state==='reopened')await planner.locator('[data-member-planner-add-car]').click();
+   if(state==='reopened')await planner.locator('[data-car-select]').selectOption('__add_car__');
   }
   const field=state==='closed'?planner.locator('[name=note]'):car.locator('[name=model]');
   if(state!=='closed')await car.locator('[name=nickname]').fill('Nová E36');
@@ -129,7 +130,7 @@ for(const state of ['another field','closed','reopened'])test('garage initial fo
 test('garage initial focus is available for creating and editing a car',async({page},info)=>{
  const c=await plannerFixture(page);try{
   await c.open();const planner=page.locator('[data-member-planner-modal]'),car=page.locator('[data-car-modal]');
-  await planner.locator('[data-member-planner-add-car]').click();await expect(car.locator('[name=nickname]')).toBeFocused();
+  await planner.locator('[data-car-select]').selectOption('__add_car__');await expect(car.locator('[name=nickname]')).toBeFocused();
   await page.keyboard.type('Nová E36');await car.locator('[name=model]').fill('328i');await expect(car.locator('[name=nickname]')).toHaveValue('Nová E36');await expect(car.locator('[name=model]')).toHaveValue('328i');
   await car.getByRole('button',{name:'Zavřít formulář auta',exact:true}).click();await planner.getByRole('button',{name:'Zavřít Planner',exact:true}).click();await page.locator('.member-sidebar [data-member-section=garage]').click();
   const before=c.r.db.prepare("SELECT * FROM cars WHERE id='c'").get();await page.locator('[data-edit-car="c"]').click();await expect(car.locator('[name=nickname]')).toBeFocused();await expect(car.locator('[name=nickname]')).toHaveValue(before.nickname);await expect(car.locator('[name=model]')).toHaveValue(before.model);await expect(car).toHaveAttribute('data-car-id','c');
@@ -140,7 +141,7 @@ test('garage initial focus is available for creating and editing a car',async({p
 for(const empty of [true,false])test('Planner keeps confirmed new car and draft through refresh '+(empty?'empty garage':'existing primary'),async({page},info)=>{
  const c=await plannerFixture(page,{empty});try{
   await c.open();const modal=page.locator('[data-member-planner-modal]');await modal.locator('[data-member-stay="2"]').click();await modal.locator('[name=note]').fill('Rozpracované údaje zůstávají');await modal.locator('[data-member-crew-plus]').click();
-  await modal.locator('[data-member-planner-add-car]').click();const car=page.locator('[data-car-modal]');await expect(car.locator('[name=primary]')).toBeChecked({checked:empty});await car.locator('[name=nickname]').fill('Nová E36');await car.locator('[name=model]').fill('328i');c.failNextRefresh();await car.locator('button[type=submit]').click();
+  await modal.locator('[data-car-select]').selectOption('__add_car__');const car=page.locator('[data-car-modal]');await expect(car.locator('[name=primary]')).toBeChecked({checked:empty});await car.locator('[name=nickname]').fill('Nová E36');await car.locator('[name=model]').fill('328i');c.failNextRefresh();await car.locator('button[type=submit]').click();
   await expect(page.locator('.member-toast')).toContainText('Uložení se nepodařilo dokončit');const id=c.r.db.prepare("SELECT id FROM cars WHERE nickname='Nová E36'").get().id;
   c.restoreReads();await car.locator('button[type=submit]').click();await expect(car).toBeHidden();await expect(modal.locator('[name=carId]')).toHaveValue(id);await expect(modal.locator('[name=note]')).toHaveValue('Rozpracované údaje zůstávají');await expect(modal.locator('[data-planner-draft-status]')).toContainText('Rozpracovaný plán uložen');
   expect(c.calls.filter(value=>value==='POST /api/cars')).toHaveLength(1);expect(c.r.db.prepare("SELECT is_primary FROM cars WHERE id=?").get(empty?id:'c').is_primary).toBe(1);expect(c.r.db.prepare('SELECT COUNT(*) n FROM reservations').get().n).toBe(0);expect(c.r.db.prepare('SELECT COUNT(*) n FROM preliminary_reservations').get().n).toBe(0);
@@ -155,6 +156,20 @@ for(const empty of [true,false])test('Garage defaults primary from the current c
   const before=c.r.db.prepare("SELECT count(*) n FROM cars WHERE member_id='m'").get().n;
   await page.locator('[data-open-car]').click();const modal=page.locator('[data-car-modal]');await expect(modal.locator('[name=primary]')).toBeChecked({checked:empty});await modal.locator('[name=nickname]').fill('Garage E36');await modal.locator('[name=model]').fill('328i');await modal.locator('[type=submit]').click();await expect(modal).toBeHidden();
   expect(c.r.db.prepare("SELECT count(*) n FROM cars WHERE member_id='m'").get().n).toBe(before+1);expect(c.r.db.prepare("SELECT is_primary FROM cars WHERE nickname='Garage E36'").get().is_primary).toBe(empty?1:0);if(!empty)expect(c.r.db.prepare("SELECT is_primary FROM cars WHERE id='c'").get().is_primary).toBe(1);expectNoUnexpectedClientErrors(c.observations);
+ }finally{await page.close();c.r.db.close()}
+});
+
+for(const context of ['planner','reservation'])test('car choice adds through the existing form and cancellation preserves selection '+context,async({page})=>{
+ const c=await plannerFixture(page,{approved:context==='reservation'});try{
+  if(context==='planner')await c.open();else{await page.goto('/member.html?section=reservation');await expect(page.locator('[data-reservation-car-select]')).toBeVisible()}
+  const select=page.locator(context==='planner'?'[data-member-planner-modal] [data-car-select]':'[data-reservation-car-select]');await select.selectOption('c2');await select.selectOption('__add_car__');const modal=page.locator('[data-car-modal]');await expect(modal).toBeVisible();await expect(modal.locator('[name=primary]')).not.toBeChecked();await modal.getByRole('button',{name:'Zavřít formulář auta',exact:true}).click();await expect(select).toHaveValue('c2');await expect(select).toBeFocused();
+  await select.selectOption('__add_car__');await modal.locator('[name=nickname]').fill('Výběr nového auta');await modal.locator('[name=model]').fill('328i');await modal.locator('button[type=submit]').click();await expect(modal).toBeHidden();const id=c.r.db.prepare("SELECT id FROM cars WHERE nickname='Výběr nového auta'").get().id;await expect(select).toHaveValue(id);await expect(select).toBeFocused();expect(c.calls.filter(call=>call==='POST /api/cars')).toHaveLength(1);expect(c.calls.some(call=>call.startsWith('PUT /api/reservations'))).toBe(false);expect(c.r.db.prepare("SELECT is_primary FROM cars WHERE id='c'").get().is_primary).toBe(1);expectNoUnexpectedClientErrors(c.observations);
+ }finally{await page.close();c.r.db.close()}
+});
+
+test('empty overview opens the shared car form and stays in overview after save',async({page})=>{
+ const c=await plannerFixture(page,{empty:true});try{
+  await c.open();await page.locator('[data-member-planner-modal]').getByRole('button',{name:'Zavřít Planner',exact:true}).click();await page.locator('.member-sidebar [data-member-section=overview]').click();const add=page.locator('[data-overview-add-car]');await add.click();const modal=page.locator('[data-car-modal]');await expect(modal).toBeVisible();await expect(modal.locator('[name=primary]')).toBeChecked();await modal.getByRole('button',{name:'Zavřít formulář auta',exact:true}).click();await expect(page.locator('[data-member-panel=overview]')).toBeVisible();await add.click();await modal.locator('[name=nickname]').fill('Auto z Přehledu');await modal.locator('[name=model]').fill('328i');await modal.locator('button[type=submit]').click();await expect(modal).toBeHidden();await expect(page.locator('[data-member-panel=overview]')).toBeVisible();await expect(page.locator('.portal-overview-rows')).toContainText('Auto z Přehledu');expect(c.r.db.prepare("SELECT COUNT(*) n FROM cars WHERE member_id='m'").get().n).toBe(1);expect(c.r.db.prepare('SELECT COUNT(*) n FROM reservations').get().n).toBe(0);expectNoUnexpectedClientErrors(c.observations);
  }finally{await page.close();c.r.db.close()}
 });
 

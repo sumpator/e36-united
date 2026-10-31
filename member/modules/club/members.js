@@ -1,7 +1,7 @@
-import { createClubProfileViewer } from '../../club-profile.js?v=20260921-member-ux-r2';
+import { createClubProfileViewer } from '../../club-profile.js?v=20261031-compose1';
 import { $, esc } from '../../ui.js?v=20260924-merch2';
 
-const fallbackLogo = 'united-logo-blue-silver-transparent.png';
+const fallbackLogo = 'united-logo-blue.svg';
 
 export function createClubMembers({ apiBaseUrl, apiRequest, apiRequestBlob, getData, openSection }) {
   const ownedUrls = new Map();
@@ -49,7 +49,7 @@ export function createClubMembers({ apiBaseUrl, apiRequest, apiRequestBlob, getD
     const root = $('[data-club-members-list]'); if (!root) return;
     releaseListMedia();
     const members = getData().club?.clubMembers?.members || []; root.innerHTML = '';
-    if (!members.length) root.innerHTML = '<article class="club-members-empty"><img alt="" src="united-logo-blue-silver-transparent.png"><div><b>Klubové profily se právě skládají.</b><p>Jakmile členové doplní své United profily, objeví se tady.</p></div></article>';
+    if (!members.length) root.innerHTML = '<article class="club-members-empty"><img alt="" src="united-logo-blue.svg"><div><b>Klubové profily se právě skládají.</b><p>Jakmile členové doplní své United profily, objeví se tady.</p></div></article>';
     for (const member of members) {
       const button = document.createElement('button'); button.className = 'club-member-card'; button.type = 'button';
       button.setAttribute('aria-label', `Otevřít klubový profil ${member.nickname || member.name}`);

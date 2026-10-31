@@ -21,27 +21,30 @@ const js = [
   accountJs,
 ].join('\n');
 const overview = html.slice(html.indexOf('data-member-panel="overview"'), html.indexOf('data-member-panel="reservation"'));
+const stats = html.slice(html.indexOf('<article aria-label="United Member Card"'),html.indexOf('</article>',html.indexOf('<article aria-label="United Member Card"')));
+const account = html.slice(html.indexOf('data-member-panel="account"'));
 const club = html.slice(html.indexOf('data-member-panel="club"'), html.indexOf('data-member-panel="photos"'));
 
-test('compact identity accompanies a shared agenda title while full member details live in Club', () => {
+test('compact identity accompanies a shared agenda title while full member details live in Account', () => {
   assert.match(html, /class="member-agenda-head"[\s\S]*<h1 data-member-page-title/);
   assert.match(html, /<strong data-member-nickname>United Member<\/strong>/);
   assert.doesNotMatch(overview, /aria-label="United Member Card"/);
   assert.match(html, /data-member-hero-media/);
-  assert.match(club, /aria-label="United Member Card"/);
-  assert.match(club, /member-card-identity[\s\S]*data-summary-name[\s\S]*data-summary-member-code/);
+  assert.match(stats, /data-club-statistics/);
+  assert.doesNotMatch(club, /member-card-identity/);
+  assert.match(account, /member-card-identity[\s\S]*data-summary-name[\s\S]*data-summary-member-code/);
   assert.doesNotMatch(club, /data-summary-nickname/);
 });
 
 test('Member Card keeps three centered core stats without the retired rating', () => {
-  const stats = [...club.matchAll(/class="member-card-stat(?: [^"]*)?" data-member-help="([^"]+)"/g)].map(match => match[1]);
-  assert.deepEqual(stats, ['since', 'verified', 'points']);
-  for (const label of ['UNITED OD', 'OVĚŘENÉ UNITED', 'UNITED POINTS']) assert.match(club, new RegExp(label));
+  const coreStats = [...stats.matchAll(/class="member-card-stat(?: [^"]*)?" data-member-help="([^"]+)"/g)].map(match => match[1]);
+  assert.deepEqual(coreStats, ['since', 'verified', 'points']);
+  for (const label of ['UNITED OD', 'OVĚŘENÉ UNITED', 'UNITED POINTS']) assert.match(stats, new RegExp(label));
   assert.doesNotMatch(club, /MEMBER RATING|data-member-rating/);
-  assert.match(club, /data-overview-points="">0<\/b><em>bodů<\/em>/);
+  assert.match(stats, /data-overview-points="">0<\/b><em>bodů<\/em>/);
   assert.doesNotMatch(club, /data-overview-points="">0<\/b><em>\/ 12 bodů<\/em>/);
-  assert.match(club, /Hranice konkrétní odměny: 12 bodů/);
-  assert.match(club, /data-overview-points-fill/);
+  assert.match(stats, /Hranice konkrétní odměny: 12 bodů/);
+  assert.match(stats, /data-overview-points-fill/);
   assert.match(js, /overviewFill\.style\.width/);
   assert.match(css, /\.member-card-stat\{[^}]*align-items:center[^}]*text-align:center/);
   assert.match(css, /\.member-card-stat>small\{[^}]*justify-content:center[^}]*text-align:center/);
@@ -89,8 +92,9 @@ test('United Points Command Panel consolidates the meter and Merch reward', () =
   assert.doesNotMatch(club, /<span data-points-journey-score="">0<\/span> <em>\/ 12 bodů<\/em>/);
   // portal-composition removes duplicate milestone counts; the twelve-segment
   // progress and actual configured Merch benefit remain, without invented rewards.
-  assert.match(clubPointsJs, /aria-valuemax="12"/);
-  assert.match(clubPointsJs, /Do další odměny/);
+  assert.match(clubPointsJs, /aria-valuemax="\$\{threshold\}"/);
+  assert.match(clubPointsJs, /Sleva odemčena/);
+  assert.doesNotMatch(clubPointsJs, /Do další odměny|12 \/ 24 \/ 36 bodů/);
   assert.match(club, /data-reward-name[\s\S]*data-reward-terms[\s\S]*data-reward-remaining/);
   assert.match(club, /data-points-reward-state/);
   assert.doesNotMatch(club, /United Merch unlock|reward-main|data-reward-lock/);

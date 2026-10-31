@@ -36,7 +36,7 @@ test('United Merch has a member order panel and a distinct public catalogue link
   assert.doesNotMatch(sidebar, /member-nav-shop[^>]*href=/);
   assert.match(memberHtml, /data-member-panel="merch"[\s\S]*href="merch.html"/);
   // Public links retain their destination and use the shared SVG icon set.
-  assert.match(read('mobile-navigation.js'), /\['merch.html','merch','Merch'\]/);
+  assert.match(read('mobile-navigation.js'), /\['merch.html','merch','Merch e-shop'\]/);
   assert.match(read('mobile-navigation.js'), /navigationIcon\(icon\)/);
 });
 

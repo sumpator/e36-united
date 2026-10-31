@@ -4,7 +4,7 @@ import {portalConfig} from '../firebase-config.js?v=20260924-merch2';
 export function merchBenefit(settings={}){
  const threshold=Number(settings?.rewardThreshold)||12,rate=settings?.discountBasisPoints;
  const active=Number.isInteger(rate)&&rate>0,percent=active?new Intl.NumberFormat('cs-CZ').format(rate/100):null;
- return {threshold,active,percent,title:active?`Od ${threshold} bodů: sleva ${percent} % na Merch`:'United Merch',copy:active?`Od ${threshold} bodů získáš slevu ${percent} % na zboží v Merchi. Přesnou slevu ověří serverová rekapitulace; dopravné zůstává samostatně.`:'Nákupní sleva zatím není nastavená. Před objednáním rozhoduje serverová rekapitulace.',paused:settings?.paused===true};
+ return {threshold,active,percent,title:active?`Nasbírej ${threshold} bodů a získej slevu ${percent} % na merch`:'United Merch',copy:active?`Od ${threshold} bodů získáš slevu ${percent} % na zboží v Merchi. Dopravné se počítá samostatně.`:'Nákupní sleva zatím není nastavená. Před objednáním rozhoduje serverová rekapitulace.',paused:settings?.paused===true};
 }
 let pending;
 export function loadMerchBenefitSettings(){

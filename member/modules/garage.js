@@ -21,6 +21,7 @@ export function createMemberGarage({
   const carPhotoObjectUrls=new Map(),carPhotoObjectUrlRequests=new Map();
   const carModal=$('[data-car-modal]'),carForm=$('[data-car-form]'),carPhotoInput=$('[data-car-photo-input]');
   let carPhotoRequestGeneration=0,editingCarId='',selectedCarPhoto=null,returnToReservationAfterCar=false,returnToPlannerAfterCar=false,carPhotoPreview=null,bound=false;
+  let carSelectionTarget=null;
 
   function clearCarPhotoObjectUrls(){carPhotoRequestGeneration+=1;for(const url of carPhotoObjectUrls.values())URL.revokeObjectURL(url);carPhotoObjectUrls.clear();carPhotoObjectUrlRequests.clear()}
   function pruneCarPhotoObjectUrls(){
@@ -78,8 +79,10 @@ export function createMemberGarage({
     if(!carModal)return;const viewport=window.visualViewport;carModal.style.setProperty('--car-viewport-height',`${viewport?.height||innerHeight}px`);carModal.style.setProperty('--car-viewport-top',`${viewport?.offsetTop||0}px`);
   }
   function closeCarModal(){
+    const selection=carSelectionTarget;carSelectionTarget=null;
     if(!carModal)return;carModal.hidden=true;delete carModal.dataset.carId;document.body.classList.remove('modal-open');returnToReservationAfterCar=false;returnToPlannerAfterCar=false;editingCarId='';carForm?.reset();clearSelectedCarPhoto();
     const current=$('[data-car-current-photo]');if(current){current.hidden=true;delete current.dataset.available}
+    if(selection?.isConnected)selection.focus({preventScroll:true});
   }
   function openCarModal(car=null){
     if(!carModal||!carForm)return;
@@ -102,6 +105,10 @@ export function createMemberGarage({
     if(bound)return;bound=true;window.visualViewport?.addEventListener('resize',fitCarViewport);window.visualViewport?.addEventListener('scroll',fitCarViewport);window.addEventListener('resize',fitCarViewport);carPhotoPreview=createImagePreviewController($('[data-car-photo-preview]'));
     const uploadField=carPhotoInput?.closest('.image-upload-field');if(uploadField&&!uploadField.querySelector('.image-upload-recommendation')){const recommendation=document.createElement('small');recommendation.className='image-upload-recommendation';recommendation.textContent='Fotografie není povinná, ale doporučujeme ji nahrát.';uploadField.querySelector(':scope > span')?.after(recommendation)}
     $('[data-open-car]')?.addEventListener('click',()=>openCarModal());
+    window.addEventListener('member:add-car',event=>{
+      const select=event.detail?.select;if(!select?.isConnected||!getCurrentUser())return;
+      carSelectionTarget=select;returnToReservationAfterCar=event.detail.context==='planner';returnToPlannerAfterCar=false;openCarModal();
+    });
     $('[data-planner-handoff-add-car]')?.addEventListener('click',openCarForReservation);
     $('[data-reservation-add-car]')?.addEventListener('click',openCarForReservation);
     $$('[data-preliminary-add-car],[data-member-planner-add-car]').forEach(button=>button.addEventListener('click',openCarForReservation));
@@ -136,7 +143,8 @@ export function createMemberGarage({
         clearSelectedCarPhoto();
         const cars=await loadCarsFromApi();if(getCurrentUser()!==actor)return;setCars(cars);await refreshClub().catch(error=>console.warn('Club refresh unavailable',error));
         if(getCurrentUser()!==actor)return;
-        const resumeReservation=returnToReservationAfterCar,resumePlanner=returnToPlannerAfterCar;closeCarModal();clearReservationCarError();renderGarage();onCarSaved({carId:String(savedCarId),resumeReservation,resumePlanner});
+        const resumeReservation=returnToReservationAfterCar,resumePlanner=returnToPlannerAfterCar,selection=carSelectionTarget;carSelectionTarget=null;closeCarModal();clearReservationCarError();renderGarage();onCarSaved({carId:String(savedCarId),resumeReservation,resumePlanner});
+        if(selection?.isConnected){selection.value=String(savedCarId);selection.dataset.previousCar=selection.value;selection.dispatchEvent(new Event('change',{bubbles:true}));selection.focus({preventScroll:true})}
         returnToReservationAfterCar=false;
         if(!resumeReservation)toast(carId?(file?'Auto i nová fotka byly aktualizovány.':'Změny auta byly uloženy.'):(file?'Auto i fotka jsou uložené v Můj United.':'Auto je uložené v Můj United.'));
       }catch(error){console.warn('Car upload failed',error);toast(error?.message===IMAGE_ERROR_MESSAGE?IMAGE_ERROR_MESSAGE:error?.status===409?'Profilovou fotku se nepodařilo uložit.':'Uložení se nepodařilo dokončit. Zkontroluj připojení a zkus to znovu.')}
@@ -144,5 +152,5 @@ export function createMemberGarage({
     });
   }
 
-  return {bind,getPrivateCarPhotoUrl,hasPrivateCarPhotoUrl,loadCarsFromApi,openCarModal,renderGarage,reset:clearCarPhotoObjectUrls};
+  return {bind,getPrivateCarPhotoUrl,hasPrivateCarPhotoUrl,loadCarsFromApi,openCarModal,renderGarage,reset(){carSelectionTarget=null;clearCarPhotoObjectUrls()}};
 }

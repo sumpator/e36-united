@@ -1,5 +1,5 @@
-import {merchBenefit,loadMerchBenefitSettings} from './merch/benefit.js?v=20261030-history1';
-import {initPointsGuide} from './member/points-guide.js?v=20261030-history1';
+import {merchBenefit,loadMerchBenefitSettings} from './merch/benefit.js?v=20261031-compose1';
+import {initPointsGuide} from './member/points-guide.js?v=20261031-compose1';
 import { firebaseConfig, portalConfig } from './firebase-config.js?v=20260924-merch2';
 import {initShop} from './merch/shop.js?v=20261030-mobile1';
 import {rewardProgress,pointWord} from './member/reward-progress.js?v=20260926-portal3';
@@ -30,11 +30,11 @@ if(memberBenefit){
   const renderMember=async user=>{
     const generation=++benefitRequestGeneration;
     try{
-      const progress=normalizeMemberBenefit(await loadUnitedClub(user));if(generation!==benefitRequestGeneration)return;
+      const [club,settings]=await Promise.all([loadUnitedClub(user),loadMerchBenefitSettings()]),progress=normalizeMemberBenefit(club),benefit=merchBenefit(settings);progress.threshold=benefit.threshold;progress.meter=Math.min(progress.available,progress.threshold);if(generation!==benefitRequestGeneration)return;
       memberBenefit.dataset.benefitState='member';memberBenefit.removeAttribute('aria-busy');setVisible(memberState);
       qs('[data-benefit-points]',memberState).textContent=progress.available;qs('[data-benefit-word]',memberState).textContent=pointWord(progress.available);
       const progressBar=qs('[data-benefit-progress]',memberState);progressBar.setAttribute('aria-valuemax',String(progress.threshold));progressBar.setAttribute('aria-valuenow',String(progress.meter));progressBar.querySelector('i').style.width=`${Math.min(100,progress.meter/progress.threshold*100)}%`;
-    qs('[data-benefit-next]',memberState).textContent=`Do další odměny: ${progress.remaining} ${pointWord(progress.remaining)}`;
+    qs('[data-benefit-next]',memberState).textContent=benefit.active?(progress.available>=progress.threshold?'Sleva odemčena':`Do slevy: ${progress.threshold-progress.available} ${pointWord(progress.threshold-progress.available)}`):'Tvoje United Points';
     }catch(error){if(generation===benefitRequestGeneration){renderError();console.debug('United member benefit could not be loaded.',error)}}
   };
   renderLoading();

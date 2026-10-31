@@ -133,7 +133,7 @@ test('secondary reservation failure opens shell with unavailable state and manua
   const state=page.locator('[data-member-panel="reservation"] [data-domain-retry-state="reservation"]');
   await expect(state).toBeVisible();expect(calls).toBe(2);await expect(page.locator('[data-auth-view]')).toBeHidden();await expect(page.locator('[data-reservation-nav-status]')).toHaveText('! Chyba načtení');await expect(page.locator('[data-reservation-nav-status]')).toHaveAttribute('data-tone','error');
   failed=false;await state.getByRole('button',{name:'Zkusit znovu'}).click();await expect(state).toHaveCount(0);
-  await expect(page.locator('[data-reservation-section]')).toBeVisible();await expect(page.locator('[data-member-section-title]')).toHaveText('Rezervace');
+  await expect(page.locator('[data-reservation-section]')).toBeVisible();await expect(page.locator('[data-member-section-title]')).toHaveText('Rezervace na sraz & ubytování');
   expectNoUnexpectedClientErrors(observations);
 });
 
@@ -185,7 +185,7 @@ test('approved reservation change supports sold-out inquiry, compact layouts and
   expect(await page.locator('.member-content').evaluate(node=>parseFloat(getComputedStyle(node).borderTopWidth))).toBeGreaterThan(0);
   for(const [index,tile] of detailGeometry.tileRects.entries()){expect(tile.left,`reservation tile ${index+1} starts inside the summary panel`).toBeGreaterThanOrEqual(detailGeometry.left.left-1);expect(tile.right,`reservation tile ${index+1} ends inside the summary panel`).toBeLessThanOrEqual(detailGeometry.left.right+1)}
   for(const style of detailGeometry.valueStyles){expect(style.fontSize).toBe(16);expect(style.fontWeight).toBeGreaterThanOrEqual(700);expect(style.lineHeight/style.fontSize).toBeGreaterThanOrEqual(1.2);expect(style.lineHeight/style.fontSize).toBeLessThanOrEqual(1.3)}
-  expect(Math.abs(detailGeometry.tileRects[0].height-detailGeometry.tileRects[1].height)).toBeLessThanOrEqual(1);expect(Math.abs(detailGeometry.tileRects[2].height-detailGeometry.tileRects[3].height)).toBeLessThanOrEqual(1);
+  expect(Math.abs(detailGeometry.tileRects[1].height-detailGeometry.tileRects[2].height)).toBeLessThanOrEqual(1);expect(detailGeometry.tileRects[0].width).toBeGreaterThan(detailGeometry.tileRects[1].width);await expect(page.locator('[data-reservation-summary]>div').first().locator('[data-reservation-car-choice]')).toBeVisible();
   await expect(page.locator('[data-reservation-summary]>div')).toHaveCount(5);await expect(detailCard.locator('[data-reservation-car-choice]')).toBeVisible();await expect(detailCard.locator('[data-reservation-car-choice]')).toContainText('Změnit auto');await expect(detailCard.locator('[data-reservation-car-choice]')).not.toContainText('bez nového schvalování');await expect(page.locator('[data-reservation-form-car]')).toBeHidden();await expect(detailCard.locator('.member-saved-accommodation-visual')).toHaveCount(1);await expect(page.locator('[data-reservation-summary] .accommodation-visual')).toHaveCount(0);
   const stayValue=page.locator('[data-reservation-summary]>div').nth(1).locator('.registration-summary-value'),accommodationValue=page.locator('[data-reservation-summary]>.member-summary-accommodation .registration-summary-value');
   await expect(stayValue.locator('b')).toHaveText('Sobota → neděle');await expect(stayValue.locator('span')).toHaveText('1 noc');await expect(accommodationValue.locator('b')).toHaveText('2 osoby');await expect(accommodationValue.locator('span')).toHaveText('1× Chatka Premium');

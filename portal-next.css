@@ -89,7 +89,7 @@ body.united-menu-open,body.account-qr-open{overflow:hidden;overscroll-behavior:n
 .planner-shell.reveal{opacity:1;transform:none;transition:none}
 .planner-section .planner-accommodation-card:hover:not(:disabled){transform:none}
 :root[data-theme="light"] .showshine-winners--v8{background:#fff}.home-page .nav-cta{display:none!important}
-:root[data-theme="light"] .home-page .stats-strip{background-color:#f4f7fb;background-image:url('united-logo-blue-silver-transparent.png');background-repeat:no-repeat;background-position:calc(100% + 40px) center;background-size:110px;background-blend-mode:soft-light}
+:root[data-theme="light"] .home-page .stats-strip{background-color:#f4f7fb;background-image:url('united-logo-blue.svg');background-repeat:no-repeat;background-position:calc(100% + 40px) center;background-size:110px;background-blend-mode:soft-light}
 @media(max-height:800px) and (min-width:1051px){.member-page[data-member-section="overview"] .member-logged-hero,.member-page[data-member-section="overview"] .member-logged-hero-inner{min-height:160px}.member-page[data-member-section="overview"] .member-logged-hero-inner{padding-block:11px}.member-page[data-member-section="overview"] .member-logged-copy h1{font-size:40px}}
 @media(max-width:1050px){
  .site-header .nav{display:flex;align-items:center;gap:10px;min-height:64px}.site-header .brand{margin-right:auto}.site-header .nav-links{display:none!important}.site-header .menu-btn{display:flex!important;flex-direction:column;justify-content:center;width:44px;height:44px;flex-shrink:0}.site-header .mobile-auth-link{display:inline-flex!important;align-items:center;min-height:40px;white-space:nowrap;font-size:11px}

@@ -45,8 +45,8 @@ export function deriveOverviewState({ reservation = null, registrationOpen = fal
         : approvedPayment?.status === 'paid' ? 'ZAPLACENO' : '';
   return {
     active: true,
-    label: paymentLabel || labels[reservation.status] || 'AKTUÁLNÍ REGISTRACE',
-    copy: approvedPayment?.status === 'overpaid' ? `U registrace evidujeme přeplatek ${formatAmount(overpayment)}. Není potřeba nic platit.` : approvedPayment && remaining > 0 ? 'Registrace je schválená. Platební údaje obsahují pouze aktuální částku k úhradě.' : copies[reservation.status] || '',
+    label: reservation.status==='approved'?'Registrace na sraz je schválená.':labels[reservation.status] || 'AKTUÁLNÍ REGISTRACE',
+    copy: paymentLabel ? paymentLabel+(payment.status==='overpaid'?' · Není potřeba nic platit.':'') : (reservation.status==='approved'?'Platební stav zatím není dostupný.':copies[reservation.status] || ''),
     action: approvedPayment ? 'Otevřít platbu' : 'Otevřít registraci',
     target: approvedPayment ? 'payments' : 'reservation',
     openEditor: false,

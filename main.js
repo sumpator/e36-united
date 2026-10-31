@@ -29,7 +29,7 @@ initPublicMemberState({config:firebaseConfig,apiBaseUrl:portalConfig.apiBaseUrl,
 })();
 
 const coreStyles = qs('link[href^="styles.css"]');
-if (coreStyles && !coreStyles.href.includes('v=20261028-flow2')) coreStyles.href = 'styles.css?v=20261030-history2';
+if (coreStyles && !coreStyles.href.includes('v=20261028-flow2')) coreStyles.href = 'styles.css?v=20261031-compose1';
 if (!qs('link[href^="accommodation-visual.css"]')) {
 const accommodationStyles=document.createElement('link');accommodationStyles.rel='stylesheet';accommodationStyles.href='accommodation-visual.css?v=20260912-accommodation-gallery-r1';document.head.append(accommodationStyles);
 }
@@ -42,7 +42,7 @@ const updateHeader = () => header?.classList.toggle('scrolled', window.scrollY >
 updateHeader();
 window.addEventListener('scroll', updateHeader, { passive: true });
 
-void import('./mobile-navigation.js?v=20261030-history1').then(({initMobileNavigation})=>initMobileNavigation());
+void import('./mobile-navigation.js?v=20261031-compose1').then(({initMobileNavigation})=>initMobileNavigation());
 navLinks.forEach(a => a.addEventListener('click', () => {
 document.body.classList.remove('menu-open');
 menuBtn?.setAttribute('aria-expanded', 'false');
@@ -106,9 +106,23 @@ qsa('.reveal').forEach(el => el.classList.add('is-visible'));
 /* YouTube aftermovie: inline on hosting, reliable fallback when previewed from file:// */
 qsa('[data-youtube-player]').forEach(player => {
 const play = qs('[data-youtube-play]', player);
-const videoId = player.dataset.videoId;
-if (!play || !videoId) return;
-play.addEventListener('click', () => {
+if (!play || !player.dataset.videoId) return;
+const posterTemplate=play.cloneNode(true),feature=player.closest('.gallery-video-feature');
+feature?.querySelectorAll('[data-video-year]').forEach(choice=>choice.addEventListener('click',()=>{
+if(player.dataset.videoId===choice.dataset.videoId)return;
+player.querySelector('iframe')?.remove();player.classList.remove('is-playing');
+const poster=posterTemplate.cloneNode(true),title=choice.dataset.videoTitle;
+player.dataset.videoId=choice.dataset.videoId;
+poster.setAttribute('aria-label',`Přehrát ${title} na YouTube`);
+poster.querySelector('img').src=`https://i.ytimg.com/vi/${choice.dataset.videoId}/hqdefault.jpg`;
+poster.querySelector('img').alt=`${title} – oficiální video`;
+poster.querySelector('strong').textContent=title;
+const old=qs('[data-youtube-play]',player);if(old)old.replaceWith(poster);else player.prepend(poster);
+feature.querySelectorAll('[data-video-year]').forEach(button=>button.setAttribute('aria-pressed',String(button===choice)));
+}));
+player.addEventListener('click', event => {
+const play=event.target.closest('[data-youtube-play]');if(!play||!player.contains(play))return;
+const videoId=player.dataset.videoId;
 const watchUrl = `https://www.youtube.com/watch?v=${encodeURIComponent(videoId)}`;
 if (window.location.protocol === 'file:') {
 window.open(watchUrl, '_blank', 'noopener');
@@ -116,7 +130,7 @@ return;
 }
 const iframe = document.createElement('iframe');
 iframe.src = `https://www.youtube.com/embed/${encodeURIComponent(videoId)}?autoplay=1&rel=0&playsinline=1`;
-iframe.title = 'E36 United 2026 – oficiální video';
+iframe.title = `${qs('strong',play)?.textContent||'E36 United'} – oficiální video`;
 iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share';
 iframe.allowFullscreen = true;
 iframe.referrerPolicy = 'strict-origin-when-cross-origin';
