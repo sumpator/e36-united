@@ -72,7 +72,7 @@ test('Payments are driven only by approved reservation payment data', () => {
   const reservation = panel('reservation', 'garage');
   const payments = panel('payments', 'club');
   assert.match(payments, /Aktuálně nemáš žádnou platbu k řešení/);
-  assert.match(js, /if\(reservation\.status!==\'approved\'\)/);
+  assert.match(js, /if\(reservation\.status!==\'approved\'\|\|payment\.awaitingApproval\|\|reservation\.changePending\|\|reservation\.cancellationPending\)/);
   assert.match(js, /ZMĚNA ČEKÁ NA SCHVÁLENÍ/);
   assert.match(js, /QR ani nové platební instrukce teď nejsou dostupné/);
   for (const status of ['not_required', 'unpaid', 'underpaid', 'paid', 'overpaid']) assert.match(js, new RegExp(`${status}:`));
@@ -84,7 +84,7 @@ test('Payments are driven only by approved reservation payment data', () => {
   assert.match(reservation, /data-reservation-payment-detail/);
   assert.match(js, /const fullCard=paymentCard\(reservation\)/);
   assert.match(js, /paymentsList\.innerHTML=fullCard/);
-  assert.match(js, /detail\.innerHTML=fullCard/);
+  assert.match(js, /detail\.hidden=true;detail\.replaceChildren\(\)/);
   for (const label of ['Cena rezervace', 'Již zaplaceno', 'Variabilní symbol', 'Splatnost']) assert.match(js, new RegExp(label));
   assert.match(js, /member-payment-qr/);
   assert.match(js, /Naskenuj v bankovní aplikaci/);

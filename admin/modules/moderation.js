@@ -1,4 +1,4 @@
-import { canonicalMemberLink } from '../member-detail.js?v=20261030-refine1';
+import { canonicalMemberLink } from '../member-detail.js?v=20261031-pixel1';
 import {compactMemberIdentity,compactMemberPhoto,createCardMedia} from '../member-cards.js?v=20261014-admin1';
 const historyCardMedia=createCardMedia();
 export function releaseHistoryCardMedia(){historyCardMedia.clear()}

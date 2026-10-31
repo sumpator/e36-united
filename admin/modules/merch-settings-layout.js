@@ -1,4 +1,4 @@
-import {esc} from '../../merch/order-view.js?v=20261030-refine1';
+import {esc} from '../../merch/order-view.js?v=20261031-pixel1';
 const sellerLabels={name:'Název prodávajícího',street:'Ulice',city:'Obec',postalCode:'PSČ',ico:'IČO',taxStatus:'Daňový status',email:'Kontaktní e-mail',phone:'Telefon'};
 const docs={terms:'Obchodní podmínky',shipping:'Doprava a platba',returns:'Reklamace a odstoupení',privacy:'Osobní údaje'};
 export function layoutMerchSettings(form,catalog){

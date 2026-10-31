@@ -131,6 +131,9 @@ function jsonResponse(route, payload, status = 200) {
 
 export async function prepareE2ePage(page, {
   authenticated = false,
+  // Existing LIVE journeys exercise a member who explicitly opted in. New
+  // default/legacy-profile scenarios pass false and start without this key.
+  showProgramLive = true,
   authMemoryOnly = false,
   carsFailure = false,
   memberStatus = 'active',
@@ -166,6 +169,7 @@ export async function prepareE2ePage(page, {
     createdAt: '2021-06-01T00:00:00.000Z',
     ...(member || {}),
   };
+  memberProfile.showProgramLive=showProgramLive;
   page.on('pageerror', error => observations.pageErrors.push(error.stack || error.message));
   page.on('console', message => {
     if (message.type() !== 'error') return;
@@ -262,6 +266,10 @@ export async function prepareE2ePage(page, {
         member: memberProfile,
       });
       return;
+    }
+    if(url.pathname==='/api/me/live-preference'&&request.method()==='PUT'){
+      const body=request.postDataJSON();if(typeof body.showProgramLive!=='boolean'||Object.keys(body).length!==1){await jsonResponse(route,{error:'invalid_preference'},400);return}
+      memberProfile.showProgramLive=body.showProgramLive;await jsonResponse(route,{ok:true,showProgramLive:body.showProgramLive});return;
     }
     if (url.pathname === '/api/bootstrap' && request.method() === 'POST') {
       const body = request.postDataJSON();

@@ -215,7 +215,7 @@ html:has(body.member-page){scrollbar-gutter:stable}
 .member-page[data-member-section] .reservation-summary{grid-template-columns:repeat(2,minmax(0,1fr));border:0;background:none;padding:0}
 .member-page[data-member-section] .reservation-form.is-view-mode:not(:has(.reservation-saved-price:not([hidden]))) .form-title{display:none}
 .member-page[data-member-section] .reservation-summary>div{padding:14px 0;min-height:0;margin:0;background:none;border-bottom:1px solid var(--portal-line)}
-.member-page[data-member-section] .reservation-summary>div:nth-child(odd){padding-right:20px}
+
 .member-page[data-member-section] .reservation-summary>div>small{font-size:11px;line-height:1.4}
 .member-page[data-member-section] .member-summary-car-action{min-height:58px;border:1px solid var(--portal-line);border-radius:7px;padding:10px 12px;transform:none;color:var(--appearance-action,#70bdff);background:none}
 .member-page[data-member-section] .member-summary-car-action.is-empty{background:var(--appearance-subtle,#111a24)}
@@ -229,7 +229,7 @@ html:has(body.member-page){scrollbar-gutter:stable}
 .member-page[data-member-section] .payment-item-head h3{margin:0;font-size:18px;line-height:1.4;letter-spacing:0}
 .member-page[data-member-section] .payment-status-pill{padding:5px 9px;font-size:12px;background:none;border:1px solid var(--portal-line);border-radius:5px}
 .member-page[data-member-section] .member-payment-layout{grid-template-columns:minmax(0,1fr);padding:20px 0;gap:24px}
-.member-page[data-member-section] .member-payment-layout:has(>.member-payment-qr){grid-template-columns:minmax(0,1fr) 220px}
+.member-page[data-member-section] .member-payment-layout:has(>.member-payment-qr){grid-template-columns:minmax(0,1fr)}
 .member-page[data-member-section] .member-payment-copy h4{font-family:inherit;font-size:30px;line-height:1.25;letter-spacing:0;margin:0 0 20px}
 .member-page[data-member-section] .member-payment-copy dl{display:grid;grid-template-columns:minmax(0,1fr);gap:0;background:none;border:0;margin:0}
 .member-page[data-member-section] .member-payment-copy dl>div{display:grid;grid-template-columns:130px minmax(0,1fr);gap:12px;background:none;padding:10px 0;border-bottom:1px solid var(--portal-line)}
@@ -314,7 +314,7 @@ html:has(body.member-page){scrollbar-gutter:stable}
  .member-page[data-member-section] .reservation-summary{grid-template-columns:repeat(2,minmax(0,1fr));gap:0 12px}
  .member-page[data-member-section] .reservation-summary>div{padding:10px 0;min-width:0;overflow-wrap:anywhere}
  .member-page[data-member-section] .reservation-summary>div:first-child,.member-page[data-member-section] .member-summary-accommodation{grid-column:1/-1}
- .member-page[data-member-section] .reservation-summary>div:nth-child(odd){padding-right:0}
+
  .member-page[data-member-section] .reservation-summary :is(b,strong){font-size:15px;line-height:1.4}
  .member-page[data-member-section] .reservation-workbench .reservation-detail-grid{gap:12px}
  .member-page[data-member-section] .reservation-member-actions{padding:12px 0}
@@ -325,7 +325,7 @@ html:has(body.member-page){scrollbar-gutter:stable}
  .member-page[data-member-section] .member-payment-qr{justify-items:start}
  .member-page[data-member-section] .reservation-unified-card .reservation-car-hero{width:80px;height:54px}
  .member-page[data-member-section] .reservation-summary{grid-template-columns:repeat(2,minmax(0,1fr))}
- .member-page[data-member-section] .reservation-summary>div:nth-child(odd){padding-right:0}
+
  .member-page[data-member-section] .club-navigation-cards button{font-size:13px;padding:8px 5px;min-height:48px}
  .member-page[data-member-section] .member-payment-copy dl>div{grid-template-columns:100px minmax(0,1fr)}
 }
@@ -533,3 +533,55 @@ html:has(body.member-page){scrollbar-gutter:stable}
 }
 
 @media(max-width:700px){.member-page[data-member-section] .member-agenda-head .member-card-stat{min-height:82px;padding:8px 4px;gap:4px}.member-page[data-member-section] .member-agenda-head .member-card-stat>b{font-size:16px;white-space:nowrap;overflow-wrap:normal}.member-page[data-member-section] .member-agenda-head .member-card-stat small{font-size:9px}.member-page[data-member-section] .member-agenda-head .member-card-points b{font-size:21px}}
+
+/* Pixel follow-up: remove the empty former mobile navigation rail from the flow. */
+@media(max-width:1050px){
+ .member-page[data-member-section] .member-portal-nav{display:none!important}
+ .member-page[data-member-section=reservation] .member-agenda-head{flex-wrap:nowrap;align-items:center}
+ .member-page[data-member-section=reservation] .member-agenda-head>div:first-child{flex:1 1 0}
+ .member-page[data-member-section=reservation] .member-agenda-head .member-logged-copy{display:none}
+ .member-page[data-member-section=reservation] .member-agenda-head .member-logged-hero-bg{flex-basis:76px;width:76px!important;height:57px!important}
+ .member-page[data-member-section=reservation] .member-agenda-head .member-logged-hero{flex:none}
+}
+.member-page[data-member-section] .portal-overview-rows>div{grid-template-columns:44px minmax(0,1fr) minmax(90px,28%);padding:0;gap:0;align-items:stretch;overflow:hidden}
+.member-page[data-member-section] .portal-overview-rows>div>i{display:grid;place-items:center;align-self:stretch;margin:0;padding:10px;color:var(--appearance-action)}
+.member-page[data-member-section] .portal-overview-rows>div>small{padding:12px 8px 4px 0;font-size:15px}
+.member-page[data-member-section] .portal-overview-rows>div>strong{padding:0 8px 12px 0;font-size:14px}
+.member-page[data-member-section] .portal-overview-rows>div>button{grid-column:3;grid-row:1/3;align-self:stretch;justify-self:stretch;max-width:none;width:auto;margin:0;padding:10px 8px;border:0;border-left:1px solid var(--portal-line);border-radius:0;white-space:normal;text-align:center;font-size:14px;line-height:1.35}
+.member-page[data-member-section] .reservation-status-card{padding:14px;border:1px solid var(--portal-line);border-radius:12px;background:var(--portal-wash)}
+.member-page[data-member-section] .reservation-detail-status{display:block;padding:0;border:0;background:none}
+.member-page[data-member-section] .reservation-state{padding:0;border:0;background:none;min-height:0}
+.member-page[data-member-section] .reservation-status-card.is-status-approved .reservation-state{padding:0;border:0;border-radius:0;background:none}
+.member-page[data-member-section] .reservation-status-card.is-status-approved{background:var(--appearance-success-wash);border-color:var(--portal-line)}
+.member-page[data-member-section] .reservation-state>small{display:none}
+.member-page[data-member-section] .reservation-state-value,.member-page[data-member-section] .is-status-approved .reservation-state-value{padding:0;border:0;border-radius:0;background:none}
+.member-page[data-member-section] .reservation-detail-status>p:empty{display:none}
+.member-page[data-member-section] .reservation-status-body{display:flex;flex-wrap:wrap;align-items:stretch;gap:12px;margin-top:12px}
+.member-page[data-member-section] .reservation-status-body:not(:has(> :not([hidden]))){display:none}
+.member-page[data-member-section] .reservation-payment-state{flex:1 1 90px;min-width:0;align-self:flex-start;margin:0;padding:8px 0;border:0;border-radius:0;line-height:1.4}
+.member-page[data-member-section] .reservation-member-comment{flex:3 1 165px;min-width:0;padding:8px 0 8px 12px;margin:0;border:0;border-left:1px solid var(--portal-line);border-radius:0;overflow-wrap:anywhere}
+.member-page[data-member-section] .reservation-member-comment .member-kicker{font-size:11px;letter-spacing:.08em;line-height:1.4}
+.member-page[data-member-section] .reservation-status-card .reservation-request-status{padding:12px 0 0;margin:12px 0 0;border:0;border-top:1px solid var(--portal-line);border-radius:0;background:none}
+.member-page[data-member-section] .reservation-summary .reservation-car-choice{width:auto;align-self:stretch;box-sizing:border-box;grid-template-columns:minmax(110px,1fr) minmax(80px,auto);margin:8px 0 0;gap:10px;padding:0}
+.member-page[data-member-section] .reservation-summary .reservation-car-choice>*{min-width:0;max-width:100%;box-sizing:border-box;margin:0}
+.member-page[data-member-section] .reservation-summary .reservation-car-choice>button{padding:10px 14px;white-space:normal}
+.member-page[data-member-section] .reservation-payment-link{width:100%;justify-content:center;text-align:center;margin-block:12px}
+.member-page[data-member-section] .reservation-member-actions{justify-content:center;flex-wrap:wrap}
+.member-page[data-member-section] .reservation-member-actions>[data-request-change]{justify-content:center;text-align:center}
+.member-page[data-member-section] .payment-item-head{display:flex;align-items:center;justify-content:space-between;flex-direction:row;flex-wrap:wrap;gap:10px;text-align:left}
+.member-page[data-member-section] .payment-item-head h3{flex:1 1 140px;margin:0;min-width:0}
+.member-page[data-member-section] .payment-item-head .payment-status-pill{flex:0 1 auto;max-width:100%}
+.member-page[data-member-section] .member-payment-layout{display:grid;grid-template-columns:minmax(0,1fr)}
+.member-page[data-member-section] .member-payment-qr{grid-column:1;justify-self:center;justify-items:center;width:min(100%,320px);margin-inline:auto;text-align:center}
+.member-page[data-member-section] .member-payment-qr>div{display:flex;justify-content:center}
+.member-page[data-member-section=club] .member-agenda-head{grid-template-columns:minmax(0,1fr) auto;align-items:center}
+.member-page[data-member-section=club] .member-agenda-head>div:first-child{display:contents}
+.member-page[data-member-section=club] .member-agenda-head h1{grid-column:1;grid-row:1;min-width:0}
+.member-page[data-member-section=club] .member-agenda-head [data-member-agenda-description]{grid-column:1/-1;grid-row:2;margin:0}
+.member-page[data-member-section=club] .member-agenda-head .club-members-link-row{grid-column:2;grid-row:1;margin:0;padding:0;justify-self:end;justify-content:flex-end}
+.member-page[data-member-section=club] .club-members-entry{min-height:44px;font-size:14px;text-align:right;white-space:normal;max-width:145px}
+.member-page[data-member-section=club] .member-agenda-head .member-card{grid-column:1/-1;grid-row:3;margin-block:6px 0;padding:0}
+.member-page[data-member-section=club] .member-agenda-head .member-card-stat{min-height:68px;padding:8px 4px;gap:4px}
+.member-page[data-member-section] [data-reward-remaining]{display:inline-block;padding:8px 10px;border-radius:8px;font-weight:800;line-height:1.4}
+.member-page[data-member-section] .is-unlocked [data-reward-remaining]{background:var(--appearance-success-wash,#dff5ea);color:var(--appearance-success,#147044)}
+@media(max-width:370px){.member-page[data-member-section] .reservation-summary .reservation-car-choice{grid-template-columns:minmax(0,1fr)}.member-page[data-member-section] .reservation-member-comment{flex-basis:100%;padding-left:0;border-left:0;border-top:1px solid var(--portal-line)}}

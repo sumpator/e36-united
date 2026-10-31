@@ -296,8 +296,8 @@ test.describe('desktop member portal', () => {
     await expectMemberOverview(page);
     await page.locator('.member-sidebar [data-member-section="reservation"]').click();
     await expect(page.locator('[data-member-payment]')).toHaveCount(0);
-    await expect(page.locator('[data-reservation-payment-detail]')).toContainText('Doplatek');
-    await expect(page.locator('[data-reservation-payment-detail] .member-payment-qr svg')).toBeVisible();
+    await expect(page.locator('[data-reservation-payment-detail]')).toBeHidden();await expect(page.locator('[data-reservation-payment-link]')).toContainText('Doplatit');
+    await expect(page.locator('[data-reservation-payment-detail] .member-payment-qr svg')).toHaveCount(0);
     await page.locator('.member-sidebar [data-member-section="payments"]').click();
 
     const payment = page.locator('[data-payments-list]');

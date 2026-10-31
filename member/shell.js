@@ -2,7 +2,7 @@ import { deriveMemberHeroState } from '../member-portal-state.js?v=20261031-comp
 import { initPortalNavigation } from '../portal-navigation.js?v=20260924-merch2';
 import { $, $$ } from './ui.js?v=20260924-merch2';
 import { accountAuthMode, memberSection, requestedMemberSection } from './deep-links.js?v=20261028-entry1';
-import { initMobileNavigation } from '../mobile-navigation.js?v=20261031-compose1';
+import { initMobileNavigation } from '../mobile-navigation.js?v=20261031-pixel1';
 
 export function createMemberShell({
   renderApp,

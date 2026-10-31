@@ -2015,6 +2015,9 @@ DROP TABLE _explicit_backup_live_entries;
 DROP TABLE _explicit_backup_live_competition_cars;
 INSERT INTO schema_migrations(id,description) VALUES('2026-09-30-live-explicit-participants','Explicit jury enrolment using existing car identities; no arrival or finance side effects');
 
+-- Per-member visibility, independent of event activation and judge permissions.
+ALTER TABLE members ADD COLUMN show_program_live INTEGER NOT NULL DEFAULT 0 CHECK(show_program_live IN (0,1));
+INSERT INTO schema_migrations(id,description) VALUES('2026-10-31-member-live-preference','Per-member opt-in visibility of Program LIVE, initially off');
 COMMIT;
 
 -- Member gallery upload attempts (additive, 2026-10-11).

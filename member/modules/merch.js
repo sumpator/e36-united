@@ -1,6 +1,6 @@
-import {esc,date,statusLabel,orderStatusLabel,orderMarkup,bindOrder,addressFields,readAddress} from '../../merch/order-view.js?v=20261030-refine1';
+import {esc,date,statusLabel,orderStatusLabel,orderMarkup,bindOrder,addressFields,readAddress} from '../../merch/order-view.js?v=20261031-pixel1';
 import {money,imageSource} from '../../merch/catalog.js?v=20260924-merch2';
-import {renderMerchAddress} from './merch-address.js?v=20261030-refine1';
+import {renderMerchAddress} from './merch-address.js?v=20261031-pixel1';
 export function createMemberMerch({request,getUser}){
  let generation=0,loadedFor=null,orders=[],page=1,filter='active',listScroll=0;
  const panel=document.querySelector('[data-member-panel="merch"]'),list=panel.querySelector('[data-merch-orders]'),detail=panel.querySelector('[data-merch-detail]');

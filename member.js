@@ -5,20 +5,20 @@ import { performMemberLogout } from './member-logout.js?v=20260826-predeploy-fix
 import { createMemberApiClient } from './member/api.js?v=20261028-flow2';
 import { loadMemberSessionSnapshot } from './member/refresh.js?v=20260907-feedback';
 import { apiError, authError, authOrApiError, createAccountAttempt, createMemberSession } from './member/session.js?v=20261028-flow2';
-import { createMemberData as defaultData, normalizeMember as normalizeMemberState } from './member/state.js?v=20260926-portal3';
+import { createMemberData as defaultData, normalizeMember as normalizeMemberState } from './member/state.js?v=20261031-pixel1';
 import { $, $$, setButtonBusy, toast } from './member/ui.js?v=20260924-merch2';
-import { createMemberShell } from './member/shell.js?v=20261031-compose1';
-import { createMemberOverview } from './member/modules/overview.js?v=20261031-compose1';
+import { createMemberShell } from './member/shell.js?v=20261031-pixel1';
+import { createMemberOverview } from './member/modules/overview.js?v=20261031-pixel1';
 import { createMemberGarage } from './member/modules/garage.js?v=20261031-compose1';
 import { createMemberPhotos } from './member/modules/photos.js?v=20261028-entry1';
-import { createMemberPlanner } from './member/modules/planner/index.js?v=20261031-compose1';
+import { createMemberPlanner } from './member/modules/planner/index.js?v=20261031-pixel1';
 import {verifyNewPasswordAccount} from './member/registration-verification.js?v=20261023-mail1';
-import { formatCzk } from './member/modules/planner/payments.js?v=20261030-refine1';
-import { createMemberClub } from './member/modules/club/index.js?v=20261031-compose1';
-import { achievementIcon, pictogram } from './member/modules/club/points.js?v=20261031-compose1';
-import { createMemberAccount } from './member/modules/account.js?v=20261011-ui1';
-import { createMemberLive } from './member/modules/live.js?v=20261028-entry1';
-import { createMemberMerch } from './member/modules/merch.js?v=20261030-refine1';
+import { formatCzk } from './member/modules/planner/payments.js?v=20261031-pixel1';
+import { createMemberClub } from './member/modules/club/index.js?v=20261031-pixel1';
+import { achievementIcon, pictogram } from './member/modules/club/points.js?v=20261031-pixel1';
+import { createMemberAccount } from './member/modules/account.js?v=20261031-pixel1';
+import { createMemberLive } from './member/modules/live.js?v=20261031-pixel1';
+import { createMemberMerch } from './member/modules/merch.js?v=20261031-pixel1';
 import './member/club-tabs.js?v=20261030-refine1';
 import { ACCOUNT_USED_KEY, accountAuthMode, rememberAccountUse, resolveAccountIntent } from './member/deep-links.js?v=20261028-entry1';
 import { renderMemberAvailability } from './member/availability.js?v=20261030-refine1';
@@ -396,6 +396,7 @@ const {activateAuthTab,bindMainNavigation,closeMainMenu,memberPortalNavigation,o
 memberLive=createMemberLive({
   apiBaseUrl,apiRequest,apiRequestForm,apiRequestBlob,openSection,setLiveMode,getPrivateCarPhotoUrl,
   getAccountId:()=>memberSession.currentUser?.uid||'',
+  getLiveVisibility:()=>data.profile?.showProgramLive===true,
   getRegistrationCar:()=>{const id=data.reservation?.carId;return data.cars.find(car=>String(car.id)===String(id))||null},
 });
 
@@ -427,6 +428,8 @@ const memberAccount=createMemberAccount({
   renderPoints:()=>memberClub.renderPoints(),
   renderAchievements:()=>memberClub.renderAchievements(),
   formatApiError:apiError,
+  getLiveVisibility:()=>data.profile?.showProgramLive===true,
+  onLiveVisibilityChange:async enabled=>{const uid=memberSession.currentUser?.uid;if(!uid)return false;if(!enabled&&!memberLive.disableVisibility())return false;const result=await apiRequest('/api/me/live-preference',{method:'PUT',body:{showProgramLive:enabled}});if(memberSession.currentUser?.uid!==uid)return false;if(result?.showProgramLive!==enabled)throw new Error('Nastavení nebylo potvrzeno.');data.profile.showProgramLive=result.showProgramLive;memberLive.render();if(enabled)void memberLive.probe();return true},
 });
 
 function renderAll(){renderProfile();memberClub.renderPoints();memberClub.renderAchievements();memberClub.renderMembers();renderGarage();memberClub.renderHistory();memberPlanner.renderReservation();memberClub.renderRewards();renderMemberGallery();memberAccount.render();memberLive?.render();renderMemberDomains();renderMemorySessionNotice()}

@@ -14,3 +14,12 @@ export function reservationStatusPresentation(reservation,{plan=false,draft=fals
   }
   return view;
 }
+
+export function reservationPaymentAction(reservation,formatAmount){
+  const payment=reservation?.payment;
+  if(reservation?.status!=='approved'||!payment||payment.awaitingApproval||reservation.changePending||reservation.cancellationPending)return 'Zkontrolovat platby';
+  if(payment.status==='overpaid')return 'Přeplatek · detail platby';
+  if(payment.status==='paid')return 'Zaplaceno · detail platby';
+  if(payment.actionable&&payment.configurationReady&&Number(payment.remainingCzk)>0)return `Doplatit ${formatAmount(payment.remainingCzk)}`;
+  return 'Zkontrolovat platby';
+}

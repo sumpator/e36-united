@@ -42,7 +42,7 @@ const updateHeader = () => header?.classList.toggle('scrolled', window.scrollY >
 updateHeader();
 window.addEventListener('scroll', updateHeader, { passive: true });
 
-void import('./mobile-navigation.js?v=20261031-compose1').then(({initMobileNavigation})=>initMobileNavigation());
+void import('./mobile-navigation.js?v=20261031-pixel1').then(({initMobileNavigation})=>initMobileNavigation());
 navLinks.forEach(a => a.addEventListener('click', () => {
 document.body.classList.remove('menu-open');
 menuBtn?.setAttribute('aria-expanded', 'false');

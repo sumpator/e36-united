@@ -1,6 +1,6 @@
 import { defineConfig } from '@playwright/test';
 
-const criticalJourneys = ["member-portal-visual","showshine-pointer","auth-memory-session","account-entry","member-session-lifecycle","account-deadline","member-completion","member-task-flows","member-optional-reads","history-reading","public-planner-stability","registration-live-continuity","appearance"].map(name => '**/' + name + '.spec.mjs');
+const criticalJourneys = ["pixel-portal-followup","member-portal-visual","showshine-pointer","auth-memory-session","account-entry","member-session-lifecycle","account-deadline","member-completion","member-task-flows","member-optional-reads","history-reading","public-planner-stability","registration-live-continuity","appearance"].map(name => '**/' + name + '.spec.mjs');
 const port = 4173;
 const baseURL = `http://127.0.0.1:${port}`;
 

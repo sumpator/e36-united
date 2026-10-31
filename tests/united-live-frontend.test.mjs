@@ -14,7 +14,8 @@ test('explicit member LIVE entry switches the portal and restores per account an
   assert.match(html, /data-member-live-mode hidden inert/);
   assert.match(html, /data-live-entry-confirm/);
   assert.match(html, /data-live-entry-cancel/);
-  assert.match(live, /const storagePrefix='e36United\.memberLiveMode\.v2'/);
+  assert.match(live, /const storagePrefix='e36United\.memberLiveMode\.v3'/);
+  assert.match(live, /if\(!getLiveVisibility\(\)\)/);
   assert.match(live, /localStorage\.getItem\(storageKey\(eventId\)\)/);
   assert.match(live, /const storageKey=eventId=>`\$\{storagePrefix\}\.\$\{accountId\(\)\}\.\$\{String\(eventId/);
   assert.match(live, /if\(state\?\.active&&rememberedEvent\(state\.event\.id\)\)/);

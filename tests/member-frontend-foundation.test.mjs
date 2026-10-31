@@ -112,6 +112,7 @@ test('Member state creates isolated defaults and preserves profile normalization
     status: 'active',
     emailVerified: true,
     hideOnClub: false,
+    showProgramLive: false,
     createdAt: '',
     updatedAt: '',
   });

@@ -1,3 +1,4 @@
+import {reservationStatusPresentation} from '../../reservation-status.js?v=20261031-pixel1';
 import qrcode from '../../../vendor/qrcode-generator.mjs?v=20260924-merch2';
 import { $, esc } from '../../ui.js?v=20260924-merch2';
 
@@ -20,7 +21,7 @@ export function createReservationPayments(){
     const payment=reservation?.payment;if(!reservation||!payment)return '';
     const cancelled=reservation.status==='cancelled';
     if(cancelled)return `<article class="member-payment-card payment-status-cancelled"><div class="member-payment-copy"><span class="member-kicker">ZRUŠENÁ REZERVACE</span><h4>Další platba se nepožaduje.</h4><dl><div><dt>Cena v historii</dt><dd>${esc(formatCzk(payment.amountDueCzk))}</dd></div><div><dt>Evidovaně uhrazeno</dt><dd>${esc(formatCzk(payment.amountPaidCzk))}</dd></div></dl>${payment.amountPaidCzk>0?'<p>Finanční vypořádání řeší organizátor. Automatické vrácení peněz se neprovádí.</p>':'<p>Rezervace je zrušená a není co doplácet.</p>'}</div></article>`;
-    if(reservation.status!=='approved'){
+    if(reservation.status!=='approved'||payment.awaitingApproval||reservation.changePending||reservation.cancellationPending){
       const rejected=reservation.status==='rejected',pendingTitle=rejected?'REZERVACE NEBYLA SCHVÁLENA':reservation.changePending?'ZMĚNA ČEKÁ NA SCHVÁLENÍ':'ČEKÁ NA SCHVÁLENÍ',pendingPriceLabel=reservation.changePending?'Aktuální cena':'Cena rezervace';
       return `<article class="member-payment-card payment-status-pending"><div class="member-payment-layout"><div class="member-payment-copy"><span class="member-kicker">${pendingTitle}</span><h4>${rejected?'Platba se teď nepožaduje.':'Do schválení nic nového nedoplácej.'}</h4><dl><div><dt>${pendingPriceLabel}</dt><dd>${esc(formatCzk(payment.amountDueCzk))}</dd></div><div><dt>Již zaplaceno</dt><dd>${esc(formatCzk(payment.amountPaidCzk))}</dd></div></dl><p>${rejected?'Rezervace nebyla schválena.':'United tým rezervaci zkontroluje.'} QR ani nové platební instrukce teď nejsou dostupné.</p></div></div></article>`;
     }
@@ -28,7 +29,7 @@ export function createReservationPayments(){
     const settled=payment.remainingCzk<=0,qr=!settled&&payment.status!=='overpaid'?paymentQrSvg(payment.spayd):'';
     const deadline=payment.deadline?new Intl.DateTimeFormat('cs-CZ',{dateStyle:'long'}).format(new Date(`${payment.deadline}T12:00:00`)):'—';
     const eventLabel=reservation.year&&reservation.year!=='NEXT'?`E36 United ${reservation.year}`:reservation.title||'E36 United';
-    const statusCopy=`${paymentLabel(payment.status)}${payment.overdue?' · po splatnosti':''}`;
+    const statusCopy=`${reservationStatusPresentation(reservation).payment||paymentLabel(payment.status)}${payment.overdue?' · po splatnosti':''}`;
     const paymentTitle=payment.status==='overpaid'?`Přeplatek ${formatCzk(payment.overpaymentCzk)}`:payment.status==='underpaid'?`Doplatek ${formatCzk(payment.remainingCzk)}`:payment.status==='unpaid'?`K platbě ${formatCzk(payment.remainingCzk)}`:'Zaplaceno';
     const instructionRows=payment.configurationReady?`<div><dt>Příjemce</dt><dd>${esc(payment.recipientName)}</dd></div><div><dt>Účet</dt><dd>${esc(payment.accountDisplay)}</dd></div><div><dt>Variabilní symbol</dt><dd>${esc(payment.variableSymbol)}</dd></div><div><dt>Zpráva</dt><dd>${esc(payment.message)}</dd></div><div><dt>Splatnost</dt><dd>${esc(deadline)}</dd></div>`:'';
     const headline=settled?`${paymentLabel(payment.status)} ${formatCzk(payment.status==='overpaid'?payment.overpaymentCzk:payment.amountPaidCzk)}`:paymentTitle;
@@ -38,7 +39,7 @@ export function createReservationPayments(){
     const detail=$('[data-reservation-payment-detail]'),paymentsList=$('[data-payments-list]');if(!paymentsList)return;
     const payment=reservation?.payment;
     if(!reservation||!payment){if(detail){detail.hidden=true;detail.innerHTML=''}paymentsList.innerHTML='<article class="portal-empty-state"><span aria-hidden="true">✓</span><div><strong>Aktuálně nemáš žádnou platbu k řešení.</strong><p>Platební údaje se zobrazí pouze u skutečné rezervace.</p></div></article>';return}
-    const fullCard=paymentCard(reservation);paymentsList.innerHTML=fullCard;if(detail){detail.hidden=false;detail.innerHTML=fullCard}
+    const fullCard=paymentCard(reservation);paymentsList.innerHTML=fullCard;if(detail){detail.hidden=true;detail.replaceChildren()}
   }
 
   return {renderReservationPayment};

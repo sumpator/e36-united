@@ -1,4 +1,4 @@
-import {esc} from '../../merch/order-view.js?v=20261030-refine1';
+import {esc} from '../../merch/order-view.js?v=20261031-pixel1';
 import {money,imageSource} from '../../merch/catalog.js?v=20260924-merch2';
 
 export const productStatus={draft:'Koncept',published:'Publikováno',archived:'Archivováno'};

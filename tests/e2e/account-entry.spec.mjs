@@ -61,7 +61,7 @@ async function expectCompletedAccount(page,section='overview'){
 
 test('a remembered LIVE session cannot override an explicit member section after a delayed probe',async({page})=>{
  const o=await prepareE2ePage(page,{authenticated:true,member:{id:'m'}}),r=memberRuntime();r.db.exec("UPDATE events SET live_enabled=1 WHERE id='e'");
- await page.addInitScript(()=>localStorage.setItem('e36United.memberLiveMode.v2.m.e','1'));
+ await page.addInitScript(()=>localStorage.setItem('e36United.memberLiveMode.v3.m.e','1'));
  const started=Promise.withResolvers(),release=Promise.withResolvers();let liveReads=0;
  await page.route('https://api.e36united.cz/api/live{,/state}',async route=>{
   if(route.request().method()==='OPTIONS')return route.fallback();const url=new URL(route.request().url());

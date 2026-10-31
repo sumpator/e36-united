@@ -1,8 +1,8 @@
-import {merchBenefit} from '../../../merch/benefit.js?v=20261031-compose1';
+import {merchBenefit} from '../../../merch/benefit.js?v=20261031-pixel1';
 import { $, $$, esc } from '../../ui.js?v=20260924-merch2';
 
 
-import {initPointsGuide,pictogram,achievementIcon} from '../../points-guide.js?v=20261031-compose1';
+import {initPointsGuide,pictogram,achievementIcon} from '../../points-guide.js?v=20261031-pixel1';
 export {pictogram,achievementIcon};
 
 export function createMemberPoints({getData,apiRequest,renderOverviewPoints,renderFeaturedAchievements}){
@@ -80,9 +80,9 @@ export function createMemberPoints({getData,apiRequest,renderOverviewPoints,rend
     const rewardName=$('[data-reward-name]');if(rewardName)rewardName.textContent=view.title;
     const rewardTerms=$('[data-reward-terms]');if(rewardTerms)rewardTerms.textContent=view.active?(view.paused?'Objednávání je zatím pozastavené.':'Sleva platí na zboží v Merchi.'):'Nákupní sleva nyní není nastavená.';
     const thresholdLabel=$('[data-club-reward-threshold]');if(thresholdLabel)thresholdLabel.textContent=String(threshold);
-    const rewardState=$('[data-points-reward-state]'),rewardRemaining=$('[data-reward-remaining]');if(rewardState)rewardState.classList.toggle('is-unlocked',unlocked);if(rewardRemaining)rewardRemaining.textContent=unlocked?'SLEVA ODEMČENA':view.active?`Do slevy ${pointsRemainingVerb(remaining)} ${formatPoints(remaining)}.`:'';
+    const rewardState=$('[data-points-reward-state]'),rewardRemaining=$('[data-reward-remaining]');if(rewardState)rewardState.classList.toggle('is-unlocked',unlocked);if(rewardRemaining)rewardRemaining.textContent=unlocked?'Sleva odemčena':view.active?`Do slevy ti chybí ${formatPoints(remaining)}.`:'';
     const journey=$('[data-points-journey]'),journeyScore=$('[data-points-journey-score]'),journeyCopy=$('[data-points-journey-copy]'),journeyMarker=$('[data-points-journey-marker]'),progress=Math.min(100,p/threshold*100);
-    if(journey){journey.setAttribute('aria-valuemax',String(threshold));journey.setAttribute('aria-valuenow',String(filled));journey.setAttribute('aria-label',`Postup k členské slevě: ${formatPoints(p)}`);journey.style.setProperty('--points-progress',`${progress}%`)}if(journeyScore)journeyScore.textContent=p;const word=$('[data-points-word]');if(word)word.textContent=pointWord(p);if(journeyCopy)journeyCopy.textContent=unlocked?'Sleva je odemčená.':`Do slevy ${pointsRemainingVerb(remaining)} ${formatPoints(remaining)}.`;if(journeyMarker)journeyMarker.textContent=String(p);
+    if(journey){journey.setAttribute('aria-valuemax',String(threshold));journey.setAttribute('aria-valuenow',String(filled));journey.setAttribute('aria-label',`Postup k členské slevě: ${formatPoints(p)}`);journey.style.setProperty('--points-progress',`${progress}%`)}if(journeyScore)journeyScore.textContent=p;const word=$('[data-points-word]');if(word)word.textContent=pointWord(p);if(journeyCopy)journeyCopy.textContent=unlocked?'Sleva je odemčená.':`Do slevy ti chybí ${formatPoints(remaining)}.`;if(journeyMarker)journeyMarker.textContent=String(p);
     const earnStrip=$('[data-earn-strip]');if(earnStrip)earnStrip.innerHTML=[
       ['earn-attendance',pictogram('<path d="M5 12.5 9.5 17 19 7.5"/>'),'+1 / sraz','Účast na srazu','Jednorázové bonusy +3 za 3. a 5. účast'],
       ['earn-showshine',pictogram('<path d="M8 4h8v4a4 4 0 0 1-8 0V4Z"/><path d="M12 12v6m-3 2h6"/>'),'02','Umístění v Show & Shine'],

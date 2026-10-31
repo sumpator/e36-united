@@ -13,11 +13,14 @@ export function createMemberAccount({
   renderPoints,
   renderAchievements,
   formatApiError,
+  getLiveVisibility=()=>false,
+  onLiveVisibilityChange,
 }){
   let bound=false;
 
   function renderAccount(){
     const profile=getData().profile||{},form=$('[data-account-form]');
+    const live=$('[data-account-live-visibility]');if(live)live.checked=getLiveVisibility();
     const qr=$('[data-account-qr]'),markup=memberQrMarkup(profile.qrPayload);if(qr)qr.innerHTML=markup||'<p>Členský QR zatím není dostupný.</p>';
     const zoom=$('[data-account-qr-open]');if(zoom)zoom.hidden=!markup;
     if(form){if(form.elements.name)form.elements.name.value=profile.name||'';if(form.elements.nickname)form.elements.nickname.value=profile.nickname||'';if(form.elements.phone)form.elements.phone.value=profile.phone||'';if(form.elements.hideOnClub)form.elements.hideOnClub.checked=profile.hideOnClub===true;const email=$('[data-account-email]',form);if(email)email.value=profile.email||''}
@@ -25,6 +28,7 @@ export function createMemberAccount({
   }
   function bind(){
     if(bound)return;bound=true;
+    $('[data-account-live-visibility]')?.addEventListener('change',async event=>{const input=event.currentTarget,status=$('[data-account-live-status]'),user=getCurrentUser();input.disabled=true;status.textContent='Ukládám nastavení…';try{if(await onLiveVisibilityChange?.(input.checked)===false){if(getCurrentUser()!==user)return;input.checked=getLiveVisibility();status.textContent='Nastavení se nezměnilo. Nejdřív dokonči nebo opusť rozpracovaný LIVE.';return}if(getCurrentUser()===user)status.textContent=input.checked?'Program LIVE je dostupný v menu.':'Program LIVE je skrytý.'}catch{if(getCurrentUser()===user){input.checked=getLiveVisibility();status.textContent='Nastavení se nepodařilo uložit. Zkus to znovu.'}}finally{input.disabled=false}});
     const dialog=$('[data-account-qr-dialog]');let qrOpener=null;
     function finishQr(){dialog?.close();document.body.classList.remove('account-qr-open');const target=qrOpener;qrOpener=null;requestAnimationFrame(()=>target?.focus({preventScroll:true}))}
     function closeQr(){if(!dialog?.open)return;if(history.state?.accountQr)history.back();else finishQr()}

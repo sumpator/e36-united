@@ -11,6 +11,7 @@ import { requireAdmin } from "./auth/admin.js";
 import { verifyFirebaseRequest } from "./auth/firebase.js";
 import { ACTIVE_MEMBER_STATUS, activeMemberForbidden, findMemberAuthorizationRecord, requireActiveMember } from "./auth/member.js";
 import * as domain from "./domains.js";
+import {saveMemberLivePreference} from './domains/members.js';
 import { isAllowedOrigin } from "./http/cors.js";
 import { json } from "./http/responses.js";
 import { routeAdminMailing } from "./domains/mailing/index.js";
@@ -21,6 +22,7 @@ import { getPreliminaryReservation, putPreliminaryReservation, cancelPreliminary
 import { createCompetitionCar, competitionCarMedia, assignLiveJudge, controlLive, createEvent, createLiveEntry, deleteProgramItem, getAdminLive, getLiveState, getMemberLive, judgePhotoMedia, liveEntryMedia, resolveLiveQr, saveJudgeScore, saveLiveVote, saveProgramItem, searchLiveMembers, setAdminLiveEnabled, setLivePresence, startLiveEntry, uploadJudgePhoto, uploadLivePhoto } from './domains/live.js';
 
 const PROTECTED_MEMBER_EXACT_ROUTES = new Set([
+  'PUT /api/me/live-preference',
   'GET /api/preliminary-reservations/current',
   'PUT /api/preliminary-reservations/current',
   'DELETE /api/preliminary-reservations/current',
@@ -321,6 +323,7 @@ export async function routeRequest({ request, env, url, origin, ctx }) {
       auth.member = member;
     }
 
+    if(url.pathname==='/api/me/live-preference'&&request.method==='PUT')return saveMemberLivePreference(request,env,auth,origin);
     if(url.pathname.startsWith('/api/merch/'))return routeMerch({request,env,url,origin,auth,ctx});
     if(url.pathname==='/api/preliminary-reservations/current'){
       if(request.method==='GET')return getPreliminaryReservation(env,auth,origin);

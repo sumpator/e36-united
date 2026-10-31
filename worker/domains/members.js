@@ -46,7 +46,7 @@ async function bootstrapMember(request, env, auth, origin) {
 
 async function getMember(env, auth, origin) {
   const member = await env.DB.prepare(`
-    SELECT id, member_code, email, name, nickname, phone, role, status, email_verified, hide_on_club, created_at, updated_at,
+    SELECT id, member_code, email, name, nickname, phone, role, status, email_verified, hide_on_club, show_program_live, created_at, updated_at,
       (SELECT token FROM member_qr_identities WHERE member_id = members.id) AS qr_token
     FROM members WHERE id = ? LIMIT 1
   `).bind(auth.uid).first();
@@ -86,9 +86,18 @@ function publicMember(member) {
     status: member.status,
     emailVerified: !!member.email_verified,
     hideOnClub: !!member.hide_on_club,
+    showProgramLive: member.show_program_live === 1,
     createdAt: member.created_at,
     updatedAt: member.updated_at,
   };
 }
 
 export { bootstrapMember, getMember };
+
+export async function saveMemberLivePreference(request,env,auth,origin){
+  let body;try{body=await request.json()}catch{return json({error:'invalid_preference'},400,origin)}
+  if(!body||typeof body.showProgramLive!=='boolean'||Object.keys(body).length!==1)return json({error:'invalid_preference'},400,origin);
+  const result=await env.DB.prepare('UPDATE members SET show_program_live=?,updated_at=CURRENT_TIMESTAMP WHERE id=? AND status=\'active\'').bind(body.showProgramLive?1:0,auth.uid).run();
+  if(!result.meta?.changes)return json({error:'active_member_required'},403,origin);
+  return json({ok:true,showProgramLive:body.showProgramLive},200,origin);
+}
