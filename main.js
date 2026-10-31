@@ -29,7 +29,7 @@ initPublicMemberState({config:firebaseConfig,apiBaseUrl:portalConfig.apiBaseUrl,
 })();
 
 const coreStyles = qs('link[href^="styles.css"]');
-if (coreStyles && !coreStyles.href.includes('v=20261028-flow2')) coreStyles.href = 'styles.css?v=20261031-compose1';
+if (coreStyles && !coreStyles.href.includes('v=20261028-flow2')) coreStyles.href = 'styles.css?v=20261031-polish1';
 if (!qs('link[href^="accommodation-visual.css"]')) {
 const accommodationStyles=document.createElement('link');accommodationStyles.rel='stylesheet';accommodationStyles.href='accommodation-visual.css?v=20260912-accommodation-gallery-r1';document.head.append(accommodationStyles);
 }
@@ -42,7 +42,7 @@ const updateHeader = () => header?.classList.toggle('scrolled', window.scrollY >
 updateHeader();
 window.addEventListener('scroll', updateHeader, { passive: true });
 
-void import('./mobile-navigation.js?v=20261031-pixel1').then(({initMobileNavigation})=>initMobileNavigation());
+void import('./mobile-navigation.js?v=20261031-polish1').then(({initMobileNavigation})=>initMobileNavigation());
 navLinks.forEach(a => a.addEventListener('click', () => {
 document.body.classList.remove('menu-open');
 menuBtn?.setAttribute('aria-expanded', 'false');
@@ -346,7 +346,17 @@ if (currentTitle) currentTitle.textContent = title;
 const updateHistoryProgress = () => {
 const probe=readingLine();
 entries.forEach(entry => { entry.style.scrollMarginTop = `${probe - 1}px`; });
-setHistoryEntry(entries.filter(entry=>articleTop(entry)<=probe).at(-1)||entries[0]);
+// Select the largest visible article body, excluding the gap after it.
+// Waiting for its heading to cross the reading line leaves a previous year
+// selected while the next story already occupies most of the reading area.
+const viewportTop=header?.getBoundingClientRect().bottom||0;
+let active=entries.filter(entry=>articleTop(entry)<=probe).at(-1)||entries[0],largestVisible=0;
+for(const entry of entries){
+ const top=articleTop(entry),bottom=top+entry.offsetHeight-parseFloat(getComputedStyle(entry).paddingBottom||0);
+ const visible=Math.max(0,Math.min(innerHeight,bottom)-Math.max(viewportTop,top));
+ if(visible>largestVisible){active=entry;largestVisible=visible}
+}
+setHistoryEntry(active);
 if (!progress) return;
 const rect = historySection.getBoundingClientRect();
 const total = Math.max(1, rect.height - window.innerHeight * .72);

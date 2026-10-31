@@ -1563,3 +1563,21 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid var(-
  .category-showcase-media{width:100%;overflow:hidden;border-radius:15px 15px 0 0}
  .category-showcase-state{max-width:calc(100% - 90px);overflow-wrap:anywhere;letter-spacing:.06em}
 }
+
+/* Gallery controls share a row; spacing belongs to each adjacent section. */
+.gallery-video-navigation{display:flex;align-items:center;flex-wrap:wrap;gap:8px 20px;margin-top:12px;min-width:0}
+.gallery-video-navigation .gallery-video-years{flex:1 1 720px;min-width:0;padding:0 2px 4px}
+.gallery-video-navigation .youtube-channel-link{flex:0 0 auto;margin-left:auto;grid-column:auto}
+.gallery-page :is(.gallery-video-section,.gallery-showcase,.gallery-user-section,.community-upload-section){padding-top:32px;padding-bottom:28px}
+.gallery-page .gallery-video-section{padding-top:40px;padding-bottom:24px}
+.history-section .history-layout .timeline-entry{opacity:1}
+.history-section .timeline-copy{padding:12px;border:1px solid transparent;border-left-width:3px;border-radius:12px;transition:background .2s ease,border-color .2s ease}
+.history-section .timeline-entry.is-current .timeline-copy{background:var(--appearance-surface,#14171c);border-color:var(--appearance-border,#344351);border-left:3px solid var(--appearance-action,#70bdff)}
+.history-section .timeline-entry.is-current .timeline-copy h2{color:var(--appearance-action,#70bdff)}
+@media(max-width:600px){
+ .gallery-video-navigation{gap:4px;margin-top:10px}
+ .gallery-video-navigation .gallery-video-years{flex-basis:100%}
+ .gallery-video-navigation .youtube-channel-link{font-size:13px}
+ .gallery-page :is(.gallery-video-section,.gallery-showcase,.gallery-user-section,.community-upload-section){padding-top:24px;padding-bottom:20px}
+ .history-section .timeline-copy{padding:10px}
+}

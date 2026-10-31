@@ -90,3 +90,26 @@ test('history settling leaves completed fill-forwards animation intact and keeps
  expect(await page.locator('article').evaluate(node=>node.getAnimations().map(animation=>animation.playState))).toEqual(['finished']);
  await page.close();expect(diagnostics.some(sample=>sample.stage==='frame'&&sample.animations.some(animation=>animation.playState==='finished'))).toBe(true);
 });
+
+for(const width of [1440,390])test(`largest visible story selects the current year in both directions ${width}`,async({page},info)=>{
+ const observations=await setup(page);await page.setViewportSize({width,height:900});await page.emulateMedia({reducedMotion:'reduce'});await page.goto('/o-nas.html');await page.evaluate(()=>document.fonts.ready);
+ for(const year of ['2011','2015','2011','2025','2015']){
+  const target=page.locator(`#history-${year}`);
+  await target.evaluate(node=>{const top=node.getBoundingClientRect().top-new DOMMatrixReadOnly(getComputedStyle(node).transform).m42,header=document.querySelector('.site-header').getBoundingClientRect().bottom;scrollTo({top:scrollY+top-header-180,behavior:'instant'})});
+  await expect(target.locator('.timeline-copy h2')).toBeInViewport();await expect(page.locator('[data-history-year]')).toHaveText(year);await expect(page.locator('[data-history-title]')).toHaveText(await target.locator('.timeline-copy h2').innerText());await expect(target).toHaveClass(/is-current/);await expect(target.locator('.timeline-year a')).toHaveAttribute('aria-current','location');await expect(page.locator('.timeline-year a[aria-current=location]')).toHaveCount(1);
+ }
+ // Small wheel movements keep the visible article; a larger movement switches
+ // to the next story, and reversing it restores the previous one.
+ await page.locator('#history-2011').evaluate(node=>{const top=node.getBoundingClientRect().top-new DOMMatrixReadOnly(getComputedStyle(node).transform).m42;scrollTo({top:scrollY+top-document.querySelector('.site-header').getBoundingClientRect().bottom-180,behavior:'instant'})});
+ await expect(page.locator('[data-history-year]')).toHaveText('2011');
+ await page.mouse.wheel(0,60);await expect(page.locator('[data-history-year]')).toHaveText('2011');
+ await page.mouse.wheel(0,-60);await expect(page.locator('[data-history-year]')).toHaveText('2011');
+ const jump=await page.locator('#history-2015').evaluate(node=>node.getBoundingClientRect().top-new DOMMatrixReadOnly(getComputedStyle(node).transform).m42-document.querySelector('.site-header').getBoundingClientRect().bottom-180);
+ await page.mouse.wheel(0,jump);await expect(page.locator('[data-history-year]')).toHaveText('2015');
+ await page.mouse.wheel(0,-jump);await expect(page.locator('[data-history-year]')).toHaveText('2011');
+ await page.mouse.wheel(0,jump);await expect(page.locator('[data-history-year]')).toHaveText('2015');
+ await page.setViewportSize({width:width===390?420:1280,height:820});await expect(page.locator('[data-history-year]')).toHaveText('2015');
+ for(const theme of ['light','dark']){await page.evaluate(t=>window.dispatchEvent(new StorageEvent('storage',{key:'e36UnitedAppearance',newValue:t})),theme);await page.screenshot({path:info.outputPath(`visible-story-${width}-${theme}.png`),animations:'disabled'})}
+ expectNoHistoryErrors(observations);
+});
+function expectNoHistoryErrors(observations){expect(observations.pageErrors).toEqual([]);expect(observations.consoleErrors).toEqual([]);expect(observations.unhandledApi).toEqual([])}

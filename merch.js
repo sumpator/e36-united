@@ -15,7 +15,8 @@ if(typeof document==='undefined')return;
 const qs=(s,r=document)=>r.querySelector(s), qsa=(s,r=document)=>[...r.querySelectorAll(s)];
 const shop=initShop();
 initPointsGuide();
-const benefitRule=document.querySelector('[data-merch-benefit-rule]');if(benefitRule)void loadMerchBenefitSettings().then(settings=>{const view=merchBenefit(settings);document.querySelector('[data-merch-benefit-title]').textContent=view.active?`Získej slevu ${view.percent} % na merch!`:'Členská výhoda';document.querySelector('[data-merch-benefit-condition]').textContent=view.active?`Stačí nasbírat ${view.threshold} bodů.`:'Podmínky slevy zatím nejsou nastavené.';benefitRule.textContent='Sleva na zboží, doprava samostatně.'+(view.paused?' Objednávání je pozastavené.':'')}).catch(()=>{benefitRule.textContent='Nastavení členské výhody se nepodařilo načíst. Ověř je v rekapitulaci objednávky.'});
+const benefitTitle=qs('[data-merch-benefit-title]'),benefitSettingsStatus=qs('[data-benefit-settings-status]');
+if(benefitTitle)void loadMerchBenefitSettings().then(settings=>{const view=merchBenefit(settings);benefitTitle.textContent=view.active?`Získej slevu ${view.percent} % na merch!`:'Členská výhoda';if(!view.active){benefitSettingsStatus.hidden=false;benefitSettingsStatus.textContent='Podmínky slevy zatím nejsou nastavené.'}}).catch(()=>{benefitSettingsStatus.hidden=false;benefitSettingsStatus.textContent='Nastavení členské výhody se nepodařilo načíst. Zkus stránku obnovit.'});
 
 const memberBenefit=qs('[data-member-merch-benefit]');
 if(memberBenefit){
@@ -34,6 +35,7 @@ if(memberBenefit){
       memberBenefit.dataset.benefitState='member';memberBenefit.removeAttribute('aria-busy');setVisible(memberState);
       qs('[data-benefit-points]',memberState).textContent=progress.available;qs('[data-benefit-word]',memberState).textContent=pointWord(progress.available);
       const progressBar=qs('[data-benefit-progress]',memberState);progressBar.setAttribute('aria-valuemax',String(progress.threshold));progressBar.setAttribute('aria-valuenow',String(progress.meter));progressBar.querySelector('i').style.width=`${Math.min(100,progress.meter/progress.threshold*100)}%`;
+    qs('[data-benefit-next]',memberState).classList.toggle('is-unlocked',benefit.active&&progress.available>=progress.threshold);
     qs('[data-benefit-next]',memberState).textContent=benefit.active?(progress.available>=progress.threshold?'Sleva odemčena':`Do slevy ti chybí ${progress.threshold-progress.available} ${pointWord(progress.threshold-progress.available)}.`):'Tvoje United Points';
     }catch(error){if(generation===benefitRequestGeneration){renderError();console.debug('United member benefit could not be loaded.',error)}}
   };

@@ -2,7 +2,7 @@ import { deriveMemberHeroState } from '../member-portal-state.js?v=20261031-comp
 import { initPortalNavigation } from '../portal-navigation.js?v=20260924-merch2';
 import { $, $$ } from './ui.js?v=20260924-merch2';
 import { accountAuthMode, memberSection, requestedMemberSection } from './deep-links.js?v=20261028-entry1';
-import { initMobileNavigation } from '../mobile-navigation.js?v=20261031-pixel1';
+import { initMobileNavigation } from '../mobile-navigation.js?v=20261031-polish1';
 
 export function createMemberShell({
   renderApp,
@@ -107,7 +107,7 @@ export function createMemberShell({
   }
 
   $$('.member-nav-item[data-member-section]').forEach(button=>button.addEventListener('click',()=>openSection(button.dataset.memberSection)));
-  $$('[data-jump]').forEach(button=>button.addEventListener('click',()=>{if(openSection(button.dataset.jump)!==false&&button.hasAttribute('data-reservation-form-jump'))focusReservationEntry()}));
+  $$('[data-jump]').forEach(button=>button.addEventListener('click',()=>{if(button.dataset.jump==='payments'){const url=new URL(location.href);url.searchParams.set('payment','sraz');history.replaceState(history.state,'',url)}if(openSection(button.dataset.jump)!==false&&button.hasAttribute('data-reservation-form-jump'))focusReservationEntry()}));
   $('.member-nav-shop')?.addEventListener('click',event=>{if(beforePortalAction?.()===false)event.preventDefault()});
   const memberPortalNavigation=initPortalNavigation({root:$('[data-portal-nav="member"]'),onSelect:openSection});
   $('[data-member-hero-cta]')?.addEventListener('click',()=>{openSection('garage');onGarageHeroAction()});

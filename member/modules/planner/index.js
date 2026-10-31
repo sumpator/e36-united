@@ -94,6 +94,8 @@ export function createMemberPlanner({
   let changeModalRestoreFocus=null,changeModalBaseline='',changeModalScroll={x:0,y:0};
   const reservationPayments=createReservationPayments();
   $('[data-reservation-payment-link]')?.addEventListener('click',openReservationPayments);
+  window.addEventListener('member:trip-payment',openReservationPayments);
+  document.addEventListener('click',event=>{if(event.target.closest('[data-trip-payment-link]')&&event.button===0&&!event.metaKey&&!event.ctrlKey&&!event.shiftKey&&!event.altKey){event.preventDefault();openReservationPayments()}});
 
   function decodePlannerHandoff(value){
     try{
@@ -535,8 +537,8 @@ export function createMemberPlanner({
     const elements=[$('.reservation-status-card'),$('.reservation-unified-card'),$('[data-reservation-card]'),$('[data-reservation-overview-card]'),$('.reservation-mini'),$('[data-reservation-nav-status]')].filter(Boolean);
     for(const element of elements){for(const value of [...Object.keys(reservationStatusNames),'preliminary','none'])element.classList.remove(`is-status-${value}`);element.classList.add(`is-status-${key}`)}
     const view=reservationStatusPresentation(getData().reservation,{plan:status==='preliminary',draft:Boolean(draftApplicable(editorDraft)||activePlannerHandoff),open:reservationState.registrationOpen||preliminaryEnabled});
-    const navStatus=$('[data-reservation-nav-status]');if(navStatus){navStatus.dataset.tone=view.tone;navStatus.title=view.label;navStatus.textContent=`${view.symbol} ${view.label}`;if(view.payment){const payment=document.createElement('span');payment.dataset.tone=view.paymentTone;payment.textContent=`${view.paymentSymbol||'·'} ${view.payment}`;navStatus.append(payment)}}
-    const paymentState=$('[data-reservation-payment-state]');if(paymentState){paymentState.hidden=!view.payment;paymentState.textContent=view.payment;paymentState.dataset.tone=view.paymentTone||'neutral'}
+    const navStatus=$('[data-reservation-nav-status]');if(navStatus){navStatus.dataset.tone=view.tone;navStatus.title=view.label;navStatus.textContent=`${view.symbol} ${view.label}`;if(view.payment){const payment=document.createElement(view.payment==='Nedoplatek'?'a':'span');if(view.payment==='Nedoplatek'){payment.href='member.html?section=payments&payment=sraz';payment.dataset.tripPaymentLink=''}payment.dataset.tone=view.paymentTone;payment.textContent=`${view.paymentSymbol||'·'} ${view.payment}`;navStatus.append(payment)}}
+    const paymentState=$('[data-reservation-payment-state]');if(paymentState){paymentState.hidden=!view.payment;paymentState.replaceChildren();if(view.payment==='Nedoplatek'){const link=document.createElement('a');link.href='member.html?section=payments&payment=sraz';link.dataset.tripPaymentLink='';link.textContent=view.payment;paymentState.append(link)}else paymentState.textContent=view.payment;paymentState.dataset.tone=view.paymentTone||'neutral'}
   }
   function reservationDescription(reservation){
     if(!reservation)return reservationState.message||(reservationState.registrationOpen?'':'');

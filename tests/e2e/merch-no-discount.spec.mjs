@@ -23,7 +23,7 @@ test('configured twelve-point benefit is consistent while ordering remains pause
  const r=await merchRuntime();try{
   r.db.prepare("UPDATE merch_config SET data=json_set(data,'$.paused',json('true'),'$.discountBasisPoints',3600)").run();
   const observations=await prepareE2ePage(page,{authenticated:true,member:{id:'member'},clubPayload:{points:{available:18,lifetime:18}}});await bridge(page,r.env,'member');
-  await page.goto('/merch.html');await expect(page.locator('[data-merch-benefit-title]')).toHaveText('Získej slevu 36 % na merch!');await expect(page.locator('[data-merch-benefit-condition]')).toHaveText('Stačí nasbírat 12 bodů.');await expect(page.locator('[data-merch-benefit-rule]')).toContainText('Objednávání je pozastavené.');
+  await page.goto('/merch.html');await expect(page.locator('[data-merch-benefit-title]')).toHaveText('Získej slevu 36 % na merch!');await expect(page.locator('[data-merch-benefit-condition],[data-merch-benefit-rule]')).toHaveCount(0);
   await page.getByRole('button',{name:'Co za body získám?',exact:true}).click();const dialog=page.getByRole('dialog',{name:'Co za body získám?',exact:true});await expect(dialog).toContainText('Za 12 bodů sleva 36 %');await expect(dialog).not.toContainText('sám o sobě nezakládá slevu');
   await page.goto('/member.html?section=club&clubTab=points');await expect(page.locator('[data-reward-name]')).toHaveText('Za 12 bodů sleva 36 %');await expect(page.locator('[data-reward-terms]')).toContainText('Objednávání je zatím pozastavené.');expect(r.db.prepare('SELECT count(*) n FROM merch_orders').get().n).toBe(0);expectNoUnexpectedClientErrors(observations);
  }finally{await page.close();r.close()}

@@ -68,7 +68,7 @@ for(const points of [11,12,18])test(`authoritative benefit ${points} points and 
  await waitForScreenshotContent(page,{label:'merch-points'});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBe(true);await page.screenshot({path:resolve(shots,`merch-${points}-${info.project.name}.png`),fullPage:true});await noErrors(errors);
 });
 test('anonymous Merch offers registration and login without invented points',async({page},info)=>{
- const errors=await setup(page,{authenticated:false});await page.setViewportSize({width:360,height:720});await page.goto('/merch.html');await expect(page.locator('[data-benefit-anonymous]')).toBeVisible();await expect(page.locator('[data-benefit-member]')).toBeHidden();await expect(page.locator('[data-benefit-anonymous] a')).toHaveCount(2);await expect(page.locator('[data-merch-benefit-rule]')).toContainText('Objednávání je pozastavené');await waitForScreenshotContent(page,{label:'anonymous-merch'});await page.screenshot({path:resolve(shots,`merch-anonymous-${info.project.name}.png`),fullPage:true});await noErrors(errors);
+ const errors=await setup(page,{authenticated:false});await page.setViewportSize({width:360,height:720});await page.goto('/merch.html');await expect(page.locator('[data-benefit-anonymous]')).toBeVisible();await expect(page.locator('[data-benefit-member]')).toBeHidden();await expect(page.locator('[data-benefit-anonymous] a')).toHaveCount(2);await expect(page.locator('[data-merch-benefit-condition],[data-merch-benefit-rule]')).toHaveCount(0);await page.getByRole('button',{name:'Co za body získám?',exact:true}).click();await expect(page.locator('#points-guide')).toContainText('Objednávání je zatím pozastavené.');await page.keyboard.press('Escape');await waitForScreenshotContent(page,{label:'anonymous-merch'});await page.screenshot({path:resolve(shots,`merch-anonymous-${info.project.name}.png`),fullPage:true});await noErrors(errors);
 });
 
 test('trip settlement and Merch settlement stay independent in both directions',async({page})=>{
@@ -105,4 +105,22 @@ test('LIVE is a fresh profile opt-in across devices, ignores legacy mode and inv
   await page.locator('[data-live-more-toggle]').click();await page.locator('[data-live-exit]').click();await page.locator('.member-sidebar [data-member-section=account]').click();await page.locator('[data-account-live-visibility]').uncheck();await page.reload();await expect(page.locator('[data-account-live-visibility]')).not.toBeChecked();
   uid='n';await errors.switchMember({id:'n',email:'other@example.invalid'});await page.reload();await expect(page.locator('.member-sidebar [data-member-section=live]')).toBeHidden();await noErrors(errors);
  }finally{release?.();await page.close();r.db.close()}
+});
+
+test('trip shortfall links and overview choose Sraz even after viewing Merch',async({page})=>{
+ const errors=await setup(page,{reservation:reservation()});
+ for(const width of [1440,390]){
+  await page.setViewportSize({width,height:844});await page.goto('/member.html?section=overview&payment=merch');
+  await expect(page.locator('[data-reservation-overview-copy]')).toContainText('2 670');
+  await page.locator('[data-reservation-overview-card]').click();await expect(page.locator('[data-member-payment-tab=sraz]')).toHaveAttribute('aria-pressed','true');
+  await page.goto('/member.html?section=reservation&payment=merch');
+  const link=page.locator('[data-reservation-payment-state] a');await expect(link).toHaveAttribute('href','member.html?section=payments&payment=sraz');
+  await link.focus();await page.keyboard.press('Enter');await expect(page.locator('[data-member-payment-tab=sraz]')).toHaveAttribute('aria-pressed','true');
+  await page.goto('/member.html?section=overview&payment=merch');
+  if(width<1051){await page.locator('[data-mobile-menu]').click();await page.locator('.united-mobile-menu [data-trip-payment-link]').click();await expect(page.locator('.united-mobile-menu')).toBeHidden()}
+  else await page.locator('.member-sidebar [data-trip-payment-link]').click();
+  await expect(page.locator('[data-member-payment-tab=sraz]')).toHaveAttribute('aria-pressed','true');
+  expect(await page.locator('button a, a button').count()).toBe(0);
+ }
+ await noErrors(errors);
 });
