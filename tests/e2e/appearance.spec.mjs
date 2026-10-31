@@ -151,7 +151,7 @@ for(const width of [1440,390,360])test(`appearance Planner dialogs ${width}`,asy
  await page.locator('[data-member-plan-open]').click();const modal=page.locator('[data-member-planner-modal]');await expect(modal).toBeVisible();
  await modal.locator('[data-member-stay="0"]').click();await modal.locator('[data-member-sleep="Chatka"]').click();await modal.locator('[name=accommodationOptionId]').selectOption('cabin-standard');
  await capture(page,`member-planner-${width}`);
- await modal.locator('[data-member-planner-add-car]').click();await expect(page.locator('[data-car-modal]')).toBeVisible();await capture(page,`member-car-dialog-${width}`);await page.getByRole('button',{name:'Zavřít formulář auta'}).click();
+ await modal.locator('[data-car-select]').selectOption('__add_car__');await expect(page.locator('[data-car-modal]')).toBeVisible();await capture(page,`member-car-dialog-${width}`);await page.getByRole('button',{name:'Zavřít formulář auta'}).click();
  await modal.locator('[name=note]').fill('Appearance fixture draft');await modal.locator('[data-reservation-submit]').click();await expect(modal).toBeHidden();await capture(page,`member-preliminary-${width}`);expect(o.pageErrors).toEqual([]);
 });
 
