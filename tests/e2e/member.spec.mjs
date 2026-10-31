@@ -200,6 +200,8 @@ test.describe('desktop member portal', () => {
     const form = page.locator('[data-reservation-form]');
     await expect(page.locator('.reservation-unified-card')).toBeVisible();
     await expect(page.locator('[data-reservation-summary]')).toContainText('Chatka Premium');
+    await expect(page.locator('[data-reservation-saved-price] .reservation-saved-price-head>b')).toContainText(/^2 osob/);
+    await expect(page.locator('[data-reservation-saved-price]')).toContainText('1 940');
     await expect(form).toHaveClass(/is-view-mode/);
     await expect(form.locator('[data-member-weekend-planner]')).toBeHidden();
     await expect(page.locator('.reservation-unified-card .member-saved-accommodation-visual')).toHaveCount(1);
@@ -220,7 +222,7 @@ test.describe('desktop member portal', () => {
     await expect(page.locator('[data-reservation-submit]')).toContainText('Odeslat žádost o změnu');
 
     await form.locator('[name="accommodationOptionId"]').selectOption('cabin-standard');
-    await expect(modal.locator('[data-reservation-change-price]')).toContainText('1 490');
+    await expect(modal.locator('[data-reservation-change-price]')).toContainText('1 635');
     await form.locator('[name="note"]').fill('Aktualizovaný příjezd.');
     await page.locator('[data-reservation-submit]').click();
     const feedback=page.locator('[data-reservation-form-status]');
@@ -234,7 +236,7 @@ test.describe('desktop member portal', () => {
       crew: 3,
       accommodation: 'Chatka',
       accommodationOptionId: 'cabin-standard',
-      accommodationUnits: 2,
+      accommodationUnits: 3,
       showShine: 'Ano',
       note: 'Aktualizovaný příjezd.',
     });
