@@ -1,5 +1,5 @@
 import { firebaseConfig, portalConfig } from './firebase-config.js?v=20260823-auth2';
-import { initUnitedAuth } from './united-auth.js?v=20261028-flow2';
+import { initUnitedAuth,authDiagnostic } from './united-auth.js?v=20261101-auth1';
 import { createImagePreviewController, selectImageFiles } from './image-upload.js?v=20260827-garage-photos';
 import { initScrollAffordance } from './scroll-affordance.js?v=20260907-mobile';
 import { createClubProfileViewer } from './member/club-profile.js?v=20261031-compose1';
@@ -153,7 +153,7 @@ async function initAuth(){
   authController=initUnitedAuth({config:firebaseConfig,onStateChange:async state=>{
     if(state.context)auth=state.context.auth;
     if(state.status==='loading'){setAuthState('loading');return}
-    if(state.status==='error'){console.error('Gallery auth init failed',state.error);setAuthState('error');return}
+    if(state.status==='error'){console.error('Gallery auth init failed',authDiagnostic(state));setAuthState('error');return}
     currentUser=state.user;member=null;if(state.status!=='authenticated')galleryProfileViewer.reset();
     if(state.status==='authenticated'){
       const observedUser=state.user;

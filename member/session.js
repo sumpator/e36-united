@@ -1,4 +1,4 @@
-import { initUnitedAuth } from '../united-auth.js?v=20261028-flow2';
+import { initUnitedAuth } from '../united-auth.js?v=20261101-auth1';
 
 export function createMemberSession({ config, onStateChange }) {
   let firebase = null;

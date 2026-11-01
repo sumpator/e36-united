@@ -1,8 +1,8 @@
-import {merchBenefit} from '../../../merch/benefit.js?v=20261031-pixel1';
+import {merchBenefit} from '../../../merch/benefit.js?v=20261101-auth1';
 import { $, $$, esc } from '../../ui.js?v=20260924-merch2';
 
 
-import {initPointsGuide,pictogram,achievementIcon} from '../../points-guide.js?v=20261031-pixel1';
+import {initPointsGuide,pictogram,achievementIcon} from '../../points-guide.js?v=20261101-auth1';
 export {pictogram,achievementIcon};
 
 export function createMemberPoints({getData,apiRequest,renderOverviewPoints,renderFeaturedAchievements}){

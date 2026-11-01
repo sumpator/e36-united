@@ -1,10 +1,11 @@
+import {authRecoveryCopy,authPersistenceNotice,authDiagnostic} from './united-auth.js?v=20261101-auth1';
 import { firebaseConfig, portalConfig } from './firebase-config.js?v=20260924-merch2';
-import { renderAccountLinks } from './public-member-state.js?v=20261028-entry1';
+import { renderAccountLinks } from './public-member-state.js?v=20261101-auth1';
 import { showArrivalInvitation } from './member/arrival-invite.js?v=20261028-entry1';
 import { performMemberLogout } from './member-logout.js?v=20260826-predeploy-fix';
 import { createMemberApiClient } from './member/api.js?v=20261028-flow2';
 import { loadMemberSessionSnapshot } from './member/refresh.js?v=20260907-feedback';
-import { apiError, authError, authOrApiError, createAccountAttempt, createMemberSession } from './member/session.js?v=20261028-flow2';
+import { apiError, authError, authOrApiError, createAccountAttempt, createMemberSession } from './member/session.js?v=20261101-auth1';
 import { createMemberData as defaultData, normalizeMember as normalizeMemberState } from './member/state.js?v=20261031-pixel1';
 import { $, $$, setButtonBusy, toast } from './member/ui.js?v=20260924-merch2';
 import { createMemberShell } from './member/shell.js?v=20261101-detail1';
@@ -14,8 +15,8 @@ import { createMemberPhotos } from './member/modules/photos.js?v=20261101-detail
 import { createMemberPlanner } from './member/modules/planner/index.js?v=20261101-detail1';
 import {verifyNewPasswordAccount} from './member/registration-verification.js?v=20261023-mail1';
 import { formatCzk } from './member/modules/planner/payments.js?v=20261101-detail1';
-import { createMemberClub } from './member/modules/club/index.js?v=20261101-detail2';
-import { achievementIcon, pictogram } from './member/modules/club/points.js?v=20261101-detail1';
+import { createMemberClub } from './member/modules/club/index.js?v=20261101-auth1';
+import { achievementIcon, pictogram } from './member/modules/club/points.js?v=20261101-auth1';
 import { createMemberAccount } from './member/modules/account.js?v=20261031-pixel1';
 import { createMemberLive } from './member/modules/live.js?v=20261031-pixel1';
 import { createMemberMerch } from './member/modules/merch.js?v=20261101-detail1';
@@ -94,9 +95,10 @@ function renderOptionalReadState(){
 function renderMemorySessionNotice(){
   const root=$('[data-app-view] .member-content');if(!root)return;
   let notice=root.querySelector('[data-memory-session-notice]');
-  const memory=memberSession.firebase?.persistence==='memory'&&data.profile?.id===memberSession.currentUser?.uid&&Boolean(memberSession.currentUser);
+  const persistenceCopy=authPersistenceNotice(memberSession.firebase?.persistence);
+  const memory=!!persistenceCopy&&data.profile?.id===memberSession.currentUser?.uid&&Boolean(memberSession.currentUser);
   if(!memory){notice?.remove();return}
-  if(!notice){notice=document.createElement('aside');notice.className='member-domain-error';notice.dataset.memorySessionNotice='';notice.setAttribute('role','status');notice.textContent='Úložiště prohlížeče není dostupné. Přihlášení platí jen v tomto panelu; po obnovení se přihlas znovu.';root.prepend(notice)}
+  if(!notice){notice=document.createElement('aside');notice.className='member-domain-error';notice.dataset.memorySessionNotice='';notice.setAttribute('role','status');notice.textContent=persistenceCopy;root.prepend(notice)}
 }
 function renderMemberDomains(){renderMemberAvailability(startupErrors,retryMemberDomain,{hasHandoff:memberPlanner.hasActiveHandoff()});renderOptionalReadState()}
 
@@ -219,9 +221,9 @@ async function handleUnitedAuthState(state){
   }
   if(state.status==='error'){
     accountAttempt?.finish();
-    console.error('Firebase Auth initialization failed',state.error);
+    console.error('Firebase Auth initialization failed',authDiagnostic(state));
     setMode('AUTH NEDOSTUPNÝ');
-    showAuthStatus({title:'Přihlášení se nepodařilo ověřit.',copy:'Tvoje uložená session nebyla změněna. Zkontroluj připojení a zkus to znovu.',retry:true});
+    showAuthStatus({title:'Přihlášení se nepodařilo ověřit.',copy:authRecoveryCopy(state),retry:true});
     return;
   }
   if(memberSession.authFlowActive||accountNeedsRetry)return;

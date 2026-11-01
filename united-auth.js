@@ -19,7 +19,6 @@ export function initUnitedAuth({ config, onStateChange, importModule = specifier
   let stopped = false;
   let startupTimer = null;
   let slowTimer = null;
-  let memoryOnly = false;
   let state = { status: 'loading', user: null, error: null, context: null };
 
   const emit = next => {
@@ -34,7 +33,7 @@ export function initUnitedAuth({ config, onStateChange, importModule = specifier
     unsubscribe?.();
     unsubscribe = null;
     const startedAt = Date.now();
-    emit({ status: 'loading', error: null, context, startedAt, deadlineAt: startedAt + timeoutMs, slow: false });
+    emit({ status: 'loading', error: null, context, startedAt, deadlineAt: startedAt + timeoutMs, slow: false, stage: 'sdk' });
 
     if (!configured(config)) {
       const error = new Error('firebase_not_configured');
@@ -66,20 +65,17 @@ export function initUnitedAuth({ config, onStateChange, importModule = specifier
       const app = appMod.getApps().length ? appMod.getApps()[0] : appMod.initializeApp(config);
       const auth = authMod.getAuth(app);
 
-      // Persistence must be selected before the first auth-state decision is rendered.
-      try {
-        await authMod.setPersistence(auth, authMod.browserLocalPersistence);
-        memoryOnly = false;
-      } catch (error) {
-        if (!['auth/web-storage-unsupported', 'auth/unsupported-persistence-type'].includes(error?.code)) throw error;
-        // Private/storage-restricted browsers may still authenticate in memory.
-        // Do not turn network or credential errors into a persistence fallback.
-        await authMod.setPersistence(auth, authMod.inMemoryPersistence);
-        memoryOnly = true;
-      }
+      // getAuth already selects IndexedDB, localStorage, sessionStorage, then
+      // memory. Forcing another backend can remove a restored session before a
+      // blocked target storage accepts it. All page controllers share this Auth.
+      state = { ...state, stage: 'restore' };
+      await auth.authStateReady();
       if (stopped || activeAttempt !== attempt) return null;
 
-      context = { ...authMod, auth, persistence: memoryOnly ? 'memory' : 'local' };
+      // Read only the storage TYPE from the pinned SDK, never its user/token
+      // storage. If that diagnostic accessor changes, make no durability claim.
+      const kind = auth._getPersistence?.();
+      context = { ...authMod, auth, persistence: ({LOCAL:'local',SESSION:'session',NONE:'memory'})[kind] || 'unknown' };
       let decided = false;
       unsubscribe = authMod.onAuthStateChanged(
         auth,
@@ -112,7 +108,15 @@ export function initUnitedAuth({ config, onStateChange, importModule = specifier
   const controller = {
     get context() { return context; },
     get state() { return state; },
-    retry: start,
+    retry() {
+      // A failed module fetch is cached by the browser's module loader. A user
+      // retry needs a fresh document, not another import of the poisoned URL.
+      if (state.status === 'error' && state.stage === 'sdk' && state.error?.message !== 'auth_startup_timeout' && typeof globalThis.location?.reload === 'function') {
+        globalThis.location.reload();
+        return Promise.resolve(null);
+      }
+      return start();
+    },
     stop() {
       stopped = true;
       clearTimeout(startupTimer);
@@ -127,3 +131,22 @@ export function initUnitedAuth({ config, onStateChange, importModule = specifier
 }
 
 export const unitedAuthSdkUrls = Object.freeze({ app: FIREBASE_APP_URL, auth: FIREBASE_AUTH_URL });
+
+export function authRecoveryCopy(state = {}) {
+  if (state.stage === 'sdk') return 'Přihlašovací službu se nepodařilo načíst. Ověř připojení a případné blokování této služby ochranou prohlížeče. Uložené přihlášení nemažeme.';
+  return 'Uložené přihlášení nemažeme. Ověř připojení a obnov načtení. Samotná chyba spojení neznamená odhlášení.';
+}
+
+export function authPersistenceNotice(kind) {
+  if (kind === 'memory') return 'Úložiště prohlížeče není dostupné. Přihlášení platí jen na této stránce; po jejím opuštění nebo obnovení se přihlas znovu.';
+  if (kind === 'session') return 'Přihlášení je uložené jen pro tento panel. Po jeho zavření se přihlas znovu.';
+  return '';
+}
+
+export function authDiagnostic(state = {}) {
+  const error = state.error;
+  const code = /^auth\/[a-z-]+$/.test(error?.code || '') ? error.code
+    : error?.message === 'auth_startup_timeout' ? 'auth_startup_timeout'
+    : ['SecurityError','QuotaExceededError','TypeError'].includes(error?.name) ? error.name : 'auth_unavailable';
+  return {code, message:code, stage:state.stage || 'unknown', persistence:state.context?.persistence || null, origin:globalThis.location?.origin || null};
+}

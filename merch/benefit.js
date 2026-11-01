@@ -8,6 +8,9 @@ export function merchBenefit(settings={}){
 }
 let pending;
 export function loadMerchBenefitSettings(){
- if(!pending)pending=fetch((portalConfig.apiBaseUrl||'https://api.e36united.cz').replace(/\/$/,'')+'/api/merch/catalog',{cache:'no-store'}).then(async response=>{if(!response.ok)throw Error('Merch configuration unavailable');return (await response.json()).settings||{}}).catch(error=>{pending=null;throw error});
+ if(!pending){
+  const controller=new AbortController();let timer;
+  pending=Promise.race([fetch((portalConfig.apiBaseUrl||'https://api.e36united.cz').replace(/\/$/,'')+'/api/merch/catalog',{cache:'no-store',signal:controller.signal}).then(async response=>{if(!response.ok)throw Error('Merch configuration unavailable');return (await response.json()).settings||{}}),new Promise((_,reject)=>{timer=setTimeout(()=>{controller.abort();reject(Error('Merch configuration timeout'))},10_000)})]).catch(error=>{pending=null;throw error}).finally(()=>clearTimeout(timer));
+ }
  return pending;
 }

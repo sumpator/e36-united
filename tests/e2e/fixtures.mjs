@@ -85,7 +85,7 @@ const restrictedPersistence=false;
 const sessionKey = ${JSON.stringify(MEMBER_SESSION_KEY)};
 const identityKey = ${JSON.stringify(MEMBER_IDENTITY_KEY)};
 const listeners = new Set();
-const auth = { currentUser: null };
+const auth = { currentUser: null, async authStateReady(){auth.currentUser=sessionUser()}, _getPersistence(){return restrictedPersistence?'NONE':'LOCAL'} };
 const identity = () => { try { return JSON.parse(localStorage.getItem(identityKey) || '{}'); } catch { return {}; } };
 const createUser = () => { const current = identity(); return ({
   uid: current.id || ${JSON.stringify(memberId)},
@@ -97,6 +97,7 @@ const createUser = () => { const current = identity(); return ({
 let memoryUser = null;
 const sessionUser = () => restrictedPersistence ? memoryUser : localStorage.getItem(sessionKey) === 'true' ? createUser() : null;
 const publish = user => { auth.currentUser = user; for (const listener of listeners) listener(user); };
+window.addEventListener('storage',event=>{if(event.key===sessionKey&&!restrictedPersistence)publish(sessionUser())});
 export const browserLocalPersistence = { type: 'LOCAL' };
 export const inMemoryPersistence = { type: 'NONE' };
 export function getAuth() { return auth; }

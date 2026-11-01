@@ -1606,3 +1606,6 @@ html[data-theme=light] .site-header .nav-links a:hover,html[data-theme=light] .s
 html[data-theme=light] .united-mobile-menu a[href*="#planer"]{color:#795300;background:#fff6db}
 .united-mobile-menu a:hover{color:var(--appearance-action,#70bdff);background:var(--appearance-selected,rgba(77,163,255,.12))}
 html[data-theme=light] .united-mobile-menu a:hover{color:#0869c4;background:#e2efff}
+
+/* Persistent auth recovery; never an anonymous-success indication. */
+.public-auth-notice{position:fixed;z-index:150;bottom:18px;left:50%;transform:translateX(-50%);width:min(660px,calc(100% - 28px));padding:14px 18px;border:1px solid var(--appearance-border,#b9c7d4);border-radius:12px;background:var(--surface,#14171c);color:var(--text,#f7f8fa);box-shadow:0 8px 28px #0002;display:flex;align-items:center;gap:16px}.public-auth-notice p{margin:0;font-size:14px;line-height:1.5}.public-auth-notice button.btn.btn-secondary{flex-shrink:0;background:var(--surface,#14171c);color:var(--text,#f7f8fa);border-color:var(--line,#b9c7d4)}.public-auth-notice button:focus-visible{outline:3px solid var(--blue,#4da3ff);outline-offset:3px}@media(max-width:600px){.public-auth-notice{flex-wrap:wrap;gap:8px}.public-auth-notice .btn{min-height:44px}}

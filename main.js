@@ -10,11 +10,12 @@ const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').match
 
 const publicMemberStateListeners=new Set();
 let publicMemberState={status:'loading',authenticated:false,hasWaitingPlan:false,hasReservation:false,showJoinCta:false};
-let renderAccountLinks=null;
+let renderAccountLinks=null,renderPublicAuthStatus=null,publicMemberController=null;
 const publishPublicMemberState=state=>{
 publicMemberState={...publicMemberState,...state};
 qsa('.nav-cta').forEach(cta=>{cta.hidden=true});
 renderAccountLinks?.(publicMemberState);
+renderPublicAuthStatus?.(publicMemberState,()=>publicMemberController?.retry());
 for(const listener of publicMemberStateListeners)listener(publicMemberState);
 };
 const subscribePublicMemberState=listener=>{publicMemberStateListeners.add(listener);listener(publicMemberState);return()=>publicMemberStateListeners.delete(listener)};
@@ -22,14 +23,14 @@ document.addEventListener('click',event=>{if(event.target.closest('.nav-member')
 qsa('.nav-cta').forEach(cta=>{cta.hidden=true});
 void (async()=>{
 try{
-const [{firebaseConfig,portalConfig},memberStateModule]=await Promise.all([import('./firebase-config.js?v=20260823-auth2'),import('./public-member-state.js?v=20261028-entry1')]);
-const {initPublicMemberState}=memberStateModule;renderAccountLinks=memberStateModule.renderAccountLinks;
-initPublicMemberState({config:firebaseConfig,apiBaseUrl:portalConfig.apiBaseUrl,onStateChange:publishPublicMemberState});
-}catch(error){publishPublicMemberState({status:'error',authenticated:false,showJoinCta:false,error});console.debug('Public member state unavailable; join CTA remains hidden.',error)}
+const [{firebaseConfig,portalConfig},memberStateModule]=await Promise.all([import('./firebase-config.js?v=20260823-auth2'),import('./public-member-state.js?v=20261101-auth1')]);
+const {initPublicMemberState}=memberStateModule;renderAccountLinks=memberStateModule.renderAccountLinks;renderPublicAuthStatus=memberStateModule.renderPublicAuthStatus;
+publicMemberController=initPublicMemberState({config:firebaseConfig,apiBaseUrl:portalConfig.apiBaseUrl,onStateChange:publishPublicMemberState});
+}catch(error){publishPublicMemberState({status:'error',authenticated:false,showJoinCta:false,error});console.debug('Public member state unavailable; join CTA remains hidden.')}
 })();
 
 const coreStyles = qs('link[href^="styles.css"]');
-if (coreStyles && !coreStyles.href.includes('v=20261101-detail1')) coreStyles.href = 'styles.css?v=20261101-detail1';
+if (coreStyles && !coreStyles.href.includes('v=20261101-auth1')) coreStyles.href = 'styles.css?v=20261101-auth1';
 if (!qs('link[href^="accommodation-visual.css"]')) {
 const accommodationStyles=document.createElement('link');accommodationStyles.rel='stylesheet';accommodationStyles.href='accommodation-visual.css?v=20260912-accommodation-gallery-r1';document.head.append(accommodationStyles);
 }
