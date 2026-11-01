@@ -10,7 +10,7 @@ export function createClubMembers({ apiBaseUrl, apiRequest, apiRequestBlob, getD
   let listRestoreFocus = null;
   let directProfileHandled = false;
   let bound = false;
-  let members = null, seed = null, pagination = null, loading = false, listGeneration = 0;
+  let members = null, seed = null, pagination = null, loading = false, listGeneration = 0, renderedMembers = null;
   const searchText=value=>String(value||'').normalize('NFD').replace(/\p{M}/gu,'').toLocaleLowerCase('cs-CZ');
   const query=()=>searchText($('[data-club-member-search]')?.value).trim();
   function syncSearchStatus(error=''){
@@ -35,7 +35,8 @@ export function createClubMembers({ apiBaseUrl, apiRequest, apiRequestBlob, getD
 
   function releaseListMedia() {
     const root = $('[data-club-members-list]');
-    root?.querySelectorAll('[data-club-member-photo]').forEach(image => image.remove());
+    root?.querySelectorAll('[data-club-member-photo]').forEach(image => { image.removeAttribute('src'); image.remove(); });
+    renderedMembers = null;
     observer?.disconnect(); observer = null;
     for (const url of ownedUrls.values()) URL.revokeObjectURL(url);
     ownedUrls.clear();
@@ -67,9 +68,12 @@ export function createClubMembers({ apiBaseUrl, apiRequest, apiRequestBlob, getD
 
   function renderList() {
     const root = $('[data-club-members-list]'); if (!root) return;
-    releaseListMedia();
     const source=getData().club?.clubMembers;if(seed!==source){seed=source;members=source?.members||[];pagination=source?.pagination||null}
-    const term=query(),filtered=(members||[]).filter(member=>searchText([member.name,member.nickname,...(member.cars||[]).flatMap(car=>[car.model,car.body])].join(' ')).includes(term));root.innerHTML='';
+    const term=query(),filtered=(members||[]).filter(member=>searchText([member.name,member.nickname,...(member.cars||[]).flatMap(car=>[car.model,car.body])].join(' ')).includes(term));
+    // A different query can match the same cards. Keep their in-flight images
+    // instead of revoking and immediately requesting their blob URLs again.
+    if(filtered.length&&renderedMembers?.length===filtered.length&&filtered.every((member,index)=>renderedMembers[index]===member))return;
+    releaseListMedia();renderedMembers=filtered;root.innerHTML='';
     if (term&&!filtered.length)root.innerHTML='<p class="club-members-empty" role="status">Žádný člen ani auto neodpovídá hledání.</p>';
     if (!term&&!filtered.length) root.innerHTML = '<article class="club-members-empty"><img alt="" src="united-logo-blue.svg"><div><b>Klubové profily se právě skládají.</b><p>Jakmile členové doplní své United profily, objeví se tady.</p></div></article>';
     for (const member of filtered) {
