@@ -38,7 +38,7 @@ test('history components and a dashboard configuration snapshot remain independe
 });
 test('CI failure diagnostics are engine/attempt isolated, short-lived and do not relax failures',()=>{
  const ci=readFileSync(new URL('../.github/workflows/ci.yml',import.meta.url),'utf8');
- // CI runs Node checks before installing Playwright. Evaluate the actual config
+ // The Node job has no Playwright dependency. Evaluate the actual config
  // with its identity defineConfig wrapper, without requiring browser dependencies.
  const configSource=readFileSync(new URL('../playwright.config.mjs',import.meta.url),'utf8');
  const config=runInNewContext(configSource.replace(/^import \{ defineConfig \} from '@playwright\/test';\r?\n/,'').replace('export default defineConfig(','globalThis.config = defineConfig(')+'\nconfig',{
@@ -47,22 +47,30 @@ test('CI failure diagnostics are engine/attempt isolated, short-lived and do not
  const steps=ci.split(/(?=^      - name:)/m);
  const attempt='${{ github.run_attempt }}',runId='${{ github.run_id }}';
  const critical=['showshine-pointer','auth-memory-session','account-entry','member-session-lifecycle','account-deadline','member-completion','history-reading','public-planner-stability','registration-live-continuity','appearance'];
+ const matrix='${{ matrix.browser }}';
+ const browserJob=ci.split(/^  browser:\s*$/m)[1]?.split(/^  result:\s*$/m)[0];
+ assert.ok(browserJob,'browser engines have their own job');
+ assert.match(browserJob,/needs: impact/);
+ assert.match(browserJob,/if: needs\.impact\.outputs\.browser == 'true'/);
+ assert.match(browserJob,/fail-fast: false/); // A failed engine cannot cancel siblings.
+ assert.match(browserJob,/browser: \[chromium, webkit, firefox\]/);
+ const runs=steps.filter(step=>/^        id: tests\s*$/m.test(step));
+ assert.equal(runs.length,1,'each matrix engine has one required execution step');
+ const run=runs[0];
+ assert.ok(run.includes('--project='+matrix));
+ assert.ok(run.includes(`PLAYWRIGHT_HTML_OUTPUT_DIR: playwright-report/${matrix}-${attempt}`));
+ assert.ok(run.includes(`--output=test-results/${matrix}-${attempt}`));
+ assert.doesNotMatch(run,/^        if:/m,'functional selection cannot skip an individual engine');
+ const uploads=steps.filter(step=>step.includes(`name: browser-${matrix}-${runId}-${attempt}`));
+ assert.equal(uploads.length,1,'each engine has isolated failure evidence');
+ const upload=uploads[0];
+ assert.ok(upload.includes("failure() && steps.tests.outcome == 'failure'"));
+ assert.ok(upload.includes(`test-results/${matrix}-${attempt}/`));
+ assert.ok(upload.includes(`playwright-report/${matrix}-${attempt}/`));
+ assert.match(upload,/retention-days: 5(?:\r?\n|$)/);
+ assert.match(ci,/needs: \[impact, verify, browser\]/);
+ assert.ok(ci.includes('test "$BROWSER" = success'),'required browser failures fail the final gate');
  for(const engine of ['chromium','webkit','firefox']){
-  const runs=steps.filter(step=>new RegExp('^        id: '+engine+'\\s*$','m').test(step));
-  assert.equal(runs.length,1,engine+' has one required execution step');
-  const run=runs[0];
-  // Every engine runs after setup even when an earlier browser failed.
-  assert.ok(run.includes("if: ${{ !cancelled() && steps.browser_setup.outcome == 'success' }}"));
-  assert.ok(run.includes('--project='+engine));
-  assert.ok(run.includes(`PLAYWRIGHT_HTML_OUTPUT_DIR: playwright-report/${engine}-${attempt}`));
-  assert.ok(run.includes(`--output=test-results/${engine}-${attempt}`));
-  const uploads=steps.filter(step=>step.includes(`name: browser-${engine}-${runId}-${attempt}`));
-  assert.equal(uploads.length,1,engine+' has isolated failure evidence');
-  const upload=uploads[0];
-  assert.ok(upload.includes(`failure() && steps.${engine}.outcome == 'failure'`));
-  assert.ok(upload.includes(`test-results/${engine}-${attempt}/`));
-  assert.ok(upload.includes(`playwright-report/${engine}-${attempt}/`));
-  assert.match(upload,/retention-days: 5(?:\r?\n|$)/);
   const project=config.projects.find(project=>project.name===engine);
   assert.equal(project?.use?.browserName,engine);
   if(engine!=='chromium')for(const suite of critical)assert.ok(project.testMatch.includes('**/'+suite+'.spec.mjs'),engine+' includes '+suite);
