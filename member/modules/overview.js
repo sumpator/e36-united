@@ -1,6 +1,6 @@
 import {navigationIcon} from '../../navigation-icons.js?v=20261030-history1';
 import { reservationStatusPresentation } from '../reservation-status.js?v=20261031-pixel1';
-import { deriveOverviewState } from '../../member-portal-state.js?v=20261031-compose1';
+import { deriveOverviewState } from '../../member-portal-state.js?v=20261101-detail1';
 import { $, esc } from '../ui.js?v=20260924-merch2';
 import {admissionInfoMarkup} from '../admission-info.js?v=20261030-portal1';
 
@@ -51,7 +51,7 @@ export function createMemberOverview({
     const view=deriveOverviewState({reservation,registrationOpen,plan,planEnabled,plannerWaiting,plannerDraft,plannerUnavailable,eventYear:event?eventYear:null,eventName:event?.title||'',formatAmount});if(card){card.hidden=!view.active;card.dataset.jump=view.target||'reservation';card.toggleAttribute('data-reservation-form-jump',view.openEditor===true)}if(empty)empty.hidden=view.active;if(emptyCopy)emptyCopy.textContent=view.emptyCopy;
     if(eventElement)eventElement.textContent=event?.title||`UNITED ${eventYear}`;
     const status=reservationStatusPresentation(reservation,{plan:plan?.status==='active',draft:plannerWaiting||plannerDraft,open:registrationOpen||planEnabled,error:plannerUnavailable});if(card)card.dataset.tone=status.tone;const symbol=$('[data-overview-state-symbol]');if(symbol)symbol.textContent=status.symbol;
-    if(label)label.textContent=view.label;if(copy)copy.textContent=view.copy;if(action)action.hidden=!view.action;if(action)action.innerHTML=view.action?`${view.action} <b>→</b>`:'';
+    if(label)label.textContent=view.label;if(copy){copy.textContent=view.copy;copy.classList.toggle('is-payment-summary',view.target==='payments');copy.dataset.tone=status.paymentTone||'neutral'}if(action)action.hidden=!view.action;if(action)action.innerHTML=view.action?`${view.action} <b>→</b>`:'';
     const summary=$('[data-portal-overview-summary]'),data=getData(),car=data.cars.find(item=>item.id===reservation?.carId)||(reservation?reservation.carSnapshot:null),primary=data.cars.find(item=>item.primary)||data.cars[0];
     if(summary){
       const selected=car||primary,carLabel=selected?[selected.nickname,selected.model,selected.body].filter(Boolean).join(' · '):'Zatím nemáš přidané auto';
@@ -60,30 +60,30 @@ export function createMemberOverview({
       summary.querySelectorAll('[data-overview-open]').forEach(button=>button.addEventListener('click',()=>{if(button.hasAttribute('data-overview-add-car'))onAddCar?.();else openSection(button.dataset.overviewOpen)}));
     }
     document.querySelectorAll('[data-portal-admission-info]').forEach(root=>{root.innerHTML=admissionInfoMarkup(event);root.hidden=!root.innerHTML});
-    onboardingContext={reservation,registrationOpen};renderOnboarding();
+    onboardingContext={reservation,registrationOpen,plan};renderOnboarding();
   }
 
   function setStep(button, state, complete, disabled=false){
     if(!button)return;
-    button.classList.toggle('is-complete',complete);button.disabled=disabled;
+    button.classList.toggle('is-complete',complete);if(button.tagName==='BUTTON')button.disabled=disabled;
     const copy=button.querySelector('em');if(copy)copy.textContent=state;
   }
   function onboardingState(){
-    const data=getData(),{reservation,registrationOpen}=onboardingContext;
+    const data=getData(),{reservation,registrationOpen,plan}=onboardingContext;
     const profileReady=data.club?.profileCompletion?.requiredFields!==false&&!!data.profile?.name;
     const hasCar=Array.isArray(data.cars)&&data.cars.length>0;
-    return {data,reservation,registrationOpen,profileReady,hasCar,complete:profileReady&&hasCar&&(!registrationOpen||!!reservation)};
+    return {data,reservation,registrationOpen,plan,profileReady,hasCar,complete:profileReady&&hasCar&&(!registrationOpen||!!reservation)};
   }
   function renderOnboardingCard(root,state){
     if(!root)return;
-    const {data,reservation,registrationOpen,profileReady,complete}=state;
+    const {data,reservation,registrationOpen,plan,profileReady,complete}=state;
     root.classList.toggle('is-complete',complete);root.hidden=complete;
     const kicker=root.querySelector('header span'),title=root.querySelector('header h2');
     if(kicker)kicker.textContent=complete?'Děkujeme, že jsi UNITED':'TVŮJ UNITED ZAČÍNÁ TADY';
     if(title)title.innerHTML='Doplň profil.<br><em>Získej víc z United.</em>';
-    const profileTitle=root.querySelector('[data-onboarding-profile] strong');if(profileTitle)profileTitle.textContent=profileReady?'United profil':'Založ si United profil';
-    setStep(root.querySelector('[data-onboarding-profile]'),profileReady?'Profil je založený ✓':'Dokončit profil →',profileReady);
-    setStep(root.querySelector('[data-onboarding-reservation]'),reservation?'Registrace je připravená ✓':registrationOpen?'Otevřít registraci →':'Připravit plán →',!!reservation);
+    const profileTitle=root.querySelector('[data-onboarding-profile] strong');if(profileTitle)profileTitle.textContent='United profil';
+    setStep(root.querySelector('[data-onboarding-profile]'),profileReady?'Profil je založený ✓':'Profil doplníš v Účtu.',profileReady);
+    setStep(root.querySelector('[data-onboarding-reservation]'),reservation?'Otevřít registraci →':plan?.status==='active'?'Otevřít předběžnou registraci →':registrationOpen?'Otevřít registraci →':'Připravit plán →',!!reservation||plan?.status==='active');
     const states=new Map([
       ['garage',data.cars.length>0],
       ['club',(data.club?.history||[]).some(item=>item.attendance?.status==='approved')],

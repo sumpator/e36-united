@@ -631,3 +631,63 @@ html:has(body.member-page){scrollbar-gutter:stable}
  .member-page[data-member-section=club] .member-agenda-head .member-card-stat{padding-inline:4px;min-height:54px}
  .member-page[data-member-section=club] .member-agenda-head .member-card-stat>b{font-size:15px;white-space:normal}
 }
+
+/* November detail refinement: shared alignment, existing state semantics. */
+.member-page[data-member-section] .reservation-payment-state{display:flex;align-items:center;justify-content:center;align-self:stretch;text-align:center;min-height:44px}
+.member-page[data-member-section] .reservation-payment-state a{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:8px 14px;border-radius:8px;background:var(--portal-wash);text-decoration:none;transition:background .15s ease}
+.member-page[data-member-section] .reservation-payment-state a:hover{background:var(--appearance-selected,rgba(77,163,255,.15))}
+.member-page[data-member-section] .member-nav-reservation-status [data-trip-payment-link]{text-decoration:none}
+.member-page[data-member-section] [data-reservation-overview-copy].is-payment-summary{display:table;width:fit-content;margin-top:8px;padding:6px 10px;background:var(--portal-wash);border-left:3px solid var(--appearance-action,#70bdff);border-radius:5px;font-size:17px;font-weight:750;color:var(--portal-ink)}
+.member-page[data-member-section] .payment-price-breakdown{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;padding:12px;background:var(--portal-wash);border-radius:8px;margin:12px 0}
+.member-page[data-member-section] .payment-price-breakdown>div{display:flex;flex-direction:column;gap:5px;min-width:0}
+.member-page[data-member-section] .payment-price-breakdown dd{margin:0;font-weight:800}
+.member-page[data-member-section] .payment-breakdown-note{font-size:13px;color:var(--portal-muted)}
+.member-page[data-member-section] .reservation-summary>div{align-items:center;text-align:center;justify-content:center}
+.member-page[data-member-section] .reservation-summary .member-summary-car-action{align-self:stretch;width:100%;padding:0;border:0;box-shadow:none;background:none;border-radius:0;text-align:center;display:flex;flex-direction:column;align-items:center;gap:8px}
+.member-page[data-member-section] .reservation-summary .member-summary-car-action:focus-visible{outline:2px solid var(--appearance-action,#70bdff);outline-offset:4px;border-radius:5px}
+.member-page[data-member-section] [data-reservation-car-choice-error]{grid-column:1/-1;color:var(--appearance-danger,#ff8b9b);text-align:left}
+.member-page[data-member-section] .reservation-car-choice select[aria-invalid=true]{border-color:var(--appearance-danger,#ff8b9b)}
+.member-page[data-member-section] [data-reservation-payment-link]{grid-column:1/-1;justify-self:center;width:fit-content;max-width:100%;display:flex;margin:12px auto;justify-content:center}
+.member-page[data-member-section] .car-actions button:not(:disabled){transition:background .15s ease,border-color .15s ease}
+.member-page[data-member-section] .car-actions [data-primary-car]:not(:disabled):hover{background:var(--appearance-selected,rgba(77,163,255,.15));border-color:var(--appearance-action,#70bdff)}
+.member-page[data-member-section] .car-actions [data-delete-car]:hover{background:var(--appearance-danger-wash,rgba(255,77,97,.1));color:var(--appearance-danger,#ff8b9b);border-color:currentColor}
+.member-page[data-member-section] .car-actions button:focus-visible{outline:2px solid var(--appearance-action,#70bdff);outline-offset:3px}
+.member-page[data-member-section] .car-actions button:disabled{cursor:default;background:var(--portal-wash);opacity:.7}
+.member-page [data-car-modal] :is(input:not([type=checkbox]):not([type=file]),select){background:var(--appearance-surface,#182535);color:var(--portal-ink);border:1px solid var(--portal-line);transition:background .15s ease,border-color .15s ease}
+.member-page [data-car-modal] :is(input,select):hover:not(:disabled){border-color:var(--appearance-action,#70bdff)}
+.member-page [data-car-modal] :is(input,select):focus{outline:2px solid var(--appearance-action,#70bdff);outline-offset:1px;background:var(--appearance-selected,#15314d)}
+.member-page [data-car-modal] :is(input,select):disabled{opacity:.6;cursor:not-allowed}
+.member-page [data-car-modal] :is(input,select)[aria-invalid=true],.member-page [data-car-modal] :is(input,select):user-invalid{border-color:var(--appearance-danger,#ff8b9b)}
+.member-page[data-member-section] .portal-benefit-card [data-reward-remaining],.member-page[data-member-section] .portal-benefit-card a{display:inline-flex;min-height:34px;align-items:center;justify-content:center;padding:7px 10px;font-size:12px;line-height:1.4;box-sizing:border-box;border-radius:6px;vertical-align:middle}
+.member-page[data-member-section] .reward-metrics{justify-content:flex-start;gap:6px;align-items:baseline}
+.member-page[data-member-section] .reward-metrics b{font-size:23px;white-space:nowrap}
+.member-page[data-member-section] .earn-card{border:1px solid transparent;border-radius:8px;transition:background .15s ease,border-color .15s ease}
+.member-page[data-member-section] .earn-card:hover,.member-page[data-member-section] .earn-card:focus-visible{background:var(--portal-wash);border-color:var(--portal-line)}
+.member-page .united-onboarding-steps>[data-onboarding-profile]{display:flex;align-items:center;gap:18px;padding:16px;background:none}
+.member-page .united-onboarding-steps>[data-onboarding-profile]>b{font-size:48px;line-height:1;color:var(--appearance-success,#45bda3)}
+.member-page .united-onboarding-steps>[data-onboarding-profile]>span{display:flex;flex-direction:column;gap:5px}
+.member-page .united-onboarding-steps>[data-onboarding-profile] :is(small,em){font-size:12px;font-style:normal}
+.member-page .onboarding-optional-copy{margin:10px 0 0;font-size:14px;line-height:1.6;color:var(--portal-muted)}
+.member-page .member-photo-selection.is-completed [data-member-photo-previews]:empty{display:none}
+.member-page [data-member-photo-selection].is-completed{padding:12px;min-height:0}
+.member-page .member-nav-item:hover,.united-mobile-menu :is([data-menu-section],[data-mobile-section]):hover{background:var(--appearance-selected,rgba(77,163,255,.15));color:var(--appearance-action,#70bdff)}
+.club-member-search{display:flex;align-items:center;gap:4px;margin-top:12px;width:min(420px,100%)}
+.club-member-search input{width:100%;min-width:0;padding:10px 12px;background:var(--appearance-surface,#182535);color:var(--appearance-ink,#f5f8fb);border:1px solid var(--appearance-border,#344351);border-radius:8px;font:inherit}
+.club-member-search button{border:0;background:none;color:inherit;min-width:44px;min-height:44px;font-size:22px}
+@media(min-width:1200px){
+ .member-page[data-member-section=club] .member-agenda-head.is-club-heading{display:grid;grid-template-columns:minmax(200px,1fr) minmax(330px,1.4fr) auto;gap:12px;align-items:center}
+ .member-page[data-member-section=club] .member-agenda-head>div:first-child{display:block;grid-column:1;grid-row:1;order:0}
+ .member-page[data-member-section=club] .member-agenda-head [data-club-statistics]{grid-column:2;grid-row:1;order:1;width:auto;max-width:none;padding:0;margin:0}
+ .member-page[data-member-section=club] .member-agenda-head [data-club-heading-action]{order:2;grid-column:3;grid-row:1;margin:0}
+ .member-page[data-member-section=club] .member-agenda-head [data-member-agenda-description]{max-width:280px;font-size:13px}
+ .member-page[data-member-section=club] .member-agenda-head .member-card-stat small{font-size:9px}
+ .member-page[data-member-section=club] .member-agenda-head .member-card-stat{padding-inline:7px}
+}
+@media(min-width:1051px){
+ .member-page[data-member-section] .club-history .history-complete-row{display:flex;align-items:center;justify-content:flex-end;gap:12px;width:auto;border:0;padding:12px 0}
+ .member-page[data-member-section] .history-complete-row>div{display:none}
+ .member-page[data-member-section] .history-complete-row button:disabled{background:none;border:0;opacity:1;color:var(--portal-muted);cursor:default;min-height:0;padding:5px}
+}
+@media(max-width:600px){.member-page[data-member-section] .payment-price-breakdown{grid-template-columns:1fr;gap:6px}.member-page[data-member-section] .payment-price-breakdown>div{flex-direction:row;justify-content:space-between;gap:8px}}
+
+.member-page .united-onboarding-steps>[data-onboarding-profile].is-complete em{color:var(--appearance-success,#096b46)}

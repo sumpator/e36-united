@@ -5,7 +5,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { memberRuntime } from './helpers/admin-member-runtime.mjs';
 import { bootstrapMember, getMember } from '../worker/domains/members.js';
 import { publicGalleryList } from '../worker/domains/gallery.js';
-import { clubMemberCarMedia, getClubGalleryLinks, getClubMemberProfile, listClubMembers } from '../worker/domains/club/members.js';
+import { clubMemberCarMedia, getClubGalleryLinks, getClubMemberProfile, getClubMembers, listClubMembers } from '../worker/domains/club/members.js';
 
 const origin='https://e36united.cz';
 const jsonBody=response=>response.json();
@@ -47,4 +47,17 @@ test('club visibility migration is canonical, additive, defaults existing member
   const schema=readFileSync(new URL('../db/schema.sql',import.meta.url),'utf8'),migration=readFileSync(new URL('../db/migrations/2026-09-13-club-profile-visibility.sql',import.meta.url),'utf8').trim();assert.ok(schema.includes(migration));
   const db=new DatabaseSync(':memory:');db.exec(schema.split('-- Club-profile privacy is opt-out.')[0]+'COMMIT;');db.exec("INSERT INTO members(id,member_code,email,name) VALUES('m','EU-M','m@example.invalid','Member')");db.exec(migration);
   assert.equal(db.prepare("SELECT hide_on_club FROM members WHERE id='m'").get().hide_on_club,0);assert.ok(db.prepare("SELECT name FROM sqlite_master WHERE type='index' AND name='members_club_visibility'").get());assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(),[]);assert.throws(()=>db.exec(migration),/duplicate column name/);db.close();
+});
+
+
+test('club paging covers members beyond the first page and shares only searchable public car fields',async()=>{
+ const r=memberRuntime();try{
+ for(let i=0;i<28;i++)r.db.prepare("INSERT INTO members(id,member_code,email,name,nickname,hide_on_club) VALUES(?,?,?,?,?,?)").run('search-'+i,'EU-SEARCH-'+i,'private-'+i+'@example.invalid','Jméno '+i,'Řízek '+i,i===27?1:0);
+ r.db.exec("INSERT INTO cars(id,member_id,model,body) VALUES('search-car','search-0','M52B28','Coupé')");
+ const auth={uid:'m',member:{member_code:'EU-MEMBER'}},found=[];let offset=0;
+ do{const res=await getClubMembers(r.env,auth,new URL('https://api.e36united.cz/api/united-club/members?offset='+offset),'https://e36united.cz');assert.equal(res.status,200);const data=await res.json();found.push(...data.members);offset=data.pagination.hasMore?data.pagination.nextOffset:null;}while(offset!==null);
+ assert.equal(found.length,30);assert.equal(new Set(found.map(m=>m.profileRef)).size,30);assert.ok(!found.some(m=>m.profileRef==='EU-SEARCH-27'));
+ assert.deepEqual(found.find(m=>m.profileRef==='EU-SEARCH-0').cars,[{model:'M52B28',body:'Coupé'}]);
+ for(const member of found){for(const forbidden of ['email','phone','id','memberId'])assert.equal(forbidden in member,false);for(const car of member.cars)assert.deepEqual(Object.keys(car).sort(),['body','model']);}
+ }finally{r.db.close()}
 });

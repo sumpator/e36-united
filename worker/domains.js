@@ -40,7 +40,7 @@ import {
   submitHistoryClaim,
 } from "./domains/club/history.js";
 import { galleryPointStatements, profilePointStatement } from "./domains/club/points.js";
-import { clubMemberCarMedia, getClubGalleryLinks, getClubMemberProfile } from './domains/club/members.js';
+import { clubMemberCarMedia, getClubGalleryLinks, getClubMemberProfile, getClubMembers } from './domains/club/members.js';
 import { publicGalleryList, publicGalleryMedia } from "./domains/gallery.js";
 import { listMyGallery, privateMemberGalleryMedia, uploadGallerySubmission } from "./domains/member-gallery.js";
 import { bootstrapMember, getMember } from "./domains/members.js";
@@ -824,6 +824,7 @@ export {
   getUnitedClub,
   getClubGalleryLinks,
   getClubMemberProfile,
+  getClubMembers,
   historyEvidenceMedia,
   isPaymentOverdue,
   listCars,

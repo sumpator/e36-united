@@ -1,7 +1,7 @@
 import {merchBenefit,loadMerchBenefitSettings} from './merch/benefit.js?v=20261031-pixel1';
 import {initPointsGuide} from './member/points-guide.js?v=20261031-pixel1';
 import { firebaseConfig, portalConfig } from './firebase-config.js?v=20260924-merch2';
-import {initShop} from './merch/shop.js?v=20261031-pixel1';
+import {initShop} from './merch/shop.js?v=20261101-detail1';
 import {rewardProgress,pointWord} from './member/reward-progress.js?v=20260926-portal3';
 import { initUnitedAuth } from './united-auth.js?v=20261028-flow2';
 

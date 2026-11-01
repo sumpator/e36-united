@@ -29,7 +29,7 @@ initPublicMemberState({config:firebaseConfig,apiBaseUrl:portalConfig.apiBaseUrl,
 })();
 
 const coreStyles = qs('link[href^="styles.css"]');
-if (coreStyles && !coreStyles.href.includes('v=20261028-flow2')) coreStyles.href = 'styles.css?v=20261031-polish1';
+if (coreStyles && !coreStyles.href.includes('v=20261101-detail1')) coreStyles.href = 'styles.css?v=20261101-detail1';
 if (!qs('link[href^="accommodation-visual.css"]')) {
 const accommodationStyles=document.createElement('link');accommodationStyles.rel='stylesheet';accommodationStyles.href='accommodation-visual.css?v=20260912-accommodation-gallery-r1';document.head.append(accommodationStyles);
 }
@@ -234,7 +234,7 @@ if (counters.length) {
 const animateCounter = el => {
 const end = Number(el.dataset.counter || 0);
 if (reduceMotion || end > 100) {
-el.textContent = end.toLocaleString('cs-CZ');
+el.textContent = end>=1900&&end<=2100?String(end):end.toLocaleString('cs-CZ');
 return;
 }
 const start = performance.now();
@@ -346,15 +346,18 @@ if (currentTitle) currentTitle.textContent = title;
 const updateHistoryProgress = () => {
 const probe=readingLine();
 entries.forEach(entry => { entry.style.scrollMarginTop = `${probe - 1}px`; });
-// Select the largest visible article body, excluding the gap after it.
+// Weight visible article bodies gently by their reading length. A short story
+// remains readable across a useful scroll range without retaining an offscreen
+// story over the next visible article. Exclude each article's trailing gap.
 // Waiting for its heading to cross the reading line leaves a previous year
 // selected while the next story already occupies most of the reading area.
 const viewportTop=header?.getBoundingClientRect().bottom||0;
+const readingHeight=Math.max(1,innerHeight-viewportTop);
 let active=entries.filter(entry=>articleTop(entry)<=probe).at(-1)||entries[0],largestVisible=0;
 for(const entry of entries){
  const top=articleTop(entry),bottom=top+entry.offsetHeight-parseFloat(getComputedStyle(entry).paddingBottom||0);
- const visible=Math.max(0,Math.min(innerHeight,bottom)-Math.max(viewportTop,top));
- if(visible>largestVisible){active=entry;largestVisible=visible}
+ const visible=Math.max(0,Math.min(innerHeight,bottom)-Math.max(viewportTop,top)),score=visible/Math.sqrt(Math.min(Math.max(1,bottom-top),readingHeight));
+ if(score>largestVisible){active=entry;largestVisible=score}
 }
 setHistoryEntry(active);
 if (!progress) return;

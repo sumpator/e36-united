@@ -39,7 +39,7 @@ test('compact identity accompanies a shared agenda title while full member detai
 test('Member Card keeps three centered core stats without the retired rating', () => {
   const coreStats = [...stats.matchAll(/class="member-card-stat(?: [^"]*)?" data-member-help="([^"]+)"/g)].map(match => match[1]);
   assert.deepEqual(coreStats, ['since', 'verified', 'points']);
-  for (const label of ['UNITED OD', 'OVĚŘENÉ UNITED', 'UNITED POINTS']) assert.match(stats, new RegExp(label));
+  for (const label of ['UNITED OD', 'OVĚŘENÉ UNITED', 'UNITED BODY']) assert.match(stats, new RegExp(label));
   assert.doesNotMatch(club, /MEMBER RATING|data-member-rating/);
   assert.match(stats, /data-overview-points="">0<\/b><em>bodů<\/em>/);
   assert.doesNotMatch(club, /data-overview-points="">0<\/b><em>\/ 12 bodů<\/em>/);

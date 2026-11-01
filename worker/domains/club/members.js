@@ -15,8 +15,8 @@ function clubMemberMediaUrl(memberCode, photoId) {
 }
 
 async function listClubMembers(env, auth, { limit = CLUB_MEMBER_PAGE_SIZE, offset = 0 } = {}) {
-  const boundedLimit = Math.max(1, Math.min(CLUB_MEMBER_PAGE_SIZE, Number(limit) || CLUB_MEMBER_PAGE_SIZE));
-  const boundedOffset = Math.max(0, Math.min(10000, Number(offset) || 0));
+  const boundedLimit = Math.max(1, Math.min(CLUB_MEMBER_PAGE_SIZE, Math.floor(Number(limit)) || CLUB_MEMBER_PAGE_SIZE));
+  const boundedOffset = Math.max(0, Math.min(10000, Math.floor(Number(offset)) || 0));
   const rows = await env.DB.prepare(`
     WITH selected_members AS (
       SELECT id, member_code, name, nickname, created_at
@@ -44,7 +44,8 @@ async function listClubMembers(env, auth, { limit = CLUB_MEMBER_PAGE_SIZE, offse
     )
     SELECT m.member_code, m.name, m.nickname, m.created_at,
       a.member_since, COALESCE(a.attendance_count, 0) AS attendance_count,
-      p.id AS photo_id
+      p.id AS photo_id,
+      (SELECT json_group_array(json_object('model', c.model, 'body', c.body)) FROM cars c WHERE c.member_id=m.id) AS cars_json
     FROM selected_members m
     LEFT JOIN approved_attendance a ON a.member_id = m.id
     LEFT JOIN ranked_photos p ON p.member_id = m.id AND p.photo_rank = 1
@@ -55,6 +56,7 @@ async function listClubMembers(env, auth, { limit = CLUB_MEMBER_PAGE_SIZE, offse
   return {
     members: page.map(row => ({
       profileRef: row.member_code,
+      cars: JSON.parse(row.cars_json || '[]'),
       name: row.name || '',
       nickname: row.nickname || row.name || 'United member',
       memberSince: row.member_since || String(row.created_at || '').slice(0, 4) || null,
@@ -70,6 +72,10 @@ async function listClubMembers(env, auth, { limit = CLUB_MEMBER_PAGE_SIZE, offse
       hasMore: found.length > boundedLimit,
     },
   };
+}
+
+async function getClubMembers(env,auth,url,origin){
+  return json({ok:true,...await listClubMembers(env,auth,{limit:url.searchParams.get('limit'),offset:url.searchParams.get('offset')})},200,origin);
 }
 
 async function getClubMemberProfile(env, auth, memberCode, origin) {
@@ -220,4 +226,5 @@ export {
   getClubGalleryLinks,
   getClubMemberProfile,
   listClubMembers,
+  getClubMembers,
 };

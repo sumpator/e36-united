@@ -291,7 +291,7 @@ export async function prepareE2ePage(page, {
     }
     if(url.pathname==='/api/preliminary-reservations/current'){
       if(request.method()==='PUT'){
-        const body=request.postDataJSON();observations.preliminaryWrites.push(body);currentPreliminary={id:'preliminary-e2e',eventId:currentEvent.id,status:'active',revision:(currentPreliminary?.revision||0)+1,...body};
+        const body=request.postDataJSON();observations.preliminaryWrites.push(body);currentPreliminary={id:'preliminary-e2e',eventId:currentEvent.id,status:'active',revision:(currentPreliminary?.revision||0)+1,preferences:{...body}};
       }else if(request.method()==='DELETE')currentPreliminary={...currentPreliminary,status:'cancelled'};
       await jsonResponse(route,{ok:true,event:currentEvent,enabled:preliminaryEnabled,registrationOpen,preliminary:currentPreliminary});return;
     }

@@ -159,7 +159,7 @@ test('approved reservation change supports sold-out inquiry, compact layouts and
   await page.route('https://api.e36united.cz/api/reservations/current/requests',async route=>{if(route.request().method()==='POST'&&rejectOnce){rejectOnce=false;await route.fulfill({status:400,contentType:'application/json',body:JSON.stringify({ok:false,error:'invalid_fields',message:'Žádost obsahuje nepovolené údaje.'})});return}await route.fallback()});
   await page.setViewportSize({width:1440,height:1000});
   await page.goto('/member.html?section=reservation');
-  await expect(page.locator('[data-reservation-payment-detail]')).toBeHidden();await expect(page.locator('[data-reservation-payment-state]')).toContainText('Zaplaceno');
+  await expect(page.locator('[data-reservation-payment-detail]')).toBeHidden();await expect(page.locator('[data-reservation-payment-state]')).toContainText('Vše v pořádku');
   const statusCard=page.locator('.reservation-status-card'),detailCard=page.locator('.reservation-unified-card');
   await expect(statusCard).toContainText('STAV REGISTRACE');
   await expect(detailCard).not.toContainText('STAV REGISTRACE');
@@ -227,7 +227,7 @@ test('paid reservation cancellation remains a request and keeps payment visible'
   const observations=await prepareE2ePage(page,{authenticated:true,reservation:paidReservation});await page.goto('/member.html?section=reservation');
   await clickReady(page.locator('[data-request-cancel-open]'));await expect(page.locator('[data-cancel-request]')).toBeVisible();await page.locator('[data-cancel-request-note]').fill('Nemohu přijet.');await clickReady(page.locator('[data-request-cancel-submit]'));
   await expect.poll(()=>observations.reservationRequestWrites.length).toBe(1);expect(observations.reservationRequestWrites[0]).toEqual({reservationId:'reservation-flow-e2e',type:'cancellation',memberNote:'Nemohu přijet.'});
-  expect(observations.reservationWrites).toEqual([]);await expect(page.locator('[data-reservation-request-status]')).toContainText('ŽÁDOST O ZRUŠENÍ');await expect(page.locator('[data-reservation-payment-detail]')).toBeHidden();await expect(page.locator('[data-reservation-payment-state]')).toContainText('Zaplaceno');expectNoUnexpectedClientErrors(observations);
+  expect(observations.reservationWrites).toEqual([]);await expect(page.locator('[data-reservation-request-status]')).toContainText('ŽÁDOST O ZRUŠENÍ');await expect(page.locator('[data-reservation-payment-detail]')).toBeHidden();await expect(page.locator('[data-reservation-payment-state]')).toContainText('Vše v pořádku');expectNoUnexpectedClientErrors(observations);
 });
 
 test('storage-restricted handoff survives login and reload through its URL fallback',async({page})=>{

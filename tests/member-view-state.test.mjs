@@ -64,14 +64,14 @@ test('overview: changed pending reservation and overpayment are explicit non-pay
   assert.equal(pending.target, 'reservation');
   const overpaid = deriveOverviewState({ reservation: { status: 'approved', payment: { status: 'overpaid', overpaymentCzk: 1800 } }, formatAmount: value => `${value} Kč` });
   assert.equal(overpaid.label, 'Registrace na sraz je schválená.');
-  assert.match(overpaid.copy, /PŘEPLATEK 1800 Kč/);
-  assert.match(overpaid.copy, /není potřeba nic platit/i);
+  assert.match(overpaid.copy, /Evidujeme přeplatek 1800 Kč/);
+  assert.doesNotMatch(overpaid.copy, /není potřeba nic platit/i);
 });
 
 test('overview: approved reservation with remaining payment is actionable', () => {
   const view = deriveOverviewState({ reservation: { status: 'approved', payment: { status: 'underpaid', remainingCzk: 3600 } }, formatAmount: value => `${value} Kč` });
   assert.equal(view.label, 'Registrace na sraz je schválená.');
-  assert.equal(view.copy, 'DOPLATEK 3600 Kč');
+  assert.equal(view.copy, 'Evidujeme nedoplatek 3600 Kč.');
   assert.equal(view.action, 'Otevřít platbu');
   assert.equal(view.target, 'payments');
 });

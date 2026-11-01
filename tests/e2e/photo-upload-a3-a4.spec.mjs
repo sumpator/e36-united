@@ -24,10 +24,10 @@ test('A3 member queue retains the confirmed photo at quota and retries only the 
   await page.setViewportSize({width:390,height:900});await page.goto('/member.html?section=photos');await page.locator('[data-member-photo-toggle]').click();
   for(const name of ['first.webp','second.webp'])await page.locator('[data-member-photo-input]').setInputFiles({name,mimeType:'image/webp',buffer:bytes});
   await expect(page.locator('[data-member-photo-previews] figure')).toHaveCount(2);await page.locator('[data-member-gallery-form] button[type=submit]').click();
-  await expect(page.locator('[data-upload-state=uploaded]')).toHaveCount(1);await expect(page.locator('[data-upload-state=error]')).toHaveCount(1);await expect(page.locator('[data-upload-state=error]')).toContainText('limit');
+  await expect(page.locator('[data-member-photo-count]')).toContainText('uloženo: 1');await expect(page.locator('[data-upload-state=error]')).toHaveCount(1);await expect(page.locator('[data-upload-state=error]')).toContainText('limit');
   expect(calls).toHaveLength(2);const confirmed=r.db.prepare("SELECT id FROM gallery_submissions WHERE id NOT IN ('g') AND id NOT LIKE 'seed-%'").get().id;expect(r.db.prepare("SELECT COUNT(*) n FROM gallery_submissions WHERE member_id='m' AND created_at>=datetime('now','-1 day')").get().n).toBe(24);
   r.db.prepare("UPDATE gallery_submissions SET created_at=datetime('now','-2 days') WHERE id=?").run(ids[0]);
-  await page.locator('[data-member-gallery-form] button[type=submit]').click();await expect(page.locator('[data-upload-state=uploaded]')).toHaveCount(2);expect(calls).toHaveLength(3);expect(calls[2]).toBe(calls[1]);
+  await page.locator('[data-member-gallery-form] button[type=submit]').click();await expect(page.locator('[data-member-photo-count]')).toContainText('uloženo: 2');expect(calls).toHaveLength(3);expect(calls[2]).toBe(calls[1]);
   expect(r.db.prepare('SELECT COUNT(*) n FROM gallery_submissions WHERE id=?').get(confirmed).n).toBe(1);expect(r.db.prepare("SELECT COUNT(*) n FROM member_gallery_upload_attempts WHERE state='committed'").get().n).toBe(2);expect(objects.size).toBe(25);
   const expectedQuotaErrors=observations.consoleErrors.filter(error=>error.url==='https://api.e36united.cz/api/gallery/submissions'&&/Failed to load resource.*429 \(Too Many Requests\)/.test(error.text));
   expect(expectedQuotaErrors).toHaveLength(1);

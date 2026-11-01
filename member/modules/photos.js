@@ -78,12 +78,12 @@ export function createMemberPhotos({apiRequest,apiRequestForm,apiRequestBlob,get
 
   function renderMemberPhotoSelection(){
     const panel=$('[data-member-photo-selection]'),count=$('[data-member-photo-count]'),names=$('[data-member-photo-names]');if(!panel||!count||!names)return;
-    panel.hidden=!photoBatch.items.length;renderPhotoBatch($('[data-member-photo-previews]'),photoBatch);
-    for(const row of panel.querySelectorAll('[data-upload-state=uploaded]')){const remove=row.querySelector('button');if(remove){remove.textContent='Skrýt potvrzení';remove.setAttribute('aria-label','Skrýt potvrzení nahrání — uložená fotografie zůstane zachovaná')}}
+    panel.hidden=!photoBatch.items.length;renderPhotoBatch($('[data-member-photo-previews]'),{items:photoBatch.items.filter(item=>item.status!=='uploaded'),busy:photoBatch.busy,remove:id=>photoBatch.remove(id)});
+
     const saved=photoBatch.items.filter(item=>item.status==='uploaded').length;
     count.textContent=`Výběr: ${photoBatch.items.length} · uloženo: ${saved}`;names.textContent=photoBatch.pending?'Odesílají se jen dosud neuložené fotografie.':'Všechny fotografie jsou uložené. Stav schválení najdeš v přehledu.';
     if(memberPhotoInput)memberPhotoInput.disabled=photoBatch.busy;
-    if($('[data-member-photo-clear]'))$('[data-member-photo-clear]').disabled=photoBatch.busy;
+    if($('[data-member-photo-clear]')){$('[data-member-photo-clear]').disabled=photoBatch.busy;$('[data-member-photo-clear]').hidden=!photoBatch.pending}panel.classList.toggle('is-completed',!photoBatch.pending);
   }
   function selectMemberPhotos(files){photoBatch.add(files);if(memberPhotoInput)memberPhotoInput.value=''}
   function clearMemberPhotoSelection(){if(!photoBatch.busy)photoBatch.clear()}

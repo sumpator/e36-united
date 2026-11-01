@@ -73,8 +73,14 @@ test('public Planner replaces legacy partial lodging with the whole crew before 
  await page.evaluate(()=>{const key='e36UnitedPublicPlanner:v1',draft=JSON.parse(localStorage.getItem(key));draft.crew=3;draft.accommodationUnits=1;draft.accommodationOptionId='cabin-standard';draft.partialAccommodation=true;localStorage.setItem(key,JSON.stringify(draft))});await page.reload();
  await expect(page.locator('[data-people]')).toHaveText('3');await expect(page.locator('[data-planner-price-preview]')).toContainText('3 osoby · 1× Chatka Standard');await expect(page.locator('.planner-price-estimate')).toContainText('2 910');
  await page.locator('[data-people-plus]').click();await page.locator('[data-people-plus]').click();await expect(page.locator('.planner-price-title')).toContainText('5 osob · 2× Chatka Standard');await expect(page.locator('.planner-price-estimate')).toContainText('5 650');await expect(page.locator('[data-planner-accommodation-availability]')).toContainText('není dostatek volné kapacity');await page.screenshot({path:info.outputPath('whole-crew-public.png')});
- await page.locator('[data-planner-mail]').click();await page.locator('[data-planner-login]').click();await expect(page).toHaveURL(/member.html\?mode=login/);
- const draft=await page.evaluate(()=>{const value=new URLSearchParams(location.hash.slice(1)).get('handoff');return JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(value.replace(/-/g,'+').replace(/_/g,'/')),c=>c.charCodeAt(0))))});expect(draft).toMatchObject({crew:5,accommodationUnits:5});
+ await page.locator('[data-planner-mail]').click();
+ // Capture before application scripts run; the account deliberately consumes
+ // the valid fragment into storage, so its live URL is not a durable assertion.
+ await page.addInitScript(()=>{if(location.pathname.endsWith('/member.html'))window.__incomingPlannerHandoff=location.hash});
+ await page.locator('[data-planner-login]').click();await expect(page).toHaveURL(/member.html\?mode=login/);
+ await expect.poll(()=>page.evaluate(()=>new URLSearchParams(location.hash.slice(1)).has('handoff'))).toBe(false);
+ const encoded=await page.evaluate(()=>window.__incomingPlannerHandoff),value=new URLSearchParams(encoded.slice(1)).get('handoff');expect(value).not.toBeNull();
+ const draft=JSON.parse(Buffer.from(value,'base64url').toString('utf8'));expect(draft).toMatchObject({crew:5,accommodationUnits:5});
  const login=page.locator('[data-auth-form=login]');await login.locator('[name=email]').fill('eva@example.test');await login.locator('[name=password]').fill('isolated-password');await login.locator('[type=submit]').click();const form=page.locator('[data-reservation-form]');await expect(form.locator('[name=crew]')).toHaveValue('5');await expect(form.locator('[name=accommodationUnits]')).toHaveValue('5');await expect(form.locator('[name=partialAccommodation]')).toHaveCount(0);expect(observations.reservationWrites).toEqual([]);expectNoUnexpectedClientErrors(observations);
 });
 

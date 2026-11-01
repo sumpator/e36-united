@@ -39,7 +39,7 @@ export function createMemberHistory({apiRequest,apiRequestForm,apiRequestBlob,ge
   }
   function renderHistory(){
     const grid=$('[data-history-grid]'),data=getData();if(!grid)return;const history=data.club?.history||[];
-    const completeButton=$('[data-history-complete]');if(completeButton){completeButton.disabled=!!data.club?.historyCompletedAt;completeButton.textContent=data.club?.historyCompletedAt?'Historie je zkontrolovaná ✓':'Dokončit kontrolu historie'}
+    const completeButton=$('[data-history-complete]');if(completeButton){completeButton.disabled=!!data.club?.historyCompletedAt;completeButton.textContent=data.club?.historyCompletedAt?'Minulé ročníky jsem prošel ✓':'Minulé ročníky jsem prošel'}
     grid.innerHTML=history.length?history.map(item=>{
       const status=item.attendance?.status||'not_claimed',approved=status==='approved',pending=status==='pending',rejected=status==='rejected',sns=item.showShine||{},primaryEvidence=approved?item.evidence?.[0]:null,tag=item.concluded?'button':'article';
       const snsState=sns.status==='pending'?'<span class="history-sns-state is-pending">S&amp;S ČEKÁ NA KONTROLU</span>':historyAccoladesMarkup(sns);

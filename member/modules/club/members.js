@@ -10,6 +10,26 @@ export function createClubMembers({ apiBaseUrl, apiRequest, apiRequestBlob, getD
   let listRestoreFocus = null;
   let directProfileHandled = false;
   let bound = false;
+  let members = null, seed = null, pagination = null, loading = false, listGeneration = 0;
+  const searchText=value=>String(value||'').normalize('NFD').replace(/\p{M}/gu,'').toLocaleLowerCase('cs-CZ');
+  const query=()=>searchText($('[data-club-member-search]')?.value).trim();
+  function syncSearchStatus(error=''){
+    const status=$('[data-club-search-status]');if(status)status.textContent=error|| (loading?'Načítám další členy…':'');
+    const retry=$('[data-club-search-retry]');if(retry)retry.hidden=!error;
+  }
+  async function loadRemaining(){
+    if(loading||!pagination?.hasMore)return;loading=true;const current=++listGeneration;syncSearchStatus();
+    try{
+      while(pagination?.hasMore){
+        const offset=pagination.nextOffset,result=await apiRequest(`/api/united-club/members?offset=${offset}&limit=24`);
+        if(current!==listGeneration)return;
+        if(!Array.isArray(result.members)||!result.pagination||result.pagination.nextOffset<=offset&&result.pagination.hasMore)throw Error('club_members_invalid');
+        members=[...new Map([...members,...result.members].map(member=>[member.profileRef,member])).values()];pagination=result.pagination;renderList();
+      }
+      syncSearchStatus();
+    }catch(error){if(current===listGeneration)syncSearchStatus('Seznam se nepodařilo načíst celý. Zkus to znovu.');}
+    finally{if(current===listGeneration){loading=false;if(!$('[data-club-search-retry]')?.hidden)return;syncSearchStatus()}}
+  }
 
   const profileViewer = createClubProfileViewer({ apiBaseUrl, apiRequest, apiRequestBlob, beforeOpen: () => openSection('club') });
 
@@ -48,9 +68,11 @@ export function createClubMembers({ apiBaseUrl, apiRequest, apiRequestBlob, getD
   function renderList() {
     const root = $('[data-club-members-list]'); if (!root) return;
     releaseListMedia();
-    const members = getData().club?.clubMembers?.members || []; root.innerHTML = '';
-    if (!members.length) root.innerHTML = '<article class="club-members-empty"><img alt="" src="united-logo-blue.svg"><div><b>Klubové profily se právě skládají.</b><p>Jakmile členové doplní své United profily, objeví se tady.</p></div></article>';
-    for (const member of members) {
+    const source=getData().club?.clubMembers;if(seed!==source){seed=source;members=source?.members||[];pagination=source?.pagination||null}
+    const term=query(),filtered=(members||[]).filter(member=>searchText([member.name,member.nickname,...(member.cars||[]).flatMap(car=>[car.model,car.body])].join(' ')).includes(term));root.innerHTML='';
+    if (term&&!filtered.length)root.innerHTML='<p class="club-members-empty" role="status">Žádný člen ani auto neodpovídá hledání.</p>';
+    if (!term&&!filtered.length) root.innerHTML = '<article class="club-members-empty"><img alt="" src="united-logo-blue.svg"><div><b>Klubové profily se právě skládají.</b><p>Jakmile členové doplní své United profily, objeví se tady.</p></div></article>';
+    for (const member of filtered) {
       const button = document.createElement('button'); button.className = 'club-member-card'; button.type = 'button';
       button.setAttribute('aria-label', `Otevřít klubový profil ${member.nickname || member.name}`);
       button.innerHTML = `<span class="club-member-photo${member.photoUrl ? '' : ' is-fallback'}"><img alt="" data-club-member-photo><i aria-hidden="true"><img alt="" src="${fallbackLogo}"></i></span><span class="club-member-copy"><small>UNITED OD ${esc(member.memberSince || '—')}</small><strong>${esc(member.nickname || member.name || 'United member')}</strong><span>${esc(member.attendanceCount || 0)}× UNITED</span></span><b aria-hidden="true">→</b>`;
@@ -64,13 +86,13 @@ export function createClubMembers({ apiBaseUrl, apiRequest, apiRequestBlob, getD
   function showMembers({ push = true, trigger = null } = {}) {
     const modal = $('[data-club-members-modal]'); if (!modal || !modal.hidden) return;
     listRestoreFocus = trigger || document.activeElement; modal.hidden = false; document.body.classList.add('club-members-open');
-    modal.querySelector('[data-club-members-close]')?.focus();
+    modal.querySelector('[data-club-members-close]')?.focus();void loadRemaining();
     if (push) { const url = new URL(window.location.href); url.searchParams.set('section', 'club'); url.searchParams.set('members', '1'); history.pushState({ ...(history.state || {}), clubMembers: true }, '', url); }
   }
 
   function hideMembers({ restore = true } = {}) {
     const modal = $('[data-club-members-modal]'); if (!modal || modal.hidden) return;
-    modal.hidden = true; document.body.classList.remove('club-members-open');
+    modal.hidden = true; document.body.classList.remove('club-members-open');listGeneration++;loading=false;
     if (restore && listRestoreFocus?.isConnected) listRestoreFocus.focus(); listRestoreFocus = null;
   }
 
@@ -84,12 +106,15 @@ export function createClubMembers({ apiBaseUrl, apiRequest, apiRequestBlob, getD
 
   function bind() {
     if (bound) return; bound = true; profileViewer.bind();
+    $('[data-club-member-search]')?.addEventListener('input',renderList);
+    $('[data-club-search-clear]')?.addEventListener('click',()=>{const input=$('[data-club-member-search]');input.value='';renderList();input.focus()});
+    $('[data-club-search-retry]')?.addEventListener('click',loadRemaining);
     $('[data-open-club-members]')?.addEventListener('click', event => showMembers({ trigger: event.currentTarget }));
     $('[data-club-members-modal]')?.addEventListener('click', event => { if (event.target.closest('[data-club-members-close]')) closeMembers(); });
     document.addEventListener('keydown', event => { if (event.key === 'Escape' && !$('[data-club-members-modal]')?.hidden && $('[data-club-profile-modal]')?.hidden) closeMembers(); });
     window.addEventListener('popstate', syncMembersHistory); syncMembersHistory();
   }
 
-  function reset() { directProfileHandled = false; releaseListMedia(); profileViewer.reset(); hideMembers({ restore: false }); }
+  function reset() { listGeneration++;members=null;seed=null;pagination=null;loading=false;const input=$('[data-club-member-search]');if(input)input.value='';syncSearchStatus();directProfileHandled = false; releaseListMedia(); profileViewer.reset(); hideMembers({ restore: false }); }
   return { bind, render: renderList, reset };
 }

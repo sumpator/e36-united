@@ -39,14 +39,14 @@ export function deriveOverviewState({ reservation = null, registrationOpen = fal
   const remaining = Number(payment?.remainingCzk || 0);
   const overpayment = Number(payment?.overpaymentCzk || 0);
   const approvedPayment = reservation.status === 'approved' && payment;
-  const paymentLabel = approvedPayment?.status === 'underpaid' ? `DOPLATEK ${formatAmount(remaining)}`
-    : approvedPayment?.status === 'unpaid' ? `K PLATBĚ ${formatAmount(remaining)}`
-      : approvedPayment?.status === 'overpaid' ? `PŘEPLATEK ${formatAmount(overpayment)}`
+  const paymentLabel = approvedPayment?.status === 'underpaid' ? `Evidujeme nedoplatek ${formatAmount(remaining)}.`
+    : approvedPayment?.status === 'unpaid' ? `K platbě ${formatAmount(remaining)}.`
+      : approvedPayment?.status === 'overpaid' ? `Evidujeme přeplatek ${formatAmount(overpayment)}.`
         : approvedPayment?.status === 'paid' ? 'ZAPLACENO' : '';
   return {
     active: true,
     label: reservation.status==='approved'?'Registrace na sraz je schválená.':labels[reservation.status] || 'AKTUÁLNÍ REGISTRACE',
-    copy: paymentLabel ? paymentLabel+(payment.status==='overpaid'?' · Není potřeba nic platit.':'') : (reservation.status==='approved'?'Platební stav zatím není dostupný.':copies[reservation.status] || ''),
+    copy: paymentLabel ? paymentLabel : (reservation.status==='approved'?'Platební stav zatím není dostupný.':copies[reservation.status] || ''),
     action: approvedPayment ? 'Otevřít platbu' : 'Otevřít registraci',
     target: approvedPayment ? 'payments' : 'reservation',
     openEditor: false,

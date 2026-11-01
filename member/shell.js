@@ -1,4 +1,4 @@
-import { deriveMemberHeroState } from '../member-portal-state.js?v=20261031-compose1';
+import { deriveMemberHeroState } from '../member-portal-state.js?v=20261101-detail1';
 import { initPortalNavigation } from '../portal-navigation.js?v=20260924-merch2';
 import { $, $$ } from './ui.js?v=20260924-merch2';
 import { accountAuthMode, memberSection, requestedMemberSection } from './deep-links.js?v=20261028-entry1';
@@ -85,7 +85,7 @@ export function createMemberShell({
     if(id!=='club'){url.searchParams.delete('profile');url.searchParams.delete('members');url.searchParams.delete('clubTab');if(['#points','#history','#achievements'].includes(url.hash))url.hash=''}
     const previousSection=currentSection,changed=currentSection!==id,wasInitialized=currentSection!==null;
     if(!fromHistory){if(changed&&wasInitialized)window.history.pushState(null,'',url);else window.history.replaceState(window.history.state,'',url)}
-    currentSection=id;document.body.dataset.memberSection=id;
+    currentSection=id;document.body.dataset.memberSection=id;document.querySelector('.member-agenda-head')?.classList.toggle('is-club-heading',id==='club');
     const titles={overview:'Přehled',reservation:'Rezervace na sraz & ubytování',live:'Program LIVE',garage:'Garáž',payments:'Platby',club:'United Club',photos:'Moje fotky',merch:'Moje objednávky',account:'Účet'};
     const greeting=$('[data-member-greeting]'),sectionTitle=$('[data-member-section-title]');
     $$('[data-agenda-action]').forEach(action=>action.hidden=action.dataset.agendaAction!==id);

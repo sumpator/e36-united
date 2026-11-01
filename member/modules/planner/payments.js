@@ -10,6 +10,13 @@ export function formatCzk(value){return czkFormatter.format(numericValue(value))
 function paymentLabel(status){return({unpaid:'K platbě',underpaid:'Doplatek',paid:'Zaplaceno',overpaid:'Přeplatek',not_required:'Bez platby'})[status]||'Platba'}
 function paymentTotals(payment){return `<dl class="payment-totals"><div><dt>Cena rezervace</dt><dd>${esc(formatCzk(payment.amountDueCzk))}</dd></div><div><dt>Již zaplaceno</dt><dd>${esc(formatCzk(payment.amountPaidCzk))}</dd></div><div><dt>Zbývá</dt><dd>${esc(formatCzk(payment.remainingCzk))}</dd></div></dl>`}
 
+export function reservationPriceBreakdown(reservation){
+  const payment=reservation?.payment,total=Number(payment?.amountDueCzk),admission=payment?.admissionCzk??reservation?.admissionCzk,snapshot=reservation?.accommodationSnapshot;
+  const lodging=snapshot?.totalCzk??(reservation?.sleep==='Bez ubytování'||reservation?.accommodation==='Bez ubytování'?0:null);
+  if(!Number.isFinite(total)||total<0||admission==null||lodging==null||Number(admission)<0||Number(lodging)<0||!Number.isFinite(Number(admission))||!Number.isFinite(Number(lodging))||Math.abs(Number(admission)+Number(lodging)-total)>.001)return '<p class="payment-breakdown-note">Přesný rozpis vstupného a ubytování není u této rezervace uložený. Celková cena zůstává beze změny.</p>';
+  return `<dl class="payment-price-breakdown"><div><dt>Vstupné</dt><dd>${esc(formatCzk(admission))}</dd></div><div><dt>Ubytování</dt><dd>${esc(formatCzk(lodging))}</dd></div><div><dt>Celková cena</dt><dd>${esc(formatCzk(total))}</dd></div></dl>`;
+}
+
 export function paymentQrSvg(spayd){
   if(!spayd)return '';
   try{const qr=qrcode(0,'M');qr.addData(spayd,'Byte');qr.make();return qr.createSvgTag({cellSize:4,margin:8,scalable:true})}
@@ -33,7 +40,7 @@ export function createReservationPayments(){
     const paymentTitle=payment.status==='overpaid'?`Přeplatek ${formatCzk(payment.overpaymentCzk)}`:payment.status==='underpaid'?`Doplatek ${formatCzk(payment.remainingCzk)}`:payment.status==='unpaid'?`K platbě ${formatCzk(payment.remainingCzk)}`:'Zaplaceno';
     const instructionRows=payment.configurationReady?`<div><dt>Příjemce</dt><dd>${esc(payment.recipientName)}</dd></div><div><dt>Účet</dt><dd>${esc(payment.accountDisplay)}</dd></div><div><dt>Variabilní symbol</dt><dd>${esc(payment.variableSymbol)}</dd></div><div><dt>Zpráva</dt><dd>${esc(payment.message)}</dd></div><div><dt>Splatnost</dt><dd>${esc(deadline)}</dd></div>`:'';
     const headline=settled?`${paymentLabel(payment.status)} ${formatCzk(payment.status==='overpaid'?payment.overpaymentCzk:payment.amountPaidCzk)}`:paymentTitle;
-    return `<article class="member-payment-card payment-status-${esc(payment.status)}">${payment.testMode?'<div class="payment-test-warning">TESTOVACÍ PLATBA – NEPLAŤTE</div>':''}<div class="payment-item-head"><h3>${esc(eventLabel)}</h3><span class="payment-status-pill">${esc(statusCopy)}</span></div><div class="member-payment-layout"><div class="member-payment-copy"><h4>${esc(headline)}</h4>${paymentTotals(payment)}${instructionRows?`<dl class="payment-instructions">${instructionRows}</dl>`:''}</div>${qr?`<div class="member-payment-qr"><div>${qr}</div><strong>Naskenuj v bankovní aplikaci</strong><small>QR obsahuje aktuální splatnou částku, stejný VS, zprávu a splatnost.</small></div>`:''}</div></article>`;
+    return `<article class="member-payment-card payment-status-${esc(payment.status)}">${payment.testMode?'<div class="payment-test-warning">TESTOVACÍ PLATBA – NEPLAŤTE</div>':''}<div class="payment-item-head"><h3>${esc(eventLabel)}</h3><span class="payment-status-pill">${esc(statusCopy)}</span></div><div class="member-payment-layout"><div class="member-payment-copy"><h4>${esc(headline)}</h4>${reservationPriceBreakdown(reservation)}${paymentTotals(payment)}${instructionRows?`<dl class="payment-instructions">${instructionRows}</dl>`:''}</div>${qr?`<div class="member-payment-qr"><div>${qr}</div><strong>Naskenuj v bankovní aplikaci</strong><small>QR obsahuje aktuální splatnou částku, stejný VS, zprávu a splatnost.</small></div>`:''}</div></article>`;
   }
   function renderReservationPayment(reservation){
     const detail=$('[data-reservation-payment-detail]'),paymentsList=$('[data-payments-list]');if(!paymentsList)return;

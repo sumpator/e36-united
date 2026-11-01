@@ -50,8 +50,8 @@ for(const width of [390,1440])test('member photo batch, partial failure and retr
  });
  await page.setViewportSize({width,height:900});await page.goto('/member.html?section=photos');await page.locator('[data-member-photo-toggle]').click();
  await page.locator('[data-member-photo-input]').setInputFiles(file('first.webp'));await page.locator('[data-member-photo-input]').setInputFiles(file('second.webp'));await expect(page.locator('[data-member-photo-previews] figure')).toHaveCount(2);
- await page.locator('[data-member-gallery-form] button[type=submit]').click();await expect(page.locator('[data-upload-state=error]')).toHaveCount(1);await expect(page.locator('[data-upload-state=uploaded]')).toHaveCount(1);
- await page.locator('[data-member-gallery-form] button[type=submit]').click();await expect(page.locator('[data-upload-state=uploaded]')).toHaveCount(2);expect(count).toBe(3);await expect(page.locator('[data-member-gallery-list] .member-gallery-item')).toHaveCount(2);
+ await page.locator('[data-member-gallery-form] button[type=submit]').click();await expect(page.locator('[data-upload-state=error]')).toHaveCount(1);await expect(page.locator('[data-member-photo-count]')).toContainText('uloženo: 1');
+ await page.locator('[data-member-gallery-form] button[type=submit]').click();await expect(page.locator('[data-member-photo-count]')).toContainText('uloženo: 2');expect(count).toBe(3);await expect(page.locator('[data-member-gallery-list] .member-gallery-item')).toHaveCount(2);
  for(const mode of ['light','dark']){await theme(page,mode);await shot(page,'member-photos-'+width+'-'+mode)}expect(o.pageErrors).toEqual([]);
 });
 

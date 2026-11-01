@@ -133,6 +133,7 @@ test('route classification covers every explicit protected Member contract and e
     ['POST', '/api/planner-handoffs/claim'],
     ['GET', '/api/navigation-state'],
     ['GET', '/api/united-club'],
+    ['GET', '/api/united-club/members'],
     ['GET', '/api/united-club/gallery-links'],
     ['GET', '/api/united-club/members/EU-OTHER'],
     ['GET', '/api/united-club/members/EU-OTHER/media/cars/photo-1'],

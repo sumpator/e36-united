@@ -2,7 +2,7 @@ import { accommodationVisualMarkup, bindAccommodationVisualFallbacks } from '../
 import { accommodationGalleryCue, accommodationPhotos, bindAccommodationGalleryTrigger } from '../../../accommodation-gallery.js?v=20260912-reservation-detail-ux-r1';
 import { MAX_RESERVATION_CREW, newerPlannerDraft, validatePlannerDraft, plannerBaseKey } from '../../../planner-state.js?v=20261025-flow1';
 import { $, esc, setButtonBusy, toast } from '../../ui.js?v=20260924-merch2';
-import { createReservationPayments, formatCzk } from './payments.js?v=20261031-pixel1';
+import { createReservationPayments, formatCzk } from './payments.js?v=20261101-detail1';
 import { normalizeAccommodationOption, normalizeReservation } from './reservation.js?v=20261030-refine1';
 import { isAuthorizationFailure } from '../../refresh.js?v=20260907-feedback';
 import { createMemberPlannerExperience } from './experience.js?v=20261031-crew1';
@@ -38,6 +38,7 @@ export function createMemberPlanner({
   let approvedCurrentOptionReleased=false;
   let bound=false;
   let preliminary=null,preliminaryEnabled=false,preliminaryAvailable=true,preliminaryApplied=false;
+  let reservationCarSaving=false,reservationCarGeneration=0;
   let editorDraft=null,draftTimer=0,draftGeneration=0,draftPending=null,draftWrite=null,draftState='',draftStoredLocally=false;
   const draftContext=()=>`${getCurrentUser()?.uid||''}|${reservationState.event?.id||''}`;
   const editorKey=()=>`${plannerHandoffPrefix}${draftContext()}`;
@@ -142,6 +143,7 @@ export function createMemberPlanner({
   function plannerEventMatches(draft){const event=reservationState.event;return !!draft&&!!event&&(draft.eventId?draft.eventId===event.id:draft.eventYear===event.year)}
 
   function reset(){
+    reservationCarGeneration++;reservationCarSaving=false;
     clearTimeout(draftTimer);++draftGeneration;draftPending=null;editorDraft=null;draftState='';
     if(changeModal&&!changeModal.hidden)closeChangePlanner({force:true,render:false});
     preliminary=null;preliminaryEnabled=false;preliminaryAvailable=true;preliminaryApplied=false;
@@ -190,12 +192,12 @@ export function createMemberPlanner({
   function summaryValue(primary,secondary=''){return `<span class="registration-summary-value"><b>${esc(primary)}</b>${secondary?`<span>${esc(secondary)}</span>`:''}</span>`}
   function peopleText(value){const count=Number(value||0);return `${count} ${count===1?'osoba':count>=2&&count<=4?'osoby':'osob'}`}
   function registrationCarAction(car){
-    const label=car?.nickname||car?.model||'S čím přijedeš?',action=car?'Vybrat auto':'+ Přidat auto';
-    return `<button class="member-summary-car-action${car?'':' is-empty'}" data-registration-car-action type="button"><span><small>AUTO</small><b>${esc(label)}</b></span><em>${action}</em></button>`;
+    const hasCars=getData().cars.length>0,label=car?.nickname||car?.model||'Auto vyberu později',action=car||hasCars?'Vybrat auto':'+ Přidat auto';
+    return `<button class="member-summary-car-action${car||hasCars?'':' is-empty'}" data-registration-car-action type="button"><span><small>AUTO</small><b>${esc(label)}</b></span><em>${action}</em></button>`;
   }
   function renderPreliminarySummary(){
     const summary=$('[data-reservation-summary]'),draft=draftApplicable(editorDraft)?editorDraft:!getData().reservation?activePlannerHandoff:null,p=draft?{...draft,carId:draft.editor?.carId}:preliminary?.status==='active'?preliminary.preferences:null;if(!summary)return;
-    if(!p){summary.innerHTML='<p>Vyber auto, pobyt a posádku v jednom Planneru.</p>';return}
+    if(!p){summary.innerHTML='<p>Pobyt a posádku připravíš v Planneru. Auto můžeš vybrat později.</p>';return}
     const car=getData().cars.find(item=>String(item.id)===String(p.carId)),crew=Number(p.crew||0),stay=staySummaryParts(p.arrival),without=p.arrival==='Jen na otočku'||p.accommodation==='Bez ubytování',option=without?null:reservationState.accommodationOptions.find(item=>item.id===p.accommodationOptionId),people=Number(p.accommodationUnits||0),estimate=option?.active&&people>0?priceAccommodation(option,people):null;
     const accommodationPrimary=without?'Bez ubytování':peopleText(people),accommodationSecondary=without?'':estimate?`${estimate.unitCount}× ${option.name}`:preliminaryAccommodationName(p);
     summary.innerHTML=`<div>${registrationCarAction(car)}</div><div><small>PŘÍJEZD A POBYT</small>${summaryValue(stay.primary,stay.secondary)}</div><div><small>POSÁDKA</small>${summaryValue(peopleText(crew))}</div><div><small>SHOW &amp; SHINE</small>${summaryValue(p.showShine||'—')}</div><div class="member-summary-accommodation"><small>UBYTOVÁNÍ</small>${summaryValue(accommodationPrimary,accommodationSecondary)}</div>`;
@@ -207,7 +209,7 @@ export function createMemberPlanner({
     if(without){container.innerHTML='<div class="reservation-preliminary-price-head"><span>UBYTOVÁNÍ A CENA</span><b>Bez ubytování</b><strong>Orientačně 0 Kč</strong></div>';return}
     if(!option||!option.active){container.innerHTML=`<div class="reservation-preliminary-price-head"><span>UBYTOVÁNÍ</span><b>${esc(preliminaryAccommodationName(p))}</b><strong>Cenu teď nelze určit</strong></div><p>Vybraná varianta už není v aktuální nabídce. Při úpravě zvol dostupnou možnost.</p>`;return}
     const photos=accommodationPhotos(option),rows=estimate?[[`${estimate.unitCount}× ${option.name} · ${estimate.nights} ${estimate.nights===1?'noc':'noci'}`,estimate.baseTotalCzk],['Poplatek za osoby',estimate.personTotalCzk],['Povlečení',estimate.beddingTotalCzk],[`Pobytová taxa · ${estimate.nights} ${estimate.nights===1?'noc':'noci'}`,estimate.cityTaxTotalCzk]].filter(([,value])=>value>0):[];
-    container.innerHTML=`<button class="accommodation-gallery-trigger" data-preliminary-accommodation-gallery type="button">${accommodationVisualMarkup(option,{apiBaseUrl,nights:estimate?.nights||reservationNights(p.arrival),className:'accommodation-visual--compact member-saved-accommodation-visual'})}${accommodationGalleryCue(photos.length)}</button><div class="reservation-preliminary-price-head"><span>UBYTOVÁNÍ A CENA</span><b>${esc(people)} ${people===1?'osoba':'osob'} · ${esc(estimate?.unitCount||0)}× ${esc(option.name)}</b><strong>${estimate?`Orientačně ${esc(formatCzk(estimate.totalCzk))}`:'Cena není dostupná'}</strong></div>${rows.length?`<details class="reservation-saved-price-details"><summary>Orientační rozpis ceny <span aria-hidden="true">＋</span></summary><div>${rows.map(([label,value])=>`<small><span>${esc(label)}</span><b>${esc(formatCzk(value))}</b></small>`).join('')}<strong><span>ORIENTAČNĚ CELKEM</span><b>${esc(formatCzk(estimate.totalCzk))}</b></strong></div></details>`:''}`;
+    container.innerHTML=`<button class="accommodation-gallery-trigger" data-preliminary-accommodation-gallery type="button">${accommodationVisualMarkup(option,{apiBaseUrl,nights:estimate?.nights||reservationNights(p.arrival),className:'accommodation-visual--compact member-saved-accommodation-visual'})}${accommodationGalleryCue(photos.length)}</button><div class="reservation-preliminary-price-head"><span>UBYTOVÁNÍ A CENA</span><b>${esc(peopleText(people))} · ${esc(estimate?.unitCount||0)}× ${esc(option.name)}</b><strong>${estimate?`Orientačně ${esc(formatCzk(estimate.totalCzk))}`:'Cena není dostupná'}</strong></div>${rows.length?`<details class="reservation-saved-price-details"><summary>Orientační rozpis ceny <span aria-hidden="true">＋</span></summary><div>${rows.map(([label,value])=>`<small><span>${esc(label)}</span><b>${esc(formatCzk(value))}</b></small>`).join('')}<strong><span>ORIENTAČNĚ CELKEM</span><b>${esc(formatCzk(estimate.totalCzk))}</b></strong></div></details>`:''}`;
     bindAccommodationVisualFallbacks(container);bindAccommodationGalleryTrigger($('[data-preliminary-accommodation-gallery]',container),option,{apiBaseUrl});
   }
   function renderPreliminary(){
@@ -248,13 +250,13 @@ export function createMemberPlanner({
   function ensureSelectedReservationCar(){
     const select=$('[data-car-select]');if(!select)return null;
     const data=getData();let car=data.cars.find(item=>String(item.id)===String(select.value));
-    if(!car){car=preferredReservationCar();if(car)select.value=String(car.id)}
+
     return car||null;
   }
   function renderCarSelect(){
     const select=$('[data-car-select]');if(!select)return;
     const data=getData(),selectedId=select.value,optional=!data.reservation&&!reservationState.registrationOpen;
-    select.innerHTML=`<option value="">${optional?'S čím přijedeš?':'Vyber auto z garáže'}</option>`+data.cars.map(c=>`<option value="${esc(c.id)}">${esc(c.nickname||c.model)} · ${esc(c.body)}</option>`).join('')+addCarOption;
+    select.innerHTML=`<option value="">${optional?'Auto vyberu později':'Vyber auto z garáže'}</option>`+data.cars.map(c=>`<option value="${esc(c.id)}">${esc(c.nickname||c.model)} · ${esc(c.body)}</option>`).join('')+addCarOption;
     const selected=data.cars.find(car=>String(car.id)===String(selectedId))||(!optional?preferredReservationCar():null);if(selected)select.value=String(selected.id);else select.value='';
     select.dataset.previousCar=select.value;if(data.cars.length)setReservationCarError(false);
     plannerExperience.sync();
@@ -537,8 +539,11 @@ export function createMemberPlanner({
     const elements=[$('.reservation-status-card'),$('.reservation-unified-card'),$('[data-reservation-card]'),$('[data-reservation-overview-card]'),$('.reservation-mini'),$('[data-reservation-nav-status]')].filter(Boolean);
     for(const element of elements){for(const value of [...Object.keys(reservationStatusNames),'preliminary','none'])element.classList.remove(`is-status-${value}`);element.classList.add(`is-status-${key}`)}
     const view=reservationStatusPresentation(getData().reservation,{plan:status==='preliminary',draft:Boolean(draftApplicable(editorDraft)||activePlannerHandoff),open:reservationState.registrationOpen||preliminaryEnabled});
-    const navStatus=$('[data-reservation-nav-status]');if(navStatus){navStatus.dataset.tone=view.tone;navStatus.title=view.label;navStatus.textContent=`${view.symbol} ${view.label}`;if(view.payment){const payment=document.createElement(view.payment==='Nedoplatek'?'a':'span');if(view.payment==='Nedoplatek'){payment.href='member.html?section=payments&payment=sraz';payment.dataset.tripPaymentLink=''}payment.dataset.tone=view.paymentTone;payment.textContent=`${view.paymentSymbol||'·'} ${view.payment}`;navStatus.append(payment)}}
-    const paymentState=$('[data-reservation-payment-state]');if(paymentState){paymentState.hidden=!view.payment;paymentState.replaceChildren();if(view.payment==='Nedoplatek'){const link=document.createElement('a');link.href='member.html?section=payments&payment=sraz';link.dataset.tripPaymentLink='';link.textContent=view.payment;paymentState.append(link)}else paymentState.textContent=view.payment;paymentState.dataset.tone=view.paymentTone||'neutral'}
+    const navStatus=$('[data-reservation-nav-status]');if(navStatus){navStatus.dataset.tone=view.tone;navStatus.title=view.label;navStatus.textContent=`${view.symbol} ${view.label}`;if(view.payment){const payment=document.createElement(view.payment==='Nedoplatek'?'a':'span');if(view.payment==='Nedoplatek'){payment.href='member.html?section=payments&payment=sraz';payment.dataset.tripPaymentLink=''}payment.dataset.tone=view.paymentTone;payment.textContent=view.payment;navStatus.append(payment)}}
+    const paymentState=$('[data-reservation-payment-state]');if(paymentState){
+      paymentState.hidden=!view.payment;paymentState.replaceChildren();const settled=['paid','not_required'].includes(getData().reservation?.payment?.status),label=view.payment==='Nedoplatek'?'Evidujeme nedoplatek':view.payment==='Přeplatek'?'Evidujeme přeplatek':settled&&['Zaplaceno','Bez platby'].includes(view.payment)?'Vše v pořádku':view.payment;
+      if(view.payment){const link=document.createElement('a');link.href='member.html?section=payments&payment=sraz';link.dataset.tripPaymentLink='';link.textContent=label;paymentState.append(link)}paymentState.dataset.tone=view.paymentTone||'neutral';
+    }
   }
   function reservationDescription(reservation){
     if(!reservation)return reservationState.message||(reservationState.registrationOpen?'':'');
@@ -586,7 +591,7 @@ export function createMemberPlanner({
     ].filter(([,value])=>value>0);
     const liveOption=reservationState.accommodationOptions.find(option=>option.id===snapshot.optionId),mediaOption={...snapshot,...liveOption,id:snapshot.optionId,name:snapshot.optionName,visual:liveOption?.visual||snapshot.visual,photos:liveOption?.photos||[]},photos=accommodationPhotos(mediaOption);
     container.hidden=false;
-    container.innerHTML=`<button class="accommodation-gallery-trigger" data-member-accommodation-gallery type="button">${accommodationVisualMarkup(mediaOption,{apiBaseUrl,nights:snapshot.nights,className:'accommodation-visual--compact member-saved-accommodation-visual'})}${accommodationGalleryCue(photos.length)}</button><div class="reservation-saved-price-head"><span>UBYTOVÁNÍ A CENA</span><b>${esc(snapshot.peopleCount)} ${snapshot.peopleCount===1?'osoba':'osob'} · ${esc(snapshot.unitCount)}× ${esc(snapshot.optionName)}</b><strong>${esc(formatCzk(snapshot.totalCzk))}</strong></div><details class="reservation-saved-price-details"><summary>Rozpis ceny <span aria-hidden="true">＋</span></summary><div>${rows.map(([label,value])=>`<small><span>${esc(label)}</span><b>${esc(formatCzk(value))}</b></small>`).join('')}<strong><span>CELKEM</span><b>${esc(formatCzk(snapshot.totalCzk))}</b></strong></div></details>`;bindAccommodationVisualFallbacks(container);bindAccommodationGalleryTrigger($('[data-member-accommodation-gallery]',container),mediaOption,{apiBaseUrl});
+    container.innerHTML=`<button class="accommodation-gallery-trigger" data-member-accommodation-gallery type="button">${accommodationVisualMarkup(mediaOption,{apiBaseUrl,nights:snapshot.nights,className:'accommodation-visual--compact member-saved-accommodation-visual'})}${accommodationGalleryCue(photos.length)}</button><div class="reservation-saved-price-head"><span>UBYTOVÁNÍ A CENA</span><b>${esc(peopleText(snapshot.peopleCount))} · ${esc(snapshot.unitCount)}× ${esc(snapshot.optionName)}</b><strong>${esc(formatCzk(snapshot.totalCzk))}</strong></div><details class="reservation-saved-price-details"><summary>Rozpis ceny <span aria-hidden="true">＋</span></summary><div>${rows.map(([label,value])=>`<small><span>${esc(label)}</span><b>${esc(formatCzk(value))}</b></small>`).join('')}<strong><span>CELKEM</span><b>${esc(formatCzk(snapshot.totalCzk))}</b></strong></div></details>`;bindAccommodationVisualFallbacks(container);bindAccommodationGalleryTrigger($('[data-member-accommodation-gallery]',container),mediaOption,{apiBaseUrl});
   }
   function requestValue(value){return value==null||value===''?'—':String(value)}
   function renderReservationRequest(reservation){
@@ -614,7 +619,8 @@ export function createMemberPlanner({
   function renderReservationCarChoice(reservation){
     const wrap=reservationCarChoiceRoot,select=wrap?.querySelector('[data-reservation-car-select]'),formCar=$('[data-reservation-form-car]');if(formCar)formCar.hidden=!!reservation;if(!wrap||!select)return;
     const data=getData(),available=reservation&&['pending','approved'].includes(reservation.status);wrap.hidden=!available;if(!available)return;
-    select.innerHTML='<option value="">Vyber auto</option>'+data.cars.map(car=>`<option value="${esc(car.id)}">${esc(car.nickname||car.model||'BMW E36')} · ${esc(car.body||'')}</option>`).join('')+addCarOption;select.value=reservation.carId||data.cars[0]?.id||'';select.dataset.previousCar=select.value;
+    select.disabled=reservationCarSaving;const save=wrap.querySelector('[data-reservation-car-save]');if(save)save.disabled=reservationCarSaving;
+    select.innerHTML='<option value="">Vyber auto</option>'+data.cars.map(car=>`<option value="${esc(car.id)}">${esc(car.nickname||car.model||'BMW E36')} · ${esc(car.body||'')}</option>`).join('')+addCarOption;select.value=reservation.carId||'';select.dataset.previousCar=select.value;
   }
   function openReservationPayments(){const url=new URL(location.href);url.searchParams.set('payment','sraz');history.replaceState(history.state,'',url);openSection('payments')}
   function renderReservation(){
@@ -663,7 +669,7 @@ export function createMemberPlanner({
     setReservationFormStatus();
     if(!reservationState.registrationOpen&&data.reservation?.status!=='approved'&&!preliminaryMode()){const message='Registraci si můžeš připravit. Odeslat ji půjde po otevření registrací.';setReservationFormStatus('error',message);return toast(message)}
     syncMemberSleep();const savingPlan=preliminaryMode(),car=savingPlan?data.cars.find(item=>String(item.id)===String(reservationForm.elements.carId?.value))||null:ensureSelectedReservationCar();
-    if(!savingPlan&&(!data.cars.length||!car)){const message='Nejdřív přidej auto do garáže.';setReservationCarError(true);setReservationFormStatus('error',message);toast(message);return}
+    if(!savingPlan&&(!data.cars.length||!car)){const message=data.cars.length?'Vyber skutečné auto z garáže.':'Nejdřív přidej auto do garáže.';setReservationCarError(true);setReservationFormStatus('error',message);toast(message);return}
     setReservationCarError(false);const fd=new FormData(event.currentTarget);
     const crew=Number(fd.get('crew'));
     if(!Number.isInteger(crew)||crew<1||crew>MAX_RESERVATION_CREW){const message=`Posádka musí mít 1 až ${MAX_RESERVATION_CREW} osob.`;setReservationFormStatus('error',message);toast(message);crewInput?.focus();return}
@@ -702,9 +708,14 @@ export function createMemberPlanner({
     catch(error){const message=formatApiError(error);console.error('Cancellation request failed',error);setReservationFormStatus('error',message);toast(message)}finally{setButtonBusy(button,false)}
   }
   async function saveReservationCar(){
-    const data=getData(),select=$('[data-reservation-car-select]'),button=$('[data-reservation-car-save]'),car=data.cars.find(item=>String(item.id)===String(select?.value));if(!data.reservation||!car)return;
-    setButtonBusy(button,true,'Ukládám…');try{await apiRequest(`/api/reservations/${encodeURIComponent(data.reservation.id)}/car`,{method:'PATCH',body:{carId:car.id}});setReservation(normalizeReservation({...data.reservation,carId:car.id,carSnapshot:car}));renderReservation();toast('Auto registrace bylo změněno.')}
-    catch(error){console.error('Reservation car update failed',error);toast(formatApiError(error))}finally{setButtonBusy(button,false)}
+    const data=getData(),select=reservationCarChoiceRoot?.querySelector('[data-reservation-car-select]'),button=reservationCarChoiceRoot?.querySelector('[data-reservation-car-save]'),car=data.cars.find(item=>String(item.id)===String(select?.value));if(!data.reservation||reservationCarSaving)return;
+    const error=reservationCarChoiceRoot.querySelector('[data-reservation-car-choice-error]');
+    if(!car){select?.setAttribute('aria-invalid','true');if(error){error.textContent='Vyber skutečné auto z garáže.';error.hidden=false}select?.focus();return}
+    select.removeAttribute('aria-invalid');if(error)error.hidden=true;reservationCarSaving=true;select.disabled=true;
+    const actor=getCurrentUser()?.uid,reservationId=data.reservation.id,generation=++reservationCarGeneration;
+    const isCurrent=()=>generation===reservationCarGeneration&&actor===getCurrentUser()?.uid&&getData().reservation?.id===reservationId;
+    setButtonBusy(button,true,'Ukládám…');try{await apiRequest(`/api/reservations/${encodeURIComponent(reservationId)}/car`,{method:'PATCH',body:{carId:car.id}});if(!isCurrent())return;setReservation(normalizeReservation({...data.reservation,carId:car.id,carSnapshot:car}));renderReservation();toast('Auto registrace bylo změněno.')}
+    catch(error){if(!isCurrent())return;console.error('Reservation car update failed',error);toast(formatApiError(error))}finally{if(generation===reservationCarGeneration){reservationCarSaving=false;select.disabled=false;setButtonBusy(button,false)}}
   }
 
   async function applyPlannerDraft(serverResult={available:false,draft:null},{isCurrent=()=>true}={}){
@@ -779,7 +790,7 @@ export function createMemberPlanner({
     sleepSelect?.addEventListener('change',()=>{const current=currentApprovedAccommodationOption();if(approvedChangeMode&&current&&memberAccommodationKind()!==current.kind)approvedCurrentOptionReleased=true;syncMemberSleep('accommodation')});
     accommodationOptionSelect?.addEventListener('change',()=>{const current=currentApprovedAccommodationOption();if(approvedChangeMode&&current&&accommodationOptionSelect.value!==current.id){approvedCurrentOptionReleased=true;renderAccommodationOptionChoices(accommodationOptionSelect.value)}syncMemberSleep('option')});
     syncMemberSleep();
-    const selectCar=(select,context)=>{if(select.value==='__add_car__'){select.value=select.dataset.previousCar||'';window.dispatchEvent(new CustomEvent('member:add-car',{detail:{select,context}}));return}select.dataset.previousCar=select.value;if(context==='planner'&&(plannerModalMode==='plan'||ensureSelectedReservationCar()))setReservationCarError(false)};
+    const selectCar=(select,context)=>{if(select.value==='__add_car__'){select.value=select.dataset.previousCar||'';window.dispatchEvent(new CustomEvent('member:add-car',{detail:{select,context}}));return}select.dataset.previousCar=select.value;if(context==='reservation'){select.removeAttribute('aria-invalid');const error=reservationCarChoiceRoot?.querySelector('[data-reservation-car-choice-error]');if(error)error.hidden=true;const button=reservationCarChoiceRoot?.querySelector('[data-reservation-car-save]');if(button&&!reservationCarSaving)button.disabled=false}if(context==='planner'&&(plannerModalMode==='plan'||ensureSelectedReservationCar()))setReservationCarError(false)};
     reservationForm?.elements?.carId?.addEventListener('change',event=>selectCar(event.currentTarget,'planner'));
     reservationCarChoiceRoot?.querySelector('[data-reservation-car-select]')?.addEventListener('change',event=>selectCar(event.currentTarget,'reservation'));
     $('[data-planner-handoff-use]')?.addEventListener('click',event=>{if(preliminary?.status==='active'&&!getData().reservation){openPlanPlanner(event.currentTarget,{useHandoff:true});toast('Nový výběr je načtený. Předběžná registrace se změní až po výslovném uložení.');return}applyPlannerHandoffToForm();if(!getData().reservation)openPlanPlanner(event.currentTarget);toast('Nový výběr je připravený ve Weekend Planneru. Zkontroluj ho a výslovně odešli.')});

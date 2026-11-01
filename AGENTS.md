@@ -1,0 +1,10 @@
+# E36 UNITED
+
+- Preserve unrelated local reports, audits and diagnostics. Stage publication files explicitly; never use `git add .` or hide unrelated work to obtain a clean status.
+- Assess verification by actual behavior, not file extension. For visual/text changes inspect representative mobile/desktop screenshots in both themes and run syntax/diff checks. Do not repeat complete suites after each cosmetic adjustment.
+- For functional changes first run relevant isolated regressions through actual handlers where data/permissions matter. Preserve negative, privacy and financial assertions. No force clicks, fixed sleeps, increased timeouts, automatic retries or weakened expectations.
+- Group related changes into one batch. Re-run broad local suites only when a concrete shared change invalidates prior results. Distinguish full runs from subsequent targeted runs.
+- CI runs Node/syntax and the existing Chromium/WebKit/Firefox selections. Browser jobs run concurrently. Default impact is functional. A deliberately reviewed cosmetic commit may opt out of browser jobs using the exact commit trailer `CI-Impact: cosmetic`; this declaration must reflect actual impact. Eligible changes are CSS/images/docs and HTML copy whose markup, attributes, comments and script/style blocks remain unchanged. JavaScript, tests, configuration, workflow, HTML structure/behavior and unknown paths require browser jobs. Never use this declaration for functional behavior or merely because a file is CSS or HTML. Every commit in a multi-commit push must carry the declaration.
+- Do not rerun historical CI hoping for a pass. Diagnose the available trace/log first. Report actual failed/skipped counts and Pages separately.
+- Use existing cache URL conventions and one URL version for each module within a page's graph. Do not alter unrelated dependency tokens.
+- Keep transport disabled and Merch paused unless the current request explicitly authorizes activation. Use isolated test data; no production orders, payments, reservations, uploads or email for verification.

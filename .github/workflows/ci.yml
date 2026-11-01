@@ -8,20 +8,40 @@ permissions:
   contents: read
 
 jobs:
+  impact:
+    runs-on: ubuntu-latest
+    outputs:
+      browser: ${{ steps.impact.outputs.browser }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - name: Determine reviewed change impact
+        id: impact
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        shell: bash
+        run: |
+          if [ -z "$BASE" ] || [[ "$BASE" =~ ^0+$ ]]; then BASE=$(git rev-parse "$HEAD^"); fi
+          node scripts/ci-impact.mjs "$BASE" "$HEAD"
+
   verify:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
         uses: actions/checkout@v7
-
       - name: Set up Node.js
         uses: actions/setup-node@v7
         with:
           node-version: 24
-
       - name: Run test suite
         run: node --test tests/*.mjs
-
       - name: Check first-party JavaScript syntax
         shell: bash
         run: |
@@ -29,66 +49,58 @@ jobs:
             node --check "$file"
           done
 
+  browser:
+    name: Browser (${{ matrix.browser }})
+    needs: impact
+    if: needs.impact.outputs.browser == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, webkit, firefox]
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
       - name: Enable pnpm
         run: corepack enable
-
       - name: Install browser test dependencies
         run: pnpm install --frozen-lockfile
-
-      - name: Install required browser runtimes
-        id: browser_setup
-        run: pnpm exec playwright install --with-deps chromium webkit firefox
-
-      - name: Run browser E2E suite
-        id: chromium
-        if: ${{ !cancelled() && steps.browser_setup.outcome == 'success' }}
+      - name: Install required browser runtime
+        run: pnpm exec playwright install --with-deps ${{ matrix.browser }}
+      - name: Run browser selection
+        id: tests
         env:
-          PLAYWRIGHT_HTML_OUTPUT_DIR: playwright-report/chromium-${{ github.run_attempt }}
-        run: pnpm test:e2e --project=chromium --output=test-results/chromium-${{ github.run_attempt }}
-
-      - name: Preserve Chromium failure diagnostics
-        if: ${{ failure() && steps.chromium.outcome == 'failure' }}
+          PLAYWRIGHT_HTML_OUTPUT_DIR: playwright-report/${{ matrix.browser }}-${{ github.run_attempt }}
+        run: pnpm test:e2e --project=${{ matrix.browser }} --output=test-results/${{ matrix.browser }}-${{ github.run_attempt }}
+      - name: Preserve browser failure diagnostics
+        if: ${{ failure() && steps.tests.outcome == 'failure' }}
         uses: actions/upload-artifact@v7
         with:
-          name: browser-chromium-${{ github.run_id }}-${{ github.run_attempt }}
+          name: browser-${{ matrix.browser }}-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
-            test-results/chromium-${{ github.run_attempt }}/
-            playwright-report/chromium-${{ github.run_attempt }}/
+            test-results/${{ matrix.browser }}-${{ github.run_attempt }}/
+            playwright-report/${{ matrix.browser }}-${{ github.run_attempt }}/
           retention-days: 5
           if-no-files-found: warn
 
-      - name: Run focused WebKit reliability suite
-        id: webkit
-        if: ${{ !cancelled() && steps.browser_setup.outcome == 'success' }}
+  result:
+    name: CI result
+    if: always()
+    needs: [impact, verify, browser]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require all applicable checks
         env:
-          PLAYWRIGHT_HTML_OUTPUT_DIR: playwright-report/webkit-${{ github.run_attempt }}
-        run: pnpm test:e2e --project=webkit --output=test-results/webkit-${{ github.run_attempt }}
-
-      - name: Preserve WebKit failure diagnostics
-        if: ${{ failure() && steps.webkit.outcome == 'failure' }}
-        uses: actions/upload-artifact@v7
-        with:
-          name: browser-webkit-${{ github.run_id }}-${{ github.run_attempt }}
-          path: |
-            test-results/webkit-${{ github.run_attempt }}/
-            playwright-report/webkit-${{ github.run_attempt }}/
-          retention-days: 5
-          if-no-files-found: warn
-
-      - name: Run focused Firefox journey suite
-        id: firefox
-        if: ${{ !cancelled() && steps.browser_setup.outcome == 'success' }}
-        env:
-          PLAYWRIGHT_HTML_OUTPUT_DIR: playwright-report/firefox-${{ github.run_attempt }}
-        run: pnpm test:e2e --project=firefox --output=test-results/firefox-${{ github.run_attempt }}
-
-      - name: Preserve Firefox failure diagnostics
-        if: ${{ failure() && steps.firefox.outcome == 'failure' }}
-        uses: actions/upload-artifact@v7
-        with:
-          name: browser-firefox-${{ github.run_id }}-${{ github.run_attempt }}
-          path: |
-            test-results/firefox-${{ github.run_attempt }}/
-            playwright-report/firefox-${{ github.run_attempt }}/
-          retention-days: 5
-          if-no-files-found: warn
+          IMPACT: ${{ needs.impact.result }}
+          VERIFY: ${{ needs.verify.result }}
+          BROWSER_REQUIRED: ${{ needs.impact.outputs.browser }}
+          BROWSER: ${{ needs.browser.result }}
+        shell: bash
+        run: |
+          test "$IMPACT" = success
+          test "$VERIFY" = success
+          if [ "$BROWSER_REQUIRED" = true ]; then test "$BROWSER" = success; else test "$BROWSER" = skipped; fi
