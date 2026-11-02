@@ -15,13 +15,11 @@ html.admin-member-modal-open{overflow:hidden;scrollbar-gutter:stable}
 .admin-page .admin-member-dialog[open]{display:flex;flex-direction:column}
 .admin-member-dialog::backdrop,.admin-member-image-dialog::backdrop{background:#030b14c9}
 .admin-page .admin-member-dialog>header{position:relative;isolation:isolate;display:grid;grid-template-columns:minmax(0,1fr) auto;align-content:center;min-height:clamp(180px,24dvh,220px);box-sizing:border-box;gap:8px 20px;flex:none;padding:20px 24px 12px;border-bottom:1px solid var(--appearance-border,#294258);background:repeating-linear-gradient(0deg,transparent 0 31px,var(--appearance-selected,#568bb60c) 31px 32px),repeating-linear-gradient(90deg,transparent 0 31px,var(--appearance-selected,#568bb60c) 31px 32px),linear-gradient(115deg,var(--appearance-subtle,#16374e),var(--appearance-surface,#0a1826) 65%,var(--appearance-subtle,#14324a))}
-.admin-member-dialog [data-member-hero]::before{content:'E36 / UNITED';position:absolute;right:6%;top:28%;color:var(--appearance-action,#6abcf322);font-size:clamp(28px,4vw,56px);font-weight:800;font-style:italic;letter-spacing:4px;pointer-events:none;z-index:-1}
 .admin-member-dialog [data-member-hero-media]{position:absolute;inset:0;z-index:-1;pointer-events:none;border-radius:inherit}
 .admin-member-dialog [data-member-hero-media] img{width:100%;height:100%;object-fit:cover;object-position:center 55%;border-radius:inherit}
 .admin-member-dialog [data-member-hero-media] img[hidden]{display:none}
 .admin-member-dialog [data-member-hero-media]::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,var(--appearance-glass,#061421f5) 0%,var(--appearance-glass,#071625eb) 30%,var(--appearance-glass,#08192680) 65%,var(--appearance-glass,#08192638)),linear-gradient(0deg,var(--appearance-glass,#071625aa),transparent 65%);border-radius:inherit}
 .admin-member-dialog [data-member-hero]:not(.has-photo) [data-member-hero-media]{visibility:hidden}
-.admin-member-dialog [data-member-hero].has-photo::before{content:none}
 .admin-member-dialog [data-member-identity] .admin-member-hero-car{display:inline-block;margin:9px 0 0;padding:3px 8px;border-left:2px solid var(--appearance-action,#36b4f6);background:var(--appearance-glass,#071725b8);border-radius:0 4px 4px 0;color:var(--appearance-ink,#d1e7f5);font-size:13px;line-height:1.4}
 .admin-member-hero-car>span{color:var(--appearance-action,#8eb3cd);margin-right:6px}
 .admin-member-dialog [data-member-close]{align-self:start}
