@@ -55,9 +55,9 @@ test('mailing uploads a real JPEG, keeps draft on error, retries, and removal re
 test('public navigation hover changes text only and preserves account CTA in both themes and widths',async({page})=>{
  const o=await prepareE2ePage(page);await page.goto('/index.html');
  for(const width of [1440,390])for(const mode of ['light','dark']){
-  await page.setViewportSize({width,height:844});await theme(page,mode);const mobile=width===390;
+  await page.setViewportSize({width,height:844});await page.mouse.move(0,0);await theme(page,mode);const mobile=width===390;
   if(mobile)await page.locator('.menu-btn').click();const root=page.locator(mobile?'.united-mobile-menu':'.site-header .nav-links'),link=root.locator('a[href*="#planer"]');
-  const regular=await link.evaluate(n=>({color:getComputedStyle(n).color,bg:getComputedStyle(n).backgroundColor,transform:getComputedStyle(n).transform}));expect(regular.bg).toBe('rgba(0, 0, 0, 0)');await link.hover();await expect(link).toHaveCSS('background-color','rgba(0, 0, 0, 0)');await expect(link).toHaveCSS('transform','none');await expect.poll(()=>link.evaluate(n=>getComputedStyle(n).color)).not.toBe(regular.color);await link.focus();await expect(link).toBeFocused();await expect(page.locator(mobile?'.site-header .mobile-auth-link':'.site-header .nav-links .nav-member')).not.toHaveCSS('background-color','rgba(0, 0, 0, 0)');
+  const restingColor=mode==='light'?'rgb(121, 83, 0)':'rgb(231, 198, 122)';await expect(link).toHaveCSS('color',restingColor);await expect(link).toHaveCSS('background-color','rgba(0, 0, 0, 0)');await link.hover();await expect(link).toHaveCSS('background-color','rgba(0, 0, 0, 0)');await expect(link).toHaveCSS('transform','none');await expect.poll(()=>link.evaluate(n=>getComputedStyle(n).color)).not.toBe(restingColor);await link.focus();await expect(link).toBeFocused();await expect(page.locator(mobile?'.site-header .mobile-auth-link':'.site-header .nav-links .nav-member')).not.toHaveCSS('background-color','rgba(0, 0, 0, 0)');
   if(mobile){await page.keyboard.press('Escape');await expect(root).toBeHidden()}
  }
  expectNoUnexpectedClientErrors(o);

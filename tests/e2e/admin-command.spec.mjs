@@ -246,23 +246,23 @@ test('NEW latest reservation opens the canonical selected-car detail and reads Q
  const photo=drawer.locator('[data-reservation-car-photo]');await photo.scrollIntoViewIfNeeded();await expect.poll(()=>photo.evaluate(n=>n.complete&&n.naturalWidth>0)).toBe(true);
  expect(c.calls.some(p=>p.endsWith('/media/cars/c2/selected'))).toBe(true);expect(c.calls.some(p=>p.endsWith('/media/cars/c/p'))).toBe(false);
  await drawer.evaluate(n=>n.querySelector('.admin-reservation-drawer-panel').scrollTo(0,0));await page.screenshot({path:info.outputPath('NEW-reservation.png')});
- await drawer.locator('[data-member-qr-open]').click();await expect(page.locator('[data-member-tab="qr"]')).toHaveAttribute('aria-selected','true');await expect(page.locator('[data-member-tab-content]')).toContainText('Tento pohled je nevytváří');
+ await drawer.locator('[data-member-qr-open]').click();await expect(page.locator('[data-member-tab="overview"]')).toHaveAttribute('aria-selected','true');await expect(page.locator('[data-member-tab-content]')).toContainText('Tento pohled je nevytváří');
  await page.goBack();await expect(drawer).toBeVisible();await page.keyboard.press('Escape');await expect(drawer).toBeHidden();await expect(page).not.toHaveURL(/reservation=/);
  expect(c.r.db.prepare('SELECT COUNT(*) n FROM member_qr_identities').get().n).toBe(0);expect(c.writes).toEqual([]);expect(c.r.writes).toBe(0);clean(c);c.r.db.close();
 });
 test('NEW shared summary stays due over Member, with at most three periodic resources and idle hidden/offline',async({page})=>{
- await page.clock.install();const c=await commandFixture(page);await open(page);await page.locator('[data-widget="recent"] [data-member-open="m"]').click();await page.locator('[data-member-tab="garage"]').click();await expect(page.locator('[data-member-tab-content]')).toContainText('BMW');
+ await page.clock.install();const c=await commandFixture(page);await open(page);await page.locator('[data-widget="recent"] [data-member-open="m"]').click();await page.locator('[data-member-tab="media"]').click();await expect(page.locator('[data-member-tab-content]')).toContainText('BMW');
  await expect(page.locator('[data-member-freshness]')).toContainText('Sekce: načteno');
  // Complete the explicit visible media read before advancing 61s of synthetic time;
  // otherwise the unchanged 20s API timeout can race its still-delivering response.
- const image=page.locator('[data-member-media]').first();await image.scrollIntoViewIfNeeded();
+ const image=page.locator('[data-member-content=garage] [data-member-media]');await image.scrollIntoViewIfNeeded();
  await expect.poll(()=>image.evaluate(n=>n.complete&&n.naturalWidth>0)).toBe(true);
  await expect(page.locator('[data-member-hero-image]')).toBeVisible();
- expect(c.calls.filter(p=>p.includes('/media/'))).toEqual(Array(2).fill('GET /api/admin/members/m/media/cars/c/p'));const start=c.calls.length; // One hero + existing explicit Garage image.
- for(let i=0;i<5;i++){const before=c.calls.length;await page.clock.runFor(61000);await expect.poll(()=>c.calls.length).toBeGreaterThan(before);await expect(page.locator('[data-admin-freshness]')).toHaveAttribute('data-state','fresh');}
+ const gallery=page.locator('[data-member-content=photos] [data-member-media]');await expect.poll(()=>gallery.evaluate(n=>n.complete&&n.naturalWidth>0)).toBe(true);expect(c.calls.filter(p=>p.includes('/media/')).sort()).toEqual(['GET /api/admin/members/m/media/cars/c/p','GET /api/admin/members/m/media/cars/c/p','GET /api/admin/members/m/media/photos/g']);const start=c.calls.length; // Hero, explicit Garage image and simultaneously visible gallery photo.
+ for(let i=0;i<5;i++){const before=c.calls.length;await page.clock.runFor(61000);await expect.poll(()=>c.calls.length).toBeGreaterThan(before);await expect(page.locator('[data-admin-freshness]')).toHaveAttribute('data-state','fresh');expect(c.calls.length-before).toBeLessThanOrEqual(3);}
  await expect.poll(()=>c.calls.slice(start).filter(p=>p.includes('/summary')).length).toBe(1);
  expect(c.calls.slice(start).filter(p=>/\/dashboard|\/reservations\?/.test(p))).toHaveLength(0);
- expect(c.calls.slice(start).filter(p=>!p.includes('/media/')).length).toBeLessThanOrEqual(11); // 5 header + 5 active Garage + 1 shared summary.
- expect(c.calls.filter(p=>p.includes('/media/'))).toEqual(Array(2).fill('GET /api/admin/members/m/media/cars/c/p')); // Neither image is polled.
+ expect(c.calls.slice(start).filter(p=>!p.includes('/media/')).length).toBeLessThanOrEqual(15); // Five ticks, at most three slots: header, visible Photos + Garage and shared badges.
+ expect(c.calls.filter(p=>p.includes('/media/')).sort()).toEqual(['GET /api/admin/members/m/media/cars/c/p','GET /api/admin/members/m/media/cars/c/p','GET /api/admin/members/m/media/photos/g']); // None of the three images is polled.
  await page.evaluate(()=>{Object.defineProperty(document,'hidden',{configurable:true,get:()=>true});document.dispatchEvent(new Event('visibilitychange'));});const stop=c.calls.length;await page.clock.runFor(600000);expect(c.calls.length).toBe(stop);expect(c.writes).toEqual([]);clean(c);c.r.db.close();
 });

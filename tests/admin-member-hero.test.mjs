@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {memberRuntime} from './helpers/admin-member-runtime.mjs';
 import {adminGrowth} from './helpers/admin-growth.mjs';
 import {getAdminMember,adminMemberMedia,MEMBER_HERO_CAR_SQL,MEMBER_HERO_PHOTO_SQL} from '../worker/admin/members.js';
-import {memberIdentity} from '../admin/member-presentation.js';
+import {memberIdentity,memberOverview} from '../admin/member-presentation.js';
 const origin='https://example.invalid',url=new URL('/?eventId=e',origin);
 const header=async(r,id='m')=>(await getAdminMember(r.env,url,id,'',origin)).json();
 
@@ -47,7 +47,10 @@ test('HERO growth uses existing owner/photo indexes, returns at most one row per
  assert.equal(r.db.prepare('SELECT total_changes() n').get().n,changes);assert.equal(r.writes,0);
  console.log('HERO_QUERY_PLAN '+JSON.stringify({plans,maxOwnerCars,note:'Owner subset is filtered/sorted, not guaranteed one visited car; local plan/row counts, NOT Cloudflare meta.rows_read.'}));r.db.close();
 });
-test('HERO car chip is escaped auxiliary Garage information, never a member photo identity',()=>{
- const html=memberIdentity({nickname:'Member',name:'Real Name',memberCode:'EU-X',status:'active',role:'member'},{model:'BMW <script>',nickname:'Garage',body:'coupe'});
- assert.ok(html.includes('Hlavní vůz'));assert.ok(html.includes('BMW &lt;script&gt;'));assert.ok(html.includes('Coupé'));assert.ok(html.includes('admin-member-monogram'));assert.ok(html.includes('Real Name'));assert.ok(!html.includes('<img'));assert.ok(!memberIdentity({name:'Member'}).includes('Hlavní vůz'));
+test('HERO compact identity keeps escaped auxiliary Garage information in Overview',()=>{
+ const member={nickname:'Member',name:'Real Name',memberCode:'EU-X',status:'active',role:'member'},car={model:'BMW <script>',nickname:'Garage',body:'coupe'};
+ const identity=memberIdentity(member,car),overview=memberOverview({member,heroCar:car,reservations:[]},null);
+ assert.ok(identity.includes('Member'));assert.ok(identity.includes('admin-member-monogram'));assert.ok(!identity.includes('<img'));assert.ok(!identity.includes('Real Name'));assert.ok(!identity.includes('BMW'));assert.ok(!identity.includes('EU-X'));
+ assert.ok(overview.includes('Hlavní auto'));assert.ok(overview.includes('BMW &lt;script&gt;'));assert.ok(overview.includes('Coupé'));assert.ok(overview.includes('Real Name'));assert.ok(overview.includes('EU-X'));assert.ok(overview.includes('data-member-section="media"'));assert.ok(!overview.includes('<script>'));
+ assert.ok(memberOverview({member,reservations:[]},null).includes('Hlavní auto není vybrané.'));
 });
