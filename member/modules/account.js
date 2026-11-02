@@ -16,9 +16,13 @@ export function createMemberAccount({
   getLiveVisibility=()=>false,
   onLiveVisibilityChange,
 }){
-  let bound=false;
+  let bound=false,newsletterUser=null,newsletterSequence=0;
+  function preferenceStatus(p){return p.subscribed?(p.eligibility?.status==='eligible'?'Odběr novinek je zapnutý.':'Volba je uložená. Odesílání na tuto adresu zůstává blokované; obrať se na United tým.'):'Odběr novinek je vypnutý.';}
+  async function loadNewsletter(){const form=$('[data-account-newsletter-form]'),user=getCurrentUser();if(!form||!user||getData().profile?.id!==user.uid||newsletterUser===user)return;newsletterUser=user;const seq=++newsletterSequence;try{const p=await apiRequest('/api/me/mailing-preference');if(seq!==newsletterSequence||user!==getCurrentUser())return;form.elements.subscribed.checked=p.subscribed;form.elements.subscribed.disabled=false;form.querySelector('button').disabled=false;$('[data-account-newsletter-status]').textContent=preferenceStatus(p)}catch{if(user===getCurrentUser()){$('[data-account-newsletter-status]').textContent='Odběr se nepodařilo načíst. Otevři účet znovu pro opakování.';newsletterUser=null}}}
+
 
   function renderAccount(){
+    loadNewsletter();
     const profile=getData().profile||{},form=$('[data-account-form]');
     const live=$('[data-account-live-visibility]');if(live)live.checked=getLiveVisibility();
     const qr=$('[data-account-qr]'),markup=memberQrMarkup(profile.qrPayload);if(qr)qr.innerHTML=markup||'<p>Členský QR zatím není dostupný.</p>';
@@ -29,6 +33,7 @@ export function createMemberAccount({
   function bind(){
     if(bound)return;bound=true;
     $('[data-account-live-visibility]')?.addEventListener('change',async event=>{const input=event.currentTarget,status=$('[data-account-live-status]'),user=getCurrentUser();input.disabled=true;status.textContent='Ukládám nastavení…';try{if(await onLiveVisibilityChange?.(input.checked)===false){if(getCurrentUser()!==user)return;input.checked=getLiveVisibility();status.textContent='Nastavení se nezměnilo. Nejdřív dokonči nebo opusť rozpracovaný LIVE.';return}if(getCurrentUser()===user)status.textContent=input.checked?'Program LIVE je dostupný v menu.':'Program LIVE je skrytý.'}catch{if(getCurrentUser()===user){input.checked=getLiveVisibility();status.textContent='Nastavení se nepodařilo uložit. Zkus to znovu.'}}finally{input.disabled=false}});
+    $('[data-account-newsletter-form]')?.addEventListener('submit',async event=>{event.preventDefault();const form=event.currentTarget,user=getCurrentUser(),seq=++newsletterSequence,button=form.querySelector('button');if(!user||form.elements.subscribed.disabled)return;const choice=form.elements.subscribed.checked;button.disabled=true;form.elements.subscribed.disabled=true;$('[data-account-newsletter-status]').textContent='Ukládám odběr…';try{const p=await apiRequest('/api/me/mailing-preference',{method:'PUT',body:{subscribed:choice}});if(user!==getCurrentUser()||seq!==newsletterSequence)return;form.elements.subscribed.checked=p.subscribed;$('[data-account-newsletter-status]').textContent=preferenceStatus(p)}catch{if(user===getCurrentUser())$('[data-account-newsletter-status]').textContent='Uložení selhalo. Volba zůstala rozepsaná; zkus Uložit odběr znovu.'}finally{if(user===getCurrentUser()){button.disabled=false;form.elements.subscribed.disabled=false}}});
     const dialog=$('[data-account-qr-dialog]');let qrOpener=null;
     function finishQr(){dialog?.close();document.body.classList.remove('account-qr-open');const target=qrOpener;qrOpener=null;requestAnimationFrame(()=>target?.focus({preventScroll:true}))}
     function closeQr(){if(!dialog?.open)return;if(history.state?.accountQr)history.back();else finishQr()}
@@ -45,6 +50,6 @@ export function createMemberAccount({
     });
   }
 
-  function reset(){const dialog=$('[data-account-qr-dialog]');dialog?.close();if(history.state?.accountQr){const state={...history.state};delete state.accountQr;history.replaceState(state,'')}document.body.classList.remove('account-qr-open');$('[data-account-qr-full]')?.replaceChildren();$('[data-account-qr]')?.replaceChildren()}
+  function reset(){newsletterSequence++;newsletterUser=null;const newsletter=$('[data-account-newsletter-form]');if(newsletter){newsletter.reset();newsletter.elements.subscribed.disabled=true;newsletter.querySelector('button').disabled=true;}const dialog=$('[data-account-qr-dialog]');dialog?.close();if(history.state?.accountQr){const state={...history.state};delete state.accountQr;history.replaceState(state,'')}document.body.classList.remove('account-qr-open');$('[data-account-qr-full]')?.replaceChildren();$('[data-account-qr]')?.replaceChildren()}
   return {bind,render:renderAccount,reset};
 }

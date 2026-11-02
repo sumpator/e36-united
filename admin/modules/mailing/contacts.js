@@ -1,43 +1,14 @@
-import { canonicalMemberLink } from '../../member-detail.js?v=20261102-admin1';
+import {canonicalMemberLink} from '../../member-detail.js?v=20261102-admin1';
 import {renderListPagination} from '../../lists.js?v=20260930-arrivals2';
-import { apiRequest } from '../../api.js?v=20260930-arrivals2';
-import { $, escapeHtml, numeric } from '../../ui.js?v=20260924-merch2';
-
-let contactPage=1,contactSequence=0;
-const eligibilityLabels={eligible:'Způsobilý',ineligible:'Bez souhlasu',review_required:'Nutná kontrola',suppressed:'Potlačený'};
-const suppressionLabels={eligible:'Bez potlačení',unsubscribed:'Odhlášený',hard_bounce:'Hard bounce',blocked:'Blokovaný',manually_suppressed:'Ručně potlačený'};
-const contactsLabel=count=>`${count} ${count===1?'kontakt':count>1&&count<5?'kontakty':'kontaktů'}`;
-
-function sourceLabel(contact){
-  const labels=(contact.sources||[]).map(source=>{
-    if(source.type==='current_member')return 'Member';
-    if(source.type==='event_registration')return `Registrace${source.year?` ${source.year}`:''}`;
-    if(source.type==='historical_import')return `Historie${source.year?` ${source.year}`:''}`;
-    return 'Ručně';
-  });
-  return [...new Set(labels)].join(' · ')||'Bez zdroje';
-}
-
-function contactRow(contact){
-  const identity=contact.nickname||contact.name||contact.email;
-  const kind=contact.memberId?'Member':contact.legacyOnly?'Historický':'Kontakt';
-  return `<tr><td><strong>${canonicalMemberLink(contact.canonicalMemberId,identity)}</strong><small>${escapeHtml(contact.name&&contact.nickname?contact.name:'')}</small></td><td>${escapeHtml(contact.email)}</td><td><i class="admin-badge admin-mailing-kind">${escapeHtml(kind)}</i><small>${escapeHtml(sourceLabel(contact))}</small></td><td><i class="admin-badge admin-mailing-eligibility--${escapeHtml(contact.eligibility?.status||'review_required')}">${escapeHtml(eligibilityLabels[contact.eligibility?.status]||contact.eligibility?.status||'—')}</i><small>${escapeHtml(suppressionLabels[contact.suppressionStatus]||contact.suppressionStatus||'—')}</small></td><td>${numeric(contact.participationCount)}× United</td></tr>`;
-}
-
-export function renderMailingContacts(payload={}){
-  const contacts=Array.isArray(payload.contacts)?payload.contacts:[];
-  const pagination=payload.pagination||{};contactPage=pagination.page||1;
-  renderListPagination('contacts',pagination,page=>loadMailingContacts(undefined,{page}));
-  $('[data-mailing-contact-count]').textContent=contactsLabel(numeric(pagination.total));
-  const target=$('[data-mailing-contact-list]');
-  if(!contacts.length){target.innerHTML='<div class="admin-empty">Tomuto filtru neodpovídají žádné kontakty.</div>';return}
-  target.innerHTML=`<div class="admin-table-scroll"><table class="admin-data-table admin-mailing-table"><thead><tr><th>Kontakt</th><th>E-mail</th><th>Vztah / zdroj</th><th>Způsobilost</th><th>Účast</th></tr></thead><tbody>${contacts.map(contactRow).join('')}</tbody></table></div>`;
-}
-
-export async function loadMailingContacts(form=$('[data-mailing-contact-form]'),{signal,isCurrent=()=>true,page=contactPage}={}){
-  const data=new FormData(form),params=new URLSearchParams({scope:String(data.get('scope')||'relevant'),eligibility:String(data.get('eligibility')||'all'),q:String(data.get('q')||''),pageSize:'50',page:String(page)});
-  const sequence=++contactSequence;
-  const payload=await apiRequest(`/api/admin/mailing/contacts?${params}`,{signal});
-  if(isCurrent()&&sequence===contactSequence)renderMailingContacts(payload);
-  return payload;
-}
+import {apiRequest} from '../../api.js?v=20260930-arrivals2';
+import {$,escapeHtml as esc,numeric} from '../../ui.js?v=20260924-merch2';
+let contactPage=1,contactSequence=0,selection=null;
+const labels={eligible:'Lze oslovit',ineligible:'Odběr odmítnut',review_required:'Souhlas není doložený',suppressed:'Odesílání blokované'};
+const reasons={mailing_consent_unknown:'Souhlas není doložený',mailing_consent_no:'Odběr odmítnut',unsubscribed:'Odhlášený odběr',hard_bounce:'Nedoručitelná adresa',blocked:'Blokovaná adresa',manually_suppressed:'Ručně vyřazený',selection_exclusion:'Vyloučeno podmínkou',invalid_email:'Neplatná adresa',explicit_mailing_consent:'Doložený souhlas',duplicate_address:'Nejednoznačná vazba adresy'};
+export const eligibilityReason=reason=>reasons[reason]||reason||'Bez blokace';
+export function setMailingContactSelection(value){selection=value;contactPage=1;contactSequence++;}
+export const getMailingContactSelection=()=>selection;
+export function mailingContactRows(contacts,{details=false}={}){if(!contacts.length)return '<p class="admin-empty">Tomuto výběru neodpovídají žádné kontakty.</p>';return '<div class="admin-table-scroll"><table class="admin-data-table admin-mailing-table"><thead><tr><th>Kontakt</th><th>Vztah k United</th><th>Kampaň</th>'+(details?'<th>Podrobnosti</th>':'')+'</tr></thead><tbody>'+contacts.map(c=>'<tr><td><strong>'+canonicalMemberLink(c.canonicalMemberId,c.nickname||c.name||c.email)+'</strong><small>'+esc(c.email)+'</small></td><td>'+(c.memberId?'Člen portálu':c.legacyOnly?'Historický kontakt':'Kontakt')+'<small>'+numeric(c.participationCount)+'× ověřená účast</small></td><td><span class="admin-badge admin-mailing-eligibility--'+esc(c.eligibility?.status)+'">'+esc(c.selectionExclusion?'Vyloučený výběrem':labels[c.eligibility?.status]||'Nutná kontrola')+'</span><small>'+esc(c.selectionExclusion?eligibilityReason('selection_exclusion'):eligibilityReason(c.eligibility?.reason))+'</small></td>'+(details?'<td><details><summary>Souhlas a zdroje</summary><p>Odběr: '+esc(({yes:'Ano',no:'Ne',unknown:'Neznámý'})[c.mailingConsent?.status]||'Neznámý')+'<br>Zdroj: '+esc(c.mailingConsent?.source||'Nedoložený')+'<br>Čas: '+esc(c.mailingConsent?.at||'Nedoložený')+'</p>'+(c.sources||[]).map(s=>'<p>'+esc(s.type==='current_member'?'Členský profil':s.type==='event_registration'?'Registrace ročníku':s.type==='historical_import'?'Historický podklad':'Ruční zdroj')+' '+esc(s.year||'')+'</p>').join('')+'</details></td>':'')+'</tr>').join('')+'</tbody></table></div>';}
+export function renderMailingContacts(payload={}){const pagination=payload.pagination||{};contactPage=pagination.page||1;renderListPagination('contacts',pagination,page=>loadMailingContacts(undefined,{page}));$('[data-mailing-contact-count]').textContent=numeric(pagination.total)+' kontaktů';$('[data-mailing-contact-list]').innerHTML=mailingContactRows(payload.contacts||[],{details:true});}
+export async function loadMailingContacts(form=$('[data-mailing-contact-form]'),{signal,isCurrent=()=>true,page=contactPage}={}){const data=new FormData(form),params={scope:String(data.get('scope')||'relevant'),eligibility:String(data.get('eligibility')||'all'),q:String(data.get('q')||''),pageSize:50,page},sequence=++contactSequence;const payload=selection?await apiRequest('/api/admin/mailing/contacts/search',{method:'POST',body:{...params,segment:selection},signal}):await apiRequest('/api/admin/mailing/contacts?'+new URLSearchParams(params),{signal});if(isCurrent()&&sequence===contactSequence)renderMailingContacts(payload);return payload;}
+export function resetMailingContacts(){contactSequence++;contactPage=1;selection=null;$('[data-mailing-contact-list]')?.replaceChildren();}

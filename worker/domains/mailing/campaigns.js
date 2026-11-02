@@ -82,7 +82,7 @@ export async function createMailingCampaign(env, adminId, candidate) {
     fields.templateVersion,
     JSON.stringify(fields.content),
     JSON.stringify(fields.segment),
-    preview.recipients.length,
+    preview.recipients.filter(c=>c.eligibility.status==='eligible').length,
     fields.status,
   ).run();
   const row = await env.DB.prepare(`
@@ -113,7 +113,7 @@ export async function updateMailingCampaign(env, campaignId, candidate) {
     fields.templateVersion,
     JSON.stringify(fields.content),
     JSON.stringify(fields.segment),
-    preview.recipients.length,
+    preview.recipients.filter(c=>c.eligibility.status==='eligible').length,
     fields.status,
     campaignId,
   ).run();

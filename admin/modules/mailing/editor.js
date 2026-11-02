@@ -71,6 +71,7 @@ export function readMailingEditorDraft(){
 }
 
 function preview(){scheduleMailingPreview(readMailingEditorDraft())}
+export function markMailingEditorDirty(){dirty()}
 function dirty(){const state=$('[data-mailing-save-state]');state.textContent='Neuložené změny';state.classList.add('is-dirty');preview()}
 
 function replaceBlocks(next){blocks=copy(next||[]);renderBlocks();preview()}

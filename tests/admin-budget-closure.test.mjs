@@ -38,7 +38,14 @@ test('budget evidence describes actual current authorized SQL and never prices a
     const recorded=after.report.find(e=>e.name===endpoint.name);assert.ok(recorded);
     // Keep accepted Stage 2 evidence frozen, with explicit approved projection
     // additions and bounded header lookups for the hero car and arrivals.
-    const addon=endpoint.name==='member-header'?[MEMBER_HERO_CAR_SQL,MEMBER_HERO_PHOTO_SQL,MEMBER_ARRIVALS_SQL]:endpoint.name==='summary'?[ADMIN_RESERVATION_APPROVALS_SQL]:[];
+    const addon=endpoint.name==='member-header'?[MEMBER_HERO_CAR_SQL,MEMBER_HERO_PHOTO_SQL,MEMBER_ARRIVALS_SQL]:endpoint.name==='summary'?[ADMIN_RESERVATION_APPROVALS_SQL]:endpoint.name==='mailing-overview'?[
+      // Newly requested stored overview counts; no provider calls, no per-contact queries.
+      "SELECT COUNT(*) count FROM mailing_campaigns WHERE status='prepared'",
+      'SELECT id,internal_name,status,sent_at,recipient_count FROM mailing_campaigns ORDER BY updated_at DESC LIMIT 5',
+      'SELECT status,COUNT(*) n FROM email_outbox WHERE tx_version=1 GROUP BY status',
+      "SELECT id FROM schema_migrations WHERE id='2026-10-23-transactional-emails'",
+      'SELECT enabled,activated_at,revision FROM transactional_email_control WHERE id=1',
+    ]:[];
     assert.deepEqual(endpoint.queries.map(q=>sql(q.sql)),[...recorded.queries.map(q=>currentBudgetSql(q.sql)),...addon.map(sql)],endpoint.name);
     if(endpoint.name==='member-header')assert.deepEqual(endpoint.queries.slice(-3).map(q=>q.args),[['m'],['c'],['m','e']]);
     if(endpoint.name==='summary'){

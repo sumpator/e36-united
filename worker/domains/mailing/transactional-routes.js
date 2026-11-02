@@ -18,6 +18,7 @@ export function transactionalExample(kind){
   reason:'Ukázka verzované šablony. Není to skutečné odeslání ani platební pokyn.'};
 }
 function publicRow(row){return {id:row.id,kind:row.template_key,recipient:row.recipient_email,subject:row.subject,status:row.status,statusLabel:EMAIL_STATUS_LABELS[row.status]||row.status,entityType:row.entity_type,entityId:row.entity_id,reservationId:row.reservation_id,eventId:row.event_id,createdAt:row.created_at,acceptedAt:row.sent_at,deliveredAt:row.delivered_at,error:row.error_message?safeEmailError(row.error_message):null,errorMessage:row.error_message?(errorLabels[safeEmailError(row.error_message)]||'Výsledek odeslání není potvrzený; nejprve jej ověř u poskytovatele.'):null,retryOf:row.retry_of,attempts:row.attempts}}
+const areaFor=kind=>kind==='arrival_invitation'?'invitations':kind.startsWith('merch_')?'merch':['verify_email','reset_password','account_created'].includes(kind)?'account':kind.includes('payment')?'payments':'event';
 const reply=(data,status,origin)=>{const response=json(data,status,origin);response.headers.set('Cache-Control','no-store');return response};
 // Synthetic candidates only; no recipient selection or transport is part of this helper.
 export function transactionalTestExample(kind){
@@ -33,15 +34,31 @@ export async function routeTransactionalEmails({request,env,url,auth,origin}){
  const base='/api/admin/mailing/transactional';if(!url.pathname.startsWith(base))return null;
  if(!await requireAdmin(env,auth))return reply({error:'admin_forbidden'},403,origin);
  if(!await transactionalReady(env))return reply({error:'transactional_migration_required',message:'Provozní e-maily vyžadují připravenou migraci.'},503,origin);
- if(url.pathname===base+'/templates'&&request.method==='GET')return reply({templates:Object.entries(TRANSACTIONAL_TYPES).map(([kind,[area,title]])=>({kind,area,title,available:!['verify_email','reset_password'].includes(kind),trigger:triggers[kind]||'Dosavadní Firebase tok; vlastní grafika čeká na privilegované generování akčních odkazů.'}))},200,origin);
+ if(url.pathname===base+'/templates'&&request.method==='GET')return reply({templates:Object.entries(TRANSACTIONAL_TYPES).map(([kind,[area,title]])=>({kind,area:areaFor(kind),title,available:!['verify_email','reset_password'].includes(kind),trigger:triggers[kind]||'Dosavadní Firebase tok; vlastní grafika čeká na privilegované generování akčních odkazů.'}))},200,origin);
+ if(url.pathname===base+'/control'&&request.method==='POST'){
+  let body;try{body=await readMailingBody(request,4096)}catch{return reply({error:'invalid_request'},400,origin)}
+  const control=await transactionalTransportState(env),reason=String(body.reason||'').trim();
+  if(typeof body.enabled!=='boolean'||!Number.isSafeInteger(body.revision)||reason.length<10||reason.length>1000)return reply({error:'confirmation_required'},400,origin);
+  if(body.enabled&&!env.SMTP2GO_TRANSACTIONAL_API_KEY)return reply({error:'transactional_key_missing'},409,origin);
+  const counts=await env.DB.prepare("SELECT SUM(status='queued') queued,SUM(status IN ('sending','uncertain')) uncertain FROM email_outbox WHERE tx_version=1").first();
+  if(control.phase==='unavailable'||control.revision!==body.revision||Number(counts.queued||0)!==body.expectedQueued||Number(counts.uncertain||0)!==body.expectedUncertain||body.enabled&&counts.uncertain>0)return reply({error:'transport_state_changed',message:'Stav fronty se změnil nebo vyžaduje ověření nejasných zpráv.'},409,origin);
+  const result=await env.DB.batch([
+   env.DB.prepare("UPDATE transactional_email_control SET enabled=? WHERE id=1 AND revision=? AND enabled<>? AND (SELECT COUNT(*) FROM email_outbox WHERE tx_version=1 AND status='queued')=? AND (SELECT COUNT(*) FROM email_outbox WHERE tx_version=1 AND status IN ('sending','uncertain'))=?").bind(body.enabled?1:0,body.revision,body.enabled?1:0,body.expectedQueued,body.expectedUncertain),
+   env.DB.prepare("INSERT INTO admin_actions(id,admin_member_id,action_type,entity_type,entity_id,old_state_json,new_state_json,note) SELECT ?,?,'transactional_transport','mailing','1',?,?,? WHERE changes()=1").bind(crypto.randomUUID(),auth.uid,JSON.stringify(control),JSON.stringify({enabled:body.enabled,queued:body.expectedQueued,uncertain:body.expectedUncertain}),reason),
+  ]);
+  return reply({ok:!!result[0].meta.changes,transport:await transactionalTransportState(env)},result[0].meta.changes?200:409,origin);
+ }
  const template=url.pathname.match(/^\/api\/admin\/mailing\/transactional\/templates\/([a-z_]+)$/);
  if(template&&request.method==='GET')return Object.hasOwn(TRANSACTIONAL_TYPES,template[1])?reply({preview:renderTransactionalEmail(template[1],transactionalExample(template[1]))},200,origin):reply({error:'template_not_found'},404,origin);
  if(url.pathname===base&&request.method==='GET'){
   const status=url.searchParams.get('status')||'',kind=url.searchParams.get('kind')||'',entity=url.searchParams.get('entity')||'',page=Math.max(1,Math.min(100000,Number.parseInt(url.searchParams.get('page'))||1));
   if(status&&!Object.hasOwn(EMAIL_STATUS_LABELS,status)||kind&&!Object.hasOwn(TRANSACTIONAL_TYPES,kind))return reply({error:'invalid_filter'},400,origin);
-  const where="tx_version=1 AND (?='' OR status=?) AND (?='' OR template_key=?) AND (?='' OR entity_id=? OR reservation_id=?)",args=[status,status,kind,kind,entity,entity,entity];
+  const query=String(url.searchParams.get('q')||'').trim().slice(0,120),area=String(url.searchParams.get('area')||'');
+  const kinds=Object.keys(TRANSACTIONAL_TYPES).filter(k=>!area||areaFor(k)===area);if(area&&!kinds.length)return reply({error:'invalid_area'},400,origin);
+  const where="tx_version=1 AND (?='' OR status=?) AND (?='' OR template_key=?) AND (?='' OR entity_id=? OR reservation_id=?) AND (?='' OR instr(lower(recipient_email||' '||coalesce(subject,'')||' '||coalesce(entity_id,'')||' '||coalesce(payload_json,'')),lower(?))>0) AND template_key IN ("+kinds.map(()=>'?').join(',')+")",args=[status,status,kind,kind,entity,entity,entity,query,query,...kinds];
   const [rows,count]=await env.DB.batch([env.DB.prepare(`SELECT * FROM email_outbox WHERE ${where} ORDER BY datetime(created_at) DESC,id DESC LIMIT 25 OFFSET ?`).bind(...args,(page-1)*25),env.DB.prepare(`SELECT COUNT(*) n FROM email_outbox WHERE ${where}`).bind(...args)]);
-  return reply({transport:await transactionalTransportState(env),messages:rows.results.map(publicRow),page,total:count.results[0].n,hasMore:page*25<count.results[0].n},200,origin);
+  const counts=await env.DB.prepare('SELECT status,COUNT(*) n FROM email_outbox WHERE tx_version=1 GROUP BY status').all();
+  return reply({counts:Object.fromEntries(counts.results.map(r=>[r.status,r.n])),transport:await transactionalTransportState(env),messages:rows.results.map(publicRow),page,total:count.results[0].n,hasMore:page*25<count.results[0].n},200,origin);
  }
  const match=url.pathname.match(/^\/api\/admin\/mailing\/transactional\/([a-z0-9-]+)(?:\/(retry|resolve))?$/);
  if(!match)return reply({error:'transactional_not_found'},404,origin);

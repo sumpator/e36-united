@@ -19,7 +19,7 @@
   <link href="admin/command-polish.css?v=20260923-theme2" rel="stylesheet"/>
   <link href="admin/compact-overviews.css?v=20260923-theme2" rel="stylesheet"/>
   <link href="admin/live.css?v=20260930-flow2" rel="stylesheet"/>
-  <link href="admin/transactional.css?v=20261023-mail1" rel="stylesheet"/>
+  <link href="admin/transactional.css?v=20261102-mailing2" rel="stylesheet"/>
 <link rel="stylesheet" href="appearance.css?v=20261022-light1"/><link rel="stylesheet" href="portal-workspace.css?v=20261011-ci109"/><link rel="stylesheet" href="photo-batch.css?v=20260928-flow1"/><link rel="stylesheet" href="admin/center-visual.css?v=20261102-admin1"/></head>
 <body class="admin-page">
   <header class="site-header scrolled admin-header">
@@ -238,63 +238,33 @@
             <div class="admin-section-head"><div><span class="admin-kicker">UNITED MAIL</span><h2>Mailing.</h2><p>Kampaně, kontakty a skupiny příjemců.</p></div></div>
             <div class="admin-mailing-tabs" aria-label="Sekce Mailing" role="tablist">
               <button aria-selected="false" data-mailing-tab="overview" role="tab" type="button">Přehled</button>
-              <button aria-selected="false" data-mailing-tab="contacts" role="tab" type="button">Kontakty</button>
-              <button aria-selected="false" data-mailing-tab="segments" role="tab" type="button">Segmenty / příjemci</button>
               <button aria-selected="true" class="is-active" data-mailing-tab="campaigns" role="tab" type="button">Kampaně</button>
-              <button aria-selected="false" data-mailing-tab="transactional" role="tab" type="button">Provozní e-maily</button>
+              <button aria-selected="false" data-mailing-tab="contacts" role="tab" type="button">Kontakty</button>
+              <button aria-selected="false" data-mailing-tab="transactional" role="tab" type="button">Automatické e-maily</button>
             </div>
 
             <div data-mailing-area="transactional" hidden>
-              <h3>Provozní e-maily</h3><p>Automatické zprávy k potvrzeným událostem. Nejsou newsletter a nevyžadují marketingový souhlas. Přijato SMTP2GO není doručeno ani přečteno.</p>
-              <p data-transactional-transport role="status">Ověřuji serverový stav odesílání…</p>
+              <h3>Automatické e-maily</h3><p>Automatické zprávy k potvrzeným událostem. Nejsou newsletter a nevyžadují marketingový souhlas. Přijato SMTP2GO není doručeno ani přečteno.</p>
+              <p data-transactional-transport role="status">Ověřuji serverový stav odesílání…</p><details><summary>Ovládání automatického odesílání</summary><form data-transactional-control><label>Důvod změny<input name="reason" minlength="10" maxlength="1000" required></label><p>Starší vynechané zprávy se znovu nezařadí. Nejasné výsledky je nutné nejprve ověřit u poskytovatele.</p><button type="submit" data-transactional-toggle>Načítám stav…</button><p role="status" data-transactional-control-status></p></form></details>
               <details><summary>Typy zpráv a jejich spouštění</summary><div data-transactional-types></div></details>
-              <form data-transactional-filters class="admin-form-grid"><label>Typ zprávy<select name="kind"><option value="">Všechny typy</option></select></label><label>Stav<select name="status"></select></label><label>Související ID<input name="entity" maxlength="128"></label><button type="submit">Filtrovat historii</button></form>
+              <p data-transactional-counts></p><form data-transactional-filters class="admin-form-grid"><label>Oblast<select name="area"><option value="">Všechny oblasti</option><option value="account">Účet</option><option value="event">Sraz</option><option value="payments">Platby</option><option value="merch">Merch</option><option value="invitations">Pozvánky</option></select></label><label>Příjemce nebo reference<input name="q" type="search" maxlength="120"></label><label>Typ zprávy<select name="kind"><option value="">Všechny typy</option></select></label><label>Stav<select name="status"></select></label><details><summary>Rozšířený filtr</summary><label>Související ID<input name="entity" maxlength="128"></label></details><button type="submit">Filtrovat historii</button></form>
               <div data-transactional-list></div><p><button type="button" data-transactional-prev>Předchozí</button> <span data-transactional-page></span> <button type="button" data-transactional-next>Další</button></p>
               <section class="admin-panel" data-transactional-detail></section>
-              <iframe title="Náhled provozního e-mailu" sandbox="allow-scripts" referrerpolicy="no-referrer" data-transactional-preview style="display:block;width:100%;max-width:640px;min-width:0;height:680px;border:1px solid #ced9e4"></iframe>
+              <iframe title="Náhled automatického e-mailu" sandbox="allow-scripts" referrerpolicy="no-referrer" data-transactional-preview hidden style="display:block;width:100%;max-width:640px;min-width:0;height:680px;border:1px solid #ced9e4"></iframe>
             </div>
             <div data-mailing-area="overview" hidden>
-              <section class="admin-mailing-kpis" aria-label="Mailing přehled">
-                <article><span>Kontakty celkem</span><strong data-mailing-kpi="total">0</strong></article>
-                <article><span>Current Members</span><strong data-mailing-kpi="members">0</strong></article>
-                <article><span>Historické-only</span><strong data-mailing-kpi="historical">0</strong></article>
-                <article><span>Způsobilé</span><strong data-mailing-kpi="eligible">0</strong></article>
-                <article><span>Potlačené</span><strong data-mailing-kpi="suppressed">0</strong></article>
-                <article><span>Koncepty kampaní</span><strong data-mailing-kpi="drafts">0</strong></article>
-              </section>
-              <div class="admin-mailing-notice"><strong>E36 Mailing Center.</strong><span>Kontakty se automaticky neimportují. Příprava zmrazí obsah a způsobilé příjemce; odeslání vyžaduje připraveného poskytovatele a výslovné potvrzení.</span></div>
+<section class="admin-mailing-kpis" aria-label="Mailing přehled"><article><span>Kontakty celkem</span><strong data-mailing-kpi="total">0</strong></article><article><span>Lze oslovit kampaní</span><strong data-mailing-kpi="eligible">0</strong></article><article><span>Souhlas není doložený</span><strong data-mailing-kpi="unknown">0</strong></article><article><span>Odhlášené a nedoručitelné</span><strong data-mailing-kpi="suppressed">0</strong></article><article><span>Koncepty</span><strong data-mailing-kpi="drafts">0</strong></article><article><span>Připravené kampaně</span><strong data-mailing-kpi="prepared">0</strong></article></section><p data-mailing-overview-reasons></p><p data-mailing-overview-transport></p><div class="admin-mailing-notice"><div><strong>SMTP2GO</strong><p data-mailing-provider-overview>Stav a kvótu načti na vyžádání.</p></div><button type="button" data-mailing-provider-check>Ověřit poskytovatele a kvótu</button></div><h3>Poslední kampaně</h3><div data-mailing-recent></div>
             </div>
 
             <div data-mailing-area="contacts" hidden>
               <form class="admin-mailing-toolbar" data-mailing-contact-form>
                 <label class="admin-field admin-field--wide"><span>Hledat kontakt</span><input autocomplete="off" name="q" placeholder="Jméno, přezdívka, e-mail nebo tag" type="search"/></label>
-                <label class="admin-field"><span>Zdroj</span><select name="scope"><option value="relevant">Aktuální / relevantní</option><option value="current">Current Members</option><option value="historical">Historické kontakty</option><option value="all">Všechny kontakty</option></select></label>
-                <label class="admin-field"><span>Způsobilost</span><select name="eligibility"><option value="all">Všechny stavy</option><option value="eligible">Způsobilé</option><option value="review_required">Nutná kontrola</option><option value="suppressed">Potlačené</option><option value="ineligible">Bez mailing souhlasu</option></select></label>
-                <button class="admin-button admin-button--primary" type="submit">Filtrovat</button>
+                <label class="admin-field"><span>Zdroj</span><select name="scope"><option value="relevant">Aktuální / relevantní</option><option value="current">Členové portálu</option><option value="historical">Historické kontakty</option><option value="all">Všechny kontakty</option></select></label>
+                <label class="admin-field"><span>Způsobilost</span><select name="eligibility"><option value="all">Všechny stavy</option><option value="eligible">Způsobilé</option><option value="review_required">Nutná kontrola</option><option value="suppressed">Potlačené</option><option value="ineligible">Odběr odmítnut</option></select></label>
+                <button class="admin-button" type="submit">Hledat</button><button class="admin-button admin-button--primary" type="button" data-contacts-selection>Vybrat příjemce</button>
               </form>
-              <div class="admin-mailing-result-head"><span class="admin-kicker">CONTACT DATABASE</span><strong data-mailing-contact-count>0 kontaktů</strong></div>
+              <div class="admin-mailing-result-head"><span class="admin-kicker">KONTAKTY</span><strong data-mailing-contact-count>0 kontaktů</strong></div>
               <div data-mailing-contact-list></div>
-            </div>
-
-            <div data-mailing-area="segments" hidden>
-              <form class="admin-mailing-segment-form" data-mailing-segment-form>
-                <div class="admin-mailing-rule-head"><div><span class="admin-kicker">SERVER SEGMENT</span><h3>Pravidla příjemců.</h3></div><label class="admin-field"><span>Vazba pravidel</span><select name="match"><option value="all">Všechna (AND)</option><option value="any">Alespoň jedno (OR)</option></select></label></div>
-                <div class="admin-mailing-rule-grid">
-                  <label><input checked name="rule" type="checkbox" value="mailing_eligible"/><span>Mailing-eligible</span></label>
-                  <label><input name="rule" type="checkbox" value="active_member"/><span>Aktivní Members</span></label>
-                  <label><input name="rule" type="checkbox" value="registered_current_event"/><span>Registrovaní na aktuální United</span></label>
-                  <label><input name="rule" type="checkbox" value="not_registered_current_event"/><span>Bez registrace na aktuální United</span></label>
-                  <label><input name="rule" type="checkbox" value="incomplete_profile"/><span>Nekompletní profil</span></label>
-                  <label><input name="rule" type="checkbox" value="regular_participant"/><span>Účast alespoň 2×</span></label>
-                  <label><input name="rule" type="checkbox" value="show_shine_participant"/><span>Show &amp; Shine</span></label>
-                  <label><input name="rule" type="checkbox" value="legacy_only"/><span>Legacy-only</span></label>
-                  <label class="admin-mailing-value-rule"><input name="historicalYearEnabled" type="checkbox"/><span>Ročník</span><input aria-label="Historický ročník" max="2100" min="1990" name="historicalYear" type="number" value="2025"/></label>
-                  <label class="admin-mailing-value-rule"><input name="tagEnabled" type="checkbox"/><span>Tag</span><input aria-label="Mailing tag" maxlength="40" name="tag" placeholder="např. volunteer"/></label>
-                </div>
-                <div class="admin-mailing-segment-actions"><label class="admin-field"><span>Vyloučit</span><select name="exclusion"><option value="">Bez dalšího vyloučení</option><option value="legacy_only">Legacy-only</option><option value="registered_current_event">Registrované na aktuální United</option><option value="not_registered_current_event">Bez aktuální registrace</option><option value="show_shine_participant">Show &amp; Shine</option></select></label><button class="admin-button admin-button--primary" type="submit">Spočítat a zobrazit příjemce</button></div>
-              </form>
-              <div class="admin-mailing-result-head"><span class="admin-kicker">RECIPIENT PREVIEW</span><strong data-mailing-recipient-count>0 příjemců</strong></div>
-              <div data-mailing-recipient-list><div class="admin-empty">Zvol pravidla a spusť náhled segmentu.</div></div>
             </div>
 
             <div data-mailing-area="campaigns">
@@ -304,7 +274,7 @@
                 <div><button class="admin-button" data-mailing-back type="button">← Kampaně</button><h3 data-mailing-editor-mode>Nový koncept.</h3></div>
                 <div><span class="admin-mailing-save-state" data-mailing-save-state>Nový koncept</span><button class="admin-button admin-button--primary" data-mailing-save type="submit" form="mailing-campaign-form">Uložit koncept</button></div>
               </div>
-              <div class="portal-tabs portal-mailing-mobile-tabs" data-mailing-workspace-tabs role="group" aria-label="Pracovní pohled"><button type="button" data-mailing-workspace-tab="editor" aria-pressed="true">Editor</button><button type="button" data-mailing-workspace-tab="preview" aria-pressed="false">Náhled</button></div>
+              <ol class="mailing-steps" aria-label="Postup kampaně"><li>1. Obsah</li><li>2. Příjemci</li><li>3. Kontrola a odeslání</li></ol><section class="mailing-campaign-selection"><div><h4>Příjemci</h4><p data-campaign-selection-summary>Všechny kontakty; odesílání pouze se souhlasem.</p></div><button type="button" data-campaign-selection>Vybrat příjemce</button></section><div class="portal-tabs portal-mailing-mobile-tabs" data-mailing-workspace-tabs role="group" aria-label="Pracovní pohled"><button type="button" data-mailing-workspace-tab="editor" aria-pressed="true">Editor</button><button type="button" data-mailing-workspace-tab="preview" aria-pressed="false">Náhled</button></div>
               <div class="admin-mailing-editor-layout" data-mailing-editor>
                 <form class="admin-mailing-editor" id="mailing-campaign-form" data-mailing-campaign-form>
                   <section class="admin-mailing-editor-card admin-mailing-meta-card">
@@ -327,7 +297,7 @@
                   <div class="admin-mailing-preview-stage" data-mailing-preview-stage data-device="desktop"><div class="admin-mailing-preview-status" data-mailing-preview-status>Generuji náhled…</div><iframe data-mailing-preview-frame sandbox="allow-scripts" referrerpolicy="no-referrer" title="Náhled E36 United e-mailu"></iframe></div>
                 </aside>
               </div>
-              <details class="portal-card"><summary>Příjemci a odeslání</summary><section class="admin-mailing-editor-card" data-mailing-delivery aria-label="Doručení kampaně"></section></details>
+              <details class="portal-card"><summary>Kontrola a odeslání</summary><section class="admin-mailing-editor-card" data-mailing-delivery aria-label="Doručení kampaně"></section></details>
               </div>
             </div>
           </section>
@@ -362,6 +332,6 @@
     </aside>
   </div>
   <div aria-live="polite" class="admin-toast" data-toast role="status"></div>
-  <link rel="stylesheet" href="admin/arrivals.css?v=20260930-picker1"><script src="admin.js?v=20261102-admin1" type="module"></script>
+  <link rel="stylesheet" href="admin/arrivals.css?v=20260930-picker1"><script src="admin.js?v=20261102-mailing2" type="module"></script>
 </body>
 </html>

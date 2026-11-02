@@ -42,7 +42,7 @@ for(const width of [1440,390])test(`transactional Mailing history, safe failure 
   await panel.locator('[data-transactional-detail]').scrollIntoViewIfNeeded();await page.screenshot({path:info.outputPath('mailing-failure.png'),animations:'disabled'});
   await panel.locator('[data-transactional-preview]').scrollIntoViewIfNeeded();await expect(panel.frameLocator('[data-transactional-preview]').getByRole('heading',{level:1})).toBeVisible();
   await panel.locator('[data-transactional-preview]').screenshot({path:info.outputPath('mailing-preview.png'),animations:'disabled'});
-  await panel.locator('[name=reason]').fill('Výslovně opakuji jednoznačně odmítnutou zprávu');page.once('dialog',dialog=>dialog.accept());await panel.getByRole('button',{name:'Výslovně zařadit nové odeslání'}).click();
+  await panel.locator('[data-transactional-action] [name=reason]').fill('Výslovně opakuji jednoznačně odmítnutou zprávu');page.once('dialog',dialog=>dialog.accept());await panel.getByRole('button',{name:'Výslovně zařadit nové odeslání'}).click();
   await expect.poll(()=>c.r.db.prepare('SELECT COUNT(*) n FROM email_outbox WHERE retry_of=?').get(row.id).n).toBe(1);expect(c.r.db.prepare('SELECT COUNT(*) n FROM transactional_email_audit').get().n).toBe(1);
   c.r.db.exec('UPDATE transactional_email_control SET enabled=0 WHERE id=1');
   await panel.getByRole('button',{name:'Filtrovat historii'}).click();await expect(panel.locator('[data-transactional-transport]')).toContainText('Odesílání je pozastavené');

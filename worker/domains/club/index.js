@@ -4,6 +4,7 @@ import { deriveMemberRating, deriveUnitedAchievements } from "./achievements.js"
 import { attachHistoryEvidence } from "./history.js";
 import { profilePointStatement } from "./points.js";
 import { listClubMembers } from './members.js';
+import {memberProfileCompletion} from './profile.js';
 
 const UNITED_REWARD_THRESHOLD = 12;
 
@@ -53,12 +54,7 @@ async function getUnitedClub(env, auth, origin) {
   const lifetime = Number(pointRow?.lifetime || 0);
   const derived = deriveUnitedAchievements(history, approvedPhotoCount);
   const approvedYears = history.filter(item => item.attendance.status === "approved").map(item => item.eventYear);
-  const profileCriteria = {
-    requiredFields: !!(clean(member.name) && clean(member.email) && clean(member.member_code)),
-    historyReviewed: !!member.history_completed_at,
-    hasCar: Number(carRow?.count || 0) > 0,
-    approvedPhotos: approvedPhotoCount,
-  };
+  const profileCriteria = memberProfileCompletion(member,{carCount:carRow?.count,approvedPhotoCount});
   const clubMembers = await listClubMembers(env, auth);
   return json({
     ok: true,
@@ -69,7 +65,7 @@ async function getUnitedClub(env, auth, origin) {
     historyCompletedAt: member.history_completed_at || null,
     history,
     approvedPhotoCount,
-    profileCompletion: { ...profileCriteria, complete: profileCriteria.requiredFields && profileCriteria.historyReviewed && profileCriteria.hasCar && approvedPhotoCount >= 5 },
+    profileCompletion: profileCriteria,
     achievements: derived.achievements,
     featuredAchievements: derived.featured,
     clubMembers,

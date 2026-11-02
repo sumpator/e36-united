@@ -1,12 +1,14 @@
 import {renderListPagination} from '../../lists.js?v=20260930-arrivals2';
 import { apiRequest } from '../../api.js?v=20260930-arrivals2';
 import { $, escapeHtml, formatDate, numeric, toast } from '../../ui.js?v=20260924-merch2';
-import { allowMailingLeave, activeMailingCampaignId, initializeMailingEditor, markMailingEditorSaved, openMailingEditorDraft, resetMailingEditor } from './editor.js?v=20261102-admin1';
-import { initializeMailingDelivery, openMailingDelivery, resetMailingDelivery } from './delivery.js?v=20260930-arrivals2';
-import { defaultMailingSegment } from './segments.js?v=20260930-arrivals2';
+import { allowMailingLeave, markMailingEditorDirty, activeMailingCampaignId, initializeMailingEditor, markMailingEditorSaved, openMailingEditorDraft, resetMailingEditor } from './editor.js?v=20261102-mailing2';
+import { initializeMailingDelivery, openMailingDelivery, resetMailingDelivery } from './delivery.js?v=20261102-mailing2';
+import {defaultMailingSegment,openMailingSelection,segmentSummary,loadMailingSelectionConfig} from './segments.js?v=20261102-mailing2';
 
 const statusLabels={draft:'Koncept',prepared:'Připravená',sent:'Odeslaná',archived:'Archiv'};
 export let campaignPage=1;
+let selectedSegment=defaultMailingSegment;
+function selectSegment(segment){selectedSegment=structuredClone(segment||defaultMailingSegment);const target=$('[data-campaign-selection-summary]');if(target)target.textContent=segmentSummary(selectedSegment)}
 let campaignSequence=0,campaignPagination=null;
 let initialized=false,starter=null,campaigns=[],getSegment=()=>defaultMailingSegment,onSaved=()=>{};
 
@@ -24,7 +26,7 @@ export function renderMailingCampaigns(payload={}){
 
 async function editorConfig(){
   if(starter)return starter;
-  const payload=await apiRequest('/api/admin/mailing/editor-config');starter=payload.starter;return starter;
+  const [payload]=await Promise.all([apiRequest('/api/admin/mailing/editor-config'),loadMailingSelectionConfig()]);starter=payload.starter;return starter;
 }
 
 export async function loadMailingCampaigns({selectId,page=campaignPage}={}){
@@ -33,21 +35,21 @@ export async function loadMailingCampaigns({selectId,page=campaignPage}={}){
   if(sequence!==campaignSequence)return payload;
   renderMailingCampaigns(payload);
   const chosen=selectId&&campaigns.find(campaign=>campaign.id===selectId);
-  if(chosen){openMailingEditorDraft(chosen,{campaignId:chosen.id});renderMailingCampaigns({campaigns})}
+  if(chosen){selectSegment(chosen.segment);openMailingEditorDraft(chosen,{campaignId:chosen.id});renderMailingCampaigns({campaigns})}
   return payload;
 }
 
 async function saveMailingCampaign(draft){
   const campaignId=activeMailingCampaignId();
   const current=campaigns.find(campaign=>campaign.id===campaignId);
-  const body={...draft,segment:current?.segment||getSegment(),status:'draft'};
+  const body={...draft,segment:selectedSegment,status:'draft'};
   const payload=await apiRequest(campaignId?`/api/admin/mailing/campaigns/${encodeURIComponent(campaignId)}`:'/api/admin/mailing/campaigns',{method:campaignId?'PATCH':'POST',body});
   await loadMailingCampaigns({selectId:payload.campaign.id});markMailingEditorSaved();onSaved();toast(campaignId?'Koncept kampaně byl aktualizován.':'Koncept kampaně byl uložen.');
   return payload;
 }
 
 function showEditor(open){$('[data-mailing-editor-workspace]').hidden=!open;$('[data-mailing-campaign-overview]').hidden=open;if(open)$('[data-mailing-editor-workspace] input')?.focus();}
-async function newDraft(){if(!allowMailingLeave())return;const draft=structuredClone(await editorConfig());for(const block of draft.content?.blocks||[])if(block.text==='V Mailing B jsou odpovědi pouze v náhledu. Bezpečné příjemcovské odkazy a uložení odpovědi přidá Mailing D.')block.text='Vyber odpověď, která je ti nejbližší.';openMailingEditorDraft(draft);showEditor(true);renderMailingCampaigns({campaigns})}
+async function newDraft(){if(!allowMailingLeave())return;const draft=structuredClone(await editorConfig());for(const block of draft.content?.blocks||[])if(block.text==='V Mailing B jsou odpovědi pouze v náhledu. Bezpečné příjemcovské odkazy a uložení odpovědi přidá Mailing D.')block.text='Vyber odpověď, která je ti nejbližší.';selectSegment(getSegment());openMailingEditorDraft(draft);showEditor(true);renderMailingCampaigns({campaigns})}
 
 export function initializeMailingCampaigns(options={}){
   if(initialized)return;initialized=true;getSegment=options.getSegment||getSegment;onSaved=options.onSaved||onSaved;
@@ -56,9 +58,11 @@ export function initializeMailingCampaigns(options={}){
   $('[data-mailing-back]').onclick=()=>{if(allowMailingLeave()){markMailingEditorSaved();showEditor(false);$('[data-mailing-campaign-overview] button')?.focus();}};
   $('[data-mailing-workspace-tabs]').onclick=event=>{const button=event.target.closest('[data-mailing-workspace-tab]');if(!button)return;const name=button.dataset.mailingWorkspaceTab;$('[data-mailing-editor-workspace]').dataset.mobilePane=name;$('[data-mailing-workspace-tabs]').querySelectorAll('button').forEach(item=>item.setAttribute('aria-pressed',String(item===button)));};
   document.addEventListener('click',event=>{
+    if(event.target.closest('[data-campaign-selection]')){const campaign=campaigns.find(c=>c.id===activeMailingCampaignId());if(campaign&&campaign.status!=='draft'){toast('Připravený obsah a příjemci jsou neměnní. Nejprve vrať kampaň do konceptu.');return}openMailingSelection({segment:selectedSegment,trigger:event.target.closest('button'),onApply:(value,summary)=>{selectSegment(value);$('[data-campaign-selection-summary]').textContent=summary.matching+' odpovídá · '+summary.eligible+' lze oslovit · '+summary.excluded+' vyloučeno';markMailingEditorDirty()}}).catch(e=>toast(e.message));return}
+
     if(event.target.closest('[data-mailing-campaign-new]')){newDraft().catch(error=>toast(error.message||'Nový koncept se nepodařilo připravit.'));return}
     const open=event.target.closest('[data-mailing-campaign-open]');if(!open)return;
-    const campaign=campaigns.find(item=>item.id===open.dataset.mailingCampaignOpen);if(campaign&&allowMailingLeave()){openMailingEditorDraft(campaign,{campaignId:campaign.id});showEditor(true);renderMailingCampaigns({campaigns});$('[data-mailing-editor]').scrollIntoView({behavior:'smooth',block:'start'})}
+    const campaign=campaigns.find(item=>item.id===open.dataset.mailingCampaignOpen);if(campaign&&allowMailingLeave()){selectSegment(campaign.segment);openMailingEditorDraft(campaign,{campaignId:campaign.id});showEditor(true);renderMailingCampaigns({campaigns});$('[data-mailing-editor]').scrollIntoView({behavior:'smooth',block:'start'})}
   });
 }
 

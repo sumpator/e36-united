@@ -42,7 +42,7 @@ test('Mailing C shows unconfigured provider and independently prepares / returns
   await expect(page.locator('[data-mailing-campaign-form] input[name="subject"]')).toBeDisabled();
   await expect(page.locator('[data-mailing-preview-frame]')).toHaveAttribute('sandbox','allow-scripts');
   await expect(page.frameLocator('[data-mailing-preview-frame]').locator('body')).toContainText('Odhlásit odběr');
-  await page.locator('[data-delivery-action="unprepare"]').click();await expect(page.locator('[data-delivery-status]')).toHaveText('Draft');
+  await page.locator('[data-delivery-action="unprepare"]').click();await expect(page.locator('[data-delivery-status]')).toHaveText('Koncept');
   await expect(page.locator('[data-mailing-campaign-form] input[name="subject"]')).toBeEnabled();
   expect(writes.map(x=>x.action)).toEqual(['prepare','unprepare']);expect(writes[0].body.confirmation.recipientCount).toBe(2);
   expectNoUnexpectedClientErrors(observations);
@@ -55,7 +55,7 @@ test('Mailing C draft test requires explicit valid addresses and reports provide
   await page.locator('[data-delivery-test-addresses]').fill('test1@example.invalid, test2@example.invalid');
   page.once('dialog',dialog=>dialog.accept());await page.locator('[data-delivery-action="test"]').click();
   await expect(page.locator('[data-delivery-message]')).toContainText('limitu testů');
-  await expect(page.locator('[data-delivery-status]')).toHaveText('Draft');
+  await expect(page.locator('[data-delivery-status]')).toHaveText('Koncept');
   expect(writes).toEqual([{action:'test',body:{addresses:['test1@example.invalid','test2@example.invalid']}}]);
   // This test deliberately returns HTTP 502; the fixture console records that expected browser resource error.
   expect(observations.consoleErrors.filter(x=>!x.text.includes('502'))).toEqual([]);

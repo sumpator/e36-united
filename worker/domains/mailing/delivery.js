@@ -2,6 +2,7 @@ import { createSmtp2goAdapter, senderConfig } from './provider/smtp2go.js';
 import { MailingDeliveryError } from './delivery-errors.js';
 import { campaignRow, frozenRecipients, renderDraft, validDeliveryEmail } from './preparation.js';
 import { loadMailingContacts } from './contacts.js';
+import {previewMailingSegment} from './segments.js';
 
 export function dailySendLimit(env) {
   if (env.MAILING_DAILY_SEND_LIMIT == null || env.MAILING_DAILY_SEND_LIMIT === '') return 200;
@@ -46,6 +47,8 @@ async function validatePrepared(env,row){
   if(JSON.parse(row.prepared_content_json).blocks.some(b=>b.type==='survey'))throw new MailingDeliveryError('survey_delivery_not_ready');
   const contacts=await loadMailingContacts(env);
   if(recipients.some(r=>!contacts.some(c=>c.persistedContactId===r.contact_id&&c.eligibility.status==='eligible')))throw new MailingDeliveryError('recipients_no_longer_eligible');
+  const selection=await previewMailingSegment(env,JSON.parse(row.segment_definition_json));
+  if(recipients.some(r=>!selection.recipients.some(c=>c.persistedContactId===r.contact_id)))throw new MailingDeliveryError('recipients_no_longer_eligible');
   return recipients;
 }
 export async function sendCampaign(env,id,confirmation,provider=createSmtp2goAdapter(env)){
@@ -72,7 +75,8 @@ export async function testCampaign(env,id,addresses,provider=createSmtp2goAdapte
   if(!Array.isArray(addresses)||addresses.length<1||addresses.length>5||addresses.some(e=>!validDeliveryEmail(e)))throw new MailingDeliveryError('invalid_test_addresses',400);
   const emailTo=[...new Set(addresses.map(e=>e.trim().toLowerCase()))];await requireReady(provider,emailTo.length);
   const token=await lock(env,row,'test','AND subject=? AND preheader=? AND content_json=?',[row.subject,row.preheader,row.content_json]);
-  try{await provider.sendTest(emailTo.map((email,index)=>emailPayload(env,row,{id:`test-${index+1}`,normalized_email:email},{test:true})));await release(env,id,token)}
+  let accepted;
+  try{accepted=await provider.sendTest(emailTo.map((email,index)=>emailPayload(env,row,{id:`test-${index+1}`,normalized_email:email},{test:true})));await release(env,id,token)}
   catch(error){await failOperation(env,id,token,error);throw error}
-  return {accepted:true};
+  return {accepted:true,providerRequestId:accepted.requestId,providerEmailIds:accepted.emailIds};
 }

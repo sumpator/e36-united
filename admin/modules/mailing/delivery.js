@@ -10,13 +10,13 @@ const button=(action,label,disabled=false)=>`<button class="admin-button" data-d
 
 function render(){
   const row=current,ready=provider?.ready===true,locked=!!row?.busy;
-  panel().innerHTML=`<div class="admin-mailing-card-head"><div><span class="admin-kicker">DELIVERY</span><h4>Doručení kampaně.</h4></div><strong data-delivery-status>${escapeHtml({draft:'Draft',prepared:'Připraveno',sent:'Odesláno',archived:'Archiv'}[row?.status]||'Neuložený draft')}</strong></div>
+  panel().innerHTML=`<div class="admin-mailing-card-head"><div><span class="admin-kicker">DELIVERY</span><h4>Doručení kampaně.</h4></div><strong data-delivery-status>${escapeHtml({draft:'Koncept',prepared:'Připraveno',sent:'Odesláno',archived:'Archiv'}[row?.status]||'Neuložený koncept')}</strong></div>
     <details><summary>Technický stav doručování</summary><p data-provider-status>${escapeHtml(providerLabels[provider?.state]||'SMTP2GO · Chyba poskytovatele')}</p></details>
     <p>E36 United &lt;info@e36united.cz&gt; · ${row?.status==='draft'?'Způsobilí nyní':'Zmrazení příjemci'}: <strong data-delivery-count>${Number(row?.recipientCount||0)}</strong> · Limit: ${Number(provider?.dailyLimit||200)}/den${Number.isSafeInteger(provider?.monthlyRemaining)?` · Měsíčně zbývá: ${Number(provider.monthlyRemaining)}`:''}</p>
-    ${!row?'<p>Nejprve ulož koncept. Test používá uložený draft, skutečné odeslání pouze zmrazený obsah.</p>':''}
+    ${!row?'<p>Nejprve ulož koncept. Test používá uložený koncept, skutečné odeslání pouze zmrazený obsah.</p>':''}
     ${locked?'<p role="alert">Operace probíhá nebo vyžaduje ruční ověření výsledku u poskytovatele. Odeslání neopakuj.</p>':''}
     ${row?.status==='draft'?`<label class="admin-field"><span>Testovací e-maily (1–5, oddělené čárkou)</span><input data-delivery-test-addresses autocomplete="off" placeholder="test1@example.invalid"/></label><p>Test neukládá adresy ani nemění příjemce. Nejprve ulož změny editoru. Test se odešle pouze po potvrzení adres.</p>${button('test','Poslat test',!ready||locked)} ${button('prepare','Připravit kampaň',locked||!row.recipientCount)}`:''}
-    ${row?.status==='prepared'?`${button('unprepare','Vrátit do draftu',locked||!!row.providerRequestId)} ${button('send',`ODESLAT ${row.recipientCount} EMAILŮ`,!ready||locked||row.recipientCount>provider.dailyLimit||Number.isSafeInteger(provider?.monthlyRemaining)&&row.recipientCount>provider.monthlyRemaining)}<p>Obsah i příjemci jsou neměnní. Každý příjemce dostane samostatnou zprávu. Odeslání ankety je dostupné jen při podpoře příjemcovských odkazů.</p>`:''}
+    ${row?.status==='prepared'?`${button('unprepare','Vrátit do konceptu',locked||!!row.providerRequestId)} ${button('send',`ODESLAT ${row.recipientCount} EMAILŮ`,!ready||locked||row.recipientCount>provider.dailyLimit||Number.isSafeInteger(provider?.monthlyRemaining)&&row.recipientCount>provider.monthlyRemaining)}<p>Obsah i příjemci jsou neměnní. Každý příjemce dostane samostatnou zprávu. Odeslání ankety je dostupné jen při podpoře příjemcovských odkazů.</p>`:''}
     <div data-delivery-tracking></div><p data-delivery-message role="status"></p>${button('refresh','Obnovit stav')}`;
 }
 
@@ -41,7 +41,7 @@ async function act(action){
   if(action==='test'){
     body.addresses=$('[data-delivery-test-addresses]').value.split(/[,;\n]/).map(x=>x.trim()).filter(Boolean);
     if(!body.addresses.length||body.addresses.length>5||body.addresses.some(x=>! /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(x))){$('[data-delivery-message]').textContent='Zadej 1 až 5 platných testovacích adres.';return}
-    if(!window.confirm(`Poslat test uloženého draftu „${row.internalName}“ na ${body.addresses.join(', ')}?`))return;
+    if(!window.confirm(`Poslat test uloženého konceptu „${row.internalName}“ na ${body.addresses.join(', ')}?`))return;
   }
   if(action==='prepare'){
     if(!window.confirm(`Kampaň: ${row.internalName}\nPředmět: ${row.subject}\nZpůsobilí příjemci: ${row.recipientCount}\n\nPříprava zmrazí obsah a seznam příjemců.`))return;
@@ -54,10 +54,10 @@ async function act(action){
   if(action==='unprepare'&&!window.confirm('Vrátit do draftu a vymazat zmrazený obsah i seznam příjemců?'))return;
   current.busy=true;panel().querySelectorAll('button').forEach(node=>node.disabled=true);
   try{
-    await apiRequest(`/api/admin/mailing/campaigns/${encodeURIComponent(id)}/${action}`,{method:'POST',body});
+    const result=await apiRequest(`/api/admin/mailing/campaigns/${encodeURIComponent(id)}/${action}`,{method:'POST',body});
     if(id!==selected)return;
     await onChanged(id);await openMailingDelivery(id);
-    $('[data-delivery-message]').textContent=action==='test'?'SMTP2GO přijalo test. Adresy nejsou uloženy.':'Operace dokončena.';
+    $('[data-delivery-message]').textContent=action==='test'?'SMTP2GO přijalo test. Doručení ověř samostatně. ID: '+(result.providerEmailIds?.join(', ')||result.providerRequestId||'viz SMTP2GO Activity'):'Operace dokončena.';
   }catch(error){
     if(id!==selected)return;
     await openMailingDelivery(id);

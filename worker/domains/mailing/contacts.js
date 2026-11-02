@@ -175,6 +175,7 @@ function mapContact(row) {
   };
   contact.legacyOnly = !memberId && sources.some(source => HISTORICAL_SOURCE_TYPES.has(source.type));
   contact.eligibility = mailingEligibility(contact);
+  if(contact.eligibility.status==='eligible'&&(contact.normalizedEmail.length>254||! /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(contact.normalizedEmail)))contact.eligibility={status:'ineligible',reason:'invalid_email'};
   return contact;
 }
 
@@ -287,7 +288,14 @@ export async function loadMailingContacts(env) {
     LEFT JOIN members m ON m.id = u.member_id
     ORDER BY CASE WHEN m.id IS NULL THEN 1 ELSE 0 END, lower(COALESCE(u.name, '')), u.normalized_email
   `).all();
-  return (rows.results || []).map(mapContact);
+  const unique=new Map();
+  for(const contact of (rows.results||[]).map(mapContact)){
+    const existing=unique.get(contact.normalizedEmail);
+    if(!existing){unique.set(contact.normalizedEmail,contact);continue;}
+    // A duplicate address is not permission to combine identities or choose the more permissive consent.
+    existing.eligibility={status:'review_required',reason:'duplicate_address'};existing.possibleDuplicate=true;
+  }
+  return [...unique.values()];
 }
 
 export function filterMailingContacts(contacts, { query = "", scope = "relevant", eligibility = "all" } = {}) {

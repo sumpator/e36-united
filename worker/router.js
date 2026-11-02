@@ -12,6 +12,7 @@ import { verifyFirebaseRequest } from "./auth/firebase.js";
 import { ACTIVE_MEMBER_STATUS, activeMemberForbidden, findMemberAuthorizationRecord, requireActiveMember } from "./auth/member.js";
 import * as domain from "./domains.js";
 import {saveMemberLivePreference} from './domains/members.js';
+import {memberMailingPreference} from './domains/mailing/preference.js';
 import { isAllowedOrigin } from "./http/cors.js";
 import { json } from "./http/responses.js";
 import { routeAdminMailing } from "./domains/mailing/index.js";
@@ -24,6 +25,8 @@ import { createCompetitionCar, competitionCarMedia, assignLiveJudge, controlLive
 
 const PROTECTED_MEMBER_EXACT_ROUTES = new Set([
   'PUT /api/me/live-preference',
+  'GET /api/me/mailing-preference',
+  'PUT /api/me/mailing-preference',
   'GET /api/preliminary-reservations/current',
   'PUT /api/preliminary-reservations/current',
   'DELETE /api/preliminary-reservations/current',
@@ -327,6 +330,7 @@ export async function routeRequest({ request, env, url, origin, ctx }) {
     }
 
     if(url.pathname==='/api/me/live-preference'&&request.method==='PUT')return saveMemberLivePreference(request,env,auth,origin);
+    if(url.pathname==='/api/me/mailing-preference'&&['GET','PUT'].includes(request.method))return memberMailingPreference(request,env,auth,origin);
     if(url.pathname.startsWith('/api/merch/'))return routeMerch({request,env,url,origin,auth,ctx});
     if(url.pathname==='/api/preliminary-reservations/current'){
       if(request.method==='GET')return getPreliminaryReservation(env,auth,origin);

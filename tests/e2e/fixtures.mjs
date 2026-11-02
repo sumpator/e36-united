@@ -1,3 +1,4 @@
+import {MAILING_FIELDS} from '../../worker/domains/mailing/segment-fields.js';
 import {factoryPreferences} from '../../admin/dashboard-model.js';
 import {ancillaryReads} from './ancillary-fixture.mjs';
 import { expect } from '@playwright/test';
@@ -268,6 +269,7 @@ export async function prepareE2ePage(page, {
       });
       return;
     }
+    if(url.pathname==='/api/me/mailing-preference'&&request.method()==='GET')return jsonResponse(route,{subscribed:false,status:'unknown',source:null,at:null,eligibility:{status:'review_required',reason:'mailing_consent_unknown'}});
     if(url.pathname==='/api/me/live-preference'&&request.method()==='PUT'){
       const body=request.postDataJSON();if(typeof body.showProgramLive!=='boolean'||Object.keys(body).length!==1){await jsonResponse(route,{error:'invalid_preference'},400);return}
       memberProfile.showProgramLive=body.showProgramLive;await jsonResponse(route,{ok:true,showProgramLive:body.showProgramLive});return;
@@ -530,17 +532,19 @@ export async function prepareAdminE2ePage(page,{authUid=memberId}={}) {
       });
       return;
     }
+    if(url.pathname==='/api/admin/mailing/contacts'&&request.method()==='GET')return jsonResponse(route,{contacts:[{id:'contact-e2e',email:'eva@example.test',name:'Eva Nováková',nickname:'Eva',memberId,canonicalMemberId:memberId,participationCount:2,mailingConsent:{status:'yes',source:'explicit',at:'2026-09-01'},eligibility:{status:'eligible',reason:'explicit_mailing_consent'},sources:[{type:'current_member'}]}],pagination:{page:1,total:1,totalPages:1,pageSize:50}});
     if (url.pathname === '/api/admin/mailing/overview') {
       await jsonResponse(route, {
         overview: { totalContacts: 4, currentMembers: 2, historicalOnly: 1, eligible: 1, suppressed: 1, reviewRequired: 1, campaignDrafts: 1 },
       });
       return;
     }
+    if(url.pathname==='/api/admin/mailing/segments/config'&&request.method()==='GET')return jsonResponse(route,{version:2,fields:MAILING_FIELDS,events:[{id:'united-2026',year:2026,title:'United 2026',is_current:1}],products:[],tags:[]});
     if (url.pathname === '/api/admin/mailing/segments/preview' && request.method() === 'POST') {
       const segment=request.postDataJSON()?.segment||{};
       await jsonResponse(route, {
         definition: { match: segment.match||'all', rules: segment.rules||[], exclusions: segment.exclusions||[] },
-        count: 1,
+        count: 1,summary:{matching:1,eligible:1,excluded:0,reasons:{}},pagination:{page:1,pageSize:25,total:1,totalPages:1},
         recipients: [{
           id: 'contact-e2e', email: 'eva@example.test', name: 'Eva Nováková', nickname: 'Eva',
           memberId, eventYears: [2026,2025], eligibility: { status: 'eligible', reason: 'explicit_mailing_consent' },

@@ -90,12 +90,12 @@ test.describe('desktop Admin portal', () => {
     await expect(page.locator('[data-mailing-kpi="total"]')).toHaveText('4');
     await expect(page.locator('[data-mailing-kpi="eligible"]')).toHaveText('1');
 
-    await page.locator('[data-mailing-tab="segments"]').click();
-    await page.locator('[data-mailing-segment-form] input[value="active_member"]').check();
-    await page.locator('[data-mailing-segment-form] button[type="submit"]').click();
-    await expect(page.locator('[data-mailing-recipient-count]')).toHaveText('1 příjemce');
-    await expect(page.locator('[data-mailing-recipient-list]')).toContainText('eva@example.test');
-    await expect(page.locator('[data-mailing-recipient-list]')).toContainText('Member');
+    await page.locator('[data-mailing-tab="contacts"]').click();
+    await page.locator('[data-contacts-selection]').click();
+    const selection=page.getByRole('dialog',{name:'Vybrat příjemce'});
+    await expect(selection.locator('[data-selection-summary]')).toContainText('Lze oslovit kampaní: 1');
+    await expect(selection.locator('[data-selection-results]')).toContainText('eva@example.test');
+    await expect(selection.locator('[data-selection-results]')).toContainText('Člen portálu');
 
     expect(observations.requests).toEqual(expect.arrayContaining([
       'GET /api/admin/mailing/overview',
@@ -176,7 +176,8 @@ test.describe('desktop Admin portal', () => {
     await expect(page.locator('[data-mailing-save-state]')).toHaveText('Uloženo');
     expect(observations.campaignWrites.map(write=>write.method)).toEqual(['POST','PATCH']);
     expect(observations.campaignWrites[0].body.content.template).toBe('e36-default-v1');
-    expect(observations.campaignWrites[0].body.segment).toEqual({match:'all',rules:[{type:'mailing_eligible'}],exclusions:[]});
+    // A new selection starts with all contacts so eligibility exclusions remain visible; preparation still admits only eligible recipients.
+    expect(observations.campaignWrites[0].body.segment).toEqual({match:'all',rules:[{type:'all_contacts'}],exclusions:[]});
     expect(observations.requests.some(entry=>entry.includes('/recipients'))).toBe(false);
     expectNoUnexpectedClientErrors(observations);
   });
