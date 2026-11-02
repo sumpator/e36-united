@@ -80,7 +80,7 @@ for(const width of [360,390,1024,1440])test('local Admin next workflow '+width,a
   await page.locator('[data-admin-live-more-toggle]').click();await page.locator('[data-live-subview=results]').click();await expect(page.locator('[data-live-subview=history]')).toHaveCount(0);await page.locator('[data-live-edit-score]').click();
   await expect(page.locator('[data-live-judge-form]')).toHaveCount(0);await page.locator('[data-live-edit-own]').click();await expect(page.locator('[name=overall]')).toHaveValue('6');
   await expect(page.locator('.live-correction-warning')).toContainText('Kategorie je uzavřená');
-  await page.locator('[name=reason]').fill('Oprava překlepu při společném rozhodnutí poroty');
+  await page.locator('[data-live-judge-form] [name=reason]').fill('Oprava překlepu při společném rozhodnutí poroty');
   await page.locator('[data-live-judge-criterion=overall][data-live-judge-score="9"]').click();
   for(const mode of ['light','dark']){await theme(page,mode);await shot(page,width+'-'+mode+'-correction')}
   await page.locator('[data-live-judge-submit]').click();await expect(page.locator('[data-live-judge-form]')).toHaveCount(0);
