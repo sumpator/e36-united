@@ -5,7 +5,7 @@ import { validateImageFile, verifiedImage,extensionFor } from '../media.js';
 import { createSmtp2goAdapter,senderConfig } from '../mailing/provider/smtp2go.js';
 import {deliverTransactionalEmails,transactionalReady,transactionalTransportState} from '../mailing/transactional.js';
 import { fail,MerchError,key,uid,stamp } from './model.js';
-import { getCatalog,seedCatalog,quotation,createOrder,readOrder,listOrders,changeOrder,getAddress,saveAddress,saveProduct,saveSettings } from './service.js';
+import { getCatalog,seedCatalog,quotation,createOrder,readOrder,listOrders,changeOrder,getAddress,saveAddress,saveProduct,deleteProduct,saveSettings } from './service.js';
 
 async function body(request){
  const reader=request.body?.getReader();if(!reader)fail('Chybí data.');const chunks=[];let size=0;
@@ -70,6 +70,7 @@ export async function routeMerch({request,env,url,origin,auth,ctx},admin=false){
   if(path==='/catalog'&&admin&&method==='GET')result=await getCatalog(env,true);
   else if(path==='/seed'&&admin&&method==='POST')result=await seedCatalog(env,auth.uid);
   else if(path==='/products'&&admin&&method==='PUT')result=await saveProduct(env,auth.uid,await body(request));
+  else if(path==='/products'&&admin&&method==='DELETE')result=await deleteProduct(env,auth.uid,await body(request));
   else if(path==='/settings'&&admin&&method==='PUT')result=await saveSettings(env,auth.uid,await body(request));
   else if(path==='/media'&&admin&&method==='POST')result=await upload(request,env,auth);
   else if(path==='/address'&&!admin&&method==='GET')result={address:await getAddress(env,auth.uid)};

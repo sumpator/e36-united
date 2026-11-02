@@ -2,7 +2,9 @@
 import {escapeHtml as esc,formatMoney,formatDate} from './ui.js?v=20260924-merch2';
 import {commandIcon} from './command-icons.js?v=20261014-admin1';
 
-export const MEMBER_TABS=Object.freeze({overview:'Přehled',event:'Vybraný ročník',reservations:'Registrace a platby',garage:'Garáž',photos:'Fotky',club:'United Club',history:'Historie a S&S',points:'Body',mailing:'Mailing',qr:'Členské QR',merch:'Merch'});
+export const MEMBER_TABS=Object.freeze({overview:'Přehled',event:'Sraz a platby',club:'United Club',media:'Fotky & garáž',profile:'Profil a komunikace'});
+export const memberSectionKey=tab=>({reservations:'event',merch:'event',garage:'media',photos:'media',history:'club',points:'club',mailing:'profile',qr:'overview'}[tab]||tab);
+export const knownMemberTab=tab=>Object.hasOwn(MEMBER_TABS,memberSectionKey(tab));
 const labels={active:'Aktivní',inactive:'Neaktivní',suspended:'Pozastavený',blocked:'Blokovaný',admin:'Administrátor',member:'Člen',pending:'Čeká na schválení',approved:'Schváleno',rejected:'Zamítnuto',cancelled:'Zrušeno',draft:'Koncept',not_submitted:'Nepodáno',not_claimed:'Nenárokováno',unpaid:'Neuhrazeno',paid:'Uhrazeno',underpaid:'Částečně uhrazeno',overpaid:'Přeplatek',not_required:'Bez platby',full_weekend:'Celý víkend',saturday_only:'Sobota',day_visit:'Jednodenní návštěva',none:'Bez ubytování',sedan:'Sedan',coupe:'Coupé',touring:'Touring',compact:'Compact',cabrio:'Cabrio',unknown:'Neznámý stav'};
 export const memberLabel=value=>esc(value==null||value===''?'—':Object.hasOwn(labels,value)?labels[value]:value);
 const mailingLabels={yes:'Ano',no:'Ne',unknown:'Neznámý stav',eligible:'Bez vyloučení',unsubscribed:'Odhlášeno',hard_bounce:'Trvale nedoručeno',soft_bounce:'Dočasně nedoručeno',blocked:'Blokováno',manually_suppressed:'Ručně vyloučeno',deliverable:'Doručitelné',prepared:'Připraveno',sent:'Odesláno',delivered:'Doručeno',rejected:'Odmítnuto'};
@@ -21,27 +23,23 @@ const paymentFacts=r=>{
  const known=Number.isFinite(r.amountDueCzk)&&Number.isFinite(r.amountPaidCzk);
  return facts([['Předpis',money(r.amountDueCzk)],['Evidovaně uhrazeno',money(r.amountPaidCzk)],['Zbývá uhradit',known?money(Math.max(0,r.amountDueCzk-r.amountPaidCzk)):'—'],['Přeplatek',known?money(Math.max(0,r.amountPaidCzk-r.amountDueCzk)):'—']]);
 };
-export function memberIdentity(m,heroCar=null){
+export function memberIdentity(m){
  const title=m.nickname||m.name||'Člen',initials=title.trim().split(/\s+/u).slice(0,2).map(s=>s[0]).join('').toLocaleUpperCase('cs-CZ');
- const car=heroCar?`<p class="admin-member-hero-car"><span>Hlavní vůz</span> ${[heroCar.nickname?esc(heroCar.nickname):'',esc(heroCar.model||''),heroCar.body?memberLabel(heroCar.body):''].filter(Boolean).join(' · ')}</p>`:'';
- return `<span class="admin-member-monogram" aria-hidden="true">${esc(initials)}</span><div class="admin-member-identity-copy"><small>ČLEN UNITED</small><h2 id="admin-member-heading">${esc(title)}</h2>${m.name&&m.name!==title?`<p>${esc(m.name)}</p>`:''}<div class="admin-member-meta"><strong>${value(m.memberCode)}</strong><span class="admin-member-status">${memberLabel(m.status)}</span><small>${memberLabel(m.role)}</small></div>${car}</div>`;
+ return '<span class="admin-member-monogram" aria-hidden="true">'+esc(initials)+'</span><div class="admin-member-identity-copy"><h2 id="admin-member-heading">'+esc(title)+'</h2></div>';
 }
+export function memberProfile(m){return m?card('Profil a kontakty',facts([['Jméno',value(m.name)],['Přezdívka',value(m.nickname)],['E-mail',value(m.email)],['Telefon',m.phone?value(m.phone):'Neuveden'],['Stav účtu',memberLabel(m.status)],['Role',memberLabel(m.role)]])+'<details><summary>Další údaje</summary>'+facts([['Členské ID',value(m.memberCode)],['Založeno',date(m.createdAt)]])+'</details>'):memberEmpty('Načítám profil…');}
+
 function clubFacts(p){return `<div class="admin-member-rating"><small>Hodnost United</small><strong>${value(p.rating?.name)}</strong></div>`+facts([['Dostupné body',value(p.points?.available)],['Celkem získané body',value(p.points?.lifetime)]]);}
 function achievements(items,compact=false){
  const visible=compact?(items||[]).slice(0,3):items||[];
  return visible.length?`<div class="admin-member-achievements ${compact?'admin-member-achievements--compact':''}">${visible.map(a=>`<div>${icon('united-club')}<div><strong>${value(a.name)}</strong>${compact?'':`<small>${value(a.tier)}</small><p>${value(a.condition)}</p>`}</div></div>`).join('')}</div>`:memberEmpty('V tomto přehledu nejsou žádné achievementy.','united-club');
 }
 export function memberOverview(header,club,{headerState,clubState}={}){
- const unavailable=s=>['stale','unavailable'].includes(s?.state);
- const res=header?.reservations;
- const reservationBody=header?(res?.length?res.map(r=>facts([['Stav',memberLabel(r.status)],['Osoby',value(r.crew)],['Pobyt',memberLabel(r.attendanceType)],['Ubytování',`${value(r.stayName||r.accommodation)} · ${value(r.stayUnits??r.accommodationUnits)} jednotek / ${value(r.stayNights)} nocí`]])+memberReservationLink(r)).join(''):memberEmpty('Na tento ročník zatím nemá registraci.','reservations')):memberEmpty(unavailable(headerState)?'Registraci se nepodařilo načíst.':'Načítám registraci vybraného ročníku…','reservations');
- const paymentBody=header?(res?.length?res.map(r=>`<div class="admin-member-payment" data-reservation-finance="${esc(r.id)}">${res.length>1?`<h4>Registrace ${esc(r.id)}</h4>`:''}${paymentFacts(r)}</div>`).join(''):memberEmpty('Bez registrace nejsou pro tento ročník evidované platby.','payments')):memberEmpty(unavailable(headerState)?'Platby se nepodařilo načíst.':'Načítám platby…','payments');
- const staleHeader=header&&unavailable(headerState)?'<p class="admin-member-warning">Registraci se nepodařilo načíst. Zobrazené údaje jsou z posledního úspěšného čtení.</p>':'';
- const clubBody=club?clubFacts(club)+achievements(club.achievements,true):memberEmpty(unavailable(clubState)?'United Club se nepodařilo načíst. Profil a registrace zůstávají dostupné.':'Načítám United Club…','united-club');
- const m=header?.member;
- const contact=m?facts([['Jméno',value(m.name)],['E-mail',value(m.email)],['Telefon',esc(m.phone||'Neuveden')],['Registrace',date(m.createdAt)]]):memberEmpty(unavailable(headerState)?'Profil se nepodařilo načíst.':'Načítám profil…');
- return `<div class="admin-member-overview" data-member-overview>${card(header?.event?.title||'Vybraný ročník',staleHeader+reservationBody,'reservations')}${card('Platby vybraného ročníku',staleHeader+paymentBody,'payments')}${card('United Club',(club&&unavailable(clubState)?'<p class="admin-member-warning">Club data jsou zastaralá; nové čtení se nezdařilo.</p>':'')+clubBody+tabLink('club'),'united-club')}${card('Profil a kontakt',contact+`<div class="admin-member-shortcuts">${tabLink('garage')}${tabLink('photos')}${tabLink('qr','Zobrazit členské QR')}</div>`,'members')}</div>`;
+ const m=header?.member,res=header?.reservations||[],car=header?.heroCar;
+ const contact=m?facts([['Jméno',value(m.name)],['E-mail',value(m.email)],['Telefon',m.phone?value(m.phone):'Neuveden'],['Stav účtu',memberLabel(m.status)],['Role',memberLabel(m.role)]]):memberEmpty(headerState?.state==='unavailable'?'Profil se nepodařilo načíst.':'Načítám profil…');
+ return '<div class="admin-member-overview" data-member-overview>'+card('Člen',contact+'<div class="admin-member-shortcuts">'+tabLink('profile','Profil a komunikace')+tabLink('qr','Zobrazit členské QR')+'</div><details><summary>Další údaje</summary>'+facts([['Členské ID',value(m?.memberCode)],['Založeno',date(m?.createdAt)]])+'</details>')+card(header?.event?.title||'Sraz a platby',header?(res.length?res.map(r=>facts([['Registrace',memberLabel(r.status)],['Posádka',value(r.crew)]])+paymentFacts(r)).join(''):'<p>Pro tento ročník nemá registraci ani platby za sraz.</p>'):(headerState?.state==='unavailable'?'<p>Registraci se nepodařilo načíst.</p>':'<p>Načítám sraz…</p>'))+card('United Club',(club?clubFacts(club):memberEmpty(clubState?.state==='unavailable'?'United Club se nepodařilo načíst.':'Načítám United Club…'))+tabLink('club'),'united-club')+card('Hlavní auto',(car?'<p>'+[value(car.nickname),value(car.model),memberLabel(car.body)].join(' · ')+'</p>':'<p>Hlavní auto není vybrané.</p>')+tabLink('media','Fotky a garáž'),'reservations')+'</div>';
 }
+
 export function memberReservation(r){return card(r.title||String(r.year||'Registrace'),`<div class="admin-member-reservation-columns"><div>${reservationFacts(r)}${facts([['Auto',value(r.carModel)],['S&S',value(r.showShine)]])}</div><div>${paymentFacts(r)}${facts([['VS (uložené)',value(r.variableSymbol)],['Uložený platební stav',memberLabel(r.storedPaymentStatus)],['Uhrazeno dne',date(r.paidAt)]])}</div></div>${memberReservationLink(r)}`,'reservations');}
 export function memberPhoto(item){return `<button type="button" class="admin-member-photo" data-member-image="${esc(item.mediaPath)}" aria-label="Otevřít fotografii v plné velikosti"><img alt="Soukromá fotografie člena" width="360" height="240" loading="lazy" data-member-media="${esc(item.mediaPath)}" data-media-version="${esc(item.version||'')}"/></button>`;}
 const statusTone=status=>['approved','pending','rejected'].includes(status)?status:'neutral';

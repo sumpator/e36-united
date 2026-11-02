@@ -1,4 +1,5 @@
 import { readJsonObject } from "../../http/request.js";
+import {uploadMailingImage} from './media.js';
 import { routeMailingDelivery } from './delivery-routes.js';
 import {routeTransactionalEmails} from './transactional-routes.js';
 import { json } from "../../http/responses.js";
@@ -119,6 +120,12 @@ async function renderPreview(request, origin) {
 
 export async function routeAdminMailing({ request, env, url, auth, origin }) {
   if (!url.pathname.startsWith("/api/admin/mailing")) return null;
+  if(url.pathname==='/api/admin/mailing/media'&&request.method==='POST'){
+    try{return json({ok:true,...await uploadMailingImage(request,env)},201,origin)}catch(error){
+      const messages={missing_image:'Vyber obrázek.',invalid_image_type:'Vyber JPEG nebo PNG.',invalid_image:'Vyber platný JPEG nebo PNG do 8 MB.',image_too_large:'Obrázek musí mít nejvýše 8 MB.'};
+      if(messages[error.message])return json({ok:false,error:error.message,message:messages[error.message]},error.message==='image_too_large'?413:400,origin);throw error;
+    }
+  }
   const transactional=await routeTransactionalEmails({request,env,url,auth,origin});if(transactional)return transactional;
   const delivery = await routeMailingDelivery({ request, env, url, origin });
   if (delivery) return delivery;

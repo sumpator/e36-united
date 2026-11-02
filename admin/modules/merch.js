@@ -3,7 +3,7 @@ import {adminState} from '../state.js?v=20260930-arrivals2';
 import {esc,date,statusLabel,orderStatusLabel,orderMarkup,bindOrder} from '../../merch/order-view.js?v=20261101-detail1';
 import {money,imageSource} from '../../merch/catalog.js?v=20260924-merch2';
 import {merchandiseDocuments} from '../../merch/documents.js?v=20260924-merch2';
-import {editMerchProduct,productStatus,productGender,productPrice} from './merch-product-editor.js?v=20261101-detail1';
+import {editMerchProduct,productStatus,productGender,productPrice} from './merch-product-editor.js?v=20261102-admin1';
 import {initializeMerchPayments} from './merch-payments.js?v=20261101-detail1';
 import {layoutMerchSettings} from './merch-settings-layout.js?v=20261101-detail1';
 export function initializeMerch(){
@@ -39,7 +39,7 @@ export function initializeMerch(){
  controls('[data-merch-search-form]').onsubmit=e=>{e.preventDefault();page=1;void load();};
  function products(){
   body.innerHTML=`<div class="merch-actions"><button class="shop-button shop-primary" data-new-product>Nový produkt</button>${!catalog.products.length?'<button class="shop-button" data-seed-products>Založit schválenou kolekci (6 produktů)</button>':''}</div><div class="portal-product-list">${catalog.products.map(p=>`<button type="button" class="merch-order-card" data-edit-product="${esc(p.id)}">${p.variants[0]?.image?`<img src="${esc(imageSource(p.variants[0]))}" alt="">`:''}<span><b>${esc(p.name)}</b><small>${esc(p.category)} · ${esc(productGender[p.gender]||p.gender)} · ${esc(p.type)}</small><small>${p.variants.length} variant · ${productPrice(p)}</small><small>${esc(productStatus[p.status])} · Upravit</small></span></button>`).join('')}</div><div data-product-editor></div>`;
-  function openProduct(product){if(!leaveProduct())return;disposeProduct();const g=generation;productEditor=editMerchProduct(body.querySelector('[data-product-editor]'),{product,catalog,isCurrent:()=>still(g),upload:file=>apiUpload('/api/admin/merch/media',file,{method:'POST'}),save:values=>request('/products',{method:'PUT',body:values}),onSaved:()=>{stateMessage('Produkt uložen.');void load();}});const heading=body.querySelector('[data-product-editor] h3');heading.tabIndex=-1;heading.focus();heading.scrollIntoView({block:'start'});}
+  function openProduct(product){if(!leaveProduct())return;disposeProduct();const g=generation;productEditor=editMerchProduct(body.querySelector('[data-product-editor]'),{product,catalog,isCurrent:()=>still(g),upload:file=>apiUpload('/api/admin/merch/media',file,{method:'POST'}),save:values=>request('/products',{method:'PUT',body:values}),remove:values=>request('/products',{method:'DELETE',body:values}),onCancelled:()=>{disposeProduct();products();body.querySelector('[data-new-product]')?.focus()},onSaved:()=>{stateMessage('Produkt uložen.');void load();}});const heading=body.querySelector('[data-product-editor] h3');heading.tabIndex=-1;heading.focus();heading.scrollIntoView({block:'start'});}
   body.querySelector('[data-new-product]').onclick=()=>openProduct();
   body.querySelectorAll('[data-edit-product]').forEach(button=>button.onclick=()=>openProduct(catalog.products.find(p=>p.id===button.dataset.editProduct)));
   body.querySelector('[data-seed-products]')?.addEventListener('click',async()=>{try{await request('/seed',{method:'POST'});await load();}catch(error){stateMessage(error.message);}});

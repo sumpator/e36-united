@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {MEMBER_TABS,memberIdentity,memberOverview,memberSection,memberLabel} from '../admin/member-presentation.js';
+import {MEMBER_TABS,memberSectionKey,memberIdentity,memberOverview,memberSection,memberLabel} from '../admin/member-presentation.js';
 import {adminRoute,adminRouteUrl} from '../admin/navigation.js';
 import {memberRefreshTasks} from '../admin/member-detail.js';
 import {adminState} from '../admin/state.js?v=20260930-arrivals2';
@@ -8,9 +8,9 @@ import {ADMIN_REFRESH} from '../admin/refresh-policy.js';
 const header={member:{memberId:'m',name:'Testovací člen',nickname:'Řidič',email:'example@example.invalid',memberCode:'EU-TEST',status:'active',role:'member',createdAt:'2026-01-01'},event:{id:'e',title:'United 2026'},reservations:[]};
 
 test('Member modal section contract defaults to overview and preserves every explicit deep link',()=>{
- assert.deepEqual(Object.keys(MEMBER_TABS),['overview','event','reservations','garage','photos','club','history','points','mailing','qr','merch']);
+ assert.deepEqual(Object.keys(MEMBER_TABS),['overview','event','club','media','profile']);
  globalThis.location={pathname:'/admin.html'};
- for(const tab of Object.keys(MEMBER_TABS)){const url=adminRouteUrl({section:'members',memberId:'m',eventId:'e',memberTab:tab});assert.equal(adminRoute(url.split('?')[1]).memberTab,tab);if(tab==='event')assert.match(url,/tab=event/);}
+ for(const tab of [...Object.keys(MEMBER_TABS),'garage','photos','history','points','mailing','qr','merch','reservations']){const url=adminRouteUrl({section:'members',memberId:'m',eventId:'e',memberTab:tab});assert.equal(adminRoute(url.split('?')[1]).memberTab,tab);if(tab==='event')assert.match(url,/tab=event/);}
  assert.equal(adminRoute('?member=m').memberTab,'overview');assert.equal(adminRoute('?member=m&tab=__proto__').memberTab,'overview');assert.doesNotMatch(adminRouteUrl({memberId:'m',memberTab:'<unsafe>'}),/tab=/);
  delete globalThis.location;
 });
@@ -20,9 +20,9 @@ test('Member overview adds only existing Club analytics to header tasks and keep
  adminState.memberTab='club';assert.equal(memberRefreshTasks()[1][1],tasks[1][1]);adminState.memberTab='event';assert.equal(memberRefreshTasks().length,1);adminState.memberId=null;
 });
 test('Member overview distinguishes success-empty, initial loading, unavailable and stale projections',()=>{
- assert.match(memberOverview(header,null),/Na tento ročník zatím nemá registraci/);assert.match(memberOverview(header,null),/Bez registrace nejsou/);assert.doesNotMatch(memberOverview(header,null),/vše zaplaceno/i);
+ assert.match(memberOverview(header,null),/nemá registraci ani platby za sraz/);assert.doesNotMatch(memberOverview(header,null),/vše zaplaceno/i);
  const failed=memberOverview(null,null,{headerState:{state:'unavailable'},clubState:{state:'unavailable'}});assert.match(failed,/Registraci se nepodařilo načíst/);assert.doesNotMatch(failed,/zatím nemá registraci/);
- assert.match(memberOverview(null,null),/Načítám registraci/);assert.match(memberOverview(header,null,{headerState:{state:'stale'}}),/posledního úspěšného čtení/);
+ assert.match(memberOverview(null,null),/Načítám sraz/);assert.match(memberOverview(header,null,{headerState:{state:'stale'}}),/example@example.invalid/);
 });
 test('Member presentation uses exact per-reservation finance, known zero and unknown are distinct',()=>{
  const res={id:'r',eventId:'e',amountDueCzk:1000,amountPaidCzk:1300};
@@ -30,8 +30,8 @@ test('Member presentation uses exact per-reservation finance, known zero and unk
  const unknown=memberOverview({...header,reservations:[{...res,amountPaidCzk:null,amountDueCzk:null}]},null);assert.doesNotMatch(unknown,/0\sKč/);assert.match(unknown,/>—</);
 });
 test('Member identity is escaped, monogram-only and labels registration without historical claims',()=>{
- assert.match(memberIdentity(header.member),/ČLEN UNITED/);assert.match(memberIdentity(header.member),/Aktivní/);assert.doesNotMatch(memberIdentity(header.member),/<img/);
- assert.match(memberIdentity({...header.member,nickname:'<img onerror=x>'}),/&lt;img/);const html=memberOverview(header,null);assert.match(html,/Registrace/);assert.match(html,/Neuveden/);assert.doesNotMatch(html,/United od/);assert.equal(memberLabel('future_status'),'future_status');
+ assert.match(memberIdentity(header.member),/Řidič/);assert.doesNotMatch(memberIdentity(header.member),/EU-TEST|Aktivní|example@example.invalid/);assert.doesNotMatch(memberIdentity(header.member),/<img/);
+ assert.match(memberIdentity({...header.member,nickname:'<img onerror=x>'}),/&lt;img/);const html=memberOverview(header,null);assert.match(html,/registraci ani platby/);assert.match(html,/Neuveden/);assert.doesNotMatch(html,/United od/);assert.equal(memberLabel('future_status'),'future_status');
 });
 test('Member Club summary uses server values and no invented progress or rating calculation',()=>{
  const club={rating:{name:'Serverová hodnost'},points:{available:0,lifetime:400},achievements:Array.from({length:5},(_,i)=>({name:'Achievement '+i,condition:'Serverový popis'}))};

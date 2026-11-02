@@ -56,18 +56,19 @@ async function capture(page,name){
   await page.screenshot({path:resolve(shots,`${name}-${theme}.png`),animations:'disabled'});
  }
 }
+async function previewVariant(page,index){const panel=page.locator('.portal-product-preview');if(!await panel.evaluate(n=>n.open))await panel.locator(':scope>summary').click();const select=page.locator('[data-preview-variant]');await select.selectOption(await select.locator('option').nth(index).getAttribute('value'));}
 for(const width of [1440,390])test(`Portal workspace product, payments and account ${width}`,async({page,context})=>{
  test.setTimeout(90000);
  const runtime=await merchRuntime();runtime.db.exec("UPDATE events SET title='United 2026' WHERE id='united-2026'");try{
   const errors=await prepareAdminE2ePage(page,{authUid:'admin'});await bridge(page,runtime.env,'admin');await page.setViewportSize({width,height:960});
   await page.goto('/admin.html?section=merch');await page.locator('[data-merch-admin-tab=products]').click();await expect(page.locator('[data-edit-product]')).toHaveCount(6);await capture(page,`products-${width}`);
   await page.locator('[data-edit-product=united-u-polo]').click();const form=page.locator('[data-product-edit]');await form.locator('[name=name]').fill('United U lokální koncept');await expect(page.locator('[data-product-preview]')).toContainText('United U lokální koncept');
-  const variant=form.locator('[data-variant]').first();await variant.locator('[name=size][value=S]').uncheck();await variant.locator('[name=size][value=XL]').check();
-  await page.locator('[data-preview-variant]').selectOption('1');await page.locator('[data-preview-variant]').selectOption('0');await expect(form.locator('[name=name]')).toHaveValue('United U lokální koncept');
+  const variant=form.locator('[data-variant]').first();await variant.locator('[data-edit-variant]').click();await variant.locator('[name=size][value=S]').uncheck();await variant.locator('[name=size][value=XL]').check();
+  await previewVariant(page,1);await previewVariant(page,0);await expect(form.locator('[name=name]')).toHaveValue('United U lokální koncept');
   page.once('dialog',dialog=>dialog.dismiss());await page.locator('[data-merch-admin-tab=orders]').click();await expect(form).toBeVisible();
   await form.locator('h3').first().scrollIntoViewIfNeeded();await capture(page,`product-editor-${width}`);
   if(width===390){await page.setViewportSize({width:360,height:800});await capture(page,'product-editor-360');await page.setViewportSize({width,height:960});}
-  await form.getByRole('button',{name:'Uložit produkt',exact:true}).click();await expect(page.locator('[data-edit-product=united-u-polo]')).toContainText('United U lokální koncept');
+  await variant.locator('[data-confirm-variant]').click();await form.getByRole('button',{name:'Uložit změny',exact:true}).click();await expect(page.locator('[data-edit-product=united-u-polo]')).toContainText('United U lokální koncept');
   await page.locator('[data-merch-admin-tab=settings]').click();await expect(page.locator('[data-merch-settings]')).toBeVisible();await capture(page,`settings-${width}`);
   const order=await runtime.order();await page.goto('/admin.html?section=payments');await page.locator('[data-finance-tab=merch]').click();await expect(page).toHaveURL(/payment=merch/);await page.reload();await expect(page.locator('[data-finance-tab=merch]')).toHaveAttribute('aria-pressed','true');await page.locator(`[data-payment-order="${order.id}"]`).click();
   await expect(page.locator('[data-admin-panel=payments] [data-merch-admin-tab]')).toHaveCount(0);await expect(page.locator('[data-payment-detail]')).toContainText(order.number);await expect(page.locator('[data-payment-detail] [name=action] option')).toHaveCount(3);await capture(page,`admin-payments-${width}`);
@@ -82,11 +83,11 @@ test('Portal workspace photo draft, required image and narrow payment tabs',asyn
   const errors=await prepareAdminE2ePage(page,{authUid:'admin'});await bridge(page,runtime.env,'admin');await page.setViewportSize({width:360,height:800});let uploads=0;
   await page.route('**/api/admin/merch/media',route=>{uploads++;return route.fulfill({status:200,contentType:'application/json',headers:{'Access-Control-Allow-Origin':'*'},body:JSON.stringify({image:'polo-white'})});});
   await page.goto('/admin.html?section=merch');await page.locator('[data-merch-admin-tab=products]').click();await page.locator('[data-edit-product=united-u-polo]').click();const form=page.locator('[data-product-edit]'),variant=form.locator('[data-variant]').first();
-  await variant.locator('[data-product-file]').setInputFiles('assets/images/merch/polo-white-card.webp');await expect(page.locator('[data-product-preview] img')).toHaveAttribute('src',/^blob:/);expect(uploads).toBe(0);
-  await page.locator('[data-preview-variant]').selectOption('1');await page.locator('[data-preview-variant]').selectOption('0');await expect(page.locator('[data-product-preview] img')).toHaveAttribute('src',/^blob:/);
-  await variant.locator('[data-remove-photo]').click();await form.getByRole('button',{name:'Uložit produkt',exact:true}).click();await expect(page.locator('[data-product-status]')).toContainText('Každá varianta potřebuje fotografii');expect(uploads).toBe(0);
-  await variant.locator('[data-product-file]').setInputFiles('assets/images/merch/polo-white-card.webp');await variant.locator('[data-product-file]').scrollIntoViewIfNeeded();await capture(page,'photo-draft-360');await form.getByRole('button',{name:'Uložit produkt',exact:true}).click();await expect(page.locator('[data-product-edit]')).toHaveCount(0);expect(uploads).toBe(1);
-  await page.locator('[data-edit-product=united-u-polo]').click();await expect(page.locator('[data-product-preview] img')).toHaveAttribute('src',/polo-white/);
+  await variant.locator('[data-edit-variant]').click();await previewVariant(page,0);await variant.locator('[data-product-file]').setInputFiles('assets/images/merch/polo-white-card.webp');await expect(page.locator('[data-product-preview] img')).toHaveAttribute('src',/^blob:/);expect(uploads).toBe(0);
+  await previewVariant(page,1);await previewVariant(page,0);await expect(page.locator('[data-product-preview] img')).toHaveAttribute('src',/^blob:/);
+  await variant.locator('[data-remove-photo]').click();await variant.locator('[data-confirm-variant]').click();await expect(page.locator('[data-product-status]')).toContainText('Vyber fotografii varianty');expect(uploads).toBe(0);
+  await variant.locator('[data-product-file]').setInputFiles('assets/images/merch/polo-white-card.webp');await variant.locator('[data-product-file]').scrollIntoViewIfNeeded();await capture(page,'photo-draft-360');await variant.locator('[data-confirm-variant]').click();await form.getByRole('button',{name:'Uložit změny',exact:true}).click();await expect(page.locator('[data-product-edit]')).toHaveCount(0);expect(uploads).toBe(1);
+  await page.locator('[data-edit-product=united-u-polo]').click();await previewVariant(page,0);await expect(page.locator('[data-product-preview] img')).toHaveAttribute('src',/polo-white/);
   await page.goto('/admin.html?section=payments&payment=merch');await expect(page.locator('[data-finance-tab=merch]')).toHaveAttribute('aria-pressed','true');await capture(page,'payment-tabs-360');
   expectNoUnexpectedClientErrors(errors);
  }finally{runtime.close();}

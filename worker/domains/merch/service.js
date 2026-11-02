@@ -7,6 +7,7 @@ export async function catalogRecords(env){return (await env.DB.prepare('SELECT *
 export async function getCatalog(env,admin=false){
  const c=await configRecord(env),settings=JSON.parse(c.data),records=await catalogRecords(env);
  const products=records.map(r=>({...JSON.parse(r.data),revision:r.revision})).filter(p=>admin||p.status==='published').sort((a,b)=>a.position-b.position);
+ if(admin){const used=(await env.DB.prepare("SELECT DISTINCT json_extract(line.value,'$.variantId') id,json_extract(line.value,'$.productId') productId FROM merch_orders,json_each(snapshot,'$.lines') line").all()).results;const ids=new Set(used.map(row=>row.id));for(const p of products){p.usedVariantIds=p.variants.filter(v=>ids.has(v.id)).map(v=>v.id);p.hasOrders=p.usedVariantIds.length>0||used.some(row=>row.productId===p.id)}}
  return {products,settings,revision:c.revision,missing:configurationMissing(settings),ready:!settings.paused&&!configurationMissing(settings).length};
 }
 export async function seedCatalog(env,actor){
@@ -141,12 +142,25 @@ export async function saveProduct(env,actor,input){
  });
  const records=await catalogRecords(env);for(const r of records)if(r.id!==id&&JSON.parse(r.data).variants.some(v=>ids.has(v.id)))fail('ID varianty používá jiný produkt.');
  const existing=records.find(r=>r.id===id);if(existing&&existing.revision!==input.revision)fail('Produkt se změnil. Obnov jej.',409);
+ const removed=existing?JSON.parse(existing.data).variants.filter(v=>!ids.has(v.id)).map(v=>v.id):[];
+ const removalGuard=removed.length?` AND NOT EXISTS(SELECT 1 FROM merch_orders,json_each(snapshot,'$.lines') line WHERE json_extract(line.value,'$.variantId') IN(${removed.map(()=>'?').join(',')}))`:'';
+ if(removed.length&&await prepare(env,`SELECT 1 FROM merch_orders,json_each(snapshot,'$.lines') line WHERE json_extract(line.value,'$.variantId') IN(${removed.map(()=>'?').join(',')}) LIMIT 1`,...removed).first())fail('Varianta má objednávky. Ponech ji a nastav Nedostupné; produkt lze archivovat.',409);
  const known=new Set(initialCatalog.flatMap(p=>p.variants.map(v=>v.image)));
  for(const v of variants)if(v.image&&!known.has(v.image)&&!(v.image.startsWith('r2:')&&await prepare(env,'SELECT id FROM merch_media WHERE id=?',v.image.slice(3)).first()))fail('Vyber existující nebo nahraj novou fotografii.');
  const p={id,name,type:text(input.type,100),description:text(input.description,1000),category,gender,status,position:integer(input.position,0,10000),variants};
- const statement=existing?prepare(env,'UPDATE merch_products SET data=?,revision=revision+1 WHERE id=? AND revision=?',encode(p),id,input.revision):prepare(env,'INSERT INTO merch_products(id,data) VALUES(?,?)',id,encode(p));
+ const statement=existing?prepare(env,'UPDATE merch_products SET data=?,revision=revision+1 WHERE id=? AND revision=?'+removalGuard,encode(p),id,input.revision,...removed):prepare(env,'INSERT INTO merch_products(id,data) VALUES(?,?)',id,encode(p));
  const result=await env.DB.batch([statement,prepare(env,'INSERT INTO merch_audit SELECT ?,?,?,?,?,? WHERE changes()=1',uid(),actor,id,'product',stamp(),encode({before:existing?JSON.parse(existing.data):null,after:p}))]);
  if(!result[0].meta.changes)fail('Produkt se změnil. Obnov jej.',409);return getCatalog(env,true);
+}
+export async function deleteProduct(env,actor,input){
+ const id=key(input.id),row=await prepare(env,'SELECT * FROM merch_products WHERE id=?',id).first();if(!row)fail('Produkt nebyl nalezen.',404);
+ if(row.revision!==input.revision)fail('Produkt se změnil. Obnov jej.',409);
+ const product=JSON.parse(row.data),ids=product.variants.map(v=>v.id);
+ const used=`EXISTS(SELECT 1 FROM merch_orders,json_each(snapshot,'$.lines') line WHERE json_extract(line.value,'$.productId')=? OR json_extract(line.value,'$.variantId') IN(${ids.map(()=>'?').join(',')}))`;
+ if(await prepare(env,'SELECT 1 WHERE '+used,id,...ids).first())fail('Produkt má objednávky. Místo smazání jej archivuj; údaje objednávek zůstanou zachované.',409);
+ const result=await env.DB.batch([prepare(env,'DELETE FROM merch_products WHERE id=? AND revision=? AND NOT '+used,id,input.revision,id,...ids),prepare(env,'INSERT INTO merch_audit SELECT ?,?,?,?,?,? WHERE changes()=1',uid(),actor,id,'product_deleted',stamp(),encode({before:product}))]);
+ if(!result[0].meta.changes)fail('Produkt se změnil nebo získal objednávku. Obnov jej; případně použij archivaci.',409);
+ return getCatalog(env,true);
 }
 export async function saveSettings(env,actor,input){
  const old=await configRecord(env);if(input.revision!==old.revision)fail('Nastavení se změnilo.',409);

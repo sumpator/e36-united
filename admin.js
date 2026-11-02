@@ -1,9 +1,9 @@
-import {initializeDashboard,renderDashboard,receiveDashboardPreferences,dashboardWantsPlanner,dashboardWantsMailing,clearDashboard} from './admin/dashboard.js?v=20261101-detail1';
+import {initializeDashboard,renderDashboard,receiveDashboardPreferences,dashboardWantsPlanner,dashboardWantsMailing,clearDashboard} from './admin/dashboard.js?v=20261102-admin1';
 import {initializeCommandShell} from './admin/command-shell.js?v=20261014-admin1';
-import {initializeMembers,openMember,closeMember,clearMemberPrivateState,memberContextKey,memberRefreshTasks,renderMemberReadState} from './admin/member-detail.js?v=20261101-detail1';
+import {initializeMembers,openMember,closeMember,clearMemberPrivateState,memberContextKey,memberRefreshTasks,renderMemberReadState} from './admin/member-detail.js?v=20261102-admin1';
 import {ADMIN_REFRESH,resourceDue} from './admin/refresh-policy.js?v=20260924-merch2';
 import {reservationRequestPath,galleryRequestPath} from './admin/lists.js?v=20260930-arrivals2';
-import { initializeAdminNavigation } from './admin/navigation.js?v=20260930-arrivals2';
+import { initializeAdminNavigation } from './admin/navigation.js?v=20261102-admin1';
 import { createAdminRefresh } from './admin/refresh.js?v=20260924-merch2';
 import { initializeAdminEditors, bindCurrentEditors, forgetAdminEditor, allowAdminNavigation, clearAdminPrivateEdits, adminRenderPending } from './admin/editors.js?v=20260930-arrivals2';
 import { firebaseConfig } from './firebase-config.js?v=20260924-merch2';
@@ -16,16 +16,16 @@ import { initializeAdminShell, setAdminSectionCollapsed, setAdminView, setDenied
 import { $, toast } from './admin/ui.js?v=20260924-merch2';
 import { renderEventSelector, renderEventSettings, renderOverview, saveEventSettings } from './admin/modules/dashboard-events.js?v=20261014-admin1';
 import { moveAccommodationGalleryPhoto, previewAccommodationGalleryPhoto, previewAccommodationPhoto, removeAccommodationGalleryPhoto, resetAccommodationMedia, removeAccommodationPhoto, renderAccommodation, saveAccommodation, uploadAccommodationGalleryPhoto, uploadAccommodationPhoto } from './admin/modules/accommodation.js?v=20261014-admin1';
-import { clearReservationDetailFilters, closeReservationDrawer, openReservationDrawer, renderReservations, renderReservationDetail, reviewReservationRequest, saveReservationNotes, setPaymentFilter, setPaymentSearch, setReservationFilter, setReservationSearch, setReservationViewMode, toggleReservationDetailFilter, toggleReservationFilters, updateReservation, updateReservationPayment } from './admin/modules/reservations-payments.js?v=20261101-detail1';
-import { changeHistoryPage, clearHistoryFilters, closeGalleryLightbox, closeHistoryEvidence, historyRequestPath, hydrateOpenHistoryCard, openGalleryLightbox, openHistoryEvidence, releaseGalleryMedia, releaseHistoryEvidence, renderGallery, renderHistoryClaims, reviewHistoryClaim, setGalleryFilter, setGalleryMode, setHistoryClaimType, setHistoryFilter, setHistorySearch, setHistoryYear, updateGallery } from './admin/modules/moderation.js?v=20261101-detail1';
-import { initializeMailingCenter, resetMailingCenter, refreshMailingCenter } from './admin/modules/mailing/index.js?v=20261101-detail1';
+import { clearReservationDetailFilters, closeReservationDrawer, openReservationDrawer, renderReservations, renderReservationDetail, reviewReservationRequest, saveReservationNotes, setPaymentFilter, setPaymentSearch, setReservationFilter, setReservationSearch, setReservationViewMode, toggleReservationDetailFilter, toggleReservationFilters, updateReservation, updateReservationPayment } from './admin/modules/reservations-payments.js?v=20261102-admin1';
+import { changeHistoryPage, clearHistoryFilters, closeGalleryLightbox, closeHistoryEvidence, historyRequestPath, hydrateOpenHistoryCard, openGalleryLightbox, openHistoryEvidence, releaseGalleryMedia, releaseHistoryEvidence, renderGallery, renderHistoryClaims, reviewHistoryClaim, setGalleryFilter, setGalleryMode, setHistoryClaimType, setHistoryFilter, setHistorySearch, setHistoryYear, updateGallery } from './admin/modules/moderation.js?v=20261102-admin1';
+import { initializeMailingCenter, resetMailingCenter, refreshMailingCenter } from './admin/modules/mailing/index.js?v=20261102-admin1';
 import { renderAdminFunnel } from './admin/modules/funnel.js?v=20260930-arrivals2';
-import {releaseHistoryCardMedia} from './admin/modules/moderation.js?v=20261101-detail1';
+import {releaseHistoryCardMedia} from './admin/modules/moderation.js?v=20261102-admin1';
 import { refreshHistoryAttention } from './admin/modules/dashboard-events.js?v=20261014-admin1';
 import {initializePreliminary,clearPreliminary,preliminaryContext,preliminaryTasks} from './admin/modules/preliminary.js?v=20260930-arrivals2';
 import {initializeAdminLive} from './admin/modules/live.js?v=20261025-flow1';
 import { initializeArrivals } from './admin/modules/arrivals.js?v=20261014-admin1';
-import {initializeMerch} from './admin/modules/merch.js?v=20261101-detail1';
+import {initializeMerch} from './admin/modules/merch.js?v=20261102-admin1';
 
 const app=initializeApp(firebaseConfig);
 const auth=getAuth(app);
@@ -135,11 +135,11 @@ async function refreshResources({context,signal,isCurrent,reason}){
   if(!isCurrent())return;
   if(adminState.requestedReservationId&&(adminState.reservationDetail?.id===adminState.requestedReservationId||adminState.reservationItems.some(item=>item.id===adminState.requestedReservationId))){openReservationDrawer(adminState.requestedReservationId);adminState.requestedReservationId=null}
   bindCurrentEditors();renderEventSelector();renderDashboard();
-  if(adminState.memberId){const keys=['member-header',...(adminState.memberTab==='event'?[]:['member-tab'])];$('[data-member-freshness]').textContent=keys.map(key=>{const value=adminState.resourceStates[key];return (key==='member-header'?'Profil / event':'Sekce')+': '+(value?.state==='fresh'?'načteno '+new Date(value.lastSuccess).toLocaleTimeString('cs-CZ'):'zastaralé / nedostupné')}).join(' · ');}
+  if(adminState.memberId){const keys=tasks.filter(t=>t[0].startsWith('member')).map(t=>t[0]);$('[data-member-freshness]').textContent=keys.map(key=>{const value=adminState.resourceStates[key];return (key==='member-header'?'Profil / event':'Sekce')+': '+(value?.state==='fresh'?'načteno '+new Date(value.lastSuccess).toLocaleTimeString('cs-CZ'):'zastaralé / nedostupné')}).join(' · ');}
   const failed=settled.flatMap((result,index)=>result.status==='rejected'?[tasks[index][0]]:[]);
   const memberDialog=$('[data-member-dialog]');let memberError=$('[data-member-load-error]');
   if(!memberError){memberError=document.createElement('p');memberError.dataset.memberLoadError='';memberError.role='status';memberDialog.querySelector('header').after(memberError);}
-  memberError.hidden=!adminState.memberId||!['member-header',...(adminState.memberTab==='event'?[]:['member-tab'])].some(name=>['unavailable','stale'].includes(adminState.resourceStates[name]?.state));
+  memberError.hidden=!adminState.memberId||!tasks.filter(t=>t[0].startsWith('member')).map(t=>t[0]).some(name=>['unavailable','stale'].includes(adminState.resourceStates[name]?.state));
   memberError.textContent='Data této členské sekce teď nejsou dostupná. Dříve načtené hodnoty zůstávají zachované. Zkus obnovit spojení.';
   renderMemberReadState();
   if(!adminState.memberId&&context.view==='mailing'&&resourceDue(resourceFreshness.get('mailing'),'mailing',ADMIN_REFRESH.analyticsMs,reason)){try{await refreshMailingCenter({signal,isCurrent});if(isCurrent())resourceFreshness.set('mailing',{state:'fresh',context:'mailing',lastSuccess:Date.now()})}catch{failed.push('mailing')}}

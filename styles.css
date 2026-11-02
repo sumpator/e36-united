@@ -1609,3 +1609,21 @@ html[data-theme=light] .united-mobile-menu a:hover{color:#0869c4;background:#e2e
 
 /* Persistent auth recovery; never an anonymous-success indication. */
 .public-auth-notice{position:fixed;z-index:150;bottom:18px;left:50%;transform:translateX(-50%);width:min(660px,calc(100% - 28px));padding:14px 18px;border:1px solid var(--appearance-border,#b9c7d4);border-radius:12px;background:var(--surface,#14171c);color:var(--text,#f7f8fa);box-shadow:0 8px 28px #0002;display:flex;align-items:center;gap:16px}.public-auth-notice p{margin:0;font-size:14px;line-height:1.5}.public-auth-notice button.btn.btn-secondary{flex-shrink:0;background:var(--surface,#14171c);color:var(--text,#f7f8fa);border-color:var(--line,#b9c7d4)}.public-auth-notice button:focus-visible{outline:3px solid var(--blue,#4da3ff);outline-offset:3px}@media(max-width:600px){.public-auth-notice{flex-wrap:wrap;gap:8px}.public-auth-notice .btn{min-height:44px}}
+
+/* Text navigation retains active underline and keyboard focus only. */
+.site-header .nav-links a:not(.nav-member):not(.nav-cta),.united-mobile-menu a:not(.nav-member):not(.nav-cta){background:transparent!important;border-color:transparent;box-shadow:none;text-shadow:none;transform:none;transition:color .15s}
+.site-header .nav-links a:not(.nav-member):not(.nav-cta):hover,.united-mobile-menu a:not(.nav-member):not(.nav-cta):hover{color:var(--blue)!important;background:transparent!important;transform:none}
+.site-header .nav-links a[href*="#planer"]:not(:hover){color:#e7c67a}
+html[data-theme=light] .site-header .nav-links a[href*="#planer"]:not(:hover){color:#795300}
+.site-header .nav-links a:not(.nav-member):not(.nav-cta):focus-visible,.united-mobile-menu a:not(.nav-member):not(.nav-cta):focus-visible{outline:2px solid var(--blue);outline-offset:4px;background:transparent!important}
+.site-header .nav-links a:not(.nav-member):not(.nav-cta):not(.active)::after{opacity:0}.site-header .nav-links a.active:not(.nav-member):not(.nav-cta)::after{box-shadow:none;transition:none}
+.points-guide-dialog--rows{max-width:760px}.points-guide-dialog--rows header{margin-bottom:0}.points-guide-intro{margin:6px 0 14px;color:var(--muted)}
+.points-guide-benefit{padding:10px 14px;border-radius:8px;background:var(--appearance-selected,rgba(77,163,255,.12));color:var(--blue);font-weight:750}
+.points-guide-rows article{display:grid;grid-template-columns:26px minmax(0,1fr);gap:14px;padding:17px 0;border-bottom:1px solid var(--line);background:none}
+.points-guide-rows article>i{color:var(--blue);padding-top:3px}.points-guide-rows svg{width:24px;height:24px}.points-guide-row-title{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}.points-guide-row-title h3{margin:0;font-size:18px}.points-guide-row-title span{font-size:12px;font-weight:750;padding:3px 8px;border-radius:5px;color:var(--blue);background:var(--appearance-selected,rgba(77,163,255,.1))}
+.points-guide-rows p{font-size:14px;margin:7px 0 10px;color:var(--muted)}.points-guide-rows .member-secondary{display:inline-flex;min-height:44px;padding:9px 14px;color:var(--blue);border:1px solid var(--blue);border-radius:8px;background:transparent;text-decoration:none;font-weight:700;font-size:14px;max-width:100%}.points-guide-rows .member-secondary:hover{background:var(--appearance-selected,rgba(77,163,255,.1))}.points-guide-footnote{font-size:12px;color:var(--muted);margin-bottom:0}
+@media(max-width:480px){.points-guide-rows article{gap:10px;padding:14px 0}.points-guide-row-title h3{font-size:17px}.points-guide-dialog--rows{padding:20px}.points-guide-rows .member-secondary{width:100%;justify-content:center;text-align:center}}
+
+.united-mobile-menu a[href*="#planer"]:not(:hover){color:#e7c67a}html[data-theme=light] .united-mobile-menu a[href*="#planer"]:not(:hover){color:#795300}
+
+.points-guide-dialog.points-guide-dialog--rows .points-guide-rows .member-secondary{color:var(--blue);background:transparent;border-color:var(--blue)}.points-guide-dialog.points-guide-dialog--rows .points-guide-rows .member-secondary:hover{background:var(--appearance-selected,rgba(77,163,255,.1))}.points-guide-dialog--rows>header{position:sticky;top:0;z-index:2;background:var(--surface);padding:4px 0 10px}

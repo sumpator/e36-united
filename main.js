@@ -30,7 +30,7 @@ publicMemberController=initPublicMemberState({config:firebaseConfig,apiBaseUrl:p
 })();
 
 const coreStyles = qs('link[href^="styles.css"]');
-if (coreStyles && !coreStyles.href.includes('v=20261101-auth1')) coreStyles.href = 'styles.css?v=20261101-auth1';
+if (coreStyles && !coreStyles.href.includes('v=20261102-admin1')) coreStyles.href = 'styles.css?v=20261102-admin1';
 if (!qs('link[href^="accommodation-visual.css"]')) {
 const accommodationStyles=document.createElement('link');accommodationStyles.rel='stylesheet';accommodationStyles.href='accommodation-visual.css?v=20260912-accommodation-gallery-r1';document.head.append(accommodationStyles);
 }

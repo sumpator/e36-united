@@ -62,10 +62,10 @@ test('Member 360 desktop search/tab/QR and close are read-only; search Enter is 
  await page.setViewportSize({width:1440,height:900});const c=await fixture(page);await page.goto('/admin.html?section=members');await expect(page.locator('[data-member-list]')).toContainText('First');
  const writes=c.r.writes;await page.locator('[data-member-search]').fill('BMW');await page.locator('[data-member-search]').press('Enter');await expect(page.locator('[data-member-suggestions]')).toContainText('First');await expect(page.locator('[data-member-suggestions] [data-member-open]')).toHaveCount(2);expect(c.calls.filter(p=>p.includes('?q=BMW'))).toHaveLength(1);
  await page.locator('[data-member-suggestions] [data-member-open="m"]').click();await expect(drawer(page)).toBeVisible();await expect(drawer(page)).toContainText('EU-MEMBER');expect(c.calls.filter(p=>/\/(garage|history|points|qr)/.test(p))).toHaveLength(0);expect(c.calls.filter(p=>p.includes('/club?'))).toHaveLength(1);await expect(drawer(page).locator('[data-member-overview]')).toBeVisible();
- await drawer(page).locator('[data-member-tab="garage"]').click();await expect(drawer(page)).toContainText('BMW 328i');await expect(drawer(page).locator('img').first()).toHaveJSProperty('complete',true);
+ await drawer(page).locator('[data-member-tab="media"]').click();await expect(drawer(page)).toContainText('BMW 328i');await expect(drawer(page).locator('img').first()).toHaveJSProperty('complete',true);
  await page.screenshot({path:info.outputPath('member360-desktop.png')});
  await drawer(page).locator('[data-member-tab="club"]').click();await expect(drawer(page)).toContainText('S&S TOP 3');
- await drawer(page).locator('[data-member-tab="qr"]').click();await expect(drawer(page).locator('.admin-member-qr svg')).toBeVisible();const rendered=await drawer(page).locator('.admin-member-qr').innerHTML();expect(decodeMemberQrSvg(rendered)).toBe('E36U1:'+c.r.db.prepare("SELECT token FROM member_qr_identities WHERE member_id='m'").get().token);await page.screenshot({path:info.outputPath('member360-qr.png')});
+ await drawer(page).locator('[data-member-tab="overview"]').click();await drawer(page).getByRole('button',{name:'Zobrazit členské QR →',exact:true}).click();await expect(drawer(page).locator('.admin-member-qr svg')).toBeVisible();const rendered=await drawer(page).locator('.admin-member-qr').innerHTML();expect(decodeMemberQrSvg(rendered)).toBe('E36U1:'+c.r.db.prepare("SELECT token FROM member_qr_identities WHERE member_id='m'").get().token);await page.screenshot({path:info.outputPath('member360-qr.png')});
  await drawer(page).locator('[data-member-close]').click();await expect(drawer(page)).not.toBeVisible();expect(c.r.writes).toBe(writes);expect(c.observations.consoleErrors.filter(e=>!(c.failure&&e.text.includes('503')&&e.url.includes('/api/admin/members/')))).toEqual([]);expect(c.observations.pageErrors).toEqual([]);expect(c.observations.unhandledApi).toEqual([]);c.r.db.close();
 });
 test('Member mobile direct entry, tabs, Back, reload and private media cleanup preserve safe parent',async({page},info)=>{
@@ -75,9 +75,9 @@ test('Member mobile direct entry, tabs, Back, reload and private media cleanup p
  await page.locator('[data-member-list] [data-member-open="m"]').click();await expect(drawer(page)).toContainText('EU-MEMBER');await page.goBack();await expect(drawer(page)).not.toBeVisible();expect(c.observations.pageErrors).toEqual([]);c.r.db.close();
 });
 test('Member uses one sixty-second coordinator, suspends background list and hidden/offline requests',async({page})=>{
- await page.clock.install();const c=await fixture(page);await page.goto('/admin.html?section=members&member=m');await expect(drawer(page)).toContainText('EU-MEMBER');await drawer(page).locator('[data-member-tab="garage"]').click();
+ await page.clock.install();const c=await fixture(page);await page.goto('/admin.html?section=members&member=m');await expect(drawer(page)).toContainText('EU-MEMBER');await drawer(page).locator('[data-member-tab="media"]').click();
  await expect(drawer(page).locator('[data-member-hero-image]')).toBeVisible();const garageImage=drawer(page).locator('[data-member-media]').first();await expect(garageImage).toHaveAttribute('src',/^blob:/);await expect.poll(()=>garageImage.evaluate(n=>n.complete&&n.naturalWidth>0)).toBe(true);
- const imageReads=c.calls.filter(p=>p.includes('/media/')).length;expect(imageReads).toBe(2); // Hero plus the explicit Garage image, both complete before clock advancement.
+ const imageReads=c.calls.filter(p=>p.includes('/media/')).length;expect(imageReads).toBe(3); // Hero, gallery photo and Garage are now visible together.
  const writes=c.r.writes;let count=0;page.on('request',q=>{if(q.method()==='GET'&&q.url().includes('/api/admin/'))count++});
  c.r.db.exec("UPDATE members SET nickname='Updated by another admin' WHERE id='m'");await page.clock.runFor(60_100);await expect(drawer(page)).toContainText('Updated by another admin');expect(count).toBeLessThanOrEqual(3);expect(c.calls.filter(p=>p.includes('/media/'))).toHaveLength(imageReads);
  await expect(page.locator('[data-admin-freshness]')).toHaveAttribute('data-state','fresh');
@@ -101,14 +101,14 @@ test('late prior-member search/detail cannot replace current identity, failed se
  let release;const held=new Promise(resolve=>release=resolve);c.delay=held;
  await page.locator('[data-member-list] [data-member-open="n"]').click();await drawer(page).locator('[data-member-close]').click();
  await page.locator('[data-member-list] [data-member-open="m"]').click();await expect(drawer(page)).toContainText('EU-MEMBER');release();c.delay=null;await expect(drawer(page).locator('[data-member-identity]')).not.toContainText('EU-OTHER');
- c.failure=true;await drawer(page).locator('[data-member-tab="points"]').click();await expect(drawer(page)).toContainText('nejsou dostupná');await expect(drawer(page)).toContainText('EU-MEMBER');
+ c.failure=true;await drawer(page).locator('[data-member-tab="club"]').click();await expect(drawer(page)).toContainText('nejsou dostupná');await expect(drawer(page).locator('[data-member-identity]')).toContainText('First');await drawer(page).locator('[data-member-tab=overview]').click();await expect(drawer(page)).toContainText('EU-MEMBER');
  expect(c.observations.pageErrors).toEqual([]);c.r.db.close();
 });
 test('Member cached media and QR resolver clear on definitive access loss; identification remains read-only',async({page})=>{
  const c=await fixture(page);await page.goto('/admin.html?section=members');await expect(page.locator('[data-member-list]')).toContainText('First');
  const payload='E36U1:'+c.r.db.prepare("SELECT token FROM member_qr_identities WHERE member_id='m'").get().token;
  await page.locator('[data-member-search]').fill(payload);await page.locator('[data-member-search]').press('Enter');await expect(drawer(page)).toContainText('EU-MEMBER');await expect(page).not.toHaveURL(/E36U1|token=/);expect(c.calls.some(p=>p.includes('E36U1'))).toBe(false);
- await drawer(page).locator('[data-member-tab="garage"]').click();await expect(drawer(page).locator('img').first()).toHaveAttribute('src',/^blob:/);
+ await drawer(page).locator('[data-member-tab="media"]').click();await expect(drawer(page).locator('img').first()).toHaveAttribute('src',/^blob:/);
  await page.evaluate(()=>window.dispatchEvent(new CustomEvent('admin:accesslost')));await expect(drawer(page)).not.toBeVisible();await expect(page.locator('[data-member-list]')).toBeEmpty();await expect(page.locator('[data-member-search]')).toHaveValue('');
  expect(c.observations.requests.filter(x=>/PATCH|PUT/.test(x))).toEqual([]);expect(c.observations.pageErrors).toEqual([]);c.r.db.close();
 });

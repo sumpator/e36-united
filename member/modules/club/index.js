@@ -1,5 +1,5 @@
 import { createMemberHistory } from './history.js?v=20261101-detail1';
-import { createMemberPoints } from './points.js?v=20261101-auth1';
+import { createMemberPoints } from './points.js?v=20261102-admin1';
 import { createClubMembers } from './members.js?v=20261101-detail2';
 
 export function createMemberClub({

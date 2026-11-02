@@ -1,7 +1,10 @@
+import {apiUpload} from '../../api.js?v=20260930-arrivals2';
+import {adminState} from '../../state.js?v=20260930-arrivals2';
 import { $, $$, escapeHtml, toast } from '../../ui.js?v=20260924-merch2';
 import { resetMailingPreview, scheduleMailingPreview, setMailingPreviewDevice } from './preview.js?v=20260930-arrivals2';
 
 const typeLabels={hero:'Úvod',heading:'Nadpis',rich_text:'Text',image:'Obrázek',cta:'Tlačítko',divider:'Oddělovač',highlight:'Zvýraznění',survey:'Anketa'};
+let mediaEpoch=0;const imageUploads=new Map();
 let initialized=false,currentCampaignId='',blocks=[],templateVersion='e36-default-v1',saveHandler=null,openHandler=()=>{},readOnly=false;
 
 const copy=value=>JSON.parse(JSON.stringify(value));
@@ -19,11 +22,27 @@ function freshBlock(type){
   const questionId=newId('question');return{id:newId('survey'),type:'survey',questionId,question:'Nová otázka',text:'',answers:[{id:newId('answer'),label:'ANO'},{id:newId('answer'),label:'NE'}]};
 }
 
+function imageField(block){
+ const pending=imageUploads.get(block.id),src=pending?.url||block.imageUrl;
+ return field('Obrázek · absolutní HTTPS URL','imageUrl',block.imageUrl,{wide:true,max:1600})+'<div class="admin-mailing-image" data-mailing-image><label class="admin-button">'+(src?'Změnit obrázek':'Nahrát obrázek')+'<input data-mailing-image-file type="file" accept="image/jpeg,image/png" '+(pending?.busy?'disabled':'')+'></label>'+(src?'<img alt="Náhled obrázku do e-mailu" src="'+escapeHtml(src)+'"><button type="button" data-mailing-image-remove>Odebrat</button>':'')+'<p role="status" data-mailing-image-status>'+(pending?.busy?'Nahrávám obrázek…':pending?.error?'Nahrání selhalo. Ostatní obsah zůstal zachován.':'JPEG nebo PNG · nejvýše 8 MB')+'</p>'+(pending?.error?'<button type="button" data-mailing-image-retry>Zkusit nahrát znovu</button>':'')+'</div>';
+}
+function clearImageUpload(id){const item=imageUploads.get(id);item?.controller?.abort();if(item?.url)URL.revokeObjectURL(item.url);imageUploads.delete(id)}
+function clearImageUploads(){mediaEpoch++;for(const id of imageUploads.keys())clearImageUpload(id)}
+async function uploadImage(block,file){
+ if(readOnly)return;clearImageUpload(block.id);const epoch=mediaEpoch,actor=adminState.currentUser,generation=adminState.sessionGeneration,item={file,url:URL.createObjectURL(file),controller:new AbortController(),busy:true,error:false};imageUploads.set(block.id,item);renderBlocks();dirty();
+ try{
+  const result=await apiUpload('/api/admin/mailing/media',file,{method:'POST',signal:item.controller.signal});
+  if(epoch!==mediaEpoch||actor!==adminState.currentUser||generation!==adminState.sessionGeneration||imageUploads.get(block.id)!==item||!blocks.includes(block))return;
+  if(!/^https:\/\/api\.e36united\.cz\/api\/mailing\/media\/[a-f0-9-]+\.(jpg|png)$/.test(result.imageUrl))throw Error('Neplatná adresa obrázku.');
+  block.imageUrl=result.imageUrl;clearImageUpload(block.id);renderBlocks();dirty();
+ }catch(error){if(imageUploads.get(block.id)!==item||epoch!==mediaEpoch)return;item.busy=false;item.error=true;renderBlocks()}
+}
+
 function blockFields(block){
-  if(block.type==='hero')return field('Obrázek · absolutní HTTPS URL','imageUrl',block.imageUrl,{wide:true,max:1600})+field('Alt text','alt',block.alt,{wide:true,max:240})+field('Štítek','kicker',block.kicker,{max:100})+field('Nadpis','heading',block.heading,{max:180})+field('Krátký text','text',block.text,{wide:true,textarea:true,rows:3});
+  if(block.type==='hero')return imageField(block)+field('Alt text','alt',block.alt,{wide:true,max:240})+field('Štítek','kicker',block.kicker,{max:100})+field('Nadpis','heading',block.heading,{max:180})+field('Krátký text','text',block.text,{wide:true,textarea:true,rows:3});
   if(block.type==='heading')return field('Štítek','kicker',block.kicker,{max:100})+field('Nadpis','heading',block.heading,{wide:true,max:180});
   if(block.type==='rich_text')return `${field('Text','text',block.text,{wide:true,textarea:true,rows:7})}<p class="admin-mailing-format-help">Podpora: prázdný řádek = odstavec, <code>**tučně**</code>, <code>_kurzíva_</code>, <code>[odkaz](https://…)</code> a seznamy začínající <code>- </code>.</p>`;
-  if(block.type==='image')return field('Obrázek · absolutní HTTPS URL','imageUrl',block.imageUrl,{wide:true,max:1600})+field('Alt text','alt',block.alt,{max:240})+field('Popisek','caption',block.caption,{max:400});
+  if(block.type==='image')return imageField(block)+field('Alt text','alt',block.alt,{max:240})+field('Popisek','caption',block.caption,{max:400});
   if(block.type==='cta')return `${field('Text tlačítka','label',block.label,{max:120})}${field('Absolutní HTTPS URL','url',block.url,{max:1600})}<label class="admin-field"><span>Varianta</span><select data-block-field="variant"><option value="primary"${block.variant==='primary'?' selected':''}>Hlavní modré</option><option value="secondary"${block.variant==='secondary'?' selected':''}>Vedlejší</option></select></label>`;
   if(block.type==='divider')return `<label class="admin-field"><span>Typ</span><select data-block-field="variant"><option value="line"${block.variant==='line'?' selected':''}>Linka</option><option value="space"${block.variant==='space'?' selected':''}>Prázdná mezera</option></select></label><label class="admin-field"><span>Velikost</span><select data-block-field="size"><option value="small"${block.size==='small'?' selected':''}>Malá</option><option value="medium"${block.size==='medium'?' selected':''}>Střední</option><option value="large"${block.size==='large'?' selected':''}>Velká</option></select></label>`;
   if(block.type==='highlight')return field('Štítek','kicker',block.kicker,{max:100})+field('Zpráva','text',block.text,{wide:true,textarea:true,rows:4});
@@ -57,7 +76,7 @@ function dirty(){const state=$('[data-mailing-save-state]');state.textContent='N
 function replaceBlocks(next){blocks=copy(next||[]);renderBlocks();preview()}
 
 export function openMailingEditorDraft(draft,{campaignId=''}={}){
-  readOnly=['prepared','sent','archived'].includes(draft.status);
+  clearImageUploads();readOnly=['prepared','sent','archived'].includes(draft.status);
   $$('input,textarea,select,button',$('[data-mailing-campaign-form]')).forEach(node=>node.disabled=false);
   currentCampaignId=campaignId;templateVersion=draft.templateVersion||draft.content?.template||'e36-default-v1';blocks=copy(draft.content?.blocks||[]);
   const form=$('[data-mailing-campaign-form]');form.elements.internalName.value=draft.internalName||'';form.elements.subject.value=draft.subject||'';form.elements.preheader.value=draft.preheader||'';
@@ -69,10 +88,10 @@ export function openMailingEditorDraft(draft,{campaignId=''}={}){
   openHandler(campaignId);
 }
 
-export function allowMailingLeave(){return !$('[data-mailing-save-state]').classList.contains('is-dirty')||confirm('Zahodit neuložené změny kampaně?')}
+export function allowMailingLeave(){if($('[data-mailing-save-state]').classList.contains('is-dirty')&&!confirm('Zahodit neuložené změny kampaně?'))return false;clearImageUploads();return true}
 export function activeMailingCampaignId(){return currentCampaignId}
 export function markMailingEditorSaved(){const state=$('[data-mailing-save-state]');state.textContent='Uloženo';state.classList.remove('is-dirty')}
-export function resetMailingEditor(){currentCampaignId='';blocks=[];resetMailingPreview()}
+export function resetMailingEditor(){clearImageUploads();currentCampaignId='';blocks=[];resetMailingPreview()}
 
 function cloneBlock(block){
   const cloned=copy(block);cloned.id=newId(block.type);
@@ -83,20 +102,22 @@ function cloneBlock(block){
 export function initializeMailingEditor({onSave,onOpen=()=>{}}){
   if(initialized)return;initialized=true;saveHandler=onSave;openHandler=onOpen;
   const form=$('[data-mailing-campaign-form]');
-  form.addEventListener('input',event=>{const node=event.target.closest('[data-block-id]');if(node)readBlock(node);dirty()});
-  form.addEventListener('change',event=>{const node=event.target.closest('[data-block-id]');if(node)readBlock(node);dirty()});
-  form.addEventListener('submit',async event=>{event.preventDefault();if(!saveHandler||readOnly)return;const button=$('[data-mailing-save]');button.disabled=true;try{await saveHandler(readMailingEditorDraft())}catch(error){const state=$('[data-mailing-save-state]');state.textContent='Uložení selhalo';state.classList.add('is-dirty');toast(error.message||'Koncept kampaně se nepodařilo uložit.')}finally{button.disabled=false}});
+  form.addEventListener('input',event=>{const node=event.target.closest('[data-block-id]');if(node){if(event.target.dataset.blockField==='imageUrl'){clearImageUpload(node.dataset.blockId);const box=node.querySelector('[data-mailing-image]');box.querySelector('img')?.remove();box.querySelector('[data-mailing-image-retry]')?.remove();box.querySelector('[data-mailing-image-status]').textContent='JPEG nebo PNG · nejvýše 8 MB';box.querySelector('input').disabled=false;}readBlock(node);}dirty()});
+  form.addEventListener('change',event=>{const node=event.target.closest('[data-block-id]');if(node)readBlock(node);if(event.target.matches('[data-mailing-image-file]')){const file=event.target.files?.[0],block=blocks.find(b=>b.id===node.dataset.blockId);if(!file||readOnly)return;if(!['image/jpeg','image/png'].includes(file.type)||file.size>8*1024*1024){toast('Vyber JPEG nebo PNG do 8 MB.');event.target.value='';return}void uploadImage(block,file);return}dirty()});
+  window.addEventListener('admin:accesslost',clearImageUploads);
+  form.addEventListener('submit',async event=>{event.preventDefault();if(!saveHandler||readOnly)return;if([...imageUploads.values()].some(item=>item.busy)){toast('Počkej na dokončení nahrávání obrázku.');return;}const button=$('[data-mailing-save]');button.disabled=true;try{await saveHandler(readMailingEditorDraft())}catch(error){const state=$('[data-mailing-save-state]');state.textContent='Uložení selhalo';state.classList.add('is-dirty');toast(error.message||'Koncept kampaně se nepodařilo uložit.')}finally{button.disabled=false}});
   document.addEventListener('click',event=>{
     const device=event.target.closest('[data-mailing-preview-device]');if(device){setMailingPreviewDevice(device.dataset.mailingPreviewDevice);return}
     if(readOnly)return;
     if(event.target.closest('[data-mailing-add-block]')){const type=$('[data-mailing-add-type]').value;blocks.push(freshBlock(type));renderBlocks();$('[data-mailing-block-list]').lastElementChild.querySelector('details').open=true;dirty();return}
     const article=event.target.closest('[data-block-id]');if(!article)return;
-    readBlock(article);const index=blocks.findIndex(block=>block.id===article.dataset.blockId);if(index<0)return;
+    readBlock(article);const imageBlock=blocks.find(item=>item.id===article.dataset.blockId);if(event.target.closest('[data-mailing-image-remove]')){clearImageUpload(imageBlock.id);imageBlock.imageUrl='';renderBlocks();dirty();return}if(event.target.closest('[data-mailing-image-retry]')){const file=imageUploads.get(imageBlock.id)?.file;if(file)void uploadImage(imageBlock,file);return}
+    const index=blocks.findIndex(block=>block.id===article.dataset.blockId);if(index<0)return;
     const action=event.target.closest('[data-block-action]')?.dataset.blockAction;
     if(action==='up'&&index>0)[blocks[index-1],blocks[index]]=[blocks[index],blocks[index-1]];
     else if(action==='down'&&index<blocks.length-1)[blocks[index+1],blocks[index]]=[blocks[index],blocks[index+1]];
     else if(action==='duplicate')blocks.splice(index+1,0,cloneBlock(blocks[index]));
-    else if(action==='remove')blocks.splice(index,1);
+    else if(action==='remove'){clearImageUpload(blocks[index].id);blocks.splice(index,1);}
     else if(event.target.closest('[data-mailing-answer-add]')&&blocks[index].answers.length<5)blocks[index].answers.push({id:newId('answer'),label:'NOVÁ ODPOVĚĎ'});
     else if(event.target.closest('[data-mailing-answer-remove]')&&blocks[index].answers.length>2){const answer=event.target.closest('[data-answer-id]');blocks[index].answers=blocks[index].answers.filter(item=>item.id!==answer.dataset.answerId)}
     else return;

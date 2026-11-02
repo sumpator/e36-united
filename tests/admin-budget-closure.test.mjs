@@ -12,6 +12,7 @@ import {hydrateReservationAccommodationVisual} from '../worker/domains/reservati
 import {reservationListQuery} from '../worker/admin/lists.js';
 import {resourceDue,ADMIN_REFRESH} from '../admin/refresh-policy.js';
 import {createAdminRefresh} from '../admin/refresh.js';
+import {memberSectionKey} from '../admin/member-presentation.js';
 import {MEMBER_HERO_CAR_SQL,MEMBER_HERO_PHOTO_SQL} from '../worker/admin/members.js';
 import {ADMIN_RESERVATION_APPROVALS_SQL} from '../worker/admin/summary.js';
 import {currentBudgetSql,MEMBER_ARRIVALS_SQL} from './helpers/admin-budget-current.mjs';
@@ -115,31 +116,33 @@ test('actual coordinator task selection reproduces the 12h workload without poll
   const memberTasks=read('admin/member-detail.js').match(/export function memberRefreshTasks\(\)\{[\s\S]*?\n\}/)[0].replace('export ','');
   const preliminaryTasks=read('admin/modules/preliminary.js').match(/export function preliminaryTasks\(\)\{[\s\S]*?\n\}/)[0].replace('export ','');
   const taskFunctions=memberTasks+'\n'+preliminaryTasks;
-  const noop=()=>{},state={selectedEventId:'e',memberPage:1,historyPagination:{page:1},galleryMode:'community'};
-  const mocks={adminState:state,ADMIN_REFRESH,page:1,$:()=>({open:false}),renderPreliminary:noop,beginEventContext:noop,renderMemberHeader:noop,renderMemberTab:noop,renderMembers:noop,
-    dashboardWantsPlanner:()=>false,dashboardWantsMailing:()=>false,resourceFreshness:new Map(),resourceDue:()=>true,renderAdminFunnel:noop,receiveDashboardPreferences:noop,
+  let now=0;const fresh=new Map();
+  const noop=()=>{},state={sessionGeneration:1,selectedEventId:'e',memberPage:1,historyPagination:{page:1},galleryMode:'community'};
+  const mocks={adminState:state,ADMIN_REFRESH,memberSectionKey,memberPages:new Map(),page:1,$:()=>({open:false}),renderPreliminary:noop,beginEventContext:noop,renderMemberHeader:noop,renderMemberTab:noop,renderMembers:noop,
+    dashboardWantsPlanner:()=>false,dashboardWantsMailing:()=>false,resourceFreshness:fresh,resourceDue:(record,key,ttl,reason)=>resourceDue(record,key,ttl,reason,now),renderAdminFunnel:noop,receiveDashboardPreferences:noop,
     renderReservations:noop,renderAccommodation:noop,renderGallery:noop,renderHistoryClaims:noop,renderReservationDetail:noop,
     reservationRequestPath:id=>'/reservations'+(id?'?id='+id:''),galleryRequestPath:()=>'/gallery',historyRequestPath:()=>'/history',scopedPath:p=>p};
-  let now=0;const counts={},fresh=new Map();let context={key:'e',eventId:'e',authenticated:true,visible:true,online:true};
+  const counts={};let context={key:'e',eventId:'e',authenticated:true,visible:true,online:true};
   const coordinator=createAdminRefresh({readContext:()=>context,now:()=>now,setTimer:(_fn,ms)=>{assert.equal(ms,60000);return 1},clearTimer:noop,
     refresh:async()=>{const tasks=runInNewContext(taskFunctions+'\n(function(){'+body+'return tasks;})()',{...mocks,context,reason:'poll'});
       assert.ok(tasks.length<=3);
-      for(const[name,path,_render,interval=name==='summary'?300000:60000]of tasks){if(!resourceDue(fresh.get(path),path,interval,'poll',now))continue;
-        counts[name]=(counts[name]||0)+1;fresh.set(path,{state:'fresh',context:path,lastSuccess:now});
+      for(const[name,path,_render,interval=name==='summary'?300000:60000]of tasks){const key='1:'+path;if(!resourceDue(fresh.get(key),key,interval,'poll',now))continue;
+        counts[name]=(counts[name]||0)+1;fresh.set(key,{state:'fresh',context:key,lastSuccess:now});
       }
     }});
   for(const [minutes,view,member,tab,detail]of [[240,'reservations','m','event','r'],[240,'reservations','m','garage','r'],[120,'reservations',null,'event','r'],[60,'dashboard',null,'event',null],[60,'gallery',null,'event',null]]){
     Object.assign(state,{activeAdminView:view,memberId:member,memberTab:tab,selectedReservationId:detail});context={...context,view};
     for(let i=0;i<minutes;i++){now+=60000;await coordinator.trigger('poll');}
   }
-  const normalized={...counts,'reservation-list':counts.reservations,'member-garage':counts['member-tab']};delete normalized.reservations;delete normalized['member-tab'];
+  assert.equal(counts['member-garage'],193);assert.equal(counts['member-tab'],240); // Both visible media sources share the existing three-request budget with header and badges.
+  const normalized={...counts,'reservation-list':counts.reservations,'member-photos':counts['member-tab']};delete normalized.reservations;delete normalized['member-tab'];
   assert.equal(normalized['dashboard-analytics'],12); // Stage 3 incremental, separately budgeted; all Stage 2 counts remain exact.
   delete normalized['dashboard-analytics'];
-  assert.deepEqual(normalized,{...PERIODIC_PER_CONTEXT,summary:144}); // NEW adds 96 shared summaries over eight Member hours; other work unchanged.
+  assert.deepEqual(normalized,{...PERIODIC_PER_CONTEXT,summary:144,'member-header':479,'member-garage':193,'member-photos':240}); // Four due sources are staggered within three slots; hidden workspaces and source editor remain idle.
   const previous={...counts};for(const condition of [{visible:false},{online:false},{denied:true},{authenticated:false}]){context={...context,visible:true,online:true,denied:false,authenticated:true,...condition};await coordinator.trigger('poll');}
   assert.deepEqual(counts,previous);coordinator.dispose();
   Object.assign(state,{activeAdminView:'mailing',memberId:null,selectedReservationId:null});
-  assert.equal(runInNewContext(taskFunctions+'\n(function(){'+body+'return tasks.length;})()',{...mocks,context:{view:'mailing',eventId:'e'},reason:'poll'}),1); // Shared badge summary, no hidden domain.
+  assert.equal(runInNewContext(taskFunctions+'\n(function(){'+body+'return tasks.length;})()',{...mocks,context:{view:'mailing',eventId:'e'},reason:'navigation'}),1); // Shared badge summary, no hidden domain.
   const interest=()=>runInNewContext(preliminaryTasks+'\npreliminaryTasks()',{...mocks,$:()=>({open:true})});
   assert.equal(interest().length,0,'Mailing does not poll preliminary reservations');
   state.activeAdminView='reservations';assert.equal(interest().length,0,'Registrations do not poll the separate preliminary list');

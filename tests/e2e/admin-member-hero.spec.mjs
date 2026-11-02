@@ -6,7 +6,7 @@ const modal=p=>p.locator('[data-member-dialog]'),hero=p=>p.locator('[data-member
 const photoCalls=c=>c.calls.filter(q=>q.includes('/members/')&&q.includes('/media/'));
 const jsonCalls=c=>c.calls.filter(q=>q.startsWith('GET /api/admin/members/')&&!q.includes('/media/'));
 const shot=(p,i,name)=>p.screenshot({path:i.outputPath(name+'.png')});
-async function select(p,tab){if(await p.locator('[data-member-section-select]').isVisible())await p.locator('[data-member-section-select]').selectOption(tab);else await p.locator('[data-member-tab="'+tab+'"]').click();}
+async function select(p,tab){tab=({garage:'media',photos:'media',reservations:'event',history:'club',points:'club',mailing:'profile',merch:'event'}[tab]||tab);if(await p.locator('[data-member-section-select]').isVisible())await p.locator('[data-member-section-select]').selectOption(tab);else await p.locator('[data-member-tab="'+tab+'"]').click();}
 async function spyUrls(page){await page.addInitScript(()=>{
  const create=URL.createObjectURL.bind(URL),revoke=URL.revokeObjectURL.bind(URL);
  window.heroUrls={created:[],revoked:[]};
@@ -19,12 +19,12 @@ async function start(page,c){await page.goto('/admin.html?event=e&section=dashbo
 function clean(c){expect(c.writes).toEqual([]);expect(c.r.writes).toBe(0);expect(c.r.db.prepare('SELECT COUNT(*) n FROM member_qr_identities').get().n).toBe(0);expect(c.observations.pageErrors).toEqual([]);expect(c.observations.unhandledApi).toEqual([]);expect(c.observations.consoleErrors.filter(e=>!c.failures.has(e.url))).toEqual([]);}
 async function geometry(page,width){
  const h=await page.locator('[data-member-hero]').boundingBox(),close=await page.locator('[data-member-close]').boundingBox(),panel=await page.locator('[data-member-panel]').boundingBox();
- expect(h.height).toBeGreaterThanOrEqual(width===390?150:180);expect(h.height).toBeLessThanOrEqual(width===390?230:250);expect(close.y).toBeGreaterThanOrEqual(0);expect(close.x+close.width).toBeLessThanOrEqual(width);expect(panel.height).toBeGreaterThan(200);
+ expect(h.height).toBeGreaterThanOrEqual(64);expect(h.height).toBeLessThanOrEqual(125);expect(close.y).toBeGreaterThanOrEqual(0);expect(close.x+close.width).toBeLessThanOrEqual(width);expect(panel.height).toBeGreaterThan(200);
  expect(await modal(page).evaluate(n=>n.scrollWidth<=n.clientWidth+1)).toBe(true);expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBe(true);
 }
 for(const [width,wideFont] of [[1600,false],[1920,false],[390,false],[390,true]])test('HERO photo overview coalesces across tabs and refresh; Garage remains lazy '+width+(wideFont?' wide fallback font':''),async({page},info)=>{
  await page.setViewportSize({width,height:width===390?844:900});await page.clock.install();await spyUrls(page);const c=await commandFixture(page);c.r.db.exec("UPDATE cars SET body='sedan' WHERE id='c'; UPDATE members SET nickname='Modrý cestovatel',name='Testovací člen' WHERE id='m'");
- await start(page,c);await expect(hero(page)).toBeVisible();await expect(page.locator('[data-member-hero]')).toHaveClass(/has-photo/);await expect(modal(page)).toContainText('Hlavní vůz');await expect(modal(page)).toContainText('Blue · BMW 328i · Sedan');
+ await start(page,c);await expect(hero(page)).toBeVisible();await expect(page.locator('[data-member-hero]')).toHaveClass(/has-photo/);await expect(modal(page)).toContainText('Hlavní auto');await expect(modal(page)).toContainText('Blue · BMW 328i · Sedan');
  expect(jsonCalls(c)).toEqual(['GET /api/admin/members/m?eventId=e','GET /api/admin/members/m/club?eventId=e&page=1']);expect(photoCalls(c)).toEqual(['GET /api/admin/members/m/media/cars/c/p']);
  // System UI font metrics differ between Windows and the Linux CI runner. The
  // wider fallback adds coverage, but is not a substitute for Linux system fonts.
@@ -57,7 +57,7 @@ for(const photo of [true,false])for(const wideFont of [false,true])test(`HERO tw
  console.info('HERO two-line geometry',JSON.stringify({photo,wideFont,hero:measured.hero,title:measured.title,titleLines:measured.titleLines,close:measured.close,panel:measured.panel}));
  await shot(page,info,`hero-two-line-390-${photo?'photo':'fallback'}-${wideFont?'wide':'system'}`);
  expect(measured.titleLines).toBe(2);await geometry(page,390);
- expect(measured.closePosition).toBe('absolute');expect(measured.columns.split(' ')).toHaveLength(1);
+ expect(measured.closePosition).toBe('static');expect(await modal(page).locator('[data-member-hero]').evaluate(n=>getComputedStyle(n).display)).toBe('flex');
  for(const overflow of measured.textOverflow)expect(overflow).toEqual(['visible','visible']);
  expect(measured.title.x+measured.title.width).toBeLessThanOrEqual(measured.close.x);
  expect(measured.close.width).toBeGreaterThanOrEqual(44);expect(measured.close.height).toBeGreaterThanOrEqual(44);
@@ -65,14 +65,14 @@ for(const photo of [true,false])for(const wideFont of [false,true])test(`HERO tw
  await expect(page.locator('[data-member-section-select]')).toBeVisible();expect(measured.picker.y).toBeGreaterThanOrEqual(measured.hero.y+measured.hero.height);expect(measured.picker.y+measured.picker.height).toBeLessThan(844);
  for(const rect of measured.textRects){expect(rect.x).toBeGreaterThanOrEqual(measured.hero.x-1);expect(rect.x+rect.width).toBeLessThanOrEqual(measured.hero.x+measured.hero.width+1);expect(rect.y).toBeGreaterThanOrEqual(measured.hero.y-1);expect(rect.y+rect.height).toBeLessThanOrEqual(measured.hero.y+measured.hero.height+1)}
  if(photo){expect(measured.photo.objectFit).toBe('cover');expect(measured.photo.transform).toBe('none');expect(measured.photo.naturalWidth).toBeGreaterThan(0);expect(measured.photo.naturalHeight).toBeGreaterThan(0)}
- await expect(page.locator('.admin-member-monogram')).toHaveText('AC');await expect(page.locator('.admin-member-meta')).toContainText('EU-MEMBER');await expect(page.locator('.admin-member-status')).toContainText('Aktivní');await expect(page.locator('.admin-member-hero-car')).toContainText('BMW 328i');
+ await expect(page.locator('.admin-member-monogram')).toHaveText('AC');await expect(modal(page)).toContainText('EU-MEMBER');await expect(modal(page)).toContainText('Aktivní');await expect(modal(page)).toContainText('BMW 328i');
  clean(c);c.r.db.close();
 });
 for(const [kind,width]of [['without-photo',1600],['without-primary',1600],['without-photo',390]])test('HERO branded fallback '+kind+' '+width,async({page},info)=>{
  await page.setViewportSize({width,height:width===390?844:900});const c=await commandFixture(page);
  c.r.db.exec(kind==='without-primary'?"UPDATE cars SET is_primary=0 WHERE member_id='m'":"DELETE FROM car_photos WHERE car_id='c'");
  await start(page,c);await expect(hero(page)).toHaveCount(0);await expect(page.locator('[data-member-hero]')).not.toHaveClass(/has-photo/);expect(photoCalls(c)).toEqual([]);expect(jsonCalls(c)).toHaveLength(2);
- if(kind==='without-primary')await expect(modal(page).locator('.admin-member-hero-car')).toHaveCount(0);else await expect(modal(page).locator('.admin-member-hero-car')).toContainText('BMW 328i');
+ if(kind==='without-primary')await expect(modal(page)).toContainText('Hlavní auto není vybrané.');else await expect(modal(page)).toContainText('BMW 328i');
  await geometry(page,width);await shot(page,info,'hero-'+kind+'-'+width);clean(c);c.r.db.close();
 });
 // This narrow override still executes the real private ownership/R2 handler.

@@ -15,6 +15,7 @@ import {saveMemberLivePreference} from './domains/members.js';
 import { isAllowedOrigin } from "./http/cors.js";
 import { json } from "./http/responses.js";
 import { routeAdminMailing } from "./domains/mailing/index.js";
+import {publicMailingImage} from './domains/mailing/media.js';
 import { getAdminFunnel, trackOnboarding, trackPlannerHandoff } from './domains/planner/funnel.js';
 import { getAdminHistoryCounts } from './domains/club/history.js';
 import { handleSmtp2goWebhook } from './domains/mailing/tracking.js';
@@ -75,6 +76,7 @@ export function isProtectedMemberRoute(method, pathname) {
 }
 
 export async function routeRequest({ request, env, url, origin, ctx }) {
+  if(url.pathname.startsWith('/api/mailing/media/')){const image=await publicMailingImage(request,env,url,origin);if(image)return image;}
   if(url.pathname.startsWith('/api/private-polls/'))return routePrivatePoll({request,env,url,origin});
   if(request.method==='GET'&&(url.pathname==='/api/merch/catalog'||url.pathname.startsWith('/api/merch/media/'))){
     return await publicMerch(env,url,origin);
