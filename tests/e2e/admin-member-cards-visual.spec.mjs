@@ -68,7 +68,11 @@ for(const width of [1440,820,390,360])for(const theme of ['light','dark'])test(`
   if(width<=390){await member.scrollIntoViewIfNeeded();await waitForScreenshotContent(page,{label:'mobile-member'});await member.screenshot({path:info.outputPath('member-long.png')})}
   await member.getByRole('button',{name:longNickname,exact:true}).click();await expect(page.locator('[data-member-dialog]')).toBeVisible();await expect(page.locator('#admin-member-heading')).toHaveText(longNickname);await page.locator('[data-member-close]').click();await expect(page.locator('[data-member-dialog]')).toBeHidden();
   const reads=c.calls.filter(p=>p.includes('/members?')).length;await page.locator('[data-member-list-mode=rows]').click();await expect(page.locator('[data-member-list]')).toHaveAttribute('data-member-view','rows');expect(c.calls.filter(p=>p.includes('/members?'))).toHaveLength(reads);expect((await member.locator('.compact-member-photo').boundingBox()).height).toBe(54);await capture(page,info,'members-rows');
-  await page.reload();await expect(page.locator('[data-member-list]')).toHaveAttribute('data-member-view','rows');await expect(page.locator('[data-loading]')).toBeHidden();await page.locator('[data-member-list-mode=cards]').click();await expect(page.locator('[data-member-list]')).toHaveAttribute('data-member-view','cards');await page.locator('[data-refresh]').click();await expect(page.locator('[data-loading]')).toBeHidden();await expect(member.getByRole('button',{name:longNickname,exact:true})).toBeVisible();await expect(member.locator('[data-member-pending]')).toHaveText('Ke kontrole: 3 →');
+  await page.reload();await expect(page.locator('[data-member-list]')).toHaveAttribute('data-member-view','rows');await expect(page.locator('[data-loading]')).toBeHidden();await page.locator('[data-member-list-mode=cards]').click();await expect(page.locator('[data-member-list]')).toHaveAttribute('data-member-view','cards');
+  if(width<=1050){await page.locator('[data-portal-menu-open]').click();await page.locator('.admin-mobile-account>summary').click();}
+  await page.locator('[data-refresh]').click();await expect(page.locator('[data-loading]')).toBeHidden();
+  if(width<=1050)await page.locator('[data-portal-sheet-dialog] [data-portal-sheet-close]').click();
+  await expect(member.getByRole('button',{name:longNickname,exact:true})).toBeVisible();await expect(member.locator('[data-member-pending]')).toHaveText('Ke kontrole: 3 →');
   expect(c.writes).toEqual([]);expect(c.r.writes).toBe(0);clean(c);
  }finally{c.r.db.close()}
 });

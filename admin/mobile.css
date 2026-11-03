@@ -207,3 +207,11 @@
  .admin-page:not(.admin-live-mode-active) :is([data-admission-settings] button,[data-preliminary-setting],.admin-preliminary-pagination button){min-height:44px;padding:8px 10px;font-size:14px}
  .admin-page:not(.admin-live-mode-active) .portal-event-summary>span{min-height:0;padding:8px;font-size:13px}
 }
+
+@media(max-width:1050px){
+ .admin-page:not(.admin-live-mode-active) .admin-gallery-card-controls{display:flex;flex-wrap:wrap;min-width:0;gap:6px}
+ .admin-page:not(.admin-live-mode-active) .admin-gallery-quick-actions{flex-wrap:wrap;max-width:100%;padding-right:0}
+ .admin-page:not(.admin-live-mode-active) .admin-gallery-quick-actions>button{min-width:44px;min-height:44px}
+ .admin-page:not(.admin-live-mode-active) .admin-gallery-card-controls>.admin-badge{max-width:100%;overflow-wrap:anywhere}
+ .admin-page:not(.admin-live-mode-active) .admin-member-dialog [data-member-panel]{padding:13px}
+}

@@ -36,6 +36,7 @@ for(const width of [1440,390])test(`transactional Mailing history, safe failure 
   await deliverTransactionalEmails(c.r.env,{id:row.id,transport:{async sendBatch(){throw {code:'provider_rejected',definiteRejection:true}}}});
   await panel.getByRole('button',{name:'Filtrovat historii'}).click();
   await expect(panel.locator('[data-transactional-transport]')).toContainText('Odesílání je zapnuté');
+  if(width===390)await panel.locator('.admin-mobile-filters>summary').click();
   await panel.locator('[name=status]').selectOption('failed');await panel.getByRole('button',{name:'Filtrovat historii'}).click();await expect(panel.locator('[data-transactional-list] article')).toHaveCount(1);
   await panel.getByRole('button',{name:'Detail zprávy',exact:true}).click();await expect(panel.locator('[data-transactional-detail] [role=alert]')).toContainText('Poskytovatel zprávu odmítl');
   await expect(panel.frameLocator('[data-transactional-preview]').getByRole('heading',{level:1})).toHaveText('Platbu jsme zaevidovali');
