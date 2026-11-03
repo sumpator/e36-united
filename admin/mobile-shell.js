@@ -1,8 +1,8 @@
 import {adminState} from './state.js?v=20260930-arrivals2';
-import {mobileShortcuts,MOBILE_ADMIN_TARGETS} from './dashboard-model.js?v=20261103-mobile1';
-import {VIEW_LABELS} from './destinations.js?v=20260930-arrivals2';
+import {mobileShortcuts,MOBILE_ADMIN_TARGETS} from './dashboard-model.js?v=20261103-adminfix1';
+import {VIEW_LABELS,primaryAdminTarget} from './destinations.js?v=20261103-adminfix1';
 import {commandIcon} from './command-icons.js?v=20261014-admin1';
-import {commandBadges,BADGE_SCOPE} from './command-model.js?v=20261103-mobile1';
+import {commandBadges,BADGE_SCOPE} from './command-model.js?v=20261103-adminfix1';
 
 // Presentation only: every destination still goes through setAdminView and its router/guards.
 export function initializeAdminMobileShell({select}){
@@ -15,11 +15,12 @@ export function initializeAdminMobileShell({select}){
   opener.setAttribute('aria-label','Otevřít menu administrace');header.append(opener);
   const search=document.querySelector('[data-member-search-form]'),searchButton=document.createElement('button');
   searchButton.type='button';searchButton.className='admin-mobile-search-toggle';searchButton.setAttribute('aria-label','Vyhledat člena');searchButton.setAttribute('aria-expanded','false');searchButton.innerHTML=commandIcon('members');opener.before(searchButton);
-  const context=document.createElement('div');context.className='admin-mobile-context';document.querySelector('.admin-workspace').prepend(context);
   const year=document.querySelector('[data-event-select]').closest('label'),yearHome=document.createComment('Desktop event selector');year.before(yearHome);
   const account=document.querySelector('.admin-header .admin-hero-actions'),accountHome=document.createComment('Desktop account');account.before(accountHome);
   const menuAccount=document.createElement('details');menuAccount.className='admin-mobile-account';menuAccount.innerHTML='<summary>Účet a obnova dat</summary>';dialog.append(menuAccount);
-  const edit=document.createElement('button');edit.type='button';edit.dataset.adminEditShortcuts='';edit.textContent='Upravit spodní menu';edit.className='admin-edit-shortcuts';dialog.querySelector('.portal-nav-sheet-head').after(edit);
+  const helpers=document.createElement('section');helpers.className='admin-mobile-helpers';helpers.setAttribute('aria-label','Pomocné volby');menuAccount.before(helpers);
+  const edit=document.createElement('button');edit.type='button';edit.dataset.adminEditShortcuts='';edit.textContent='Upravit spodní menu';edit.className='admin-edit-shortcuts';helpers.append(edit);
+  const menuYear=document.createElement('details');menuYear.className='admin-mobile-year';menuYear.innerHTML='<summary>Ročník</summary>';helpers.append(menuYear);
   const bar=document.createElement('nav');bar.className='admin-mobile-bar';bar.setAttribute('aria-label','Spodní zkratky administrace');document.querySelector('[data-admin-view]').append(bar);
   let returnFocus=null,key='',searchOpen=false;
   const media=matchMedia('(max-width:1050px)');
@@ -29,16 +30,17 @@ export function initializeAdminMobileShell({select}){
   function open(){if(!media.matches)return;returnFocus=opener;sheet.hidden=false;dialog.showModal();opener.setAttribute('aria-expanded','true');document.body.classList.add('portal-sheet-open');dialog.querySelector('[data-portal-sheet-close]').focus();blocked();}
   function blocked(){const modal=[...document.querySelectorAll('dialog[open],[aria-modal="true"]')].some(node=>node.getClientRects().length>0);bar.inert=modal;const hidden=String(modal);if(bar.getAttribute('aria-hidden')!==hidden)bar.setAttribute('aria-hidden',hidden);}
   function sync(){
-    const active=current(),logged=!!adminState.currentUser&&!adminState.denied&&!document.querySelector('[data-admin-view]').hidden;
+    const active=current(),primary=primaryAdminTarget(adminState.activeAdminView,adminState.galleryMode),logged=!!adminState.currentUser&&!adminState.denied&&!document.querySelector('[data-admin-view]').hidden;
     title.hidden=!logged;const label=active==='club'?'Historie & S&S':active==='photos'?'Fotky':VIEW_LABELS[adminState.activeAdminView]||MOBILE_ADMIN_TARGETS[active]||'Admin';if(title.textContent!==label)title.textContent=label;
     opener.hidden=!logged;searchButton.hidden=!logged;bar.hidden=!logged||adminState.activeAdminView==='live';
     edit.disabled=!adminState.dashboardPreferences;
     const chosen=mobileShortcuts(adminState.dashboardPreferences?.mobileShortcuts),nextKey=JSON.stringify([adminState.currentUser?.uid,chosen]);
     if(key!==nextKey){key=nextKey;bar.innerHTML=chosen.map(id=>`<button type="button" data-mobile-admin-target="${id}">${commandIcon(({settings:'settings',photos:'photos',club:'history',accommodation:'reservation-summary',arrivals:'car',preliminary:'reservations'})[id]||id)}<span>${MOBILE_ADMIN_TARGETS[id]}</span><b data-mobile-badge="${id}" hidden></b></button>`).join('');bar.style.setProperty('--shortcut-count',chosen.length);}
-    const badges=commandBadges(adminState.summary);for(const button of bar.querySelectorAll('button')){const id=button.dataset.mobileAdminTarget,isActive=(id==='settings'?'event':id)===active;button.classList.toggle('is-active',isActive);if(isActive)button.setAttribute('aria-current','page');else button.removeAttribute('aria-current');const badge=button.querySelector('b'),count=badges[id==='club'?'history':id];badge.hidden=!Number.isFinite(count)||count===0;const text=Number.isFinite(count)?String(count):'';if(badge.textContent!==text)badge.textContent=text;button.title=BADGE_SCOPE[id==='club'?'history':id]||MOBILE_ADMIN_TARGETS[id];}
-    for(const control of dialog.querySelectorAll('[data-portal-target],[data-admin-jump]')){const id=control.dataset.adminJump||control.dataset.portalTarget,isActive=(id==='settings'?'event':id)===active;control.classList.toggle('is-active',isActive);if(isActive)control.setAttribute('aria-current','page');else control.removeAttribute('aria-current');}
-    if(media.matches){if(account.parentElement!==menuAccount)menuAccount.append(account);const scoped=['dashboard','arrivals','reservations','preliminary','accommodation','event'].includes(adminState.activeAdminView)||adminState.activeAdminView==='payments'&&adminState.paymentKind!=='merch';context.hidden=!scoped;if(scoped&&year.parentElement!==context)context.append(year);else if(!scoped&&year.parentElement!==header)yearHome.after(year);}
-    else{if(year.parentElement!==header)yearHome.after(year);if(account.parentElement!==header)accountHome.after(account);context.hidden=true;close({restoreFocus:false});}
+    const badges=commandBadges(adminState.summary);for(const button of bar.querySelectorAll('button')){const id=button.dataset.mobileAdminTarget,isActive=id===primary||id===active;button.classList.toggle('is-active',isActive);if(isActive)button.setAttribute('aria-current','page');else button.removeAttribute('aria-current');const badge=button.querySelector('b'),count=badges[id==='club'?'history':id];badge.hidden=!Number.isFinite(count)||count===0;const text=Number.isFinite(count)?String(count):'';if(badge.textContent!==text)badge.textContent=text;button.title=BADGE_SCOPE[id==='club'?'history':id]||MOBILE_ADMIN_TARGETS[id];}
+    // One state mapping for desktop and mobile primary menus; secondary tabs stay exact.
+    for(const control of root.querySelectorAll('.admin-section-nav [data-portal-target],.admin-section-nav [data-admin-jump],.portal-nav-sheet-list [data-portal-target],.portal-nav-sheet-list [data-admin-jump]')){const id=control.dataset.adminJump||control.dataset.portalTarget,isActive=id===primary||id===active;control.classList.toggle('is-active',isActive);if(isActive)control.setAttribute('aria-current','page');else control.removeAttribute('aria-current');}
+    if(media.matches){if(account.parentElement!==menuAccount)menuAccount.append(account);if(year.parentElement!==menuYear)menuYear.append(year);}
+    else{if(year.parentElement!==header)yearHome.after(year);if(account.parentElement!==header)accountHome.after(account);close({restoreFocus:false});}
     blocked();
   }
   function choose(id){
@@ -57,6 +59,7 @@ export function initializeAdminMobileShell({select}){
   document.addEventListener('keydown',event=>{if(event.key==='Escape'&&searchOpen&&!dialog.open){searchOpen=false;header.classList.remove('admin-search-open');searchButton.setAttribute('aria-expanded','false');searchButton.focus()}});
   for(const event of ['admin:viewchange','admin:preferenceschange','admin:shellrender','admin:paymentkind'])window.addEventListener(event,sync);
   window.addEventListener('admin:closemenu',()=>close({restoreFocus:false}));
+  window.addEventListener('admin:eventchanged',()=>{close();sync()});
   window.addEventListener('admin:accesslost',()=>{close({restoreFocus:false});sync()});
   media.addEventListener('change',()=>{sync();if(media.matches)window.dispatchEvent(new Event('admin:dashboardready'));});
   const observer=new MutationObserver(records=>{if(records.some(r=>r.type==='attributes'))blocked()});observer.observe(document.body,{subtree:true,attributes:true,attributeFilter:['hidden','open','aria-hidden','class']});

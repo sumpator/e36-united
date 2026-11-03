@@ -31,7 +31,10 @@ export function reservationListQuery(url){
    awaiting:`(${active} AND r.amount_due_czk>r.amount_paid_czk AND NOT COALESCE(${OVERDUE_SQL},0))`,
    overpaid:'r.amount_paid_czk>r.amount_due_czk',recorded:'r.amount_paid_czk>0',
    activePaid:`(${active} AND r.amount_paid_czk>0)`,inactivePaid:`(NOT (${active}) AND r.amount_paid_czk>0)`,
-   activeDue:`(${active} AND r.amount_due_czk>0)`,applied:`(${active} AND MIN(r.amount_due_czk,r.amount_paid_czk)>0)`};
+   activeDue:`(${active} AND r.amount_due_czk>0)`,applied:`(${active} AND MIN(r.amount_due_czk,r.amount_paid_czk)>0)`,
+   paidActive:`(${active} AND r.amount_due_czk>0 AND r.amount_paid_czk=r.amount_due_czk)`,
+   underpaidActive:`(${active} AND r.amount_paid_czk>0 AND r.amount_paid_czk<r.amount_due_czk)`,
+   unpaidActive:`(${active} AND r.amount_due_czk>0 AND r.amount_paid_czk=0)`};
  if(drill.scope)parts.push(scopes[drill.scope]);
  if(drill.option){parts.push('EXISTS(SELECT 1 FROM reservation_accommodation da WHERE da.reservation_id=r.id AND da.option_id=?)');bindings.push(drill.option)}
  if(drill.occupancy){parts.push('r.status=?');bindings.push(drill.occupancy)}

@@ -1,7 +1,7 @@
 import {apiRequest} from '../../api.js?v=20260930-arrivals2';
 import {adminState} from '../../state.js?v=20260930-arrivals2';
 import {$,escapeHtml as esc} from '../../ui.js?v=20260924-merch2';
-import {mailingContactRows,eligibilityReason} from './contacts.js?v=20261102-mailing2';
+import {mailingContactRows,eligibilityReason} from './contacts.js?v=20261103-adminfix1';
 export const defaultMailingSegment=Object.freeze({match:'all',rules:[{type:'all_contacts'}],exclusions:[]});
 const legacy={all_contacts:'Všechny kontakty',mailing_eligible:'S doloženým souhlasem a bez blokace',active_member:'Aktivní členové',registered_current_event:'Registrovaní na aktuální ročník',not_registered_current_event:'Bez registrace na aktuální ročník',historical_event_year:'Historický zdroj ročníku',incomplete_profile:'Nekompletní profil',regular_participant:'Opakovaní účastníci',show_shine_participant:'Show & Shine',legacy_only:'Historické kontakty',tag:'Tag'};
 let config=null,dialog=null,generation=0,draft=null,last=null,page=1,applied=null,opener=null,actor=null,editKey=null;

@@ -1,5 +1,5 @@
+.admin-mobile-title,.admin-mobile-search-toggle,.admin-mobile-bar,.admin-edit-shortcuts,.admin-mobile-account{display:none}
 /* Ordinary Admin only. Native modal menus and existing router/forms; desktop is unchanged. */
-.admin-mobile-title,.admin-mobile-search-toggle,.admin-mobile-context,.admin-mobile-bar,.admin-edit-shortcuts,.admin-mobile-account{display:none}
 .admin-shortcut-choices{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;border:0;padding:0}
 .admin-shortcut-choices label{display:flex;gap:12px;align-items:center;min-height:48px;padding:8px;border:1px solid var(--appearance-border);border-radius:8px}
 .admin-shortcut-choices input{width:20px;height:20px;flex:none}
@@ -45,10 +45,6 @@
  .admin-page .admin-mobile-account summary{min-height:44px;padding:12px 0}
  .admin-page .admin-mobile-account .admin-hero-actions{display:flex;gap:6px;justify-content:start}
  .admin-page .admin-mobile-account .admin-hero-actions span{text-align:left;overflow-wrap:anywhere;font-size:13px}
- .admin-page:not(.admin-live-mode-active) .admin-mobile-context:not([hidden]){display:flex;justify-content:flex-end;align-items:center;min-height:44px;margin:0 0 8px}
- .admin-page .admin-mobile-context .admin-event-selector{display:block;margin:0;min-width:0;width:auto;max-width:100%}
- .admin-page .admin-mobile-context .admin-event-selector>span{display:none}
- .admin-page .admin-mobile-context select{min-height:44px;max-width:100%;font-size:14px;padding:8px 30px 8px 10px;background:var(--appearance-surface);border:1px solid var(--appearance-border);border-radius:8px;color:var(--appearance-ink)}
  .admin-page:not(.admin-live-mode-active) .admin-mobile-bar:not([hidden]){display:grid;grid-template-columns:repeat(var(--shortcut-count,4),minmax(0,1fr));position:fixed;bottom:0;left:0;right:0;z-index:80;background:var(--appearance-surface);border-top:1px solid var(--appearance-border);padding:5px 8px max(5px,env(safe-area-inset-bottom));gap:4px}
  .admin-page .admin-mobile-bar button{min-height:56px;position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;border:0;border-radius:9px;padding:5px 2px;font-size:12px;font-weight:700;line-height:1.2;background:transparent;color:var(--appearance-muted);overflow-wrap:anywhere}
  .admin-page .admin-mobile-bar .command-icon{width:23px;height:23px}.admin-page .admin-mobile-bar .is-active{background:var(--appearance-selected);color:var(--appearance-action)}
@@ -216,3 +212,36 @@
  .admin-page:not(.admin-live-mode-active) .admin-gallery-card-controls>.admin-badge{max-width:100%;overflow-wrap:anywhere}
  .admin-page:not(.admin-live-mode-active) .admin-member-dialog [data-member-panel]{padding:13px}
 }
+/* Follow-up: primary navigation and financial detail, using the existing appearance palette. */
+.admin-page:not(.admin-live-mode-active) .admin-section-nav button:hover{color:var(--appearance-action);background:var(--appearance-subtle)}
+.admin-page:not(.admin-live-mode-active) .admin-section-nav button.is-active{background:var(--appearance-selected);color:var(--appearance-action);border-left:3px solid var(--appearance-action)}
+.admin-page:not(.admin-live-mode-active) .admin-section-nav button:focus-visible{outline:3px solid var(--appearance-action);outline-offset:-3px}
+.admin-page .command-payment-overview{border-top:1px solid var(--appearance-border);margin-top:12px;padding-top:10px;min-width:0}
+.admin-page .command-payment-totals,.admin-page .command-payment-ledger dl{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:10px 0}
+.admin-page .command-payment-overview dt{font-size:12px;color:var(--appearance-muted)}
+.admin-page .command-payment-overview dd{font-size:16px;font-weight:750;margin:4px 0 0;overflow-wrap:anywhere}
+.admin-page .command-prescription{font-size:12px;line-height:1.5;color:var(--appearance-muted)}
+.admin-page .command-payment-links{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0}
+.admin-page .command-payment-links button{min-height:44px;padding:8px 10px}
+.admin-page .command-payment-ledger>summary{min-height:44px;padding:12px 0;cursor:pointer;font-weight:700}
+.admin-page .command-payment-ledger article{padding:10px 0;border-top:1px solid var(--appearance-border);min-width:0}
+.admin-page .command-payment-ledger article>header{display:flex;justify-content:space-between;gap:12px;align-items:start}
+.admin-page .command-payment-ledger article>header b{min-width:0;overflow-wrap:anywhere}
+.admin-page .command-payment-ledger article>header strong{flex:none}
+.admin-page .command-payment-ledger article>p{font-size:12px;line-height:1.4;margin:5px 0;color:var(--appearance-muted)}
+.admin-page .command-payment-ledger article button{min-height:44px}
+@media(max-width:1050px){
+ .admin-page .admin-mobile-helpers{display:grid;gap:8px;border-top:1px solid var(--appearance-border);margin-top:10px;padding-top:10px}
+ .admin-page .admin-mobile-year summary{min-height:44px;padding:12px 0;font-size:14px;font-weight:700;cursor:pointer}
+ .admin-page .admin-mobile-year .admin-event-selector{display:grid;gap:5px;margin:0 0 8px}
+ .admin-page .admin-mobile-year .admin-event-selector>span{display:none}
+ .admin-page .admin-mobile-year select{width:100%;min-height:44px;font-size:16px}
+ .admin-page:not(.admin-live-mode-active) .command-approvals .command-approval-preview{grid-template-columns:34px minmax(0,1fr) 16px;column-gap:8px}
+ .admin-page .command-payment-totals,.admin-page .command-payment-ledger dl{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+ .admin-page .command-payment-overview dd{font-size:15px}
+}
+.admin-page .command-payment-context{grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;padding-top:10px;border-top:1px solid var(--appearance-border)}
+.admin-page .command-payment-context .command-money{min-height:0;padding:0;background:transparent;border:0;gap:4px;box-shadow:none}
+.admin-page .command-payment-context .command-money strong{font-size:16px}
+.admin-page .command-payment-context .command-money small{font-size:12px}
+.admin-page .command-payment-context .command-money button{min-height:44px}

@@ -1,5 +1,5 @@
 import {canonicalMemberLink} from '../../member-detail.js?v=20261102-admin1';
-import {renderListPagination} from '../../lists.js?v=20260930-arrivals2';
+import {renderListPagination} from '../../lists.js?v=20261103-adminfix1';
 import {apiRequest} from '../../api.js?v=20260930-arrivals2';
 import {$,escapeHtml as esc,numeric} from '../../ui.js?v=20260924-merch2';
 let contactPage=1,contactSequence=0,selection=null;

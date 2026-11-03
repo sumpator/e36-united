@@ -1,11 +1,11 @@
 import {adminState} from './state.js?v=20260930-arrivals2';
 import {adminCommand,bindCurrentEditors,forgetAdminEditor,editorProtected,allowAdminNavigation,adminEditorDirty} from './editors.js?v=20260930-arrivals2';
-import {COMPOSITIONS,validatePreferences,MOBILE_ADMIN_TARGETS,mobileShortcuts,validMobileShortcuts} from './dashboard-model.js?v=20261103-mobile1';
-import {COMMAND_WIDGETS as WIDGETS,commandDefaults as factoryPreferences,commandLayout,commandBadges} from './command-model.js?v=20261103-mobile1';
-import {commandCard,metricInfo} from './command-cards.js?v=20261102-admin1';
+import {COMPOSITIONS,validatePreferences,MOBILE_ADMIN_TARGETS,mobileShortcuts,validMobileShortcuts} from './dashboard-model.js?v=20261103-adminfix1';
+import {COMMAND_WIDGETS as WIDGETS,commandDefaults as factoryPreferences,commandLayout,commandBadges} from './command-model.js?v=20261103-adminfix1';
+import {commandCard,metricInfo} from './command-cards.js?v=20261103-adminfix1';
 import {commandIcon} from './command-icons.js?v=20261014-admin1';
-import {renderCommandShell} from './command-shell.js?v=20261103-mobile1';
-import {DESTINATIONS,QUICK_LINK_IDS,destination,drillLabel} from './destinations.js?v=20260930-arrivals2';
+import {renderCommandShell} from './command-shell.js?v=20261103-adminfix1';
+import {DESTINATIONS,QUICK_LINK_IDS,destination,drillLabel} from './destinations.js?v=20261103-adminfix1';
 import {dashboardKpi,chartModel,attentionModel,showValue} from './dashboard-data.js?v=20260924-merch2';
 import {$,escapeHtml as esc,toast} from './ui.js?v=20260924-merch2';
 import {createCardMedia} from './member-cards.js?v=20261014-admin1';
@@ -111,7 +111,7 @@ function editFields(){
 function closeEditor(){form().closest('dialog')?.close();form().hidden=true;form().inert=true;forgetAdminEditor(form());draft=null;renderDashboard();editorOpener?.isConnected&&editorOpener.focus({preventScroll:true});}
 export function initializeDashboard({onNavigate,onRefresh}){
   navigate=onNavigate;refresh=onRefresh;form().inert=true;
-  const dialog=document.createElement('dialog');dialog.className='command-settings';dialog.setAttribute('aria-labelledby','command-settings-title');form().before(dialog);dialog.append(form());
+  const dialog=document.createElement('dialog');dialog.className='command-settings';dialog.setAttribute('aria-labelledby','command-settings-title');document.querySelector('[data-admin-view]').append(dialog);dialog.append(form());
   const heading=document.createElement('header');heading.innerHTML=`<h2 id="command-settings-title">${commandIcon('settings')} Nastavit zobrazení</h2><button type="button" data-dashboard-close aria-label="Zavřít nastavení">×</button>`;form().prepend(heading);
   const revalidate=document.createElement('button');revalidate.type='button';revalidate.dataset.dashboardRevalidate='';revalidate.textContent='Ověřit aktuální verzi ze serveru';form().querySelector('.dashboard-edit-actions').before(revalidate);
   dialog.addEventListener('cancel',event=>{event.preventDefault();if(allowAdminNavigation())closeEditor()});

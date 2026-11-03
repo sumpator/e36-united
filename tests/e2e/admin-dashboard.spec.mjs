@@ -28,7 +28,7 @@ for(const width of [1440,390])test('Stage 3 factory compositions, exact graphs, 
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth+1)).toBe(true);
  if(width===390){await page.locator('[data-portal-menu-open]').click();await page.locator('.portal-nav-sheet [data-portal-target="settings"]').click();}else await page.locator('.admin-section-nav [data-portal-target="settings"]').click();
  await expect(page.locator('[data-admin-panel="event"]')).toBeVisible();await expect(page.locator('[data-settings-context]')).toContainText('Aktuálně na webu United 2026');
- await page.locator('[data-event-select]').selectOption('old');await expect(page.locator('[data-settings-context]')).toContainText('Upravuješ United 2025');await expect(page.locator('[data-settings-context]')).toContainText('Aktuálně na webu United 2026');
+ if(width===390){await page.locator('[data-portal-menu-open]').click();await page.locator('.admin-mobile-year>summary').click();}await page.locator('[data-event-select]').selectOption('old');await expect(page.locator('[data-settings-context]')).toContainText('Upravuješ United 2025');await expect(page.locator('[data-settings-context]')).toContainText('Aktuálně na webu United 2026');
  expect(c.writes).toEqual([]);expect(c.r.writes).toBe(0);clean(c);c.r.db.close();
 });
 test('Stage 3 exact finance drill, Member 360, Back restores range/composition/filter/scroll without writes',async({page})=>{

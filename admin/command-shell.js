@@ -1,4 +1,4 @@
-import { commandBadges, BADGE_SCOPE } from './command-model.js?v=20261103-mobile1';
+import { commandBadges, BADGE_SCOPE } from './command-model.js?v=20261103-adminfix1';
 import { adminState } from './state.js?v=20260930-arrivals2';
 import {commandIcon} from './command-icons.js?v=20261014-admin1';
 const navButton = (id, label) => `<button data-portal-target="${id}" type="button"><span class="command-nav-icon" aria-hidden="true">${commandIcon(id)}</span><span>${label}</span>${Object.hasOwn(BADGE_SCOPE, id) ? `<b data-command-badge="${id}" hidden></b>` : ''}</button>`;
@@ -9,7 +9,7 @@ export function initializeCommandShell() {
     nav.innerHTML = '<span class="command-nav-group">SRAZ</span>' + navButton('dashboard', 'Přehled') + navButton('arrivals', 'Příjezdy') + navButton('reservations', 'Registrace') + navButton('payments', 'Platby') + `<span class="command-nav-group">KOMUNITA <b data-command-badge="community" hidden></b></span><div data-community-links>${[['members', 'Členové'], ['photos', 'Fotky'], ['club', 'Historie a S&S']].map(([id, label]) => `<button type="button" data-admin-jump="${id}"><span class="command-nav-icon" aria-hidden="true">${commandIcon(id === 'club' ? 'history' : id)}</span><span>${label}</span>${['photos', 'club'].includes(id) ? `<b data-command-badge="${id === 'club' ? 'history' : id}" hidden></b>` : ''}</button>`).join('')}</div>` + navButton('mailing', 'Mailing') + navButton('merch','Merchandising') + '<span class="command-nav-group">SPRÁVA</span>' + navButton('settings', 'Nastavení') + liveButton() + logoutButton();
   }
   const mobile=document.querySelector('.portal-nav-sheet-list');
-  mobile.querySelector('[data-portal-target="reservations"]').insertAdjacentHTML('afterend',`<button type="button" data-admin-jump="preliminary">${commandIcon('reservations')}<span>Předběžné registrace</span></button><button type="button" data-admin-jump="accommodation">${commandIcon('reservation-summary')}<span>Ubytování</span></button>`);
+  mobile.querySelector('[data-portal-target="reservations"]').insertAdjacentHTML('afterend',`<button type="button" data-admin-jump="preliminary">${commandIcon('reservations')}<span>Předběžné registrace</span></button>`);
   const header = document.querySelector('.admin-header .nav');
   const title = document.createElement('span');
   title.className = 'command-product';

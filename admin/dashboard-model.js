@@ -1,8 +1,14 @@
-import {QUICK_LINK_IDS} from './destinations.js?v=20260930-arrivals2';
-export const MOBILE_ADMIN_TARGETS=Object.freeze({dashboard:'Přehled',reservations:'Registrace',payments:'Platby',arrivals:'Příjezdy',preliminary:'Předběžné',accommodation:'Ubytování',members:'Členové',photos:'Fotky',club:'Historie',mailing:'Mailing',merch:'Merch',settings:'Nastavení',live:'LIVE'});
+import {QUICK_LINK_IDS} from './destinations.js?v=20261103-adminfix1';
+export const MOBILE_ADMIN_TARGETS=Object.freeze({dashboard:'Přehled',reservations:'Registrace',payments:'Platby',arrivals:'Příjezdy',preliminary:'Předběžné',members:'Členové',photos:'Fotky',club:'Historie',mailing:'Mailing',merch:'Merch',settings:'Nastavení',live:'LIVE'});
 export const DEFAULT_MOBILE_SHORTCUTS=Object.freeze(['dashboard','reservations','payments','arrivals']);
-export const validMobileShortcuts=value=>Array.isArray(value)&&[3,4].includes(value.length)&&new Set(value).size===value.length&&value.every(id=>Object.hasOwn(MOBILE_ADMIN_TARGETS,id));
-export const mobileShortcuts=value=>validMobileShortcuts(value)?[...value]:[...DEFAULT_MOBILE_SHORTCUTS];
+// Accept the old accommodation ID on reads; normalize presentation without a DB rewrite.
+export const validMobileShortcuts=value=>Array.isArray(value)&&[3,4].includes(value.length)&&new Set(value).size===value.length&&value.every(id=>Object.hasOwn(MOBILE_ADMIN_TARGETS,id)||id==='accommodation');
+export function mobileShortcuts(value){
+ if(!validMobileShortcuts(value))return [...DEFAULT_MOBILE_SHORTCUTS];
+ const result=[...new Set(value.map(id=>id==='accommodation'?'reservations':id))];
+ for(const id of DEFAULT_MOBILE_SHORTCUTS)if(result.length<3&&!result.includes(id))result.push(id);
+ return result;
+}
 export const COMPOSITIONS=Object.freeze({preparation:'Příprava srazu',onsite:'Na srazu'});
 export const WIDGETS=Object.freeze({
   reservations:{label:'Registrace',kind:'kpi',sizes:['compact'],definition:'Pending + approved · registrace',destination:'active'},

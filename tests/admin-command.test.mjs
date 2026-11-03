@@ -6,7 +6,7 @@ import {commandBadges,commandDefaults,commandLayout} from '../admin/command-mode
 import {factoryPreferences,validatePreferences} from '../admin/dashboard-model.js';
 import {adminRoute} from '../admin/navigation.js';
 import {memberRuntime} from './helpers/admin-member-runtime.mjs';
-import {getAdminDashboard,ADMIN_RECENT_SQL} from '../worker/admin/dashboard.js';
+import {getAdminDashboard,ADMIN_RECENT_SQL,ADMIN_PAYMENT_OVERVIEW_SQL} from '../worker/admin/dashboard.js';
 import {getAdminSummary} from '../worker/admin/summary.js';
 import {getAdminReservations} from '../worker/domains/reservations/index.js';
 import {adminMemberMedia} from '../worker/admin/members.js';
@@ -20,7 +20,13 @@ test('NEW incremental budget reproduces executed SQL, plans and unchanged growth
  try {
   assert.equal(r.db.prepare('SELECT COUNT(*) n FROM members').get().n,500);
   assert.equal(r.db.prepare('SELECT COUNT(*) n FROM reservations').get().n,900);
-  for(const actual of report){const saved=profile.report.find(row=>row.name===actual.name);assert.deepEqual(actual.queries.map(q=>[normalizeSql(q.sql),q.args,q.plan]),saved.queries.map(q=>[currentBudgetSql(q.sql),q.args,q.plan]));}
+  for(const actual of report){const saved=profile.report.find(row=>row.name===actual.name);
+   // The historical baseline stays exact. The new requested finance read adds one
+   // statement to the existing command dashboard request, with no new poll.
+   const added=actual.queries.filter(q=>normalizeSql(q.sql)===normalizeSql(ADMIN_PAYMENT_OVERVIEW_SQL));
+   assert.equal(added.length,actual.name==='analytics-command'?1:0);
+   if(added.length){assert.deepEqual(added[0].args,['e']);assert.ok(added[0].plan.length);assert.match(added[0].sql,/LIMIT 5/);}
+   assert.deepEqual(actual.queries.filter(q=>!added.includes(q)).map(q=>[normalizeSql(q.sql),q.args,q.plan]),saved.queries.map(q=>[currentBudgetSql(q.sql),q.args,q.plan]));}
   const result=commandIncrement(profile,{memberHours:24,dashboardHours:3,detailHours:6,explicitDetails:96});
   assert.equal(result.estimated,1266660);assert.equal(result.withRetries,1393326);assert.equal(result.actualCloudflareRowsRead,null);assert.equal(r.writes,0);
  } finally {r.db.close();}

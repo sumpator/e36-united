@@ -123,7 +123,7 @@ test('POLISH pending reservation approval uses one existing command and converge
  // r + pending/overpaid + cancelled/overpaid are three distinct financial/reservation entities.
  await expect(badge('reservations')).toHaveText('2');await expect(badge('dashboard')).toHaveText('5');
  await page.screenshot({path:info.outputPath('POLISH-pending-dashboard.png'),fullPage:true});
- await page.locator('[data-widget="payment-summary"] details summary').click();
+ await page.locator('[data-widget="payment-summary"] .command-info summary').click();
  await page.locator('[data-command-reservation="r"]').click();const drawer=page.locator('[data-reservation-drawer]');
  await expect(drawer.locator('[data-review-action="approved"]')).toHaveText('Schválit registraci');await expect(drawer.locator('[data-review-action="rejected"]')).toHaveText('Zamítnout registraci');
  await expect(drawer).toContainText('Celý víkend');await expect(drawer).toContainText('Testovací data: přijedeme');await expect(drawer.locator('.command-qr')).toHaveText('Členské QR: Nevydáno');
@@ -139,8 +139,8 @@ test('POLISH pending reservation approval uses one existing command and converge
  await expect.poll(()=>page.locator('[data-widget="approvals"] [data-dashboard-preview]').evaluateAll(nodes=>nodes.filter(node=>JSON.parse(node.dataset.dashboardPreview).reservationId==='r').length)).toBe(0);
  expect(c.writes.map(w=>w.component)).toEqual(['reservation']);await expect(drawer.locator('[data-review-action="approved"]')).toHaveCount(0);
  await page.screenshot({path:info.outputPath('POLISH-approved-detail.png')});await page.keyboard.press('Escape');await expect(drawer).toBeHidden();
- await expect(page.locator('[data-widget="payment-summary"] details')).toHaveAttribute('open','');
- await page.locator('[data-widget="payment-summary"] details summary').click();
+ await expect(page.locator('[data-widget="payment-summary"] .command-info')).toHaveAttribute('open','');
+ await page.locator('[data-widget="payment-summary"] .command-info summary').click();
  await page.evaluate(()=>window.scrollTo(0,0));
  await expect(page.locator('[data-kpi-reservations]')).toHaveText('2');await page.screenshot({path:info.outputPath('POLISH-approved-dashboard.png'),fullPage:true});
  expect(c.r.db.prepare('SELECT COUNT(*) n FROM member_qr_identities').get().n).toBe(0);clean(c);c.r.db.close();

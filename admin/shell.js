@@ -1,7 +1,7 @@
 import { allowAdminNavigation } from './editors.js?v=20260930-arrivals2';
-import { initializeAdminMobileShell } from './mobile-shell.js?v=20261103-mobile1';
+import { initializeAdminMobileShell } from './mobile-shell.js?v=20261103-adminfix1';
 import { ADMIN_VIEW_IDS } from '../admin-view-model.js?v=20260930-arrivals2';
-import {ADMIN_AREAS,VIEW_LABELS,areaFor} from './destinations.js?v=20260930-arrivals2';
+import {ADMIN_AREAS,VIEW_LABELS,areaFor} from './destinations.js?v=20261103-adminfix1';
 import { adminState } from './state.js?v=20260930-arrivals2';
 import { $, $$, rememberSessionChoice } from './ui.js?v=20260924-merch2';
 

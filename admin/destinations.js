@@ -11,6 +11,7 @@ export const ADMIN_AREAS = Object.freeze({
 });
 export const VIEW_LABELS=Object.freeze({dashboard:'Přehled',arrivals:'Příjezdy',live:'UNITED LIVE',reservations:'Registrace',preliminary:'Předběžné registrace',accommodation:'Ubytování',payments:'Platby',members:'Členové',gallery:'Fotky',club:'Historie & S&S','united-club':'United Club',mailing:'Mailing',event:'Nastavení ročníku'});
 export const areaFor=(view,mode)=>view==='gallery'||view==='club'?'community':Object.keys(ADMIN_AREAS).find(key=>ADMIN_AREAS[key].views.includes(view))||'dashboard';
+export const primaryAdminTarget=(view,mode)=>view==='gallery'?(mode==='history'?'club':'photos'):['preliminary','accommodation'].includes(view)?'reservations':view==='event'?'settings':view;
 export const DESTINATIONS=Object.freeze({
   members:{label:'Členové',view:'members',scope:'global'},
   reservations:{label:'Všechny registrace',view:'reservations'},
@@ -30,6 +31,9 @@ export const DESTINATIONS=Object.freeze({
   inactivePaid:{label:'Úhrady mimo aktivní registrace',view:'payments',scope:'inactivePaid'},
   activeDue:{label:'Předpis aktivním registracím',view:'payments',scope:'activeDue'},
   applied:{label:'Úhrady přiřazené aktivním závazkům',view:'payments',scope:'applied'},
+  paidActive:{label:'Uhrazené aktivní registrace',view:'payments',scope:'paidActive'},
+  underpaidActive:{label:'Částečně uhrazené aktivní registrace',view:'payments',scope:'underpaidActive'},
+  unpaidActive:{label:'Neuhrazené aktivní registrace',view:'payments',scope:'unpaidActive'},
   paymentAttention:{label:'Platby vyžadující kontrolu',view:'payments',filter:'attention'},
   photos:{label:'Čekající fotky · globálně',view:'gallery',galleryMode:'community'},
   history:{label:'Historie / S&S ke kontrole · globálně',view:'gallery',galleryMode:'history'},
