@@ -100,3 +100,19 @@ for(const width of [390,1600])test('COMPACT accommodation, photo actions and pop
  await page.goto('/admin.html?section=reservations&event=e&reservation=r');await expect(page.locator('[data-payment-amount]')).toBeVisible();await page.locator('[data-payment-amount]').fill('333');await page.screenshot({path:info.outputPath('reservation-'+width+'.png'),fullPage:true});
  await page.locator('[data-reservation-drawer] [data-member-open]').click();await expect(page.locator('[data-member-dialog]')).toBeVisible();await page.locator('[data-member-close]').click();await expect(page.locator('[data-member-dialog]')).toBeHidden();await expect(page.locator('[data-payment-amount]')).toHaveValue('333');expect(c.writes).toEqual([]);clean(c);c.r.db.close();
 });
+
+test('COMPACT gallery long identity cannot widen its grid track or clip moderation actions',async({page},info)=>{
+ const c=await fixture(page);c.r.db.prepare('UPDATE members SET name=? WHERE id=?').run('Alexandr Dlouhý Příjmení Člena s dalším příjmením','m');
+ try{
+  await page.setViewportSize({width:390,height:844});await page.goto('/admin.html?section=community&view=gallery&event=e');
+  const card=page.locator('[data-gallery-id]');await expect(card).toBeVisible();
+  for(const width of [360,390,430]){
+   await page.setViewportSize({width,height:844});
+   const geometry=await card.evaluate(card=>{const box=n=>{const r=n.getBoundingClientRect();return{left:r.left,right:r.right,width:r.width,height:r.height}},body=card.querySelector('.admin-gallery-card-body');return{card:box(card),body:box(body),actions:[...card.querySelectorAll('[data-gallery-action]')].map(box)}});
+   await info.attach('gallery-grid-'+width,{body:JSON.stringify(geometry),contentType:'application/json'});
+   expect(geometry.body.right).toBeLessThanOrEqual(geometry.card.right);
+   for(const action of geometry.actions){expect(action.left).toBeGreaterThanOrEqual(geometry.card.left);expect(action.right).toBeLessThanOrEqual(geometry.card.right);expect(action.width).toBeGreaterThanOrEqual(44);expect(action.height).toBeGreaterThanOrEqual(44);}
+  }
+  await page.screenshot({path:info.outputPath('gallery-long-identity.png'),fullPage:true});expect(c.writes).toEqual([]);clean(c);
+ }finally{c.r.db.close()}
+});

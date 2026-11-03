@@ -209,6 +209,7 @@
 }
 
 @media(max-width:1050px){
+ .admin-page:not(.admin-live-mode-active) .admin-gallery-card-body{grid-template-columns:minmax(0,1fr)}
  .admin-page:not(.admin-live-mode-active) .admin-gallery-card-controls{display:flex;flex-wrap:wrap;min-width:0;gap:6px}
  .admin-page:not(.admin-live-mode-active) .admin-gallery-quick-actions{flex-wrap:wrap;max-width:100%;padding-right:0}
  .admin-page:not(.admin-live-mode-active) .admin-gallery-quick-actions>button{min-width:44px;min-height:44px}
