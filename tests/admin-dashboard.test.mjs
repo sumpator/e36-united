@@ -7,7 +7,7 @@ import {getAdminPreferences,saveAdminPreferences,getAdminDashboard} from '../wor
 import {getAdminOperation} from '../worker/admin/commands.js';
 import {getAdminSummary} from '../worker/admin/summary.js';
 import {getAdminReservations} from '../worker/domains/reservations/index.js';
-import {factoryPreferences,validatePreferences} from '../admin/dashboard-model.js';
+import {factoryPreferences,validatePreferences,validMobileShortcuts,mobileShortcuts,DEFAULT_MOBILE_SHORTCUTS} from '../admin/dashboard-model.js';
 import {adminRoute} from '../admin/navigation.js';
 import {cleanDrill,QUICK_LINK_IDS} from '../admin/destinations.js';
 import {chartModel,trendModel,attentionModel} from '../admin/dashboard-data.js';
@@ -116,4 +116,15 @@ test('occupancy and exact filters retain confirmed/pending unit populations and 
  const get=async q=>(await data(getAdminReservations({...r.env,ADMIN_READ:true},url('/?eventId=e&option=cab&occupancy='+q),origin))).reservations;
  assert.deepEqual((await get('approved')).map(r=>r.id),['r']);assert.deepEqual(await get('pending'),[]);
  assert.deepEqual(cleanDrill(),{});assert.equal(r.writes,0);r.db.close();
+});
+
+test('mobile shortcuts reuse per-admin CAS preferences without changing dashboard layouts or accepting action IDs',async()=>{
+ const r=runtime(),p=factoryPreferences();p.mobileShortcuts=['dashboard','reservations','payments'];
+ assert.equal((await save(r,p,'mobile-three')).status,200);assert.deepEqual((await data(getAdminPreferences(r.env,{uid:'a'},origin))).preferences,p);
+ r.db.exec("UPDATE members SET role='admin' WHERE id='n'");const other=factoryPreferences();other.mobileShortcuts=['members','mailing','payments','arrivals'];assert.equal((await save(r,other,'mobile-four',0,'n')).status,200);
+ assert.deepEqual((await data(getAdminPreferences(r.env,{uid:'a'},origin))).preferences.compositions,p.compositions);
+ assert.deepEqual((await data(getAdminPreferences(r.env,{uid:'n'},origin))).preferences.mobileShortcuts,other.mobileShortcuts);
+ assert.equal((await save(r,other,'stale-mobile',0)).status,409);assert.deepEqual((await data(getAdminPreferences(r.env,{uid:'a'},origin))).preferences.mobileShortcuts,p.mobileShortcuts);
+ for(const invalid of [null,[],['dashboard','payments'],['dashboard','dashboard','payments'],['dashboard','payments','logout'],['dashboard','payments','constructor'],['dashboard','payments','members','mailing','arrivals']]){assert.equal(validMobileShortcuts(invalid),false);assert.deepEqual(mobileShortcuts(invalid),DEFAULT_MOBILE_SHORTCUTS);assert.equal(validatePreferences({...p,mobileShortcuts:invalid}),false)}
+ assert.equal(validatePreferences(factoryPreferences()),true);assert.equal((await save(r,p,'member-shortcuts',0,'m')).status,409);assert.equal(r.db.prepare("SELECT COUNT(*) n FROM admin_preferences WHERE id='m'").get().n,0);r.db.close();
 });

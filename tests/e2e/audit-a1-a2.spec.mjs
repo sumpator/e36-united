@@ -51,7 +51,7 @@ for(const width of [390,1440])for(const theme of ['light','dark']){
    await expect(dialog.locator('[data-gate-arrival="fixture-arrival-old-c2"]')).toHaveCount(0);
    await page.screenshot({path:info.outputPath('member-detail.png')});
    await dialog.locator('[data-member-close]').click();
-   await page.locator('[data-member-search]').fill('other@example.invalid');
+   if(!await page.locator('[data-member-search]').isVisible())await page.locator('.admin-mobile-search-toggle').click();await page.locator('[data-member-search]').fill('other@example.invalid');
    await page.locator('[data-member-suggestions] [data-member-open="n"]').click();
    await expect(dialog.locator('[data-member-identity]')).toContainText('Second');
    await eventTab();

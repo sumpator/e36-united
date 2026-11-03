@@ -1,4 +1,8 @@
 import {QUICK_LINK_IDS} from './destinations.js?v=20260930-arrivals2';
+export const MOBILE_ADMIN_TARGETS=Object.freeze({dashboard:'Přehled',reservations:'Registrace',payments:'Platby',arrivals:'Příjezdy',preliminary:'Předběžné',accommodation:'Ubytování',members:'Členové',photos:'Fotky',club:'Historie',mailing:'Mailing',merch:'Merch',settings:'Nastavení',live:'LIVE'});
+export const DEFAULT_MOBILE_SHORTCUTS=Object.freeze(['dashboard','reservations','payments','arrivals']);
+export const validMobileShortcuts=value=>Array.isArray(value)&&[3,4].includes(value.length)&&new Set(value).size===value.length&&value.every(id=>Object.hasOwn(MOBILE_ADMIN_TARGETS,id));
+export const mobileShortcuts=value=>validMobileShortcuts(value)?[...value]:[...DEFAULT_MOBILE_SHORTCUTS];
 export const COMPOSITIONS=Object.freeze({preparation:'Příprava srazu',onsite:'Na srazu'});
 export const WIDGETS=Object.freeze({
   reservations:{label:'Registrace',kind:'kpi',sizes:['compact'],definition:'Pending + approved · registrace',destination:'active'},
@@ -21,7 +25,7 @@ export function factoryPreferences(){return{schemaVersion:1,compositions:{
 }}}
 // Accept safe future widget IDs without silently deleting or rewriting them on reads.
 export function validatePreferences(value){
-  if(!value||value.schemaVersion!==1||!value.compositions||Object.keys(value).some(k=>!['schemaVersion','compositions'].includes(k)))return false;
+  if(!value||value.schemaVersion!==1||!value.compositions||Object.keys(value).some(k=>!['schemaVersion','compositions','mobileShortcuts'].includes(k))||Object.hasOwn(value,'mobileShortcuts')&&!validMobileShortcuts(value.mobileShortcuts))return false;
   if(Object.keys(value.compositions).sort().join()!=='onsite,preparation')return false;
   return Object.keys(COMPOSITIONS).every(key=>{
     const c=value.compositions[key];

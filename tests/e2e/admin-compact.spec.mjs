@@ -65,7 +65,7 @@ test('COMPACT History to Members retains a decoded blob until its source load se
   await page.locator('[data-history-id="h"] [data-card-media]').scrollIntoViewIfNeeded();
   await expect.poll(()=>page.evaluate(()=>Boolean(window.releaseHistoryLoad))).toBe(true);
   const source=await page.evaluate(()=>window.heldHistorySource);expect(source.complete).toBe(true);expect(source.width).toBeGreaterThan(0);
-  await page.locator('.admin-section-nav [data-admin-jump="members"]').click();await expect(page.locator('[data-member-list]')).toBeVisible();
+  await page.locator('[data-portal-menu-open]').click();await page.locator('[data-portal-sheet-dialog] [data-admin-jump="members"]').click();await expect(page.locator('[data-member-list]')).toBeVisible();
   expect(await page.evaluate(url=>window.retiredCardUrls.some(row=>row.url===url),source.url)).toBe(false);
   await page.evaluate(()=>window.releaseHistoryLoad());
   await expect.poll(()=>page.evaluate(url=>window.retiredCardUrls.filter(row=>row.url===url).length,source.url)).toBe(1);
@@ -87,7 +87,7 @@ test('COMPACT mobile menu closes through all controls and legacy Club opens Memb
  await expect(page.locator('[data-admin-jump="united-club"]')).toHaveCount(0);
  const menu=page.locator('[data-portal-menu-open]'),sheet=page.locator('[data-portal-sheet]');
  await menu.click();await expect(sheet).toBeVisible();await expect(sheet.locator('[data-admin-jump="members"]')).toBeVisible();await page.keyboard.press('Escape');await expect(sheet).toBeHidden();
- for(const method of ['toggle','close','backdrop']){await menu.click();await expect(sheet).toBeVisible();if(method==='toggle')await menu.click();else if(method==='close')await sheet.locator('.portal-nav-sheet-head button').click();else await sheet.locator('[data-portal-sheet-close]').first().click({position:{x:5,y:5}});await expect(sheet).toBeHidden();await expect(menu).toBeFocused();expect(await page.locator('body').evaluate(n=>n.classList.contains('portal-sheet-open'))).toBe(false);}
+ for(const method of ['escape','close','backdrop']){await menu.click();await expect(sheet).toBeVisible();if(method==='escape')await page.keyboard.press('Escape');else if(method==='close')await sheet.locator('.portal-nav-sheet-head button').click();else await page.mouse.click(1,1);await expect(sheet).toBeHidden();await expect(menu).toBeFocused();expect(await page.locator('body').evaluate(n=>n.classList.contains('portal-sheet-open'))).toBe(false);}
  clean(c);c.r.db.close();
 });
 for(const width of [390,1600])test('COMPACT accommodation, photo actions and populated reservation '+width,async({page},info)=>{

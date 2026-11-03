@@ -30,7 +30,7 @@ const drawer=page=>page.locator('[data-member-dialog]');
 
 for(const width of [1440,390])test('read-only Member return preserves fresh source cache and dirty editor; due/focus refresh still runs '+width,async({page},info)=>{
  await page.setViewportSize({width,height:900});await page.clock.install();const c=await fixture(page);
- await page.goto('/admin.html?section=payments');await page.locator('[data-payment-filter="all"]').click();
+ await page.goto('/admin.html?section=payments');if(await page.locator('[data-payment-tabs] .admin-mobile-filters').isVisible())await page.locator('[data-payment-tabs] .admin-mobile-filters>summary').click();await page.locator('[data-payment-filter="all"]').click();
  const detailRequest=page.waitForRequest(q=>q.method()==='GET'&&q.url().includes('/api/admin/reservations?')&&new URL(q.url()).searchParams.get('projection')==='detail');
  await page.locator('[data-payment-list] button[data-reservation-open]').first().click();await detailRequest;
  const source=page.locator('[data-reservation-drawer]'),amount=source.locator('[data-payment-amount]');await expect(amount).toBeVisible();await amount.fill('1700');

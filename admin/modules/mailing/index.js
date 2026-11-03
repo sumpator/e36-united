@@ -1,10 +1,10 @@
-import { refreshStoredMailingDelivery } from './delivery.js?v=20261102-mailing2';
-import { renderMailingCampaigns, campaignPage } from './campaigns.js?v=20261102-mailing2';
+import { refreshStoredMailingDelivery } from './delivery.js?v=20261103-mobile1';
+import { renderMailingCampaigns, campaignPage } from './campaigns.js?v=20261103-mobile1';
 import { apiRequest } from '../../api.js?v=20260930-arrivals2';
 import { adminState } from '../../state.js?v=20260930-arrivals2';
 import { $, $$, numeric, toast } from '../../ui.js?v=20260924-merch2';
 import {loadMailingContacts,resetMailingContacts,setMailingContactSelection,getMailingContactSelection,eligibilityReason} from './contacts.js?v=20261102-mailing2';
-import { initializeMailingCampaigns, loadMailingCampaigns, resetMailingCampaigns } from './campaigns.js?v=20261102-mailing2';
+import { initializeMailingCampaigns, loadMailingCampaigns, resetMailingCampaigns } from './campaigns.js?v=20261103-mobile1';
 import { defaultMailingSegment,openMailingSelection,resetMailingSelection } from './segments.js?v=20261102-mailing2';
 import {initializeTransactionalEmails,loadTransactionalEmails,resetTransactionalEmails} from './transactional.js?v=20261102-mailing2';
 

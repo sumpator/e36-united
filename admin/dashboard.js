@@ -1,16 +1,16 @@
 import {adminState} from './state.js?v=20260930-arrivals2';
 import {adminCommand,bindCurrentEditors,forgetAdminEditor,editorProtected,allowAdminNavigation,adminEditorDirty} from './editors.js?v=20260930-arrivals2';
-import {COMPOSITIONS,validatePreferences} from './dashboard-model.js?v=20260930-arrivals2';
-import {COMMAND_WIDGETS as WIDGETS,commandDefaults as factoryPreferences,commandLayout,commandBadges} from './command-model.js?v=20260930-arrivals2';
+import {COMPOSITIONS,validatePreferences,MOBILE_ADMIN_TARGETS,mobileShortcuts,validMobileShortcuts} from './dashboard-model.js?v=20261103-mobile1';
+import {COMMAND_WIDGETS as WIDGETS,commandDefaults as factoryPreferences,commandLayout,commandBadges} from './command-model.js?v=20261103-mobile1';
 import {commandCard,metricInfo} from './command-cards.js?v=20261102-admin1';
 import {commandIcon} from './command-icons.js?v=20261014-admin1';
-import {renderCommandShell} from './command-shell.js?v=20261014-admin1';
+import {renderCommandShell} from './command-shell.js?v=20261103-mobile1';
 import {DESTINATIONS,QUICK_LINK_IDS,destination,drillLabel} from './destinations.js?v=20260930-arrivals2';
 import {dashboardKpi,chartModel,attentionModel,showValue} from './dashboard-data.js?v=20260924-merch2';
 import {$,escapeHtml as esc,toast} from './ui.js?v=20260924-merch2';
 import {createCardMedia} from './member-cards.js?v=20261014-admin1';
 
-let navigate=()=>{},refresh=()=>{},draft=null,pendingPreferences=null,acceptNext=false;
+let navigate=()=>{},refresh=()=>{},draft=null,pendingPreferences=null,acceptNext=false,shortcutsMode=false,editorOpener=null;
 const approvalMedia=createCardMedia();
 const clone=value=>JSON.parse(JSON.stringify(value));
 const form=()=> $('[data-dashboard-preferences]');
@@ -25,11 +25,13 @@ export const dashboardWantsPlanner=()=>chosen().widgets.some(w=>w.id==='planner'
 export const dashboardWantsMailing=()=>chosen().widgets.some(w=>w.id==='mailing');
 
 export function receiveDashboardPreferences(payload){
+  if(payload.preferences&&Object.hasOwn(payload.preferences,'mobileShortcuts')&&!validMobileShortcuts(payload.preferences.mobileShortcuts))payload={...payload,preferences:{...payload.preferences,mobileShortcuts:mobileShortcuts(null)}};
   if(!validatePreferences(payload.preferences))throw new Error('Neznámý nebo poškozený formát preferencí. Uložení není dostupné.');
   if(payload.stored===false)payload={...payload,preferences:factoryPreferences()};
   const root=form();
   if(!adminState.dashboardPreferences||acceptNext||!root.hidden&&!editorProtected(root,payload.revision,()=>receiveDashboardPreferences(payload))){
     adminState.dashboardPreferences=clone(payload.preferences);adminState.dashboardPreferenceRevision=payload.revision;
+    window.dispatchEvent(new Event('admin:preferenceschange'));
     acceptNext=false;pendingPreferences=null;
     if(!root.hidden){forgetAdminEditor(root);draft=clone(payload.preferences);writeDraft(false);editFields();bindCurrentEditors();}
     if(dashboardWantsPlanner()||dashboardWantsMailing())window.dispatchEvent(new CustomEvent('admin:dashboardready'));
@@ -89,6 +91,8 @@ export function renderDashboardDrill(){
 function writeDraft(changed=true){form().elements.configuration.value=JSON.stringify(draft);if(changed)form().elements.configuration.dispatchEvent(new Event('input',{bubbles:true}));}
 function readDraft(){try{const v=JSON.parse(form().elements.configuration.value);if(validatePreferences(v))draft=v}catch{}}
 function editFields(){
+  $('[data-dashboard-save]').disabled=false;
+  if(shortcutsMode){const selected=draft.mobileShortcuts||[];const fields=$('[data-dashboard-edit-fields]');fields.innerHTML=`<p role="status" data-mobile-shortcut-count>Vybráno ${selected.length} ze 4 · vyber 3 nebo 4 zkratky.</p><fieldset class="admin-shortcut-choices"><legend>Spodní menu pro tvůj účet</legend>${Object.entries(MOBILE_ADMIN_TARGETS).map(([id,label])=>`<label><input type="checkbox" data-mobile-shortcut="${id}" ${selected.includes(id)?'checked':''}>${esc(label)}</label>`).join('')}</fieldset>`;$('[data-dashboard-save]').disabled=!validMobileShortcuts(selected);return;}
   const c=draft.compositions[composition()],ids=c.widgets.map(w=>w.id),fields=$('[data-dashboard-edit-fields]');
   const previewOpen=fields.querySelector('[data-layout-preview]')?.open??!matchMedia('(max-width:600px)').matches;
   const active=document.activeElement,activeRow=active?.closest('[data-edit-widget]')?.dataset.editWidget;
@@ -104,7 +108,7 @@ function editFields(){
     scope?.querySelector('['+focusAttribute+'="'+CSS.escape(focusValue)+'"]')?.focus({preventScroll:true});
   }
 }
-function closeEditor(){form().closest('dialog')?.close();form().hidden=true;form().inert=true;forgetAdminEditor(form());draft=null;renderDashboard();$('[data-dashboard-edit]')?.focus({preventScroll:true});}
+function closeEditor(){form().closest('dialog')?.close();form().hidden=true;form().inert=true;forgetAdminEditor(form());draft=null;renderDashboard();editorOpener?.isConnected&&editorOpener.focus({preventScroll:true});}
 export function initializeDashboard({onNavigate,onRefresh}){
   navigate=onNavigate;refresh=onRefresh;form().inert=true;
   const dialog=document.createElement('dialog');dialog.className='command-settings';dialog.setAttribute('aria-labelledby','command-settings-title');form().before(dialog);dialog.append(form());
@@ -123,6 +127,7 @@ export function initializeDashboard({onNavigate,onRefresh}){
     if(event.target.matches('[data-dashboard-composition]')){if(!allowAdminNavigation()){event.target.value=composition();return}const next=event.target.value;closeEditor();adminState.dashboardComposition=next;window.dispatchEvent(new CustomEvent('admin:dashboardchoice'));renderDashboard();void refresh();}
     if(event.target.matches('[data-dashboard-range]')){adminState.dashboardRange=event.target.value;event.target.blur();window.dispatchEvent(new CustomEvent('admin:dashboardchoice'));renderDashboard();}
     if(!draft||!event.target.closest('[data-dashboard-edit-fields]'))return;
+    if(event.target.matches('[data-mobile-shortcut]')){const id=event.target.dataset.mobileShortcut;if(event.target.checked&&draft.mobileShortcuts.length===4){event.target.checked=false;toast('Nejvýše čtyři zkratky.');return}draft.mobileShortcuts=event.target.checked?[...draft.mobileShortcuts,id]:draft.mobileShortcuts.filter(x=>x!==id);writeDraft();const count=$('[data-mobile-shortcut-count]');count.textContent=`Vybráno ${draft.mobileShortcuts.length} ze 4 · vyber 3 nebo 4 zkratky.`;$('[data-dashboard-save]').disabled=!validMobileShortcuts(draft.mobileShortcuts);return;}
     const c=draft.compositions[composition()],id=event.target.closest('[data-edit-widget]')?.dataset.editWidget;
     if(event.target.matches('[data-widget-toggle]')){const key=event.target.dataset.widgetToggle;if(event.target.checked)c.widgets.push({id:key,size:WIDGETS[key].sizes[0]});else c.widgets=c.widgets.filter(w=>w.id!==key);}
     if(event.target.matches('[data-widget-size]'))c.widgets.find(w=>w.id===id).size=event.target.value;
@@ -136,7 +141,7 @@ export function initializeDashboard({onNavigate,onRefresh}){
     if(target.hasAttribute('data-dashboard-destination')){const next=destination(target.dataset.dashboardDestination,JSON.parse(target.dataset.dashboardDrill||'{}'));if(next)navigate(next);}
     if(target.hasAttribute('data-dashboard-revalidate'))void refresh('manual');
     if(target.hasAttribute('data-dashboard-clear'))navigate(destination(adminState.activeAdminView==='payments'?'recorded':'reservations'),{clear:true});
-    if(target.hasAttribute('data-dashboard-edit')){draft=clone(config());form().hidden=false;form().inert=false;writeDraft(false);editFields();bindCurrentEditors();dialog.showModal();renderDashboard();form().querySelector('button')?.focus();}
+    if(target.hasAttribute('data-dashboard-edit')||target.hasAttribute('data-admin-edit-shortcuts')){if(!adminState.dashboardPreferences||!allowAdminNavigation())return;shortcutsMode=target.hasAttribute('data-admin-edit-shortcuts');editorOpener=shortcutsMode?document.querySelector('[data-portal-menu-open]'):target;window.dispatchEvent(new Event('admin:closemenu'));draft=clone(config());if(shortcutsMode)draft.mobileShortcuts=mobileShortcuts(draft.mobileShortcuts);form().hidden=false;form().inert=false;heading.querySelector('h2').textContent=shortcutsMode?'Upravit spodní menu':'Nastavit zobrazení';$('[data-dashboard-reset]').hidden=shortcutsMode;writeDraft(false);editFields();bindCurrentEditors();dialog.showModal();renderDashboard();form().querySelector('button')?.focus();}
     if((target.hasAttribute('data-dashboard-cancel')||target.hasAttribute('data-dashboard-close'))&&allowAdminNavigation())closeEditor();
     if(target.hasAttribute('data-dashboard-apply')&&pendingPreferences&&allowAdminNavigation()){const next=pendingPreferences;closeEditor();acceptNext=true;receiveDashboardPreferences(next);renderDashboard();void refresh();}
     if(target.hasAttribute('data-dashboard-reset')&&draft&&window.confirm(`Obnovit tovární rozložení pouze „${COMPOSITIONS[composition()]}“? Změna se odešle až tlačítkem Uložit.`)){draft.compositions[composition()]=factoryPreferences().compositions[composition()];writeDraft();editFields();}

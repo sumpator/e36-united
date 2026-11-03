@@ -76,7 +76,7 @@ test('view switching hides inactive agendas and persists the active agenda', () 
   assert.match(js,/nextView==='live'&&!liveConfirmed[\s\S]*admin:liveentryrequest[\s\S]*request\.defaultPrevented\)return false/);
   assert.match(js, /panel\.hidden=!active/);
   assert.match(js, /rememberSessionChoice\('e36UnitedAdmin\.activeView',nextView\)/);
-  assert.match(js, /adminPortalNavigation=initPortalNavigation\([^\n]+onSelect:area=>\{adminState.queueMember=null;return setAdminView\(ADMIN_AREAS\[area\]/);
+  assert.match(js,/adminPortalNavigation=initializeAdminMobileShell\([^\n]+select:view=>\{adminState.queueMember=null;return setAdminView\(ADMIN_AREAS\[view\]/);
   assert.match(css, /\.admin-view-panel\[hidden\]\{display:none!important\}/);
 });
 

@@ -75,3 +75,16 @@ test('Admin delivery detail includes frozen preview and safe unique tracking wit
   const r=await prepared();await record(r,event(r,'delivered'));const req=new Request(`https://api.e36united.cz/api/admin/mailing/campaigns/${r.c.id}/delivery`),response=await routeAdminMailing({request:req,env:r.env,url:new URL(req.url),auth:{uid:'admin'},origin:'https://e36united.cz'});
   const payload=await response.json();assert.equal(response.status,200);assert.equal(payload.tracking.counts.delivered,1);assert.equal(payload.frozenPreview.html,(await campaignRow(r.env,r.c.id)).prepared_html);assert.equal(JSON.stringify(payload).includes(secret),false);r.close();
 });
+
+test('tracking evidence distinguishes unknown measurement and keeps delivery failure separate from activity',async()=>{
+ const r=await prepared();assert.deepEqual((await deliveryTracking(r.env,r.c.id)).measurement,{opened:'unknown',clicked:'unknown'});
+ await record(r,event(r,'bounce',{id:'terminal-bounce',bounce:'hard'}));await record(r,event(r,'open',{id:'later-open',time:stamp+1}));await record(r,event(r,'click',{id:'later-click',time:stamp+2,url:'https://e36united.cz/news'}));
+ const stats=await deliveryTracking(r.env,r.c.id);assert.deepEqual(stats.measurement,{opened:'observed',clicked:'observed'});assert.equal(stats.recipients[0].status,'hard_bounce');assert.equal(stats.counts.opened,1);assert.equal(stats.counts.clicked,1);assert.ok(stats.recipients[0].openedAt);assert.equal(stats.recipients[0].deliveredAt,null);r.close();
+});
+
+test('mailing presentation separates confirmed delivery and activity, unknown and explicitly disabled measurement',async()=>{
+ const {renderMailingTracking}=await import('../admin/modules/mailing/tracking.js');const target={innerHTML:''},base={counts:{recipients:1,sent:1,delivered:0,opened:0,clicked:0},recipients:[{email:'recipient@example.invalid',status:'hard_bounce',sentAt:'2026-09-07T10:00:00Z',openedAt:'2026-09-07T11:02:00Z'}]};
+ renderMailingTracking(target,base);assert.match(target.innerHTML,/Přijato poskytovatelem/);assert.match(target.innerHTML,/Trvale nedoručeno/);assert.match(target.innerHTML,/Otevření zaznamenáno/);assert.match(target.innerHTML,/data-delivery-metric="opened">Nezaznamenáno/);assert.doesNotMatch(target.innerHTML,/Přečteno|Doručeno<\/strong>/);
+ renderMailingTracking(target,{...base,measurement:{opened:'disabled',clicked:'unsupported'}});assert.match(target.innerHTML,/Měření vypnuto/);assert.match(target.innerHTML,/Měření nepodporováno/);
+ renderMailingTracking(target,{...base,measurement:{opened:'enabled',clicked:'enabled'}});assert.match(target.innerHTML,/data-delivery-metric="opened">0/);assert.match(target.innerHTML,/data-delivery-metric="clicked">0/);
+});

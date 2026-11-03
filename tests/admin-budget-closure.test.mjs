@@ -125,7 +125,7 @@ test('actual coordinator task selection reproduces the 12h workload without poll
   const taskFunctions=memberTasks+'\n'+preliminaryTasks;
   let now=0;const fresh=new Map();
   const noop=()=>{},state={sessionGeneration:1,selectedEventId:'e',memberPage:1,historyPagination:{page:1},galleryMode:'community'};
-  const mocks={adminState:state,ADMIN_REFRESH,memberSectionKey,memberPages:new Map(),page:1,$:()=>({open:false}),renderPreliminary:noop,beginEventContext:noop,renderMemberHeader:noop,renderMemberTab:noop,renderMembers:noop,
+  const mocks={matchMedia:()=>({matches:false}),adminState:state,ADMIN_REFRESH,memberSectionKey,memberPages:new Map(),page:1,$:()=>({open:false}),renderPreliminary:noop,beginEventContext:noop,renderMemberHeader:noop,renderMemberTab:noop,renderMembers:noop,
     dashboardWantsPlanner:()=>false,dashboardWantsMailing:()=>false,resourceFreshness:fresh,resourceDue:(record,key,ttl,reason)=>resourceDue(record,key,ttl,reason,now),renderAdminFunnel:noop,receiveDashboardPreferences:noop,
     renderReservations:noop,renderAccommodation:noop,renderGallery:noop,renderHistoryClaims:noop,renderReservationDetail:noop,
     reservationRequestPath:id=>'/reservations'+(id?'?id='+id:''),galleryRequestPath:()=>'/gallery',historyRequestPath:()=>'/history',scopedPath:p=>p};

@@ -10,9 +10,9 @@ if(typeof window!=='undefined'){
 import {listChanged,renderListPagination} from '../lists.js?v=20260930-arrivals2';
 import { adminCommand, editorProtected, forgetAdminEditor } from '../editors.js?v=20260930-arrivals2';
 import { apiMedia, apiRequest } from '../api.js?v=20260930-arrivals2';
-import { renderAttentionCounts } from './dashboard-events.js?v=20261014-admin1';
+import { renderAttentionCounts } from './dashboard-events.js?v=20261103-mobile1';
 import { adminState } from '../state.js?v=20260930-arrivals2';
-import { setDenied } from '../shell.js?v=20261014-admin1';
+import { setDenied } from '../shell.js?v=20261103-mobile1';
 import { $, $$, escapeHtml, formatDate, galleryStatusLabel, numeric, photosLabel, recordsLabel, rememberSessionChoice, toast } from '../ui.js?v=20260924-merch2';
 
 const galleryFilterLabels={pending:'Žádosti',approved:'Schválené',rejected:'Zamítnuté',all:'Všechny'};

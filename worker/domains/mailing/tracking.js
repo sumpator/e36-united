@@ -87,5 +87,6 @@ export async function deliveryTracking(env,campaignId){
   const counts=Object.fromEntries((events.results||[]).map(row=>[row.event_type,row.count]));
   const bounced=await env.DB.prepare("SELECT COUNT(DISTINCT recipient_id) AS count FROM mailing_delivery_events WHERE campaign_id=? AND event_type IN ('soft_bounce','hard_bounce','blocked')").bind(campaignId).first();
   return {counts:{...population,delivered:counts.delivered||0,opened:counts.opened||0,clicked:counts.click||0,bounced:bounced.count,unsubscribed:counts.unsubscribed||0},
-    recipients:rows.results||[],detailLimit:500,openRateApproximate:true};
+    recipients:rows.results||[],detailLimit:500,openRateApproximate:true,
+    measurement:{opened:counts.opened?'observed':'unknown',clicked:counts.click?'observed':'unknown'}};
 }

@@ -1,5 +1,5 @@
 import { allowAdminNavigation } from './editors.js?v=20260930-arrivals2';
-import { initPortalNavigation } from '../portal-navigation.js?v=20260924-merch2';
+import { initializeAdminMobileShell } from './mobile-shell.js?v=20261103-mobile1';
 import { ADMIN_VIEW_IDS } from '../admin-view-model.js?v=20260930-arrivals2';
 import {ADMIN_AREAS,VIEW_LABELS,areaFor} from './destinations.js?v=20260930-arrivals2';
 import { adminState } from './state.js?v=20260930-arrivals2';
@@ -16,6 +16,7 @@ export function setView(name){
   $('[data-auth-view]').hidden=name!=='auth';
   $('[data-denied-view]').hidden=name!=='denied';
   $('[data-admin-view]').hidden=name!=='admin';
+  window.dispatchEvent(new Event('admin:shellrender'));
   if(name==='admin')requestAnimationFrame(()=>setAdminView(adminState.activeAdminView,{focus:false}));
 }
 
@@ -87,12 +88,6 @@ export function setAdminView(view,{focus=true,liveConfirmed=false}={}){
   adminPortalNavigation?.sync(area);
   if(area==='community')setCommunityExpanded(true);
   $$('[data-community-links] [data-admin-jump]').forEach(button=>{const active=button.dataset.adminJump===(nextView==='gallery'?(nextMode==='history'?'club':'photos'):nextView);button.classList.toggle('is-active',active);if(active)button.setAttribute('aria-current','page');else button.removeAttribute('aria-current')});
-  // Flattened community links still reveal the active destination in the mobile rail.
-  // Move only its horizontal scroller, never the page or the current form focus.
-  if(area==='community'&&window.matchMedia('(max-width:1050px)').matches){
-    const rail=$('[data-portal-tablist]'),active=rail?.querySelector('[data-community-links] [aria-current="page"]');
-    if(active)rail.scrollLeft+=active.getBoundingClientRect().left-rail.getBoundingClientRect().left-(rail.clientWidth-active.offsetWidth)/2;
-  }
   if(changed){const wasRestoring=adminState.restoringRoute;adminState.restoringRoute=true;closeOverlays();adminState.restoringRoute=wasRestoring;window.dispatchEvent(new CustomEvent('admin:viewchange',{detail:{view:nextView}}));window.scrollTo({top:0,behavior:'auto'})}
   if(focus){const heading=$(`[data-admin-panel="${nextView}"] h2`);if(heading){heading.tabIndex=-1;heading.focus({preventScroll:true})}}
 }
@@ -101,7 +96,7 @@ export function initializeAdminShell({onCloseOverlays=()=>{},onDenied=()=>{},onC
   closeOverlays=onCloseOverlays;
   closeDeniedOverlays=onDenied;
   setCommunity=onCommunityMode;
-  adminPortalNavigation=initPortalNavigation({root:$('[data-portal-nav="admin"]'),toggleMenu:true,onSelect:area=>{adminState.queueMember=null;return setAdminView(ADMIN_AREAS[area]?.views[0]||'dashboard')}});
+  adminPortalNavigation=initializeAdminMobileShell({select:view=>{adminState.queueMember=null;return setAdminView(ADMIN_AREAS[view]?.views[0]||view,{focus:false})}});
   $$('[data-community-toggle]').forEach(button=>button.addEventListener('click',()=>{
     if(button.closest('[data-portal-tablist]')&&window.matchMedia('(max-width:1050px)').matches){setCommunityExpanded(true);adminPortalNavigation.open({opener:button});}
     else setCommunityExpanded(button.getAttribute('aria-expanded')!=='true');

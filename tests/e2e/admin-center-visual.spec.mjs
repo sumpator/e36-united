@@ -36,7 +36,7 @@ for(const width of [1440,820,390,360])for(const theme of ['light','dark'])test(`
   const member=page.locator('[data-member-list] .compact-member-card').filter({has:page.locator('[data-member-open=m]')});
   await expect(member).toContainText('velmi.dlouha.adresa.clena.pro.overeni@example.invalid');
   await expect(member.locator('.compact-member-initials')).toHaveText('ŽČ');
-  if(width<=820){const visible=await page.locator('.admin-section-nav [data-admin-jump=members]').evaluate(button=>{const rail=button.closest('[data-portal-tablist]').getBoundingClientRect(),b=button.getBoundingClientRect();return b.left>=rail.left-1&&b.right<=rail.right+1});expect(visible).toBe(true)}
+  if(width<=820){await expect(page.locator('.admin-section-nav')).toBeHidden();await page.locator('[data-portal-menu-open]').click();await expect(page.locator('[data-portal-sheet-dialog] [data-admin-jump=members]')).toHaveAttribute('aria-current','page');await page.keyboard.press('Escape')}
   await expect.poll(()=>member.locator('[data-card-media]').evaluate(img=>img.naturalWidth)).toBeGreaterThan(0);
   const noPhoto=page.locator('[data-member-list] .compact-member-card').filter({has:page.locator('[data-member-open=a]')});
   await expect(noPhoto.locator('img')).toHaveCount(0);await expect(noPhoto.locator('.compact-member-placeholder svg')).toBeVisible();
