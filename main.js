@@ -75,6 +75,26 @@ updateHomeNavActive();
 window.addEventListener('scroll', updateHomeNavActive, { passive:true });
 window.addEventListener('resize', updateHomeNavActive, { passive:true });
 
+// Firefox can apply the initial fragment before the public styles have laid
+// out the page. Align it once after load/fonts, unless the visitor has already
+// taken over navigation. Ordinary in-page anchors keep their native behavior.
+const initialPublicHash = location.hash;
+if (document.body.classList.contains('home-page') && ['#experience','#show-shine','#planer'].includes(initialPublicHash)) {
+  let visitorNavigated = false;
+  const markNavigation = () => { visitorNavigated = true; };
+  const intentEvents = ['pointerdown','touchstart','wheel','keydown'];
+  intentEvents.forEach(name => window.addEventListener(name, markNavigation, {passive:true}));
+  const alignInitialFragment = async () => {
+    await document.fonts.ready;
+    requestAnimationFrame(() => {
+      intentEvents.forEach(name => window.removeEventListener(name, markNavigation));
+      if (!visitorNavigated && location.hash === initialPublicHash) document.querySelector(initialPublicHash)?.scrollIntoView({behavior:'instant',block:'start'});
+    });
+  };
+  if (document.readyState === 'complete') void alignInitialFragment();
+  else window.addEventListener('load', alignInitialFragment, {once:true});
+}
+
 const navMore = qs('.nav-more');
 const navMoreToggle = qs('.nav-more-toggle');
 navMoreToggle?.addEventListener('click', e => {

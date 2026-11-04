@@ -8,6 +8,13 @@ const benefit=page=>page.locator('[data-member-merch-benefit]');
 const sdk='https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js';
 const publicLabels=['Program','Show & Shine','Naplánovat','O nás','Galerie','United Merch'];
 const publicTargets=['index.html#experience','index.html#show-shine','index.html#planer','o-nas.html','galerie.html','merch.html'];
+async function publicEntryReady(page){
+ await expect(page.locator('.united-mobile-menu')).toBeAttached();
+ if(/\/galerie(?:\.html)?$/.test(new URL(page.url()).pathname)){
+  await expect(page.locator('[data-gallery-auth-state]')).toContainText('Pro upload se přihlas do Můj United');
+  await expect(page.locator('[data-user-gallery-empty]')).toBeVisible();
+ }
+}
 const signedIn=page=>expect(account(page)).toHaveText('Můj United účet');
 async function login(page){
  const form=page.locator('[data-auth-form=login]');await expect(form).toBeVisible();
@@ -84,9 +91,19 @@ test('simulated memory-only persistence is explained on public pages in both the
 });
 
 test('PUBLIC NAV standalone links and extensionless entries share the homepage menu',async({page})=>{
+ await page.addInitScript(()=>{
+  const samples=[];window.__publicAnchorSamples=samples;
+  const sample=phase=>{
+   if(samples.length>=120||!document.documentElement)return;
+   const target=document.querySelector(['#experience','#show-shine','#planer'].includes(location.hash)?location.hash:'.public-site-header');
+   samples.push({phase,time:performance.now(),url:location.href,ready:document.readyState,scrollY,viewport:{width:innerWidth,height:innerHeight},target:target?.getBoundingClientRect().toJSON(),scrollBehavior:getComputedStyle(document.documentElement).scrollBehavior,styles:[...document.querySelectorAll('link[rel=stylesheet]')].map(link=>({href:link.getAttribute('href'),loaded:Boolean(link.sheet)}))});
+  };
+  for(const event of ['DOMContentLoaded','load','scroll','resize','pageshow'])window.addEventListener(event,()=>sample(event),{passive:true});
+  document.fonts.ready.then(()=>sample('fonts-ready'));
+ });
  const o=await prepareE2ePage(page);await page.setViewportSize({width:1440,height:900});
  for(const path of ['/merch','/merch.html','/galerie','/galerie.html','/o-nas','/o-nas.html','/index.html']){
-  await page.goto(path);await expect(account(page)).toHaveText('Registrovat se');
+  await page.goto(path);await expect(account(page)).toHaveText('Registrovat se');await publicEntryReady(page);
   const nav=page.getByRole('navigation',{name:'Hlavní navigace',exact:true}),links=nav.locator('a');
   await expect(links).toHaveText([...publicLabels,'Registrovat se']);
   for(let i=0;i<6;i++)await expect(links.nth(i)).toHaveAttribute('href',path==='/index.html'&&i<3?publicTargets[i].replace('index.html',''):publicTargets[i]);
@@ -96,10 +113,14 @@ test('PUBLIC NAV standalone links and extensionless entries share the homepage m
  }
  // Follow every Merch link through the actual page navigation, including anchors.
  for(let i=0;i<6;i++){
-  await page.goto('/merch');await expect(account(page)).toHaveText('Registrovat se');
+  await page.goto('/merch');await expect(account(page)).toHaveText('Registrovat se');await publicEntryReady(page);
   await page.getByRole('navigation',{name:'Hlavní navigace',exact:true}).getByRole('link',{name:publicLabels[i],exact:true}).click();
   await expect(page).toHaveURL(new RegExp('/'+publicTargets[i].replace('.','\\.').replace('#','\\#')+'$'));
-  if(i<3)await expect(page.locator('#'+publicTargets[i].split('#')[1])).toBeInViewport();
+  await publicEntryReady(page);
+  if(i<3){
+   try{await expect(page.locator('#'+publicTargets[i].split('#')[1])).toBeInViewport()}
+   finally{await test.info().attach('public-anchor-'+i,{body:JSON.stringify(await page.evaluate(()=>window.__publicAnchorSamples)),contentType:'application/json'})}
+  }
  }
  expectNoUnexpectedClientErrors(o);
 });
@@ -161,4 +182,40 @@ test('PUBLIC NAV portal Merch portal keeps session points and the existing baske
   await page.locator('.site-header .menu-btn').click();const menuAccount=page.getByRole('dialog',{name:'Navigace webu'}).locator('.nav-member');await expect(menuAccount).toHaveText('Můj United účet');await menuAccount.click();await expect(page.locator('[data-app-view]')).toBeVisible();await expect(page.locator('[data-auth-view]')).toBeHidden();
   expect(r.db.prepare('SELECT COUNT(*) n FROM merch_orders').get().n).toBe(0);expectNoUnexpectedClientErrors(o);
  }finally{r.db.close()}
+});
+
+test('PUBLIC NAV delayed homepage styles settle at the requested Planner fragment',async({page},info)=>{
+ const o=await prepareE2ePage(page);await page.setViewportSize({width:1440,height:900});await page.goto('/merch');await publicEntryReady(page);
+ const arrived=Promise.withResolvers(),release=Promise.withResolvers();
+ await page.route('**/styles.css?*',async route=>{arrived.resolve();await release.promise;return route.continue()});
+ try{
+  const navigation=page.getByRole('navigation',{name:'Hlavní navigace',exact:true}).getByRole('link',{name:'Naplánovat',exact:true}).click();
+  await arrived.promise;
+  // Hold a real stylesheet, not the click or the app's handlers. The parser
+  // can expose the fragment before its final geometry is available.
+  await page.waitForFunction(()=>Boolean(document.querySelector('#planer')));
+  await info.attach('before-styles',{body:JSON.stringify(await page.locator('#planer').evaluate(n=>({scrollY,rect:n.getBoundingClientRect().toJSON(),state:document.readyState}))),contentType:'application/json'});
+  release.resolve();await navigation;await page.waitForLoadState('load');await publicEntryReady(page);await expect(page).toHaveURL(/\/index.html#planer$/);
+  await expect(page.locator('#planer')).toBeInViewport();expectNoUnexpectedClientErrors(o);
+ }finally{release.resolve()}
+});
+
+test('PUBLIC NAV delayed initial alignment cannot undo a later section choice',async({page})=>{
+ const o=await prepareE2ePage(page);
+ await page.addInitScript(()=>{
+  const schedule=window.requestAnimationFrame.bind(window);
+  window.requestAnimationFrame=callback=>{
+   if(String(callback).includes('visitorNavigated')&&String(callback).includes('initialPublicHash')){
+    window.__heldPublicAlignment=callback;return 0;
+   }
+   return schedule(callback);
+  };
+ });
+ await page.setViewportSize({width:1440,height:900});await page.goto('/index.html#planer');
+ await page.waitForFunction(()=>typeof window.__heldPublicAlignment==='function');await publicEntryReady(page);
+ await page.getByRole('navigation',{name:'Hlavní navigace',exact:true}).getByRole('link',{name:'Program',exact:true}).click();
+ await expect(page).toHaveURL(/#experience$/);await expect(page.locator('#experience')).toBeInViewport();
+ // Release only the application's initial-fragment callback, never all frames.
+ await page.evaluate(()=>new Promise(resolve=>{window.__heldPublicAlignment();requestAnimationFrame(()=>requestAnimationFrame(resolve))}));
+ await expect(page.locator('#experience')).toBeInViewport();await expect(page).toHaveURL(/#experience$/);expectNoUnexpectedClientErrors(o);
 });
