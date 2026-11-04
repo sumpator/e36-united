@@ -1,9 +1,13 @@
 import {test,expect} from '@playwright/test';
 import {prepareE2ePage,expectNoUnexpectedClientErrors} from './fixtures.mjs';
+import {merchRuntime} from '../helpers/merch-runtime.mjs';
+import {bridge} from './merch-bridge.mjs';
 
 const account=page=>page.locator('.site-header .nav-links .nav-member');
 const benefit=page=>page.locator('[data-member-merch-benefit]');
 const sdk='https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js';
+const publicLabels=['Program','Show & Shine','Naplánovat','O nás','Galerie','United Merch'];
+const publicTargets=['index.html#experience','index.html#show-shine','index.html#planer','o-nas.html','galerie.html','merch.html'];
 const signedIn=page=>expect(account(page)).toHaveText('Můj United účet');
 async function login(page){
  const form=page.locator('[data-auth-form=login]');await expect(form).toBeVisible();
@@ -77,4 +81,84 @@ test('simulated memory-only persistence is explained on public pages in both the
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBe(true);await page.screenshot({path:info.outputPath(`limited-${theme}-${width}.png`)});
  }
  expectNoUnexpectedClientErrors(o);
+});
+
+test('PUBLIC NAV standalone links and extensionless entries share the homepage menu',async({page})=>{
+ const o=await prepareE2ePage(page);await page.setViewportSize({width:1440,height:900});
+ for(const path of ['/merch','/merch.html','/galerie','/galerie.html','/o-nas','/o-nas.html','/index.html']){
+  await page.goto(path);await expect(account(page)).toHaveText('Registrovat se');
+  const nav=page.getByRole('navigation',{name:'Hlavní navigace',exact:true}),links=nav.locator('a');
+  await expect(links).toHaveText([...publicLabels,'Registrovat se']);
+  for(let i=0;i<6;i++)await expect(links.nth(i)).toHaveAttribute('href',path==='/index.html'&&i<3?publicTargets[i].replace('index.html',''):publicTargets[i]);
+  await expect(nav.getByRole('link',{name:'Web',exact:true})).toHaveCount(0);
+  if(path!=='/index.html')await expect(nav.locator('.active')).toHaveAttribute('aria-current','page');
+  await expect(page.locator('.site-header .brand')).toHaveAttribute('href','index.html');
+ }
+ // Follow every Merch link through the actual page navigation, including anchors.
+ for(let i=0;i<6;i++){
+  await page.goto('/merch');await expect(account(page)).toHaveText('Registrovat se');
+  await page.getByRole('navigation',{name:'Hlavní navigace',exact:true}).getByRole('link',{name:publicLabels[i],exact:true}).click();
+  await expect(page).toHaveURL(new RegExp('/'+publicTargets[i].replace('.','\\.').replace('#','\\#')+'$'));
+  if(i<3)await expect(page.locator('#'+publicTargets[i].split('#')[1])).toBeInViewport();
+ }
+ expectNoUnexpectedClientErrors(o);
+});
+
+for(const authenticated of [false,true])test(`PUBLIC NAV responsive menu hover focus and basket ${authenticated?'member':'visitor'}`,async({page,browserName},info)=>{
+ const o=await prepareE2ePage(page,{authenticated});
+ await page.goto('/merch');await expect(account(page)).toHaveText(authenticated?'Můj United účet':'Registrovat se');
+ const trigger=page.locator('.site-header .menu-btn'),dialog=page.getByRole('dialog',{name:'Navigace webu'}),nav=page.getByRole('navigation',{name:'Hlavní navigace',exact:true});
+ for(const theme of ['light','dark']){
+  await page.evaluate(theme=>window.dispatchEvent(new StorageEvent('storage',{key:'e36UnitedAppearance',newValue:theme})),theme);await expect(page.locator('html')).toHaveAttribute('data-theme',theme);
+  for(const width of [360,390,820,1050,1100,1180,1181,1280,1440]){
+   await page.setViewportSize({width,height:844});
+   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBe(true);
+   const geometry=await page.locator('.site-header .nav').evaluate(n=>[...n.children].filter(n=>n.getClientRects().length&&getComputedStyle(n).visibility!=='hidden').map(n=>({name:n.className,...n.getBoundingClientRect().toJSON()})));
+   await info.attach(`header-${theme}-${width}`,{body:JSON.stringify(geometry),contentType:'application/json'});
+   for(const box of geometry){expect(box.x).toBeGreaterThanOrEqual(0);expect(box.right).toBeLessThanOrEqual(width+1)}
+   for(let i=1;i<geometry.length;i++)expect(geometry[i].x).toBeGreaterThanOrEqual(geometry[i-1].right-1);
+   const cart=page.locator('.shop-header-cart');await expect(cart).toBeVisible();await expect(cart).toHaveAccessibleName('Otevřít košík, 0 kusů');
+   if(width<=1180){
+    await expect(trigger).toBeVisible();await trigger.click();await expect(dialog).toBeVisible();await expect(trigger).toHaveAttribute('aria-expanded','true');
+    await expect(dialog.locator('nav>a')).toHaveText([...publicLabels,authenticated?'Můj United účet':'Registrovat se']);
+    await expect(dialog.getByRole('link',{name:'United Merch',exact:true})).toHaveCSS('text-decoration-line','underline');
+    await page.keyboard.press('Escape');await expect(dialog).toBeHidden();await expect(trigger).toHaveAttribute('aria-expanded','false');await expect(trigger).toBeFocused();
+   }else{
+    await expect(trigger).toBeHidden();await expect(nav).toBeVisible();
+    const active=nav.getByRole('link',{name:'United Merch',exact:true}),program=nav.getByRole('link',{name:'Program',exact:true}),planner=nav.getByRole('link',{name:'Naplánovat',exact:true});
+    expect(await active.evaluate(n=>getComputedStyle(n,'::after').opacity)).toBe('1');
+    await expect(planner).toHaveCSS('color',theme==='light'?'rgb(121, 83, 0)':'rgb(231, 198, 122)');await expect(planner).toHaveCSS('background-color','rgba(0, 0, 0, 0)');
+    await program.hover();await expect(program).toHaveCSS('background-color','rgba(0, 0, 0, 0)');
+    const blue=await page.evaluate(()=>{const probe=document.createElement('span');probe.style.color='var(--blue)';document.body.append(probe);const color=getComputedStyle(probe).color;probe.remove();return color});await expect(program).toHaveCSS('color',blue);
+    expect(await active.evaluate(n=>getComputedStyle(n,'::after').opacity)).toBe('1');
+    // WebKit's native link traversal is preference-dependent. Check focus
+    // styling in keyboard modality there; Chromium/Firefox also assert the
+    // next Tab target. All three follow the real focused link with Enter below.
+    if(browserName==='webkit'){await page.keyboard.press('ArrowRight');await program.focus();await expect(program).toBeFocused();expect(await program.evaluate(n=>getComputedStyle(n).outlineStyle)).not.toBe('none')}
+    else{await program.focus();await page.keyboard.press('Tab');const next=nav.getByRole('link',{name:'Show & Shine',exact:true});await expect(next).toBeFocused();expect(await next.evaluate(n=>getComputedStyle(n).outlineStyle)).not.toBe('none')}
+    expect(await program.evaluate(n=>n.tabIndex)).toBe(0);
+   }
+   if([360,1100,1440].includes(width))await page.screenshot({path:info.outputPath(`header-${theme}-${width}.png`),animations:'disabled'});
+  }
+ }
+ // Follow the focused anchor using the keyboard, including in WebKit.
+ await nav.getByRole('link',{name:'Program',exact:true}).focus();await page.keyboard.press('Enter');await expect(page).toHaveURL(/\/index.html#experience$/);await expect(page.locator('#experience')).toBeInViewport();await page.goBack();await expect(account(page)).toHaveText(authenticated?'Můj United účet':'Registrovat se');
+ // An open menu remains usable in Merch's intermediate range and closes when
+ // the actual desktop navigation becomes available; no second history manager.
+ await page.setViewportSize({width:1100,height:844});await trigger.click();await page.setViewportSize({width:1120,height:844});await expect(dialog).toBeVisible();await page.setViewportSize({width:1440,height:844});await expect(dialog).toBeHidden();await expect(trigger).toHaveAttribute('aria-expanded','false');
+ await page.setViewportSize({width:390,height:844});await trigger.click();await dialog.getByRole('link',{name:'Galerie',exact:true}).click();await expect(page).toHaveURL(/\/galerie.html$/);await expect(page.getByRole('dialog',{name:'Navigace webu'})).toBeHidden();
+ expectNoUnexpectedClientErrors(o);
+});
+
+test('PUBLIC NAV portal Merch portal keeps session points and the existing basket',async({page})=>{
+ const r=await merchRuntime();try{
+  r.settings.paused=true;r.db.prepare('UPDATE merch_config SET data=?').run(JSON.stringify(r.settings));
+  const o=await prepareE2ePage(page,{authenticated:true,member:{id:'member'}});await bridge(page,r.env,'member');
+  await page.setViewportSize({width:1440,height:900});await page.addInitScript(()=>localStorage.setItem('e36UnitedMerchCartV1',JSON.stringify([{variantId:'u-polo-navy',size:'M',quantity:2}])));
+  await page.goto('/member.html?section=garage');await expect(page.locator('[data-member-panel=garage]')).toBeVisible();
+  await page.locator('.member-top-nav').getByRole('link',{name:'United Merch',exact:true}).click();await expect(page).toHaveURL(/\/merch.html$/);await signedIn(page);await expect(benefit(page)).toHaveAttribute('data-benefit-state','member');await expect(page.locator('[data-benefit-points]')).toHaveText('7');
+  await page.setViewportSize({width:390,height:844});const cart=page.locator('.shop-header-cart');await expect(cart).toHaveAccessibleName('Otevřít košík, 2 kusů');await cart.click();const basket=page.locator('[data-cart-dialog]');await expect(basket).toBeVisible();await expect(basket.locator('[data-line-quantity]')).toHaveValue('2');await expect(basket).toContainText('Objednávání zatím není aktivní');await basket.getByRole('button',{name:'Zavřít košík'}).click();await expect(basket).toBeHidden();
+  await page.locator('.site-header .menu-btn').click();const menuAccount=page.getByRole('dialog',{name:'Navigace webu'}).locator('.nav-member');await expect(menuAccount).toHaveText('Můj United účet');await menuAccount.click();await expect(page.locator('[data-app-view]')).toBeVisible();await expect(page.locator('[data-auth-view]')).toBeHidden();
+  expect(r.db.prepare('SELECT COUNT(*) n FROM merch_orders').get().n).toBe(0);expectNoUnexpectedClientErrors(o);
+ }finally{r.db.close()}
 });

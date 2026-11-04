@@ -1,4 +1,16 @@
 /* Public header compositions only; Member, LIVE and Merch keep their own heroes. */
+.public-site-header .nav-links{flex-shrink:0;white-space:nowrap}
+body:has(.public-site-header) .united-mobile-menu nav>a.active:not(.nav-member){text-decoration:underline;text-decoration-color:var(--blue);text-underline-offset:6px;text-decoration-thickness:1px}
+body:has(.public-site-header) .united-mobile-menu a[href*="#planer"]:not(:hover){color:#e7c67a}
+html[data-theme=light] body:has(.public-site-header) .united-mobile-menu a[href*="#planer"]:not(:hover){color:#795300}
+/* The full public menu plus the basket needs more room than the other headers. */
+@media(min-width:1051px) and (max-width:1180px){
+ .merch-page .public-site-header .nav{gap:10px;min-height:64px}
+ .merch-page .public-site-header .brand{margin-right:auto}
+ .merch-page .public-site-header .nav-links{display:none!important}
+ .merch-page .public-site-header .menu-btn{display:flex;flex-direction:column;justify-content:center;flex-shrink:0}
+ .merch-page .public-site-header .mobile-auth-link{display:inline-flex!important;align-items:center;min-height:40px;white-space:nowrap;font-size:12px}
+}
 .home-page .hero-content.home-hero-layout{display:grid;grid-template-columns:150px minmax(0,1fr);gap:34px;align-items:start;position:relative;padding-top:130px;padding-bottom:65px}
 .home-hero-layout .home-united-mark{position:static;width:150px;height:auto;opacity:1;filter:none;margin-top:4px;pointer-events:none}
 .home-page .home-hero-layout .home-united-mark{filter:grayscale(1) brightness(.18) invert(1)}

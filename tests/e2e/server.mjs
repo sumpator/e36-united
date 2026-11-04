@@ -37,15 +37,20 @@ const server = createServer(async (request, response) => {
   }
 
   try {
-    const file = await stat(candidate);
-    if (!file.isFile()) throw new Error('not_file');
+    // Pages resolves extensionless public entry URLs to their HTML source.
+    let source=candidate;
+    let file=await stat(source).catch(()=>null);
+    if(!file?.isFile()&&!extname(candidate)){
+      source=candidate+'.html';file=await stat(source);
+    }
+    if (!file?.isFile()) throw new Error('not_file');
     response.writeHead(200, {
-      'Content-Type': mimeTypes.get(extname(candidate).toLowerCase()) || 'application/octet-stream',
+      'Content-Type': mimeTypes.get(extname(source).toLowerCase()) || 'application/octet-stream',
       'Content-Length': file.size,
       'Cache-Control': 'no-store',
     });
     if (request.method === 'HEAD') response.end();
-    else createReadStream(candidate).pipe(response);
+    else createReadStream(source).pipe(response);
   } catch {
     response.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' });
     response.end('Not found');
