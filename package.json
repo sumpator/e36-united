@@ -4,7 +4,7 @@
   "type": "module",
   "packageManager": "pnpm@11.19.0",
   "scripts": {
-    "test:e2e": "playwright test",
+    "test:e2e": "node tests/e2e/ci-focus-probe.mjs",
     "test:e2e:headed": "playwright test --headed"
   },
   "devDependencies": {

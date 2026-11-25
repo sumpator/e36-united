@@ -80,15 +80,21 @@ window.addEventListener('resize', updateHomeNavActive, { passive:true });
 // taken over navigation. Ordinary in-page anchors keep their native behavior.
 const initialPublicHash = location.hash;
 if (document.body.classList.contains('home-page') && ['#experience','#show-shine','#planer'].includes(initialPublicHash)) {
-  let visitorNavigated = false;
-  const markNavigation = () => { visitorNavigated = true; };
-  const intentEvents = ['pointerdown','touchstart','wheel','keydown'];
-  intentEvents.forEach(name => window.addEventListener(name, markNavigation, {passive:true}));
+  const initialSection = document.querySelector(initialPublicHash);
+  const hasControlFocus = element => element && element !== document.body &&
+    element !== document.documentElement && element !== initialSection;
+  let visitorNavigated = Boolean(hasControlFocus(document.activeElement));
+  const markNavigation = event => {
+    if (event.type !== 'focusin' || hasControlFocus(event.target)) visitorNavigated = true;
+  };
+  // A visitor can focus a Planner card before the font has loaded and before pressing Enter.
+  const intentEvents = ['focusin','pointerdown','touchstart','wheel','keydown'];
+  intentEvents.forEach(name => window.addEventListener(name, markNavigation, {capture:true, passive:true}));
   const alignInitialFragment = async () => {
     await document.fonts.ready;
     requestAnimationFrame(() => {
-      intentEvents.forEach(name => window.removeEventListener(name, markNavigation));
-      if (!visitorNavigated && location.hash === initialPublicHash) document.querySelector(initialPublicHash)?.scrollIntoView({behavior:'instant',block:'start'});
+      intentEvents.forEach(name => window.removeEventListener(name, markNavigation, true));
+      if (!visitorNavigated && location.hash === initialPublicHash) initialSection?.scrollIntoView({behavior:'instant',block:'start'});
     });
   };
   if (document.readyState === 'complete') void alignInitialFragment();

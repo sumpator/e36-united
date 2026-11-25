@@ -1,0 +1,1560 @@
+(() => {
+const qs = (selector, root = document) => root.querySelector(selector);
+const plannerTrackingHelper=import('./public-planner-handoff.js?v=20260907-feedback').catch(()=>null);
+const eventPresentation=import('./public-event-presentation.js?v=20261125-stay1').catch(()=>null);
+void import('./scroll-affordance.js?v=20260907-mobile').then(({initScrollAffordance})=>{
+  document.querySelectorAll('.category-selector').forEach(initScrollAffordance);
+}).catch(error=>console.debug('Scroll hint unavailable.',error));
+const qsa = (selector, root = document) => [...root.querySelectorAll(selector)];
+const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+const publicMemberStateListeners=new Set();
+let publicMemberState={status:'loading',authenticated:false,hasWaitingPlan:false,hasReservation:false,showJoinCta:false};
+let renderAccountLinks=null,renderPublicAuthStatus=null,publicMemberController=null;
+const publishPublicMemberState=state=>{
+publicMemberState={...publicMemberState,...state};
+qsa('.nav-cta').forEach(cta=>{cta.hidden=true});
+renderAccountLinks?.(publicMemberState);
+renderPublicAuthStatus?.(publicMemberState,()=>publicMemberController?.retry());
+for(const listener of publicMemberStateListeners)listener(publicMemberState);
+};
+const subscribePublicMemberState=listener=>{publicMemberStateListeners.add(listener);listener(publicMemberState);return()=>publicMemberStateListeners.delete(listener)};
+document.addEventListener('click',event=>{if(event.target.closest('.nav-member'))renderAccountLinks?.(publicMemberState)},true);
+qsa('.nav-cta').forEach(cta=>{cta.hidden=true});
+void (async()=>{
+try{
+const [{firebaseConfig,portalConfig},memberStateModule]=await Promise.all([import('./firebase-config.js?v=20260823-auth2'),import('./public-member-state.js?v=20261125-stay1')]);
+const {initPublicMemberState}=memberStateModule;renderAccountLinks=memberStateModule.renderAccountLinks;renderPublicAuthStatus=memberStateModule.renderPublicAuthStatus;
+publicMemberController=initPublicMemberState({config:firebaseConfig,apiBaseUrl:portalConfig.apiBaseUrl,onStateChange:publishPublicMemberState});
+}catch(error){publishPublicMemberState({status:'error',authenticated:false,showJoinCta:false,error});console.debug('Public member state unavailable; join CTA remains hidden.')}
+})();
+
+const coreStyles = qs('link[href^="styles.css"]');
+if (coreStyles && !coreStyles.href.includes('v=20261102-admin1')) coreStyles.href = 'styles.css?v=20261102-admin1';
+if (!qs('link[href^="accommodation-visual.css"]')) {
+const accommodationStyles=document.createElement('link');accommodationStyles.rel='stylesheet';accommodationStyles.href='accommodation-visual.css?v=20260912-accommodation-gallery-r1';document.head.append(accommodationStyles);
+}
+
+/* Header + mobile nav */
+const header = qs('.site-header');
+const menuBtn = qs('.menu-btn');
+const navLinks = qsa('.nav-links a');
+const updateHeader = () => header?.classList.toggle('scrolled', window.scrollY > 24);
+updateHeader();
+window.addEventListener('scroll', updateHeader, { passive: true });
+
+void import('./mobile-navigation.js?v=20261104-nav1').then(({initMobileNavigation})=>initMobileNavigation());
+navLinks.forEach(a => a.addEventListener('click', () => {
+document.body.classList.remove('menu-open');
+menuBtn?.setAttribute('aria-expanded', 'false');
+}));
+
+/* Homepage navigation follows the section currently in view. */
+const homeNavSections = [
+  { id:'experience', link:qs('.home-page .nav-links a[href="#experience"]') },
+  { id:'show-shine', link:qs('.home-page .nav-links a[href="#show-shine"]') },
+  { id:'planer', link:qs('.home-page .nav-links a[href="#planer"]') }
+].filter(item => item.link && document.getElementById(item.id));
+const updateHomeNavActive = () => {
+  if (!homeNavSections.length) return;
+  const probe = Math.min(window.innerHeight * .34, 300);
+  let active = null;
+  for (const item of homeNavSections) {
+    const section = document.getElementById(item.id);
+    const rect = section.getBoundingClientRect();
+    if (rect.top <= probe && rect.bottom > probe) active = item;
+  }
+  homeNavSections.forEach(item => {
+    const selected = item === active;
+    item.link.classList.toggle('active', selected);
+    if (selected) item.link.setAttribute('aria-current', 'location');
+    else item.link.removeAttribute('aria-current');
+  });
+};
+updateHomeNavActive();
+window.addEventListener('scroll', updateHomeNavActive, { passive:true });
+window.addEventListener('resize', updateHomeNavActive, { passive:true });
+
+// Firefox can apply the initial fragment before the public styles have laid
+// out the page. Align it once after load/fonts, unless the visitor has already
+// taken over navigation. Ordinary in-page anchors keep their native behavior.
+const initialPublicHash = location.hash;
+if (document.body.classList.contains('home-page') && ['#experience','#show-shine','#planer'].includes(initialPublicHash)) {
+  let visitorNavigated = false;
+  const markNavigation = () => { visitorNavigated = true; };
+  const intentEvents = ['pointerdown','touchstart','wheel','keydown'];
+  intentEvents.forEach(name => window.addEventListener(name, markNavigation, {passive:true}));
+  const alignInitialFragment = async () => {
+    await document.fonts.ready;
+    requestAnimationFrame(() => {
+      intentEvents.forEach(name => window.removeEventListener(name, markNavigation));
+      if (!visitorNavigated && location.hash === initialPublicHash) document.querySelector(initialPublicHash)?.scrollIntoView({behavior:'instant',block:'start'});
+    });
+  };
+  if (document.readyState === 'complete') void alignInitialFragment();
+  else window.addEventListener('load', alignInitialFragment, {once:true});
+}
+
+const navMore = qs('.nav-more');
+const navMoreToggle = qs('.nav-more-toggle');
+navMoreToggle?.addEventListener('click', e => {
+e.stopPropagation();
+const open = !navMore?.classList.contains('is-open');
+navMore?.classList.toggle('is-open', open);
+navMoreToggle.setAttribute('aria-expanded', String(open));
+});
+document.addEventListener('click', e => {
+if (!navMore?.classList.contains('is-open') || navMore.contains(e.target)) return;
+navMore.classList.remove('is-open');
+navMoreToggle?.setAttribute('aria-expanded','false');
+});
+
+/* Scroll reveal */
+if ('IntersectionObserver' in window && !reduceMotion) {
+const observer = new IntersectionObserver((entries) => {
+entries.forEach(entry => {
+if (entry.isIntersecting) {
+entry.target.classList.add('is-visible');
+observer.unobserve(entry.target);
+}
+});
+}, { threshold: .1 });
+qsa('.reveal').forEach(el => observer.observe(el));
+} else {
+qsa('.reveal').forEach(el => el.classList.add('is-visible'));
+}
+
+/* YouTube aftermovie: inline on hosting, reliable fallback when previewed from file:// */
+qsa('[data-youtube-player]').forEach(player => {
+const play = qs('[data-youtube-play]', player);
+if (!play || !player.dataset.videoId) return;
+const posterTemplate=play.cloneNode(true),feature=player.closest('.gallery-video-feature');
+feature?.querySelectorAll('[data-video-year]').forEach(choice=>choice.addEventListener('click',()=>{
+if(player.dataset.videoId===choice.dataset.videoId)return;
+player.querySelector('iframe')?.remove();player.classList.remove('is-playing');
+const poster=posterTemplate.cloneNode(true),title=choice.dataset.videoTitle;
+player.dataset.videoId=choice.dataset.videoId;
+poster.setAttribute('aria-label',`Přehrát ${title} na YouTube`);
+poster.querySelector('img').src=`https://i.ytimg.com/vi/${choice.dataset.videoId}/hqdefault.jpg`;
+poster.querySelector('img').alt=`${title} – oficiální video`;
+poster.querySelector('strong').textContent=title;
+const old=qs('[data-youtube-play]',player);if(old)old.replaceWith(poster);else player.prepend(poster);
+feature.querySelectorAll('[data-video-year]').forEach(button=>button.setAttribute('aria-pressed',String(button===choice)));
+}));
+player.addEventListener('click', event => {
+const play=event.target.closest('[data-youtube-play]');if(!play||!player.contains(play))return;
+const videoId=player.dataset.videoId;
+const watchUrl = `https://www.youtube.com/watch?v=${encodeURIComponent(videoId)}`;
+if (window.location.protocol === 'file:') {
+window.open(watchUrl, '_blank', 'noopener');
+return;
+}
+const iframe = document.createElement('iframe');
+iframe.src = `https://www.youtube.com/embed/${encodeURIComponent(videoId)}?autoplay=1&rel=0&playsinline=1`;
+iframe.title = `${qs('strong',play)?.textContent||'E36 United'} – oficiální video`;
+iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share';
+iframe.allowFullscreen = true;
+iframe.referrerPolicy = 'strict-origin-when-cross-origin';
+player.classList.add('is-playing');
+play.replaceWith(iframe);
+});
+});
+
+/* Lightbox gallery with arrows + thumbnail rail. Supports photos inserted after page load. */
+const lightbox = qs('.lightbox');
+const lightboxImg = lightbox?.querySelector('.lightbox-stage > img');
+const lightboxCounter = lightbox ? qs('[data-lightbox-counter]', lightbox) : null;
+const lightboxTitle = lightbox ? qs('[data-lightbox-title]', lightbox) : null;
+const lightboxThumbs = lightbox ? qs('[data-lightbox-thumbs]', lightbox) : null;
+let lightboxItems = [];
+let lightboxIndex = 0;
+const collectLightboxItems = () => qsa('[data-lightbox]');
+const rebuildLightboxThumbs = () => {
+  if (!lightboxThumbs) return;
+  lightboxThumbs.innerHTML = '';
+  lightboxItems.forEach((item, i) => {
+    const source = item.querySelector('img');
+    const button = document.createElement('button');
+    button.type='button'; button.className='lightbox-thumb'; button.setAttribute('aria-label',`Otevřít fotografii ${i+1}`);
+    const image = document.createElement('img'); image.src=source?.src||''; image.alt=''; image.loading='lazy';
+    button.append(image); button.addEventListener('click',()=>paintLightbox(i)); lightboxThumbs.append(button);
+  });
+};
+const paintLightbox = (index, focusThumb = true) => {
+  if (!lightbox || !lightboxImg || !lightboxItems.length) return;
+  lightboxIndex = (index + lightboxItems.length) % lightboxItems.length;
+  const item = lightboxItems[lightboxIndex];
+  const img = item.querySelector('img');
+  lightboxImg.src = item.dataset.full || img?.src || '';
+  lightboxImg.alt = img?.alt || '';
+  if (lightboxCounter) lightboxCounter.textContent = `${String(lightboxIndex + 1).padStart(2,'0')} / ${String(lightboxItems.length).padStart(2,'0')}`;
+  if (lightboxTitle) lightboxTitle.textContent = item.dataset.caption || img?.alt || 'E36 United';
+  qsa('.lightbox-thumb', lightboxThumbs || document).forEach((thumb, i) => thumb.classList.toggle('is-active', i === lightboxIndex));
+  if (focusThumb) qs('.lightbox-thumb.is-active', lightboxThumbs || document)?.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'});
+};
+const openLightboxItem = item => {
+  lightboxItems = collectLightboxItems();
+  const index = Math.max(0, lightboxItems.indexOf(item));
+  rebuildLightboxThumbs();
+  paintLightbox(index, false);
+  lightbox?.classList.add('open'); document.body.style.overflow='hidden';
+};
+const closeLightbox = () => { lightbox?.classList.remove('open'); document.body.style.overflow=''; };
+document.addEventListener('click', e => {
+  const item = e.target.closest?.('[data-lightbox]');
+  if (!item || !document.body.contains(item)) return;
+  e.preventDefault(); openLightboxItem(item);
+});
+lightbox?.querySelector('.lightbox-prev')?.addEventListener('click',()=>paintLightbox(lightboxIndex-1));
+lightbox?.querySelector('.lightbox-next')?.addEventListener('click',()=>paintLightbox(lightboxIndex+1));
+lightbox?.addEventListener('click', e => { if (e.target === lightbox) closeLightbox(); });
+lightbox?.querySelector('.lightbox-close')?.addEventListener('click', closeLightbox);
+document.addEventListener('keydown', e => {
+  if (!lightbox?.classList.contains('open')) return;
+  if (e.key === 'Escape') closeLightbox();
+  if (e.key === 'ArrowLeft') paintLightbox(lightboxIndex-1);
+  if (e.key === 'ArrowRight') paintLightbox(lightboxIndex+1);
+});
+
+qsa('[data-year]').forEach(el => el.textContent = new Date().getFullYear());
+
+/* Scroll progress */
+const progress = qs('.scroll-progress span');
+const updateProgress = () => {
+if (!progress) return;
+const max = document.documentElement.scrollHeight - window.innerHeight;
+progress.style.transform = `scaleX(${max > 0 ? Math.min(1, window.scrollY / max) : 0})`;
+};
+updateProgress();
+window.addEventListener('scroll', updateProgress, { passive: true });
+window.addEventListener('resize', updateProgress, { passive: true });
+
+/* Hero cursor / parallax */
+const hero = qs('.hero--dynamic');
+if (hero && !reduceMotion && window.matchMedia('(pointer:fine)').matches) {
+hero.addEventListener('pointermove', e => {
+const r = hero.getBoundingClientRect();
+const px = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width));
+const py = Math.max(0, Math.min(1, (e.clientY - r.top) / r.height));
+hero.style.setProperty('--pointer-x', `${px * 100}%`);
+hero.style.setProperty('--pointer-y', `${py * 100}%`);
+hero.style.setProperty('--hero-x', `${(px - .5) * -1.3}%`);
+hero.style.setProperty('--hero-y', `${(py - .5) * -1.1}%`);
+});
+hero.addEventListener('pointerleave', () => {
+hero.style.setProperty('--pointer-x', '70%');
+hero.style.setProperty('--pointer-y', '35%');
+hero.style.setProperty('--hero-x', '0%');
+hero.style.setProperty('--hero-y', '0%');
+});
+}
+
+/* Animated counters */
+const counters = qsa('[data-counter]');
+if (counters.length) {
+const animateCounter = el => {
+const end = Number(el.dataset.counter || 0);
+if (reduceMotion || end > 100) {
+el.textContent = end>=1900&&end<=2100?String(end):end.toLocaleString('cs-CZ');
+return;
+}
+const start = performance.now();
+const duration = 900;
+const tick = now => {
+const t = Math.min(1, (now - start) / duration);
+const eased = 1 - Math.pow(1 - t, 3);
+el.textContent = Math.round(end * eased).toLocaleString('cs-CZ');
+if (t < 1) requestAnimationFrame(tick);
+};
+requestAnimationFrame(tick);
+};
+if ('IntersectionObserver' in window) {
+const counterObserver = new IntersectionObserver(entries => {
+entries.forEach(entry => {
+if (entry.isIntersecting) {
+animateCounter(entry.target);
+counterObserver.unobserve(entry.target);
+}
+});
+}, { threshold: .5 });
+counters.forEach(c => counterObserver.observe(c));
+} else counters.forEach(animateCounter);
+}
+
+/* Magnetic buttons */
+if (!reduceMotion && window.matchMedia('(pointer:fine)').matches) {
+qsa('.magnetic').forEach(el => {
+el.addEventListener('pointermove', e => {
+const r = el.getBoundingClientRect();
+const x = e.clientX - r.left - r.width / 2;
+const y = e.clientY - r.top - r.height / 2;
+el.style.transform = `translate(${x * .12}px,${y * .16}px)`;
+});
+el.addEventListener('pointerleave', () => { el.style.transform = ''; });
+});
+}
+
+/* Weekend story tabs */
+const weekend = qs('[data-weekend-story]');
+if (weekend) {
+const tabs = qsa('[data-day]', weekend);
+const panels = qsa('[data-day-panel]', weekend);
+const copies = qsa('[data-copy]', weekend);
+const index = qs('[data-weekend-index]', weekend);
+const order = ['friday', 'saturday', 'sunday'];
+let activeDay = 'friday';
+let autoTimer = null;
+
+const setDay = day => {
+activeDay = day;
+tabs.forEach(tab => {
+const active = tab.dataset.day === day;
+tab.classList.toggle('is-active', active);
+tab.setAttribute('aria-selected', String(active));
+});
+panels.forEach(panel => panel.classList.toggle('is-active', panel.dataset.dayPanel === day));
+copies.forEach(copy => copy.classList.toggle('is-active', copy.dataset.copy === day));
+if (index) index.textContent = `0${order.indexOf(day) + 1} / 03`;
+};
+const resetAuto = () => {
+if (autoTimer) clearInterval(autoTimer);
+if (!reduceMotion) autoTimer = setInterval(() => {
+const next = order[(order.indexOf(activeDay) + 1) % order.length];
+setDay(next);
+}, 13000);
+};
+tabs.forEach(tab => tab.addEventListener('click', () => { setDay(tab.dataset.day); resetAuto(); }));
+weekend.addEventListener('pointerenter', () => { if (autoTimer) clearInterval(autoTimer); });
+weekend.addEventListener('pointerleave', resetAuto);
+resetAuto();
+}
+
+/* About page: restrained scroll-driven history */
+const historySection = qs('[data-history]');
+if (historySection) {
+const entries = qsa('.timeline-entry', historySection);
+const currentYear = qs('[data-history-year]', historySection);
+const currentTitle = qs('[data-history-title]', historySection);
+const progress = qs('[data-history-progress]', historySection);
+const readingLine = () => (header?.getBoundingClientRect().bottom || 0) + 70;
+// Reveal animations move the paint, not the article's place in the story.
+const articleTop = entry => entry.getBoundingClientRect().top - new DOMMatrixReadOnly(getComputedStyle(entry).transform).m42;
+entries.forEach(entry => {
+const year = qs('.timeline-year', entry);
+if (!year) return;
+entry.id = `history-${year.textContent.trim()}`;
+const link = document.createElement('a');
+link.href = `#${entry.id}`;
+link.textContent = year.textContent;
+link.setAttribute('aria-label', `Přejít na rok ${year.textContent.trim()}`);
+year.replaceChildren(link);
+});
+
+const setHistoryEntry = entry => {
+if (!entry) return;
+entries.forEach(item => {
+item.classList.toggle('is-current', item === entry);
+const link = qs('.timeline-year a', item);
+if (item === entry) link?.setAttribute('aria-current', 'location');
+else link?.removeAttribute('aria-current');
+});
+const year = qs('.timeline-year', entry)?.textContent?.trim() || '';
+const title = qs('.timeline-copy h2', entry)?.textContent?.trim() || '';
+if (currentYear) currentYear.textContent = year;
+if (currentTitle) currentTitle.textContent = title;
+};
+
+const updateHistoryProgress = () => {
+const probe=readingLine();
+entries.forEach(entry => { entry.style.scrollMarginTop = `${probe - 1}px`; });
+// Weight visible article bodies gently by their reading length. A short story
+// remains readable across a useful scroll range without retaining an offscreen
+// story over the next visible article. Exclude each article's trailing gap.
+// Waiting for its heading to cross the reading line leaves a previous year
+// selected while the next story already occupies most of the reading area.
+const viewportTop=header?.getBoundingClientRect().bottom||0;
+const readingHeight=Math.max(1,innerHeight-viewportTop);
+let active=entries.filter(entry=>articleTop(entry)<=probe).at(-1)||entries[0],largestVisible=0;
+for(const entry of entries){
+ const top=articleTop(entry),bottom=top+entry.offsetHeight-parseFloat(getComputedStyle(entry).paddingBottom||0);
+ const visible=Math.max(0,Math.min(innerHeight,bottom)-Math.max(viewportTop,top)),score=visible/Math.sqrt(Math.min(Math.max(1,bottom-top),readingHeight));
+ if(score>largestVisible){active=entry;largestVisible=score}
+}
+setHistoryEntry(active);
+if (!progress) return;
+const rect = historySection.getBoundingClientRect();
+const total = Math.max(1, rect.height - window.innerHeight * .72);
+const travelled = Math.min(total, Math.max(0, -rect.top + window.innerHeight * .22));
+progress.style.width = `${Math.round((travelled / total) * 100)}%`;
+};
+updateHistoryProgress();
+const initialArticle = entries.find(entry => `#${entry.id}` === location.hash);
+if (initialArticle) {
+window.scrollTo({top:articleTop(initialArticle)+window.scrollY-readingLine()+1,behavior:'instant'});
+updateHistoryProgress();
+}
+window.addEventListener('scroll', updateHistoryProgress, {passive:true});
+window.addEventListener('resize', updateHistoryProgress, {passive:true});
+window.addEventListener('hashchange',updateHistoryProgress);
+window.addEventListener('pageshow',updateHistoryProgress);
+document.fonts?.ready.then(updateHistoryProgress);
+historySection.addEventListener('load',updateHistoryProgress,true);
+historySection.addEventListener('transitionend',event=>{
+if(event.propertyName==='transform'&&event.target.matches('.timeline-entry'))updateHistoryProgress();
+});
+if('ResizeObserver' in window)new ResizeObserver(updateHistoryProgress).observe(historySection);
+}
+
+/* 3D tilt media */
+if (!reduceMotion && window.matchMedia('(pointer:fine)').matches) {
+qsa('[data-tilt]').forEach(card => {
+card.addEventListener('pointermove', e => {
+const r = card.getBoundingClientRect();
+const px = (e.clientX - r.left) / r.width;
+const py = (e.clientY - r.top) / r.height;
+const rx = (py - .5) * -4.5;
+const ry = (px - .5) * 5.5;
+card.style.transform = `perspective(1100px) rotateX(${rx}deg) rotateY(${ry}deg) translateY(-2px)`;
+card.style.setProperty('--glare-x', `${px * 100}%`);
+card.style.setProperty('--glare-y', `${py * 100}%`);
+});
+card.addEventListener('pointerleave', () => { card.style.transform = ''; });
+});
+}
+
+/* Show & Shine — category winners + precision inspection */
+const lab = qs('[data-inspection-lab]');
+const suppliedShowshineConfig = window.E36_SHOWSHINE?.categories || {};
+const fallbackFocus = {
+fit:{scale:1.42,x:0,y:1,focusX:52,focusY:48},
+corrosion:{scale:1.86,x:-12,y:15,focusX:36,focusY:67},
+originality:{scale:1.52,x:5,y:0,focusX:58,focusY:48},
+paint:{scale:1.72,x:8,y:2,focusX:61,focusY:44},
+interior:{scale:1.92,x:-7,y:4,focusX:43,focusY:45},
+wheels:{scale:2.08,x:-20,y:17,focusX:30,focusY:70},
+engine:{scale:1.88,x:20,y:-12,focusX:69,focusY:32},
+impression:{scale:1.08,x:0,y:0,focusX:50,focusY:50}
+};
+const showshineConfig = Object.keys(suppliedShowshineConfig).length
+? suppliedShowshineConfig
+: { sedan:{label:'Sedan',code:'SEDAN',winnerName:'Show & Shine',temporary:true,thumb:null,overview:null,details:{},focus:fallbackFocus} };
+let activeShowshineCategory = window.E36_SHOWSHINE?.activeCategory || Object.keys(showshineConfig)[0] || 'sedan';
+let activeInspectionMode = 'fit';
+
+if (lab) {
+const stage = qs('[data-inspection-stage]', lab);
+const controls = qsa('[data-inspection]', lab);
+const overviewImg = qs('[data-overview-image]', lab);
+const detailImg = qs('[data-detail-image]', lab);
+const label = qs('[data-inspection-label]', lab);
+const scale = qs('[data-inspection-scale]', lab);
+const title = qs('[data-inspection-title]', lab);
+const copy = qs('[data-inspection-copy]', lab);
+const kicker = qs('[data-inspection-kicker]', lab);
+const scanStatus = qs('[data-scan-status]', lab);
+const hudCar = qs('[data-hud-car]', lab);
+const activeCategoryLabel = qs('[data-active-category]');
+const categoryCards = qsa('[data-category]');
+const showcaseImage = qs('[data-category-showcase-image]');
+const showcaseLabel = qs('[data-category-showcase-label]');
+const showcaseWinner = qs('[data-category-showcase-winner]');
+const showcaseIndex = qs('[data-category-showcase-index]');
+const showcaseAward = qs('[data-category-showcase-award]');
+let settleTimer = null;
+let detailTimer = null;
+let switchTimer = null;
+
+const inspectionData = {
+fit:{ label:'ZPRACOVÁNÍ / SPASOVÁNÍ', title:'Detaily musí navazovat.', copy:'Porota sleduje lícování dílů, návaznosti hran, mezery mezi panely a celkovou kvalitu provedení.', kicker:'01 / ZPRACOVÁNÍ' },
+corrosion:{ label:'KOROZE & STAV', title:'Stav karoserie nejde schovat.', copy:'Kontroluje se koroze, stav lemů a prahů, poškození i to, jak poctivě je auto udržované.', kicker:'02 / STAV KAROSERIE' },
+originality:{ label:'ORIGINALITA DÍLŮ', title:'Dobovost a smysl úprav.', copy:'Hodnotí se původní nebo dobově správné prvky a také to, zda úpravy respektují charakter konkrétního auta.', kicker:'03 / ORIGINALITA' },
+paint:{ label:'LAK & POVRCH', title:'Lak ukáže kvalitu práce.', copy:'Rovnoměrnost, odstín, kvalita povrchu, vady, původní lak i péče o jeho současný stav.', kicker:'04 / LAK' },
+interior:{ label:'INTERIÉR', title:'Uvnitř se pozná péče.', copy:'Stav, čistota, čalounění, materiály, prvky výbavy, originalita a sladění interiéru se zbytkem auta.', kicker:'05 / INTERIÉR' },
+wheels:{ label:'KOLA & POSTOJ', title:'Kola musí sedět celému autu.', copy:'Volba kol, jejich stav a čistota, fitment i to, jak výsledný postoj podporuje charakter vozu.', kicker:'06 / KOLA' },
+engine:{ label:'MOTOROVÝ PROSTOR', title:'Kapota nahoru.', copy:'Čistota, provedení, originalita, kabeláž, detaily a celkový vzhled motorového prostoru.', kicker:'07 / MOTOROVÝ PROSTOR' },
+impression:{ label:'CELKOVÝ DOJEM', title:'Nakonec rozhoduje celek.', copy:'Nejde o součet jednotlivostí. Porota vnímá, jestli auto působí promyšleně, konzistentně a dotaženě jako jeden celek.', kicker:'08 / CELKOVÝ DOJEM' }
+};
+
+const preload = src => { if (!src) return; const img = new Image(); img.src = src; };
+Object.values(showshineConfig).forEach(cat => {
+preload(cat.thumb); preload(cat.overview);
+Object.values(cat.details || {}).forEach(preload);
+});
+
+categoryCards.forEach(card => {
+const key = card.dataset.category;
+const cat = showshineConfig[key];
+if (!cat) return;
+const img = qs('[data-category-thumb]', card);
+const winner = qs('[data-category-winner]', card);
+if (img) {
+img.src = cat.thumb;
+img.alt = `${cat.temporary ? 'Ukázka kategorie' : 'Vítěz'} Show & Shine — ${cat.label}`;
+}
+if (winner) winner.textContent = cat.winnerName || 'Vítěz 2026';
+const badge = qs('.winner-photo i', card);
+if (badge) badge.hidden = !cat.temporary;
+});
+
+const cameraFor = (category, mode) => {
+return category.focus?.[mode] || fallbackFocus[mode] || {scale:1.35,x:0,y:0,focusX:50,focusY:50};
+};
+
+const setInspection = (mode, {instant=false} = {}) => {
+const category = showshineConfig[activeShowshineCategory];
+const item = inspectionData[mode];
+if (!category || !item || !stage) return;
+activeInspectionMode = mode;
+clearTimeout(settleTimer); clearTimeout(detailTimer);
+const camera = cameraFor(category, mode);
+
+stage.classList.remove('is-detail','is-settled');
+stage.classList.toggle('is-tracking', mode !== 'impression');
+stage.style.setProperty('--cam-scale', camera.scale);
+stage.style.setProperty('--cam-x', `${camera.x}%`);
+stage.style.setProperty('--cam-y', `${camera.y}%`);
+stage.style.setProperty('--cam-rot', `${mode === 'impression' ? 0 : (camera.x || 0) * .004}deg`);
+stage.style.setProperty('--focus-x', `${camera.focusX}%`);
+stage.style.setProperty('--focus-y', `${camera.focusY}%`);
+
+if (label) label.textContent = item.label;
+if (scale) scale.textContent = `${Number(camera.scale).toFixed(camera.scale === 1 ? 1 : 2)}×`;
+if (title) title.textContent = item.title;
+if (copy) copy.textContent = item.copy;
+if (kicker) kicker.textContent = item.kicker;
+if (scanStatus) scanStatus.textContent = 'ACTIVE';
+controls.forEach(control => {
+const selected = control.dataset.inspection === mode;
+control.classList.toggle('is-active', selected);
+control.setAttribute('aria-selected', String(selected));
+});
+
+const detailSrc = category.details?.[mode];
+if (detailSrc && detailImg) {
+const showLoadedDetail = () => {
+  if (activeInspectionMode === mode) stage.classList.add('is-detail');
+};
+detailImg.alt = `${category.label} — ${item.label.toLowerCase()}`;
+detailImg.onload = showLoadedDetail;
+detailImg.onerror = () => stage.classList.remove('is-detail');
+detailImg.src = detailSrc;
+if (detailImg.complete && detailImg.naturalWidth) {
+  detailTimer = setTimeout(showLoadedDetail, reduceMotion || instant ? 0 : 120);
+}
+}
+
+settleTimer = setTimeout(() => {
+if (activeInspectionMode !== mode) return;
+stage.classList.add('is-settled');
+if (scanStatus) scanStatus.textContent = 'ACTIVE';
+}, reduceMotion || instant ? 0 : 920);
+
+document.dispatchEvent(new CustomEvent('e36:showshine',{detail:{category:activeShowshineCategory,label:category.label,mode}}));
+};
+
+const setCategory = (key, {instant=false} = {}) => {
+const category = showshineConfig[key];
+if (!category || !stage) return;
+activeShowshineCategory = key;
+activeInspectionMode = 'fit';
+clearTimeout(switchTimer);
+categoryCards.forEach(card => {
+const selected = card.dataset.category === key;
+card.classList.toggle('is-active', selected);
+card.setAttribute('aria-selected', String(selected));
+});
+if (activeCategoryLabel) activeCategoryLabel.textContent = category.label.toUpperCase();
+if (showcaseLabel) showcaseLabel.textContent = category.label.toUpperCase();
+if (showcaseWinner) showcaseWinner.textContent = category.winnerName || 'Vítěz 2026';
+if (showcaseIndex) {
+  const idx = Math.max(0, Object.keys(showshineConfig).indexOf(key));
+  showcaseIndex.textContent = `${String(idx + 1).padStart(2,'0')} / ${String(Object.keys(showshineConfig).length).padStart(2,'0')}`;
+}
+if (showcaseAward) showcaseAward.textContent = ['z3','mpower'].includes(key) ? 'TOP 1' : 'TOP 3';
+if (showcaseImage && category.thumb) {
+  showcaseImage.style.opacity = '.2';
+  showcaseImage.alt = `${category.label} — ${category.temporary ? 'ukázka kategorie' : 'vítězný vůz'} Show & Shine`;
+  showcaseImage.onload = () => { showcaseImage.style.opacity = '1'; };
+  showcaseImage.src = category.thumb;
+  window.setTimeout(() => { showcaseImage.style.opacity = '1'; }, 420);
+}
+if (hudCar) hudCar.textContent = `${category.code || category.label.toUpperCase()} / ${category.temporary ? 'CATEGORY SAMPLE' : 'WINNER 2026'}`;
+stage.classList.remove('is-detail','is-tracking','is-settled');
+stage.classList.toggle('is-switching', !instant && !reduceMotion);
+
+const applyImage = () => {
+if (overviewImg && category.overview) {
+overviewImg.src = category.overview;
+overviewImg.alt = category.temporary ? `${category.label} — ukázka kategorie Show & Shine` : `${category.label} — vítězný vůz Show & Shine 2026`;
+}
+setInspection('fit',{instant:true});
+};
+if (instant || reduceMotion) applyImage();
+else switchTimer = setTimeout(applyImage, 190);
+setTimeout(() => stage.classList.remove('is-switching'), reduceMotion ? 0 : 760);
+};
+
+controls.forEach(control => {
+const mode = control.dataset.inspection;
+control.addEventListener('mouseenter', () => setInspection(mode));
+control.addEventListener('focus', () => setInspection(mode));
+control.addEventListener('click', () => {
+setInspection(mode);
+if (window.matchMedia('(max-width:680px)').matches) setTimeout(() => stage.scrollIntoView({behavior:'smooth',block:'center'}), 80);
+});
+});
+categoryCards.forEach(card => {
+card.addEventListener('click', () => {
+  setCategory(card.dataset.category);
+});
+});
+
+/* Show & Shine disclosure: opening the judging panel must not move the page.
+   Mobile Chrome can otherwise re-anchor the viewport after <details> expands. */
+const showshineDisclosure = qs('.showshine-disclosure');
+const showshineDisclosureTrigger = qs('.showshine-disclosure-trigger', showshineDisclosure || document);
+if (showshineDisclosure && showshineDisclosureTrigger) {
+  let disclosureScrollY = null;
+  const rememberDisclosureScroll = () => { disclosureScrollY = window.scrollY; };
+  showshineDisclosureTrigger.addEventListener('pointerdown', rememberDisclosureScroll, {passive:true});
+  showshineDisclosureTrigger.addEventListener('keydown', event => {
+    if (event.key === 'Enter' || event.key === ' ') rememberDisclosureScroll();
+  });
+  showshineDisclosure.addEventListener('toggle', () => {
+    showshineDisclosureTrigger.setAttribute('aria-expanded',String(showshineDisclosure.open));
+    if (!showshineDisclosure.open || disclosureScrollY == null) return;
+    const y = disclosureScrollY;
+    disclosureScrollY = null;
+    const restoreViewport = () => window.scrollTo({top:y,left:0,behavior:'auto'});
+    requestAnimationFrame(() => {
+      restoreViewport();
+      requestAnimationFrame(restoreViewport);
+    });
+    window.setTimeout(restoreViewport, 90);
+    window.setTimeout(restoreViewport, 260);
+  });
+}
+
+const infoExpanders=qs('.info-expanders');
+const venueInfoExpander=qs('#venue-details-panel');
+if(infoExpanders&&venueInfoExpander)infoExpanders.prepend(venueInfoExpander);
+const legacyContactSection=qsa('section#kontakt').find(section=>section.querySelector('.contact-grid'));
+if(legacyContactSection){legacyContactSection.id='komunita';legacyContactSection.querySelector('.contact-card[href^="mailto:"]')?.remove();legacyContactSection.querySelector('.contact-grid')?.classList.add('contact-grid--community-only')}
+const footerCopy=qs('.footer-brand-block .footer-copy');
+if(footerCopy&&!qs('.footer-contact'))footerCopy.insertAdjacentHTML('afterend','<a class="footer-contact" href="mailto:united@e36united.cz">united@e36united.cz</a>');
+
+setCategory(activeShowshineCategory,{instant:true});
+}
+
+/* Info Hub — four always-open FAQ cards trigger two optional detail panels below the full FAQ grid. */
+const openInfoPanel = (panelId, {scroll=true} = {}) => {
+  const panel = document.getElementById(panelId);
+  if (!panel) return;
+  panel.open = true;
+  if (scroll) window.setTimeout(() => panel.scrollIntoView({behavior:'smooth',block:'start'}), 40);
+};
+qsa('[data-open-info-panel]').forEach(trigger => {
+  const activate = event => {
+    const panelId = trigger.dataset.openInfoPanel;
+    if (!panelId || !document.getElementById(panelId)) return;
+    if (trigger.tagName === 'A') event.preventDefault();
+    openInfoPanel(panelId);
+    history.replaceState(null, '', `#${panelId}`);
+  };
+  trigger.addEventListener('click', activate);
+  if (trigger.getAttribute('role') === 'button') {
+    trigger.addEventListener('keydown', event => {
+      if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); activate(event); }
+    });
+  }
+});
+if (location.hash === '#showshine-rules-panel') openInfoPanel('showshine-rules-panel',{scroll:false});
+if (location.hash === '#venue-details-panel') openInfoPanel('venue-details-panel',{scroll:false});
+
+/* Weekend Builder + interactive United map */
+const planner = qs('[data-planner]');
+const unitedMap = qs('[data-united-map]');
+const plannerState = { arrival:'Pátek', departure:'Neděle', sleep:'Chatka', accommodationOptionId:null, accommodationUnits:2, people:2, showshine:'Jedu se podívat' };
+let plannerEventData = null;
+let plannerAccommodationOptions = [];
+let plannerApiBaseUrl = '';
+let accommodationVisualTools = null;
+let accommodationGalleryTools = null;
+let updatePlanner = () => {};
+let setPlannerChoice = () => {};
+let memberPlannerMode = false;
+let memberPlannerHasReservation = false;
+const publicPlannerDraftKey='e36UnitedPublicPlanner:v1';
+let publicPlannerReady=false,publicPlannerEdited=false,publicPlannerDraftId=crypto.randomUUID();
+planner?.addEventListener('click',event=>{if(event.target.closest('[data-stay-index],.choice,[data-people-plus],[data-people-minus],[data-accommodation-option-id]'))publicPlannerEdited=true},true);
+planner?.addEventListener('input',()=>{publicPlannerEdited=true},true);
+const plannerNights = () => plannerState.arrival==='Jen na otočku'?0:plannerState.arrival==='Pátek'&&plannerState.departure==='Neděle'?2:1;
+const plannerNightLabel = count => count === 1 ? '1 noc' : `${count} noci`;
+const plannerStayLabel = () => plannerState.arrival === 'Jen na otočku' ? 'Jen na otočku' : `${plannerState.arrival} → ${plannerState.departure}`;
+const plannerAccommodationVisual = option => accommodationVisualTools?.accommodationVisualModel(option,{apiBaseUrl:plannerApiBaseUrl,nights:plannerNights(),mode:'image-only'}) || null;
+
+if (planner) {
+const groups = qsa('[data-choice-group]', planner);
+const peopleEl = qs('[data-people]', planner);
+const summaryArrival = qs('[data-summary-arrival]', planner);
+const summarySleep = qs('[data-summary-sleep]', planner);
+const summaryPeople = qs('[data-summary-people]', planner);
+const summaryPeopleLabel = qs('[data-summary-people-label]', planner);
+const summaryShow = qs('[data-summary-showshine]', planner);
+const code = qs('[data-plan-code]', planner);
+const mail = qs('[data-planner-mail]', planner);
+const peopleLabel = peopleEl?.nextElementSibling;
+const calendarButton = qs('[data-calendar-button]', planner);
+const calendarPopover = qs('[data-calendar-popover]', planner);
+const googleCalendar = qs('[data-google-calendar]', planner);
+const plannerSection = planner.closest('#planer');
+const departureGroup = qs('[data-choice-group="departure"]', planner);
+const departureStep = qs('[data-planner-departure-step]', planner);
+const plannerStayNote = qs('[data-planner-stay-note]', planner);
+const staySlider = qs('[data-stay-slider]', planner);
+const stayTitle = qs('[data-stay-title]', planner);
+const stayMeta = qs('[data-stay-meta]', planner);
+const stayButtons = qsa('[data-stay-index]', planner);
+const stayPresets = [
+  {arrival:'Pátek',departure:'Neděle',title:'Celý víkend',meta:'Pátek → Neděle · 2 noci'},
+  {arrival:'Pátek',departure:'Sobota',title:'Pátek → Sobota',meta:'1 noc · páteční start + sobotní program'},
+  {arrival:'Sobota',departure:'Neděle',title:'Sobota → Neděle',meta:'1 noc · hlavní den + noc'},
+  {arrival:'Jen na otočku',departure:'Stejný den',title:'Na otočku',meta:'Bez noclehu'}
+];
+const sleepGroup = qs('[data-choice-group="sleep"]', planner);
+const sleepStep = sleepGroup?.closest('.planner-step');
+const sleepPreviewCard = qs('[data-preview-card="sleep"]', planner);
+const sleepContextPreview = qs('[data-context-preview="sleep"]', planner);
+const sleepContextGalleryCue = qs('[data-context-accommodation-gallery-cue]', planner);
+const sleepTimelineStep = qs('[data-timeline-step="sleep"]', planner);
+const accommodationOptionStep = qs('[data-planner-accommodation-option-step]', planner);
+const accommodationOptionSelect = qs('[data-planner-accommodation-option]', planner);
+const accommodationOptionCards = qs('[data-planner-accommodation-cards]', planner);
+const accommodationOptionTitle = qs('[data-planner-accommodation-option-title]', planner);
+const accommodationAvailability = qs('[data-planner-accommodation-availability]', planner);
+const plannerPricePreview = qs('[data-planner-price-preview]', planner);
+const plannerRecap = qs('[data-planner-recap]', planner);
+const plannerActionCopy = qs('.planner-actionbar-copy strong', planner);
+let lastOvernightSleep = plannerState.sleep;
+
+const slug = (value, fallback) => value.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^A-Za-z]/g,'').slice(0,2).toUpperCase() || fallback;
+const personLabel = count => count === 1 ? 'osoba' : (count >= 2 && count <= 4 ? 'osoby' : 'osob');
+const plannerMoney = new Intl.NumberFormat('cs-CZ',{style:'currency',currency:'CZK',maximumFractionDigits:0});
+const plannerEscapeHtml = value => String(value||'').replace(/[&<>'"]/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[char]));
+void Promise.all([import('./accommodation-visual.js?v=20260928-flow1'),import('./accommodation-gallery.js?v=20260912-accommodation-gallery-r1')]).then(([visuals,gallery])=>{accommodationVisualTools=visuals;accommodationGalleryTools=gallery;updatePlanner()}).catch(error=>console.debug('Accommodation visuals unavailable.',error));
+const plannerAccommodationKind = () => plannerState.sleep === 'Apartmán' ? 'apartment' : plannerState.sleep === 'Chatka' ? 'cabin' : plannerState.sleep === 'Stan' ? 'tent' : null;
+const matchingPlannerAccommodation = () => plannerAccommodationOptions.filter(option => option.active && option.kind === plannerAccommodationKind()).sort((a,b)=>a.sortOrder-b.sortOrder||a.name.localeCompare(b.name,'cs'));
+const selectedPlannerAccommodation = () => matchingPlannerAccommodation().find(option => option.id === plannerState.accommodationOptionId) || null;
+const plannerAccommodationPrice = option => {
+  const people=plannerState.accommodationUnits,unitCount=Math.ceil(people/Math.max(1,Number(option?.capacityPerUnit||1))),nights=plannerNights();
+  const base=unitCount*Number(option?.unitPriceCzk||0)*nights,person=people*Number(option?.personPriceCzk||0),bedding=people*Number(option?.beddingFeePerPersonCzk||0),cityTax=people*nights*Number(option?.cityTaxPerPersonPerNightCzk||0);
+  return {people,unitCount,nights,base,person,bedding,cityTax,total:base+person+bedding+cityTax};
+};
+const plannerOptionPriceLabel = option => {
+  const place=option.kind==='apartment'?'apartmán':option.kind==='tent'?'stan':'chatka',parts=[];
+  if(Number(option.unitPriceCzk)>0)parts.push(`${plannerMoney.format(option.unitPriceCzk)} / ${place} / noc`);
+  if(Number(option.personPriceCzk)>0)parts.push(`${plannerMoney.format(option.personPriceCzk)} / osoba`);
+  return parts.join(' + ')||'Cena v souhrnu';
+};
+const renderPlannerAccommodationOptions = (preferredId='') => {
+  if (!accommodationOptionSelect) return;
+  const options=matchingPlannerAccommodation(),previous=preferredId||plannerState.accommodationOptionId||'';
+  accommodationOptionSelect.innerHTML=(!options.length&&plannerEventData?'<option value="">Ubytování zatím není nastavené</option>':options.length>1?'<option value="">Vyber konkrétní možnost</option>':'')+options.map(option=>{
+    const availability=option.inventoryMode==='unlimited'?'bez omezení':option.soldOut?'VYPRODÁNO':`k dispozici: ${Number(option.freeUnits||0)}`;
+    const place=option.kind==='apartment'?'jeden apartmán':option.kind==='tent'?'jeden stan':'jednu chatku';
+    return `<option value="${plannerEscapeHtml(option.id)}" ${option.soldOut?'disabled':''}>${plannerEscapeHtml(option.name)} · max. ${Number(option.capacityPerUnit||1)} ${personLabel(Number(option.capacityPerUnit||1))} na ${place} · ${availability}</option>`;
+  }).join('');
+  const preferred=options.find(option=>option.id===previous&&!option.soldOut);
+  plannerState.accommodationOptionId=preferred?.id||(options.length===1&&!options[0].soldOut?options[0].id:null);
+  accommodationOptionSelect.value=plannerState.accommodationOptionId||'';
+  accommodationOptionSelect.disabled=!options.length;
+  if(accommodationOptionCards)accommodationOptionCards.innerHTML=options.length?options.map(option=>{
+    const active=option.id===plannerState.accommodationOptionId,availability=option.inventoryMode==='unlimited'?'Bez omezení':option.soldOut?'Vyprodáno':`${Number(option.freeUnits||0)} volných`;
+    return `<button aria-pressed="${active}" class="planner-accommodation-card${active?' is-active':''}" data-accommodation-option-id="${plannerEscapeHtml(option.id)}" ${option.soldOut?'disabled':''} type="button"><strong>${plannerEscapeHtml(option.name)}</strong><span>Max. ${Number(option.capacityPerUnit||1)} ${personLabel(Number(option.capacityPerUnit||1))}</span><b>${plannerEscapeHtml(plannerOptionPriceLabel(option))}</b><small>${availability}</small></button>`;
+  }).join(''):'<div class="planner-accommodation-empty">Pro tento event zatím není konkrétní varianta nastavená.</div>';
+};
+const renderPlannerPrice = (needsAccommodation) => {
+  if (!plannerPricePreview || !accommodationAvailability) return;
+  const option=selectedPlannerAccommodation();
+  if (!needsAccommodation || !option) {
+    plannerPricePreview.hidden=true;plannerPricePreview.innerHTML='';
+    const matching=matchingPlannerAccommodation();accommodationAvailability.textContent=needsAccommodation&&matching.length?(matching.every(item=>item.soldOut)?'VYPRODÁNO · vyber jiný typ ubytování.':'Vyber konkrétní možnost.'):needsAccommodation&&plannerEventData?'Ubytování pro tento event zatím není nakonfigurované. Můžeš zvolit Bez ubytování.':'';
+    return;
+  }
+  const price=plannerAccommodationPrice(option),free=option.freeUnits,enough=option.inventoryMode==='unlimited'||Number(free)>=price.unitCount;
+  accommodationAvailability.classList.toggle('is-warning',!enough);
+  const place=option.kind==='apartment'?'jeden apartmán':option.kind==='tent'?'jeden stan':'jednu chatku';
+  const availabilityCopy=option.inventoryMode==='unlimited'?`Dostupné bez omezení · max. ${Number(option.capacityPerUnit||1)} ${personLabel(Number(option.capacityPerUnit||1))} na ${place}.`:!enough?'Pro tvoji posádku už není dostatek volné kapacity.':Number(free)===1?'Zbývá poslední volná možnost.':Number(free)===2?'Zbývají poslední 2 možnosti.':`Aktuálně k dispozici: ${free}.`;
+  accommodationAvailability.textContent=availabilityCopy;
+  const rows=[[`${price.unitCount}× ${option.name} · ${price.nights} ${price.nights===1?'noc':'noci'}`,price.base],['Poplatek za osoby',price.person],['Povlečení',price.bedding],[`Pobytová taxa · ${price.nights} ${price.nights===1?'noc':'noci'}`,price.cityTax]].filter(([,value])=>value>0);
+  const detailOpen=qs('[data-planner-price-details]',plannerPricePreview)?.open===true;
+  plannerPricePreview.hidden=false;
+  plannerPricePreview.innerHTML=`<div class="planner-price-title"><span>${price.people} ${personLabel(price.people)} · ${price.unitCount}× ${plannerEscapeHtml(option.name)}</span><small>Orientační cena</small></div><div class="planner-price-estimate"><b>${plannerMoney.format(price.total)}</b></div><details class="planner-price-details" data-planner-price-details><summary><span class="price-detail-show">+ Detail ceny</span><span class="price-detail-hide">− Skrýt detail</span></summary><div class="planner-price-breakdown">${rows.map(([label,value])=>`<div><span>${plannerEscapeHtml(label)}</span><b>${plannerMoney.format(value)}</b></div>`).join('')}<div class="planner-price-total"><strong>Celkem</strong><b>${plannerMoney.format(price.total)}</b></div><small>Cenu při rezervaci znovu ověříme podle aktuální dostupnosti.</small></div></details>`;
+  const priceDetails=qs('[data-planner-price-details]',plannerPricePreview);if(priceDetails)priceDetails.open=detailOpen;
+};
+
+const currentStayIndex = () => {
+  const idx = stayPresets.findIndex(preset => preset.arrival === plannerState.arrival && preset.departure === plannerState.departure);
+  return idx >= 0 ? idx : (plannerState.arrival === 'Jen na otočku' ? 3 : 0);
+};
+const syncStayPicker = () => {
+  const index = currentStayIndex();
+  const preset = stayPresets[index];
+  if (staySlider) {
+    staySlider.value = String(index);
+    staySlider.style.setProperty('--stay-progress', `${index / (stayPresets.length - 1) * 100}%`);
+  }
+  stayButtons.forEach((button,buttonIndex) => {
+    const active = buttonIndex === index;
+    button.classList.toggle('is-active', active);
+    button.setAttribute('aria-pressed', String(active));
+  });
+  if (stayTitle) stayTitle.textContent = preset.title;
+  if (stayMeta) stayMeta.textContent = preset.meta;
+};
+const applyStayPreset = rawIndex => {
+  const index = Math.max(0, Math.min(stayPresets.length - 1, Number(rawIndex) || 0));
+  const preset = stayPresets[index];
+  const wasDayPass = plannerState.arrival === 'Jen na otočku';
+  plannerState.arrival = preset.arrival;
+  plannerState.departure = preset.departure;
+  if (preset.arrival === 'Jen na otočku') {
+    if (plannerState.sleep !== 'Bez ubytování') lastOvernightSleep = plannerState.sleep;
+    plannerState.sleep = 'Bez ubytování';
+    plannerState.accommodationUnits = 0;
+    plannerState.accommodationOptionId = null;
+    qsa('.choice', sleepGroup || planner).forEach(c => c.classList.toggle('is-active', c.dataset.value === 'Bez ubytování'));
+  } else if (wasDayPass && plannerState.sleep === 'Bez ubytování') {
+    plannerState.sleep = lastOvernightSleep || 'Chatka';
+    plannerState.accommodationUnits = plannerState.people;
+    qsa('.choice', sleepGroup || planner).forEach(c => c.classList.toggle('is-active', c.dataset.value === plannerState.sleep));
+  }
+  renderPlannerAccommodationOptions();
+  updatePlanner();
+};
+
+setPlannerChoice = (key, value) => {
+const group = qs(`[data-choice-group="${key}"]`, planner);
+if (!group) return;
+const choice = qsa('.choice', group).find(c => c.dataset.value === value);
+if (!choice) return;
+qsa('.choice', group).forEach(c => c.classList.toggle('is-active', c === choice));
+if (key === 'arrival') {
+  const wasDayPass = plannerState.arrival === 'Jen na otočku';
+  if (value === 'Jen na otočku') {
+    plannerState.departure = 'Stejný den';
+    if (plannerState.sleep !== 'Bez ubytování') lastOvernightSleep = plannerState.sleep;
+    plannerState.sleep = 'Bez ubytování';
+    plannerState.accommodationUnits = 0;
+    plannerState.accommodationOptionId = null;
+    qsa('.choice', sleepGroup || planner).forEach(c => c.classList.toggle('is-active', c.dataset.value === 'Bez ubytování'));
+  } else {
+    if (value === 'Sobota') plannerState.departure = 'Neděle';
+    else if (wasDayPass || plannerState.departure === 'Stejný den') plannerState.departure = 'Neděle';
+  }
+  if (wasDayPass && value !== 'Jen na otočku' && plannerState.sleep === 'Bez ubytování') {
+    plannerState.sleep = lastOvernightSleep || 'Chatka';
+    plannerState.accommodationUnits = plannerState.people;
+    qsa('.choice', sleepGroup || planner).forEach(c => c.classList.toggle('is-active', c.dataset.value === plannerState.sleep));
+  }
+}
+if (key === 'sleep') {
+  if (value !== 'Bez ubytování') {
+    if (plannerState.sleep === 'Bez ubytování') {plannerState.accommodationUnits = plannerState.people}
+    lastOvernightSleep = value;
+  } else {plannerState.accommodationUnits = 0}
+}
+plannerState[key] = value;
+if(key==='sleep'||key==='arrival')renderPlannerAccommodationOptions();
+updatePlanner();
+};
+
+updatePlanner = () => {
+const dayPass = plannerState.arrival === 'Jen na otočku';
+if (dayPass) { plannerState.sleep = 'Bez ubytování'; plannerState.departure = 'Stejný den'; }
+else if (plannerState.arrival === 'Sobota' || !['Sobota','Neděle'].includes(plannerState.departure)) plannerState.departure = 'Neděle';
+if (departureStep) departureStep.hidden = dayPass;
+if (departureGroup) {
+  qsa('.choice', departureGroup).forEach(choice => {
+    const invalid = plannerState.arrival === 'Sobota' && choice.dataset.value === 'Sobota';
+    choice.hidden = invalid; choice.disabled = invalid;
+    choice.classList.toggle('is-active', choice.dataset.value === plannerState.departure);
+  });
+}
+const nights = plannerNights();
+if (plannerStayNote) plannerStayNote.textContent = dayPass ? 'Bez nocování' : `${plannerNightLabel(nights)} · odjezd v ${plannerState.departure === 'Sobota' ? 'sobotu' : 'neděli'}`;
+syncStayPicker();
+const needsAccommodation = !dayPass && plannerState.sleep !== 'Bez ubytování';
+plannerState.accommodationUnits = needsAccommodation ? plannerState.people : 0;
+if (sleepStep) sleepStep.hidden = dayPass;
+if (sleepPreviewCard) sleepPreviewCard.hidden = dayPass;
+if (sleepTimelineStep) sleepTimelineStep.hidden = dayPass;
+const crewStepIndex=qs('.planner-step--crew>.planner-step-head>span',planner),showStepIndex=qs('.planner-step--showshine>.planner-step-head>span',planner);
+if(crewStepIndex)crewStepIndex.textContent=dayPass?'02':'03';
+if(showStepIndex)showStepIndex.textContent=dayPass?'03':'04';
+if (accommodationOptionStep) accommodationOptionStep.hidden = !needsAccommodation;
+if (accommodationOptionTitle) accommodationOptionTitle.textContent=plannerState.sleep==='Apartmán'?'Typ apartmánu':plannerState.sleep==='Chatka'?'Typ chatky':'Typ stanu';
+if (unitedMap) unitedMap.classList.toggle('is-day-pass', dayPass);
+const existingReservation=memberPlannerMode&&memberPlannerHasReservation;
+if (plannerActionCopy) plannerActionCopy.textContent = existingReservation ? 'Registraci už máš. Aktuální pobyt otevřeš v Můj United.' : memberPlannerMode ? 'Hotovo. Výběr přeneseme do Můj United.' : 'Hotovo. Teď už jen dokončit registraci.';
+if (mail) {mail.innerHTML = existingReservation?'Otevřít aktuální registraci <span>→</span>':'Dokončit v Můj United <span>→</span>';if(plannerEventData?.preliminaryEnabled&&!existingReservation){mail.textContent='Uložit nezávazný plán v Můj United';plannerActionCopy.textContent='Předběžný plán nezajišťuje kapacitu.'}mail.href='member.html?section=reservation'}
+if (peopleEl) peopleEl.textContent = plannerState.people;
+if (peopleLabel) peopleLabel.textContent = personLabel(plannerState.people);
+if (summaryArrival) summaryArrival.textContent = plannerState.arrival;
+const selectedOption=selectedPlannerAccommodation();
+const selectedAccommodationPhotos=selectedOption&&accommodationGalleryTools?accommodationGalleryTools.accommodationPhotos(selectedOption):[];
+if(sleepContextGalleryCue){sleepContextGalleryCue.hidden=!selectedAccommodationPhotos.length;sleepContextGalleryCue.textContent=selectedAccommodationPhotos.length===1?'Zobrazit fotografii':`Zobrazit fotografie · ${selectedAccommodationPhotos.length}`}
+if(sleepContextPreview&&accommodationGalleryTools)accommodationGalleryTools.bindAccommodationGalleryTrigger(sleepContextPreview,selectedOption||{}, {apiBaseUrl:plannerApiBaseUrl});
+if (summarySleep) summarySleep.textContent = selectedOption?.name||plannerState.sleep;
+qsa('[data-map-sleep]',planner).forEach(element=>{element.textContent=plannerState.accommodationUnits?`${selectedOption?.name||plannerState.sleep} · ${plannerState.accommodationUnits} ${personLabel(plannerState.accommodationUnits)}`:plannerState.sleep});
+if (summaryPeople) summaryPeople.textContent = plannerState.people;
+if (summaryPeopleLabel) summaryPeopleLabel.textContent = personLabel(plannerState.people);
+const showshineDisplay={'Chci soutěžit':'Ano!','Možná':'Uvidíme','Jedu se podívat':'Jedu se podívat'}[plannerState.showshine]||plannerState.showshine;
+if (summaryShow) summaryShow.textContent = showshineDisplay;
+qsa('[data-map-show]',planner).forEach(element=>{element.textContent=showshineDisplay});
+const contextualShowTitle={'Chci soutěžit':'Jdeš soutěžit','Možná':'Rozhodneš se později','Jedu se podívat':'Jedeš se podívat'}[plannerState.showshine]||plannerState.showshine;
+const contextualShowCopy={'Chci soutěžit':'Tvoje E36 míří na soutěžní plochu.','Možná':'Volbu můžeš upřesnit později.','Jedu se podívat':'Užiješ si hlavní program bez soutěžení.'}[plannerState.showshine]||'';
+qsa('[data-context-show-title]',planner).forEach(element=>{element.textContent=contextualShowTitle});
+qsa('[data-context-show-copy]',planner).forEach(element=>{element.textContent=contextualShowCopy});
+qsa('[data-context-day-title]',planner).forEach(element=>{element.textContent=dayPass?'Sobota / hlavní den':`${plannerState.arrival} → ${plannerState.departure}`});
+qsa('[data-context-day-meta]',planner).forEach(element=>{element.textContent=dayPass?'bez noclehu':plannerNightLabel(nights)});
+qsa('[data-context-preview="sleep"]',planner).forEach(element=>{element.classList.toggle('is-empty',plannerState.sleep==='Bez ubytování')});
+qsa('[data-context-sleep-title]',planner).forEach(element=>{element.textContent=selectedOption?.name||plannerState.sleep});
+qsa('[data-context-sleep-capacity]',planner).forEach(element=>{element.textContent=selectedOption?`Max. ${selectedOption.capacityPerUnit} ${personLabel(selectedOption.capacityPerUnit)}`:plannerState.sleep==='Bez ubytování'?'Přijedeš bez noclehu.':'Vyber konkrétní variantu'});
+qsa('[data-context-sleep-price]',planner).forEach(element=>{element.textContent=selectedOption?plannerOptionPriceLabel(selectedOption):''});
+qsa('[data-context-sleep-availability]',planner).forEach(element=>{element.textContent=selectedOption?(selectedOption.inventoryMode==='unlimited'?'Dostupné bez omezení':selectedOption.soldOut?'Vyprodáno':`${selectedOption.freeUnits} volných`):''});
+qsa('[data-context-people-number]',planner).forEach(element=>{element.textContent=String(plannerState.people).padStart(2,'0')});
+qsa('[data-context-people-title]',planner).forEach(element=>{element.textContent=`${plannerState.people} ${personLabel(plannerState.people)}`});
+qsa('[data-context-people-copy]',planner).forEach(element=>{element.textContent=`${plannerState.people} přijedou`});
+qsa('[data-context-people-icons]',planner).forEach(element=>{element.innerHTML=Array.from({length:5},(_,index)=>`<span class="planner-context-person${index<plannerState.people?'':' is-ghost'}"></span>`).join('')});
+if (plannerRecap) {
+  const compactDay=dayPass?'Na otočku':`${plannerState.arrival==='Pátek'?'Pá':'So'} → ${plannerState.departure==='Sobota'?'So':'Ne'}`;
+  const recapItems=[compactDay,`${selectedOption?.name||plannerState.sleep}`,`${plannerState.people} ${personLabel(plannerState.people)}`,showshineDisplay];
+  if(needsAccommodation&&selectedOption)recapItems.push(plannerMoney.format(plannerAccommodationPrice(selectedOption).total));
+  plannerRecap.innerHTML=recapItems.map(item=>`<span>${plannerEscapeHtml(item)}</span>`).join('');
+}
+if (code) code.textContent = `U36–${slug(plannerState.arrival,'P')}${slug(plannerState.sleep,'CH')}–${String(plannerState.people).padStart(2,'0')}–${nights}N`;
+renderPlannerPrice(needsAccommodation);
+const total=qs('[data-public-total]',planner), admission=plannerEventData?.admissionRegisteredCzk;
+if(total)total.textContent=admission!=null&&(!needsAccommodation||selectedOption)?'Celkem za posádku: '+plannerMoney.format(Number(admission)+(needsAccommodation?plannerAccommodationPrice(selectedOption).total:0)):'';
+document.dispatchEvent(new CustomEvent('e36:planner',{detail:{...plannerState}}));
+};
+
+const handleStaySlider = () => applyStayPreset(staySlider.value);
+staySlider?.addEventListener('input', handleStaySlider);
+staySlider?.addEventListener('change', handleStaySlider);
+stayButtons.forEach(button => button.addEventListener('click', () => applyStayPreset(button.dataset.stayIndex)));
+
+groups.forEach(group => {
+qsa('.choice', group).forEach(choice => choice.addEventListener('click', () => {
+setPlannerChoice(group.dataset.choiceGroup, choice.dataset.value);
+}));
+});
+qs('[data-people-minus]', planner)?.addEventListener('click', () => { plannerState.people = Math.max(1, plannerState.people - 1);updatePlanner(); });
+qs('[data-people-plus]', planner)?.addEventListener('click', () => { plannerState.people = Math.min(5, plannerState.people + 1);updatePlanner(); });
+accommodationOptionSelect?.addEventListener('change',()=>{plannerState.accommodationOptionId=accommodationOptionSelect.value||null;updatePlanner()});
+accommodationOptionCards?.addEventListener('click',event=>{const card=event.target.closest('[data-accommodation-option-id]');if(!card||card.disabled)return;plannerState.accommodationOptionId=card.dataset.accommodationOptionId;accommodationOptionSelect.value=plannerState.accommodationOptionId;qsa('[data-accommodation-option-id]',accommodationOptionCards).forEach(option=>{const selected=option===card;option.classList.toggle('is-active',selected);option.setAttribute('aria-pressed',String(selected))});updatePlanner()});
+
+function showEventOffer(event,helper){
+  const calendar=helper?.eventCalendar(event),open=Boolean(calendar&&(event.registrationOpen||event.preliminaryEnabled));
+  planner.hidden=!open;
+  qs('[data-planner-unavailable]').hidden=open;
+  const stickyOffer=qs('[data-sticky-cta]');if(stickyOffer)stickyOffer.hidden=!open;
+  const notice=qs('[data-event-notice]');
+  if(!open)notice.textContent=calendar?'Termín je zveřejněný. Registrace zatím nejsou otevřené.':'Termín příštího srazu zatím není k dispozici.';
+  helper?.renderNextEvent(calendar?event:null);
+  if(open){
+    googleCalendar.href=calendar.google;
+    const ics=qs('[data-event-ics]',planner);ics.href='data:text/calendar;charset=utf-8,'+encodeURIComponent(calendar.ics);ics.download=event.id+'.ics';
+    qs('.planner-intro-v8 .section-title',planner).textContent=event.registrationOpen?'Registruj se na United':'Předběžná registrace';
+    qs('.planner-intro-v8 .section-lead',planner).textContent=helper.nextEventPresentation(event).dateLabel+' · '+(event.registrationOpen?'Vyber pobyt a zkontroluj cenu před odesláním.':'Ulož si nezávazný plán. Kapacitu ubytování tím nezískáš.');
+  }
+  return open;
+}
+const loadPlannerCurrentEvent=async()=>{
+  try{
+    const cfg=await import('./firebase-config.js?v=20260823-auth2'),base=String(cfg.portalConfig?.apiBaseUrl||'https://api.e36united.cz').replace(/\/$/,'');plannerApiBaseUrl=base;
+    const response=await fetch(`${base}/api/events/current`,{cache:'no-store'});if(!response.ok)throw new Error(`Event API ${response.status}`);
+    const payload=await response.json(),helper=await eventPresentation;
+    plannerEventData=showEventOffer(payload?.event,helper)?payload.event:null;
+    plannerAccommodationOptions=(Array.isArray(payload?.accommodationOptions)?payload.accommodationOptions:[]).map((option,index)=>({
+      id:String(option.id||''),name:String(option.name||''),kind:option.kind==='apartment'?'apartment':option.kind==='tent'?'tent':'cabin',inventoryMode:option.inventoryMode==='unlimited'?'unlimited':'limited',
+      unitsTotal:Number(option.unitsTotal||0),freeUnits:option.freeUnits==null?null:Number(option.freeUnits),capacityPerUnit:Math.max(1,Number(option.capacityPerUnit||1)),
+      unitPriceCzk:Number(option.unitPriceCzk||0),personPriceCzk:Number(option.personPriceCzk||0),beddingFeePerPersonCzk:Number(option.beddingFeePerPersonCzk||0),cityTaxPerPersonPerNightCzk:Number(option.cityTaxPerPersonPerNightCzk||0),active:option.active!==false,soldOut:option.soldOut===true,sortOrder:option.sortOrder==null?index:Number(option.sortOrder),visual:option.visual||{hasCustomPhoto:false,imageUrl:null,version:null},photos:Array.isArray(option.photos)?option.photos.filter(photo=>photo?.imageUrl).slice(0,5):[],
+    })).filter(option=>option.id&&option.name);
+    if(plannerSection&&plannerEventData){plannerSection.dataset.eventId=plannerEventData.id;plannerSection.dataset.eventYear=plannerEventData.year}
+    if(!publicPlannerEdited&&plannerEventData){
+      try{
+        const {validatePlannerDraft}=await import('./planner-state.js?v=20261125-stay1');
+        const saved=validatePlannerDraft(JSON.parse(localStorage.getItem(publicPlannerDraftKey)||'null'));
+        if(!publicPlannerEdited&&saved&&saved.eventId===plannerEventData.id&&saved.eventYear===Number(plannerEventData.year)){
+          publicPlannerDraftId=saved.draftId;
+          Object.assign(plannerState,{arrival:saved.arrival,departure:saved.departure,sleep:saved.accommodation,accommodationOptionId:saved.accommodationOptionId,people:saved.crew,accommodationUnits:saved.accommodationUnits,showshine:{Ano:'Chci soutěžit',Ne:'Jedu se podívat','Možná':'Možná'}[saved.showShine]});
+          if(plannerState.sleep!=='Bez ubytování')lastOvernightSleep=plannerState.sleep;
+          groups.forEach(group=>qsa('.choice',group).forEach(choice=>choice.classList.toggle('is-active',choice.dataset.value===plannerState[group.dataset.choiceGroup])));
+        }
+      }catch(error){console.debug('Uložený Planner není dostupný.',error)}
+    }
+    publicPlannerReady=Boolean(plannerEventData);
+    renderPlannerAccommodationOptions();updatePlanner();
+  }catch(error){console.debug('Aktuální nabídka ubytování není dostupná; Planner pokračuje bez live ceníku.',error);publicPlannerReady=false;plannerEventData=null;plannerAccommodationOptions=[];showEventOffer(null,await eventPresentation);renderPlannerAccommodationOptions();updatePlanner()}
+};
+loadPlannerCurrentEvent();
+
+calendarButton?.addEventListener('click', () => {
+if (!calendarPopover) return;
+const willOpen = calendarPopover.hidden;
+calendarPopover.hidden = !willOpen;
+calendarButton.setAttribute('aria-expanded', String(willOpen));
+});
+document.addEventListener('click', e => {
+if (!calendarPopover || calendarPopover.hidden) return;
+if (!calendarPopover.contains(e.target) && !calendarButton?.contains(e.target)) {
+calendarPopover.hidden = true;
+calendarButton?.setAttribute('aria-expanded','false');
+}
+});
+updatePlanner();
+subscribePublicMemberState(state=>{memberPlannerMode=state.authenticated===true;memberPlannerHasReservation=state.hasReservation===true;updatePlanner()});
+}
+
+/* Account-first planner completion with a manual e-mail fallback. */
+const inquiryModal = qs('[data-inquiry-modal]');
+const inquiryDialog = qs('.inquiry-dialog',inquiryModal||document);
+const inquiryTrigger = qs('[data-planner-mail]');
+const inquiryForm = qs('[data-inquiry-form]');
+const inquiryPlan = qs('[data-inquiry-plan]');
+const plannerChoiceStep = qs('[data-planner-choice-step]');
+let inquiryReturnFocus = null;
+const handoffStoragePrefix='e36UnitedPlannerHandoff:v1:';
+
+const inquiryPersonLabel = count => count === 1 ? 'osoba' : (count >= 2 && count <= 4 ? 'osoby' : 'osob');
+const renderInquiryPlan = () => {
+  if (!inquiryPlan) return;
+  const option=plannerAccommodationOptions.find(item=>item.id===plannerState.accommodationOptionId);
+  inquiryPlan.textContent = `${plannerStayLabel()}${plannerState.arrival==='Jen na otočku'?'':` · ${plannerNightLabel(plannerNights())}`} · ${option?.name||plannerState.sleep} · ${plannerState.people} ${inquiryPersonLabel(plannerState.people)} · ${plannerState.showshine}`;
+};
+const setInquiryStage = stage => {
+  const manual=stage==='manual';
+  if(plannerChoiceStep)plannerChoiceStep.hidden=manual;
+  qsa('[data-inquiry-manual]').forEach(element=>element.hidden=!manual);
+  inquiryDialog?.setAttribute('aria-labelledby',manual?'inquiry-title':'planner-choice-title');
+  if(manual)inquiryDialog?.removeAttribute('aria-describedby');else inquiryDialog?.setAttribute('aria-describedby','planner-choice-intro');
+};
+const openPlannerChoice = () => {
+  if (!inquiryModal) return;
+  inquiryReturnFocus = document.activeElement;
+  setInquiryStage('choice');
+  renderInquiryPlan();
+  inquiryModal.hidden = false;
+  document.body.classList.add('modal-open');
+  window.requestAnimationFrame(() => qs('[data-planner-register]')?.focus());
+};
+const openInquiry = () => {
+  if (!inquiryModal) return;
+  if(inquiryModal.hidden)inquiryReturnFocus=document.activeElement;
+  setInquiryStage('manual');
+  renderInquiryPlan();
+  inquiryModal.hidden = false;
+  document.body.classList.add('modal-open');
+  window.requestAnimationFrame(() => inquiryForm?.elements?.car?.focus());
+};
+const closeInquiry = () => {
+  if (!inquiryModal) return;
+  inquiryModal.hidden = true;
+  document.body.classList.remove('modal-open');
+  inquiryReturnFocus?.focus?.();
+};
+const cleanupPlannerHandoffs=()=>{
+  try{
+    for(let index=localStorage.length-1;index>=0;index--){
+      const key=localStorage.key(index);if(!key?.startsWith(handoffStoragePrefix))continue;
+      try{const value=JSON.parse(localStorage.getItem(key)||'null'),expiresAt=Date.parse(value?.expiresAt);if(!value||!Number.isFinite(expiresAt)||expiresAt<=Date.now())localStorage.removeItem(key)}catch{localStorage.removeItem(key)}
+    }
+  }catch(error){console.debug('Planner handoff cleanup unavailable.',error)}
+};
+const encodePlannerHandoff=draft=>{
+  const bytes=new TextEncoder().encode(JSON.stringify(draft));
+  let binary='';for(const byte of bytes)binary+=String.fromCharCode(byte);
+  return btoa(binary).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+};
+const createPlannerHandoff=({persist=true,draftId=crypto.randomUUID()}={})=>{
+  cleanupPlannerHandoffs();
+  const now=Date.now(),createdAt=new Date(now).toISOString(),expiresAt=new Date(now+7*24*60*60*1000).toISOString();
+  if(!publicPlannerReady||!plannerEventData)throw new Error('Nabídka ročníku není dostupná.');
+  const {id:eventId,year:eventYear}=plannerEventData;
+  const attendanceType=plannerState.arrival==='Pátek'?(plannerState.departure==='Sobota'?'friday_only':'full_weekend'):plannerState.arrival==='Sobota'?'saturday_only':'day_visit';
+  const showShine={'Chci soutěžit':'Ano','Možná':'Možná','Jedu se podívat':'Ne'}[plannerState.showshine];
+  const draft={version:1,draftId,source:'weekend-planner',eventYear,eventId:eventId||null,createdAt,expiresAt,arrival:plannerState.arrival,departure:plannerState.departure,nights:plannerNights(),attendanceType,accommodation:plannerState.sleep,accommodationOptionId:plannerState.accommodationOptionId||null,accommodationUnits:plannerState.arrival==='Jen na otočku'||plannerState.sleep==='Bez ubytování'?0:plannerState.people,crew:plannerState.people,showShine};
+  if(persist)try{localStorage.setItem(`${handoffStoragePrefix}${draftId}`,JSON.stringify(draft))}catch(error){console.debug('Planner handoff local storage unavailable.',error)}
+  return draft;
+};
+document.addEventListener('e36:planner',()=>{
+  if(!publicPlannerReady)return;
+  try{
+    localStorage.setItem(publicPlannerDraftKey,JSON.stringify(createPlannerHandoff({persist:false,draftId:publicPlannerDraftId})));
+    const status=qs('[data-planner-storage-status]');if(status){status.hidden=true;status.textContent=''}
+  }catch(error){
+    console.debug('Planner nelze uložit v tomto prohlížeči.',error);
+    let status=qs('[data-planner-storage-status]');
+    if(!status){status=document.createElement('small');status.dataset.plannerStorageStatus='';status.setAttribute('role','status');qs('.planner-actionbar-copy')?.append(status)}
+    status.hidden=false;status.textContent='Prohlížeč neumožňuje uchovat plán po zavření stránky. Pokračuj do účtu; aktuální výběr se přenese.';
+  }
+});
+let memberHandoffNavigating=false;
+const plannerActionStatus=qs('[data-planner-action-status]');
+const setPlannerNavigationState=(busy,message='')=>{
+  memberHandoffNavigating=busy;
+  inquiryTrigger?.classList.toggle('is-busy',busy);inquiryTrigger?.setAttribute('aria-disabled',String(busy));
+  if(plannerActionStatus){plannerActionStatus.hidden=!message;plannerActionStatus.textContent=message}
+};
+const plannerNavigationFailed=()=>setPlannerNavigationState(false,'Přechod se nepodařil. Zkus to prosím znovu.');
+const openExistingReservation=()=>{
+  if(memberHandoffNavigating)return;setPlannerNavigationState(true,'Otevírám tvoji registraci…');
+  try{window.location.assign(new URL('member.html?section=reservation',window.location.href).href)}catch{plannerNavigationFailed()}
+};
+const continueToMember=async mode=>{
+  if(memberHandoffNavigating)return;setPlannerNavigationState(true,'Přenáším tvůj plán do Můj United…');
+  try{
+    const draft=createPlannerHandoff(),destination=new URL('member.html',window.location.href);
+    if(mode)destination.searchParams.set('mode',mode);
+    destination.searchParams.set('section','reservation');
+    destination.searchParams.set('draft',draft.draftId);
+    destination.hash=`handoff=${encodeURIComponent(encodePlannerHandoff(draft))}`;
+    // Start the small helper early enough to use keepalive, but never await analytics to navigate.
+    void plannerTrackingHelper.then(tracking=>tracking?.trackPublicPlannerDraft(draft,{baseUrl:plannerApiBaseUrl||'https://api.e36united.cz'}));
+    closeInquiry();window.location.assign(destination.href);
+  }catch{plannerNavigationFailed()}
+};
+
+inquiryTrigger?.addEventListener('click', e => {e.preventDefault();if(!publicPlannerReady)return;if(memberPlannerMode&&memberPlannerHasReservation)openExistingReservation();else if(memberPlannerMode)continueToMember(null);else openPlannerChoice()});
+qs('[data-planner-register]')?.addEventListener('click',()=>continueToMember('register'));
+qs('[data-planner-login]')?.addEventListener('click',()=>continueToMember('login'));
+qs('[data-planner-manual]')?.addEventListener('click',openInquiry);
+window.addEventListener('pageshow',()=>{if(memberHandoffNavigating)setPlannerNavigationState(false)});
+qsa('[data-inquiry-close]').forEach(el => el.addEventListener('click', closeInquiry));
+document.addEventListener('keydown', e => {
+  if (!inquiryModal || inquiryModal.hidden) return;
+  if (e.key === 'Escape'){e.preventDefault();closeInquiry();return}
+  if(e.key!=='Tab')return;
+  const focusable=qsa('button:not([disabled]),a[href],input:not([disabled])',inquiryDialog).filter(element=>element.offsetParent!==null);
+  if(!focusable.length)return;
+  const first=focusable[0],last=focusable.at(-1);
+  if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus()}
+  else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus()}
+});
+document.addEventListener('e36:planner', renderInquiryPlan);
+
+inquiryForm?.addEventListener('submit', e => {
+  e.preventDefault();
+  if (!inquiryForm.reportValidity()) return;
+  const data = new FormData(inquiryForm);
+  const car = String(data.get('car') || '').trim();
+  const name = String(data.get('name') || '').trim();
+  const nickname = String(data.get('nickname') || '').trim();
+  const phone = String(data.get('phone') || '').trim();
+  const email = String(data.get('email') || '').trim();
+  const subject = `E36 United – poptávka / ${car || name}`;
+  const body = [
+    'Ahoj E36 United,','',
+    'mám zájem o další E36 United a rád/a bych ověřil/a možnosti podle této konfigurace:','',
+    `• Příjezd: ${plannerState.arrival}`,
+    `• Odjezd: ${plannerState.departure}${plannerState.arrival==='Jen na otočku'?'':` (${plannerNightLabel(plannerNights())})`}`,
+    `• Ubytování: ${plannerAccommodationOptions.find(item=>item.id===plannerState.accommodationOptionId)?.name||plannerState.sleep}`,
+    `• Počet osob k ubytování: ${plannerState.accommodationUnits}`,
+    `• Počet lidí: ${plannerState.people}`,
+    `• Show & Shine: ${plannerState.showshine}`,'',
+    'Údaje posádky:',
+    `• Auto / typ: ${car}`,
+    `• Jméno: ${name}`,
+    `• Přezdívka: ${nickname || '—'}`,
+    `• Telefon: ${phone}`,
+    `• E-mail: ${email}`,'',
+    'Prosím o informaci k termínu a dostupnosti.','',
+    'Díky!'
+  ].join('\n');
+  window.location.href = `mailto:united@e36united.cz?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  window.setTimeout(closeInquiry, 250);
+});
+renderInquiryPlan();
+
+if (unitedMap) {
+const flowDayImage = qs('[data-flow-day-image]', unitedMap);
+const flowDayTitle = qs('[data-flow-day-title]', unitedMap);
+const flowDayCopy = qs('[data-flow-day-copy]', unitedMap);
+const flowSleepImage = qs('[data-flow-sleep-image]', unitedMap);
+const flowSleepTitle = qs('[data-flow-sleep-title]', unitedMap);
+const flowSleepCopy = qs('[data-flow-sleep-copy]', unitedMap);
+const flowSleepGalleryCue = qs('[data-accommodation-gallery-cue]', unitedMap);
+const flowAccommodationUnits = qs('[data-preview-accommodation-units]', unitedMap);
+const flowShowImage = qs('[data-flow-show-image]', unitedMap);
+const flowShowTitle = qs('[data-flow-show-title]', unitedMap);
+const flowShowCopy = qs('[data-flow-show-copy]', unitedMap);
+const flowShowBadge = qs('[data-flow-show-badge]', unitedMap);
+const flowPeopleIcons = qs('[data-flow-people-icons]', unitedMap);
+const flowPeopleTitle = qs('[data-flow-people-title]', unitedMap);
+const flowPeopleCopy = qs('[data-flow-people-copy]', unitedMap);
+const flowPeopleNumber = qs('[data-flow-people-number]', unitedMap);
+const contextDayImage = qs('[data-context-day-image]', planner);
+const contextSleepImage = qs('[data-context-sleep-image]', planner);
+const contextShowImage = qs('[data-context-show-image]', planner);
+const mapArrival = qs('[data-map-arrival]', unitedMap);
+const mapSleep = qs('[data-map-sleep]', unitedMap);
+const mapPeople = qs('[data-map-people]', unitedMap);
+const mapShow = qs('[data-map-show]', unitedMap);
+const previewCards = {
+arrival: qs('[data-preview-card="arrival"]', unitedMap),
+sleep: qs('[data-preview-card="sleep"]', unitedMap),
+people: qs('[data-preview-card="people"]', unitedMap),
+showshine: qs('[data-preview-card="showshine"]', unitedMap)
+};
+const timelineSteps = {
+arrival: qs('[data-timeline-step="arrival"]', unitedMap),
+sleep: qs('[data-timeline-step="sleep"]', unitedMap),
+people: qs('[data-timeline-step="people"]', unitedMap),
+showshine: qs('[data-timeline-step="showshine"]', unitedMap)
+};
+const timelineProgress = qs('[data-timeline-progress]', unitedMap);
+
+const flowAssets = {
+day: {
+'Pátek': {
+image:'assets/images/program/friday.webp',
+alt:'Páteční komunita E36 United',
+title:'Pátek · komunita',
+copy:'První večer, seznamování, auta a hlavně lidi.'
+},
+'Sobota': {
+image:'assets/images/program/saturday.webp',
+alt:'Sobotní auta a Show and Shine E36 United',
+title:'Sobota · auta',
+copy:'Hlavní plocha, nejvíc E36 a centrum celého programu.'
+},
+'Jen na otočku': {
+image:'https://static.wixstatic.com/media/595239_b682f486d81c4c4cbddef668c9b5a0fc~mv2.jpeg/v1/fill/w_1000%2Ch_720%2Cal_c%2Cq_88%2Cenc_avif%2Cquality_auto/595239_b682f486d81c4c4cbddef668c9b5a0fc~mv2.jpeg',
+alt:'Krátká návštěva E36 United',
+title:'Day pass · na otočku',
+copy:'Přijeď na hlavní program a večer zase vyraz domů.'
+}
+},
+sleep: {
+'Chatka': {
+image:'cabin-zbraslavice-user.webp',
+fallback:'map-cabin.svg',
+alt:'Chatky v rekreačním areálu Zbraslavice',
+title:'Chatka',
+copy:'Pevné zázemí přímo v areálu a pohodlnější celý víkend.'
+},
+'Apartmán': {image:'map-cabin.svg',fallback:'map-cabin.svg',alt:'Ilustrační přehled ubytování',title:'Apartmán',copy:'Vyber z aktuální nabídky ubytování.'},
+'Stan': {
+image:'https://f0cd1afc5f.clvaw-cdnwnd.com/d2f4b4b3024714eacd68dfcfbe3b8bc2/200002120-10bff10c02/IMG_9058.jpeg?ph=f0cd1afc5f',
+fallback:'map-tent.svg',
+alt:'Stanové městečko v rekreačním areálu Zbraslavice',
+title:'Stan',
+copy:'Campová atmosféra, vlastní tempo a komunita pár kroků od tebe.'
+},
+'Bez ubytování': {
+image:'map-meadow.svg',
+fallback:'map-meadow.svg',
+alt:'Varianta bez ubytování',
+title:'Bez ubytování',
+copy:'Příjezd, hlavní program a návrat bez nocování.'
+}
+},
+show: {
+'Chci soutěžit': {
+image:'pohary.jpg',
+alt:'Poháry pro soutěžící Show and Shine E36 United',
+position:'center 38%',
+title:'Jdeš soutěžit',
+copy:'Tvoje E36 jde na plochu. Z návštěvy se stává soutěžní víkend.',
+badge:'COMPETE'
+},
+'Jedu se podívat': {
+image:'assets/images/program/saturday.webp',
+alt:'Návštěva Show and Shine E36 United',
+title:'Jedeš se podívat',
+copy:'Sobotní highlight: auta, komunita a hlavní plocha.',
+badge:'WATCH'
+},
+'Možná': {
+image:'assets/images/program/friday.webp',
+alt:'Show and Shine E36 United – rozhodnu se později',
+title:'Rozhodneš se později',
+copy:'Necháváš si otevřená vrátka. Rozhodnutí můžeš upřesnit později.',
+badge:'MAYBE'
+}
+}
+};
+
+let previousPreviewState = null;
+const personLabelPreview = count => count === 1 ? 'osoba' : (count >= 2 && count <= 4 ? 'osoby' : 'osob');
+
+const animateSelection = key => {
+const card = previewCards[key];
+const step = timelineSteps[key];
+[card,step].forEach(el => {
+if (!el || reduceMotion) return;
+el.classList.remove('is-updating');
+void el.offsetWidth;
+el.classList.add('is-updating');
+window.setTimeout(() => el.classList.remove('is-updating'), 780);
+});
+};
+
+const swapImage = (img, payload) => {
+if (!img || !payload) return;
+img.style.objectPosition = payload.position || 'center';
+if (img.getAttribute('src') === payload.image) return;
+img.style.opacity = '.18';
+img.alt = payload.alt;
+img.onerror = () => {
+if (payload.fallback && img.getAttribute('src') !== payload.fallback) img.src = payload.fallback;
+img.style.opacity = '1';
+};
+const reveal = () => { img.style.opacity = '1'; };
+img.onload = reveal;
+img.src = payload.image;
+window.setTimeout(reveal, 420);
+};
+
+const renderPeople = count => {
+if (flowPeopleIcons) {
+const max = 5;
+flowPeopleIcons.innerHTML = Array.from({length:max}, (_,index) => `<span class="flow-person${index < count ? '' : ' is-ghost'}"></span>`).join('');
+}
+const label = `${count} ${personLabelPreview(count)}`;
+if (flowPeopleTitle) flowPeopleTitle.textContent = label;
+if (flowPeopleNumber) flowPeopleNumber.textContent = String(count).padStart(2,'0');
+if (flowPeopleCopy) flowPeopleCopy.textContent = count === 1 ? 'Solo trip. Jedno auto, celý víkend po svém.' : count <= 2 ? 'Kompaktní posádka.' : count <= 4 ? 'Ideální crew na celý víkend.' : 'Velká parta. Přesně tak má United vypadat.';
+if (mapPeople) mapPeople.textContent = label;
+};
+
+const renderContextPreviews = (day,sleep,show) => {
+  swapImage(contextDayImage,day);
+  swapImage(contextSleepImage,sleep);
+  swapImage(contextShowImage,show);
+};
+
+const renderPreview = state => {
+const dayPass = state.arrival === 'Jen na otočku';
+const day = flowAssets.day[state.arrival] || flowAssets.day['Pátek'];
+const sleep = flowAssets.sleep[state.sleep] || flowAssets.sleep['Chatka'];
+const show = flowAssets.show[state.showshine] || flowAssets.show['Jedu se podívat'];
+const liveOption = plannerAccommodationOptions.find(option=>option.id===state.accommodationOptionId);
+const liveAccommodationVisual=liveOption?plannerAccommodationVisual(liveOption):null;
+const sleepVisual=liveAccommodationVisual?{...sleep,image:liveAccommodationVisual.src,fallback:liveAccommodationVisual.fallbackSrc,alt:liveAccommodationVisual.alt}:sleep;
+
+unitedMap.classList.toggle('is-day-pass', dayPass);
+if (previewCards.sleep) previewCards.sleep.hidden = dayPass;
+if (timelineSteps.sleep) timelineSteps.sleep.hidden = dayPass;
+const visibleKeys = dayPass ? ['arrival','people','showshine'] : ['arrival','sleep','people','showshine'];
+visibleKeys.forEach((key,index) => {
+  const cardIndex = qs('.preview-choice-index', previewCards[key] || document);
+  const stepIndex = qs(':scope > span', timelineSteps[key] || document);
+  const label = String(index + 1).padStart(2,'0');
+  if (cardIndex) cardIndex.textContent = label;
+  if (stepIndex) stepIndex.textContent = label;
+});
+if (timelineProgress) {
+  timelineProgress.style.transform = 'scaleX(1)';
+  timelineProgress.dataset.visibleSteps = String(visibleKeys.length);
+}
+
+swapImage(flowDayImage, day);
+swapImage(flowSleepImage, sleepVisual);
+const sleepPhotos=liveOption&&accommodationGalleryTools?accommodationGalleryTools.accommodationPhotos(liveOption):[];
+if(flowSleepGalleryCue){flowSleepGalleryCue.hidden=!sleepPhotos.length;flowSleepGalleryCue.textContent=sleepPhotos.length===1?'Zobrazit fotografii':`Zobrazit fotografie · ${sleepPhotos.length}`}
+if(previewCards.sleep&&accommodationGalleryTools)accommodationGalleryTools.bindAccommodationGalleryTrigger(previewCards.sleep,liveOption||{}, {apiBaseUrl:plannerApiBaseUrl});
+swapImage(flowShowImage, show);
+if (flowDayTitle) flowDayTitle.textContent = state.arrival === 'Jen na otočku' ? day.title : `${state.arrival} → ${state.departure}`;
+if (flowDayCopy) flowDayCopy.textContent = state.arrival === 'Jen na otočku' ? day.copy : `${plannerNightLabel(plannerNights())} · ${day.copy.charAt(0).toLowerCase()}${day.copy.slice(1)}`;
+if (flowSleepTitle) flowSleepTitle.textContent = liveOption?.name||sleep.title;
+if (flowSleepCopy) {const place=liveOption?.kind==='apartment'?'jeden apartmán':liveOption?.kind==='tent'?'jeden stan':'jednu chatku';flowSleepCopy.textContent = liveOption?(liveOption.inventoryMode==='unlimited'?`Max. ${liveOption.capacityPerUnit} ${personLabelPreview(liveOption.capacityPerUnit)} na ${place} · dostupné bez omezení.`:`Max. ${liveOption.capacityPerUnit} ${personLabelPreview(liveOption.capacityPerUnit)} na ${place} · k dispozici: ${liveOption.freeUnits}.`):sleep.copy}
+if (flowAccommodationUnits) {const hasAccommodationUnits=state.accommodationUnits>0,unitCount=liveOption?Math.ceil(state.accommodationUnits/Math.max(1,liveOption.capacityPerUnit)):0;flowAccommodationUnits.hidden=!hasAccommodationUnits;flowAccommodationUnits.style.display=hasAccommodationUnits?'':'none';flowAccommodationUnits.textContent=hasAccommodationUnits?(liveOption?`${unitCount}× · ${plannerNightLabel(plannerNights())}`:`${state.accommodationUnits} ${personLabelPreview(state.accommodationUnits)} k ubytování`):''}
+if (flowShowTitle) flowShowTitle.textContent = show.title;
+if (flowShowCopy) flowShowCopy.textContent = show.copy;
+if (flowShowBadge) flowShowBadge.textContent = show.badge;
+renderPeople(state.people);
+renderContextPreviews(day,sleepVisual,show);
+
+if (mapArrival) mapArrival.textContent = state.arrival === 'Jen na otočku' ? state.arrival : `${state.arrival} → ${state.departure}`;
+if (mapSleep) mapSleep.textContent = state.accommodationUnits?`${liveOption?.name||state.sleep} · ${state.accommodationUnits} ${personLabelPreview(state.accommodationUnits)}`:state.sleep;
+if (mapShow) mapShow.textContent = {'Chci soutěžit':'Ano!','Možná':'Uvidíme','Jedu se podívat':'Jedu se podívat'}[state.showshine]||state.showshine;
+
+Object.entries(previewCards).forEach(([key,card]) => {
+if (!card) return;
+const value = key === 'people' ? state.people : state[key];
+card.dataset.value = value;
+card.classList.add('is-active');
+});
+
+if (previousPreviewState) {
+['arrival','departure','sleep','people','showshine','accommodationOptionId'].forEach(key => {
+if (previousPreviewState[key] !== state[key]) animateSelection(key==='accommodationOptionId'?'sleep':key);
+});
+if(previousPreviewState.accommodationUnits!==state.accommodationUnits)animateSelection('sleep');
+}
+previousPreviewState = {...state};
+};
+
+document.addEventListener('e36:planner', e => renderPreview(e.detail));
+renderPreview(plannerState);
+}
+
+/* Persistent context HUD */
+const eventHud = qs('[data-event-hud]');
+if (eventHud) {
+const hudKicker = qs('[data-hud-kicker]', eventHud);
+const hudTitle = qs('[data-hud-title]', eventHud);
+const hudState = qs('[data-hud-state]', eventHud);
+let activeSection = 'home';
+let latestShowshine = {label:'Sedan',mode:'overview'};
+let latestPlan = {...plannerState};
+const sectionMap = [
+['home','#home'],['weekend','#experience'],['showshine','#show-shine'],['planner','#planer'],['map','#areal'],['info','#info-hub']
+];
+const renderHud = () => {
+eventHud.classList.toggle('is-visible', window.scrollY > 120);
+eventHud.classList.toggle('is-active', activeSection !== 'home');
+if (activeSection === 'showshine') {
+if (hudKicker) hudKicker.textContent = 'SHOW & SHINE';
+if (hudTitle) hudTitle.textContent = `${latestShowshine.label.toUpperCase()} / ${String(latestShowshine.mode).toUpperCase()}`;
+if (hudState) hudState.textContent = 'SCAN';
+} else if (activeSection === 'planner') {
+if (hudKicker) hudKicker.textContent = 'YOUR UNITED';
+if (hudTitle) hudTitle.textContent = `${latestPlan.people}× / ${latestPlan.sleep} / ${latestPlan.arrival}`.toUpperCase();
+if (hudState) hudState.textContent = 'PLAN';
+} else if (activeSection === 'map') {
+if (hudKicker) hudKicker.textContent = 'LIVE WEEKEND';
+if (hudTitle) hudTitle.textContent = `${latestPlan.sleep} → SHOW & SHINE`.toUpperCase();
+if (hudState) hudState.textContent = 'SYNC';
+} else if (activeSection === 'weekend') {
+if (hudKicker) hudKicker.textContent = 'E36 UNITED';
+if (hudTitle) hudTitle.textContent = '3 DNY / 1 KOMUNITA';
+if (hudState) hudState.textContent = 'WEEKEND';
+} else {
+if (hudKicker) hudKicker.textContent = 'E36 UNITED';
+if (hudTitle) hudTitle.textContent = '19–21 JUN / ZBRASLAVICE';
+if (hudState) hudState.textContent = 'EXPLORE';
+}
+};
+const detectSection = () => {
+const probe = window.innerHeight * .42;
+let found = 'home';
+sectionMap.forEach(([name,selector]) => {
+const el = qs(selector); if (!el) return;
+const r = el.getBoundingClientRect();
+if (r.top <= probe && r.bottom >= probe) found = name;
+});
+activeSection = found; renderHud();
+};
+document.addEventListener('e36:showshine', e => { latestShowshine = e.detail; renderHud(); });
+document.addEventListener('e36:planner', e => { latestPlan = e.detail; renderHud(); });
+detectSection();
+window.addEventListener('scroll', detectSection,{passive:true});
+}
+
+
+/* Info Hub — road-trip calculator (OpenStreetMap geocoding + OSRM route). */
+const routeCalculator = qs('[data-route-calculator]');
+if (routeCalculator) {
+  const form = qs('[data-route-form]', routeCalculator);
+  const originInput = qs('[data-route-origin]', routeCalculator);
+  const fromLabel = qs('[data-route-from]', routeCalculator);
+  const distanceEl = qs('[data-route-distance]', routeCalculator);
+  const durationEl = qs('[data-route-duration]', routeCalculator);
+  const noteEl = qs('[data-route-note]', routeCalculator);
+  const mapLink = qs('[data-route-map-link]', routeCalculator);
+  const submit = form?.querySelector('button[type="submit"]');
+  const destination = { lat:49.8239483, lon:15.1933317 };
+
+  const formatDuration = seconds => {
+    const min = Math.max(1, Math.round(seconds / 60));
+    if (min < 60) return `${min} min`;
+    const h = Math.floor(min / 60);
+    const rest = min % 60;
+    return rest ? `${h} h ${rest} min` : `${h} h`;
+  };
+  const haversineKm = (lat1,lon1,lat2,lon2) => {
+    const r = 6371, toRad = d => d * Math.PI / 180;
+    const dLat = toRad(lat2-lat1), dLon = toRad(lon2-lon1);
+    const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
+    return 2*r*Math.asin(Math.sqrt(a));
+  };
+
+  form?.addEventListener('submit', async e => {
+    e.preventDefault();
+    const query = originInput?.value.trim();
+    if (!query) return;
+    routeCalculator.classList.remove('is-ready');
+    routeCalculator.classList.add('is-loading');
+    if (submit) submit.disabled = true;
+    if (fromLabel) fromLabel.textContent = query;
+    if (distanceEl) distanceEl.textContent = '…';
+    if (durationEl) durationEl.textContent = '…';
+    if (noteEl) noteEl.textContent = 'Hledám město a počítám trasu…';
+    if (mapLink) mapLink.href = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(query)}&destination=${destination.lat},${destination.lon}`;
+
+    try {
+      const geoUrl = `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&accept-language=cs&q=${encodeURIComponent(query)}`;
+      const geoRes = await fetch(geoUrl, {headers:{'Accept':'application/json'}});
+      if (!geoRes.ok) throw new Error('geocode');
+      const places = await geoRes.json();
+      if (!places?.length) throw new Error('not-found');
+      const origin = { lat:Number(places[0].lat), lon:Number(places[0].lon) };
+      const cityLabel = (places[0].display_name || query).split(',').slice(0,2).join(',').trim();
+      if (fromLabel) fromLabel.textContent = cityLabel;
+
+      let distanceKm, durationSec;
+      try {
+        const routeUrl = `https://router.project-osrm.org/route/v1/driving/${origin.lon},${origin.lat};${destination.lon},${destination.lat}?overview=false&alternatives=false&steps=false`;
+        const routeRes = await fetch(routeUrl);
+        const routeData = await routeRes.json();
+        if (!routeRes.ok || !routeData.routes?.[0]) throw new Error('route');
+        distanceKm = routeData.routes[0].distance / 1000;
+        durationSec = routeData.routes[0].duration;
+      } catch (_) {
+        const straight = haversineKm(origin.lat,origin.lon,destination.lat,destination.lon);
+        distanceKm = straight * 1.24;
+        durationSec = (distanceKm / 72) * 3600;
+      }
+
+      if (distanceEl) distanceEl.textContent = `${Math.round(distanceKm)} km`;
+      if (durationEl) durationEl.textContent = formatDuration(durationSec);
+      if (noteEl) noteEl.textContent = 'Orientační silniční vzdálenost bez započtení aktuální dopravy.';
+      routeCalculator.classList.add('is-ready');
+    } catch (err) {
+      if (distanceEl) distanceEl.textContent = '— km';
+      if (durationEl) durationEl.textContent = '—';
+      if (noteEl) noteEl.textContent = 'Lokalitu se nepodařilo spočítat. Trasování můžeš otevřít rovnou v Google Maps.';
+    } finally {
+      routeCalculator.classList.remove('is-loading');
+      if (submit) submit.disabled = false;
+    }
+  });
+}
+
+/* Keep only one FAQ card open at a time */
+const details = qsa('details.info-card');
+details.forEach(detail => detail.addEventListener('toggle', () => {
+if (!detail.open) return;
+details.forEach(other => { if (other !== detail) other.open = false; });
+}));
+
+/* Sticky conversion CTA */
+const sticky = qs('[data-sticky-cta]');
+let stickyDismissed = false;
+const updateSticky = () => {
+if (!sticky || stickyDismissed) return;
+const plannerSection = qs('#planer');
+const nearPlanner = plannerSection && plannerSection.getBoundingClientRect().top < window.innerHeight * .75 && plannerSection.getBoundingClientRect().bottom > 0;
+sticky.classList.toggle('is-visible', window.scrollY > window.innerHeight * .8 && !nearPlanner);
+};
+sticky?.querySelector('[data-close-sticky]')?.addEventListener('click', () => {
+stickyDismissed = true;
+sticky?.classList.remove('is-visible');
+});
+updateSticky();
+window.addEventListener('scroll', updateSticky, { passive:true });
+})();
