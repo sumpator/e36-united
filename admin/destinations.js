@@ -48,7 +48,7 @@ export function cleanDrill(value={}){
   if(typeof value.scope==='string'&&DESTINATIONS[value.scope]?.scope===value.scope&&value.scope!=='global')result.scope=value.scope;
   if(id(value.option))result.option=id(value.option);
   if(['pending','approved'].includes(value.occupancy))result.occupancy=value.occupancy;
-  if(['full_weekend','saturday_only','day_visit'].includes(value.attendance))result.attendance=value.attendance;
+  if(['full_weekend','friday_only','saturday_only','day_visit'].includes(value.attendance))result.attendance=value.attendance;
   if(['Ano','Ne','Možná'].includes(value.sns))result.sns=value.sns;
   if(date(value.from))result.from=value.from;
   if(date(value.to))result.to=value.to;
@@ -61,7 +61,7 @@ export function destination(key,extra={}){
 export function drillLabel(drill={}){
   return [DESTINATIONS[drill.scope]?.label,drill.option?'Ubytování: '+drill.option:null,
     drill.occupancy?VIEW_LABELS[drill.occupancy]||({pending:'Čekající poptávka',approved:'Potvrzené jednotky'})[drill.occupancy]:null,
-    drill.attendance?({full_weekend:'Celý víkend',saturday_only:'Sobota',day_visit:'Na otočku'})[drill.attendance]:null,
+    drill.attendance?({full_weekend:'Celý víkend',friday_only:'Pátek → Sobota',saturday_only:'Sobota',day_visit:'Na otočku'})[drill.attendance]:null,
     drill.sns?'Deklarovaný S&S zájem: '+drill.sns:null,
     drill.from||drill.to?'Vytvořeno (UTC): '+(drill.from||'od počátku')+' až '+(drill.to||'bez konce'):null].filter(Boolean).join(' · ');
 }

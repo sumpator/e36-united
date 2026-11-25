@@ -26,7 +26,7 @@ export const MAILING_FIELDS=Object.freeze({
  serverDraft:field('event','Uložený serverový koncept Planneru','enum',yesNo),
  staleDays:field('event','Koncept nebo předběžná registrace beze změny (dní)','range'),
  request:field('event','Čekající žádost','enum',options(['change','O změnu'],['cancellation','O zrušení'],['none','Bez čekající žádosti'])),
- attendanceType:field('event','Délka účasti','enum',options(['full_weekend','Celý víkend'],['saturday_only','Sobota–neděle'],['day_visit','Denní návštěva'])),
+ attendanceType:field('event','Délka účasti','enum',options(['full_weekend','Celý víkend'],['friday_only','Pátek–sobota'],['saturday_only','Sobota–neděle'],['day_visit','Denní návštěva'])),
  arrivalDay:field('event','Příjezdový den','text'),nights:field('event','Počet nocí','range'),
  accommodation:field('event','Ubytování','enum',options(['yes','S ubytováním'],['no','Bez ubytování'],['unknown','Neuvedeno / neznámé'])),
  accommodationKind:field('event','Typ ubytování','enum',options(['cabin','Chatka'],['tent','Stan'],['apartment','Apartmán'],['none','Bez ubytování'])),

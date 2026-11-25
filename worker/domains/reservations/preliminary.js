@@ -1,4 +1,5 @@
-import { getCurrentEvent, getRequestedAdminEvent } from '../events.js';
+import { resolveStay,stayFitsEvent } from '../../../event-stay.js';
+import { eventIsPublished, pragueToday,getCurrentEvent, getRequestedAdminEvent } from '../events.js';
 import { json } from '../../http/responses.js';
 
 const fail=(error,message,origin,status=409)=>json({ok:false,error,message},status,origin);
@@ -25,10 +26,10 @@ export async function getPreliminaryReservation(env,auth,origin){
   if(!event)return json({ok:true,event:null,enabled:false,registrationOpen:false,preliminary:null},200,origin);
   const settings=await configuration(env,event.id);
   const row=await env.DB.prepare('SELECT * FROM preliminary_reservations WHERE member_id=? AND event_id=?').bind(auth.uid,event.id).first();
-  return json({ok:true,event:{id:event.id,year:event.year},enabled:settings.enabled,registrationOpen:event.registration_status==='open',preliminary:preliminaryView(row)},200,origin);
+  return json({ok:true,event:{id:event.id,year:event.year},enabled:eventIsPublished(event,pragueToday(env.clock?.()))&&settings.enabled,registrationOpen:eventIsPublished(event,pragueToday(env.clock?.()))&&event.registration_status==='open',preliminary:preliminaryView(row)},200,origin);
 }
 async function validatePreferences(env,uid,event,body){
-  const fields=['eventId','revision','carId','arrival','crew','crewDetails','accommodation','accommodationOptionId','accommodationUnits','showShine','note'];
+  const fields=['eventId','revision','carId','arrival','departure','attendanceType','crew','crewDetails','accommodation','accommodationOptionId','accommodationUnits','showShine','note'];
   if(Object.keys(body).some(key=>!fields.includes(key)))return 'Požadavek obsahuje nepovolená pole.';
   if(!['Pátek','Sobota','Jen na otočku'].includes(body.arrival)||!['Ne','Možná','Ano'].includes(body.showShine))return 'Vyber příjezd a Show & Shine.';
   if(!Number.isInteger(body.crew)||body.crew<1||body.crew>5)return 'Posádka musí mít 1 až 5 osob.';
@@ -45,8 +46,10 @@ async function validatePreferences(env,uid,event,body){
     const option=await env.DB.prepare('SELECT kind FROM event_accommodation_options WHERE id=? AND event_id=? AND active=1').bind(body.accommodationOptionId,event.id).first();
     if(!option||option.kind!==(body.accommodation==='Apartmán'?'apartment':body.accommodation==='Chatka'?'cabin':'tent'))return 'Vybraný typ ubytování není v nabídce eventu.';
   }
+  const stay=resolveStay(body);
+  if(!stayFitsEvent(stay,event))return 'Upřesni příjezd a odjezd v termínu ročníku.';
   // Preferences deliberately contain neither price nor availability snapshots.
-  return {carId,arrival:body.arrival,crew:body.crew,crewDetails,
+  return {carId,...stay,crew:body.crew,crewDetails,
     accommodation:wants?body.accommodation:'Bez ubytování',accommodationOptionId:wants?body.accommodationOptionId:null,
     accommodationUnits:wants?body.accommodationUnits:0,showShine:body.showShine,note:body.note};
 }
@@ -54,7 +57,7 @@ export async function putPreliminaryReservation(request,env,auth,origin){
   const parsed=await readBody(request,origin);if(parsed.response)return parsed.response;
   const body=parsed.body,event=await getCurrentEvent(env);
   if(!event||body.eventId!==event.id)return fail('event_changed','Aktuální event se změnil. Obnov stránku.',origin);
-  if(event.registration_status==='open'||!(await configuration(env,event.id)).enabled)return fail('preliminary_disabled','Ukládání nezávazných plánů nyní není otevřené.',origin);
+  if(!eventIsPublished(event,pragueToday(env.clock?.()))||event.registration_status==='open'||!(await configuration(env,event.id)).enabled)return fail('preliminary_disabled','Ukládání nezávazných plánů nyní není otevřené.',origin);
   if(!Number.isInteger(body.revision)||body.revision<0)return fail('revision_required','Nejdřív načti aktuální předběžnou rezervaci.',origin,400);
   const preferences=await validatePreferences(env,auth.uid,event,body);
   if(typeof preferences==='string')return fail('invalid_preferences',preferences,origin,400);
@@ -62,7 +65,7 @@ export async function putPreliminaryReservation(request,env,auth,origin){
   const result=await env.DB.prepare(`INSERT INTO preliminary_reservations(id,event_id,member_id,status,preferences_json)
     SELECT ?,e.id,?,'active',? FROM events e JOIN event_preliminary_settings s ON s.event_id=e.id
     WHERE e.id=? AND e.registration_status!='open' AND s.enabled=1
-      AND (e.is_current=1 OR NOT EXISTS(SELECT 1 FROM events WHERE is_current=1))
+      AND e.is_current=1 AND e.starts_on=? AND e.ends_on=? AND e.ends_on>=?
       AND EXISTS(SELECT 1 FROM members WHERE id=? AND status='active')
       AND (? IS NULL OR EXISTS(SELECT 1 FROM cars WHERE id=? AND member_id=?))
       AND NOT EXISTS(SELECT 1 FROM reservations WHERE member_id=? AND event_id=e.id)
@@ -70,7 +73,7 @@ export async function putPreliminaryReservation(request,env,auth,origin){
     ON CONFLICT(member_id,event_id) DO UPDATE SET status='active',preferences_json=excluded.preferences_json,
       revision=preliminary_reservations.revision+1,updated_at=CURRENT_TIMESTAMP
     WHERE preliminary_reservations.revision=? AND preliminary_reservations.status IN ('active','cancelled')
-  `).bind(crypto.randomUUID(),auth.uid,JSON.stringify(preferences),event.id,auth.uid,preferences.carId,preferences.carId,auth.uid,auth.uid,
+  `).bind(crypto.randomUUID(),auth.uid,JSON.stringify(preferences),event.id,event.starts_on,event.ends_on,pragueToday(env.clock?.()),auth.uid,preferences.carId,preferences.carId,auth.uid,auth.uid,
     body.revision,auth.uid,body.revision,body.revision).run();
   if(!result.meta?.changes)return fail('preliminary_conflict','Plán nebyl uložen: stav se změnil nebo už máš skutečnou rezervaci. Obnov stránku.',origin);
   return getPreliminaryReservation(env,auth,origin);

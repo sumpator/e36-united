@@ -1,6 +1,7 @@
 // Release URLs approved by the September deliveries. Unchanged modules retain
 // their own tokens; every source still has exactly one runtime URL.
 export const ADMIN_MODULE_RELEASES = Object.freeze({
+  'event-stay.js': '20261125-stay1',
   "admin/mobile-agendas.js": "20261103-mobile1",
   'admin/mobile-shell.js': '20261103-adminfix1',
   'admin.js': '20261103-adminfix1',

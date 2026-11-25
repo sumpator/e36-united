@@ -1,3 +1,4 @@
+import { nextEventPresentation } from '../../public-event-presentation.js';
 import { json } from "../http/responses.js";
 import { clean } from "../utils/text.js";
 
@@ -23,6 +24,14 @@ async function getCurrentEvent(env) {
   `).first();
 }
 
+export function eventIsPublished(event, today=pragueToday()) {
+  if (!event?.is_current || !event.starts_on || !event.ends_on ||
+      Number(event.starts_on.slice(0,4)) !== Number(event.year)) return false;
+  return Boolean(nextEventPresentation({startsOn:event.starts_on, endsOn:event.ends_on},today));
+}
+export function pragueToday(now=new Date()) {
+  return now.toLocaleDateString('sv-SE',{timeZone:'Europe/Prague'});
+}
 async function getEventById(env, eventId) {
   if (!eventId) return null;
   return await env.DB.prepare(`${eventSelect(env)}

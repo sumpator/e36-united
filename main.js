@@ -1,7 +1,7 @@
 (() => {
 const qs = (selector, root = document) => root.querySelector(selector);
 const plannerTrackingHelper=import('./public-planner-handoff.js?v=20260907-feedback').catch(()=>null);
-const eventPresentation=import('./public-event-presentation.js?v=20260907-mobile').catch(()=>null);
+const eventPresentation=import('./public-event-presentation.js?v=20261125-stay1').catch(()=>null);
 void import('./scroll-affordance.js?v=20260907-mobile').then(({initScrollAffordance})=>{
   document.querySelectorAll('.category-selector').forEach(initScrollAffordance);
 }).catch(error=>console.debug('Scroll hint unavailable.',error));
@@ -23,7 +23,7 @@ document.addEventListener('click',event=>{if(event.target.closest('.nav-member')
 qsa('.nav-cta').forEach(cta=>{cta.hidden=true});
 void (async()=>{
 try{
-const [{firebaseConfig,portalConfig},memberStateModule]=await Promise.all([import('./firebase-config.js?v=20260823-auth2'),import('./public-member-state.js?v=20261101-auth1')]);
+const [{firebaseConfig,portalConfig},memberStateModule]=await Promise.all([import('./firebase-config.js?v=20260823-auth2'),import('./public-member-state.js?v=20261125-stay1')]);
 const {initPublicMemberState}=memberStateModule;renderAccountLinks=memberStateModule.renderAccountLinks;renderPublicAuthStatus=memberStateModule.renderPublicAuthStatus;
 publicMemberController=initPublicMemberState({config:firebaseConfig,apiBaseUrl:portalConfig.apiBaseUrl,onStateChange:publishPublicMemberState});
 }catch(error){publishPublicMemberState({status:'error',authenticated:false,showJoinCta:false,error});console.debug('Public member state unavailable; join CTA remains hidden.')}
@@ -688,7 +688,7 @@ const publicPlannerDraftKey='e36UnitedPublicPlanner:v1';
 let publicPlannerReady=false,publicPlannerEdited=false,publicPlannerDraftId=crypto.randomUUID();
 planner?.addEventListener('click',event=>{if(event.target.closest('[data-stay-index],.choice,[data-people-plus],[data-people-minus],[data-accommodation-option-id]'))publicPlannerEdited=true},true);
 planner?.addEventListener('input',()=>{publicPlannerEdited=true},true);
-const plannerNights = () => plannerState.arrival === 'Pátek' ? (plannerState.departure === 'Sobota' ? 1 : Number(plannerEventData?.fullWeekendNights ?? 2)) : plannerState.arrival === 'Sobota' ? Number(plannerEventData?.saturdayOnlyNights ?? 1) : 0;
+const plannerNights = () => plannerState.arrival==='Jen na otočku'?0:plannerState.arrival==='Pátek'&&plannerState.departure==='Neděle'?2:1;
 const plannerNightLabel = count => count === 1 ? '1 noc' : `${count} noci`;
 const plannerStayLabel = () => plannerState.arrival === 'Jen na otočku' ? 'Jen na otočku' : `${plannerState.arrival} → ${plannerState.departure}`;
 const plannerAccommodationVisual = option => accommodationVisualTools?.accommodationVisualModel(option,{apiBaseUrl:plannerApiBaseUrl,nights:plannerNights(),mode:'image-only'}) || null;
@@ -707,7 +707,7 @@ const peopleLabel = peopleEl?.nextElementSibling;
 const calendarButton = qs('[data-calendar-button]', planner);
 const calendarPopover = qs('[data-calendar-popover]', planner);
 const googleCalendar = qs('[data-google-calendar]', planner);
-const plannerSection = planner.closest('[data-event-start]');
+const plannerSection = planner.closest('#planer');
 const departureGroup = qs('[data-choice-group="departure"]', planner);
 const departureStep = qs('[data-planner-departure-step]', planner);
 const plannerStayNote = qs('[data-planner-stay-note]', planner);
@@ -897,7 +897,7 @@ if (accommodationOptionTitle) accommodationOptionTitle.textContent=plannerState.
 if (unitedMap) unitedMap.classList.toggle('is-day-pass', dayPass);
 const existingReservation=memberPlannerMode&&memberPlannerHasReservation;
 if (plannerActionCopy) plannerActionCopy.textContent = existingReservation ? 'Registraci už máš. Aktuální pobyt otevřeš v Můj United.' : memberPlannerMode ? 'Hotovo. Výběr přeneseme do Můj United.' : 'Hotovo. Teď už jen dokončit registraci.';
-if (mail) {mail.innerHTML = existingReservation?'Otevřít aktuální registraci <span>→</span>':'Dokončit v Můj United <span>→</span>';mail.href='member.html?section=reservation'}
+if (mail) {mail.innerHTML = existingReservation?'Otevřít aktuální registraci <span>→</span>':'Dokončit v Můj United <span>→</span>';if(plannerEventData?.preliminaryEnabled&&!existingReservation){mail.textContent='Uložit nezávazný plán v Můj United';plannerActionCopy.textContent='Předběžný plán nezajišťuje kapacitu.'}mail.href='member.html?section=reservation'}
 if (peopleEl) peopleEl.textContent = plannerState.people;
 if (peopleLabel) peopleLabel.textContent = personLabel(plannerState.people);
 if (summaryArrival) summaryArrival.textContent = plannerState.arrival;
@@ -935,6 +935,8 @@ if (plannerRecap) {
 }
 if (code) code.textContent = `U36–${slug(plannerState.arrival,'P')}${slug(plannerState.sleep,'CH')}–${String(plannerState.people).padStart(2,'0')}–${nights}N`;
 renderPlannerPrice(needsAccommodation);
+const total=qs('[data-public-total]',planner), admission=plannerEventData?.admissionRegisteredCzk;
+if(total)total.textContent=admission!=null&&(!needsAccommodation||selectedOption)?'Celkem za posádku: '+plannerMoney.format(Number(admission)+(needsAccommodation?plannerAccommodationPrice(selectedOption).total:0)):'';
 document.dispatchEvent(new CustomEvent('e36:planner',{detail:{...plannerState}}));
 };
 
@@ -953,12 +955,28 @@ qs('[data-people-plus]', planner)?.addEventListener('click', () => { plannerStat
 accommodationOptionSelect?.addEventListener('change',()=>{plannerState.accommodationOptionId=accommodationOptionSelect.value||null;updatePlanner()});
 accommodationOptionCards?.addEventListener('click',event=>{const card=event.target.closest('[data-accommodation-option-id]');if(!card||card.disabled)return;plannerState.accommodationOptionId=card.dataset.accommodationOptionId;accommodationOptionSelect.value=plannerState.accommodationOptionId;qsa('[data-accommodation-option-id]',accommodationOptionCards).forEach(option=>{const selected=option===card;option.classList.toggle('is-active',selected);option.setAttribute('aria-pressed',String(selected))});updatePlanner()});
 
+function showEventOffer(event,helper){
+  const calendar=helper?.eventCalendar(event),open=Boolean(calendar&&(event.registrationOpen||event.preliminaryEnabled));
+  planner.hidden=!open;
+  qs('[data-planner-unavailable]').hidden=open;
+  const stickyOffer=qs('[data-sticky-cta]');if(stickyOffer)stickyOffer.hidden=!open;
+  const notice=qs('[data-event-notice]');
+  if(!open)notice.textContent=calendar?'Termín je zveřejněný. Registrace zatím nejsou otevřené.':'Termín příštího srazu zatím není k dispozici.';
+  helper?.renderNextEvent(calendar?event:null);
+  if(open){
+    googleCalendar.href=calendar.google;
+    const ics=qs('[data-event-ics]',planner);ics.href='data:text/calendar;charset=utf-8,'+encodeURIComponent(calendar.ics);ics.download=event.id+'.ics';
+    qs('.planner-intro-v8 .section-title',planner).textContent=event.registrationOpen?'Registruj se na United':'Předběžná registrace';
+    qs('.planner-intro-v8 .section-lead',planner).textContent=helper.nextEventPresentation(event).dateLabel+' · '+(event.registrationOpen?'Vyber pobyt a zkontroluj cenu před odesláním.':'Ulož si nezávazný plán. Kapacitu ubytování tím nezískáš.');
+  }
+  return open;
+}
 const loadPlannerCurrentEvent=async()=>{
   try{
     const cfg=await import('./firebase-config.js?v=20260823-auth2'),base=String(cfg.portalConfig?.apiBaseUrl||'https://api.e36united.cz').replace(/\/$/,'');plannerApiBaseUrl=base;
     const response=await fetch(`${base}/api/events/current`,{cache:'no-store'});if(!response.ok)throw new Error(`Event API ${response.status}`);
-    const payload=await response.json();plannerEventData=payload?.event||null;
-    void eventPresentation.then(helper=>helper?.renderNextEvent(plannerEventData));
+    const payload=await response.json(),helper=await eventPresentation;
+    plannerEventData=showEventOffer(payload?.event,helper)?payload.event:null;
     plannerAccommodationOptions=(Array.isArray(payload?.accommodationOptions)?payload.accommodationOptions:[]).map((option,index)=>({
       id:String(option.id||''),name:String(option.name||''),kind:option.kind==='apartment'?'apartment':option.kind==='tent'?'tent':'cabin',inventoryMode:option.inventoryMode==='unlimited'?'unlimited':'limited',
       unitsTotal:Number(option.unitsTotal||0),freeUnits:option.freeUnits==null?null:Number(option.freeUnits),capacityPerUnit:Math.max(1,Number(option.capacityPerUnit||1)),
@@ -967,7 +985,7 @@ const loadPlannerCurrentEvent=async()=>{
     if(plannerSection&&plannerEventData){plannerSection.dataset.eventId=plannerEventData.id;plannerSection.dataset.eventYear=plannerEventData.year}
     if(!publicPlannerEdited&&plannerEventData){
       try{
-        const {validatePlannerDraft}=await import('./planner-state.js?v=20261025-flow1');
+        const {validatePlannerDraft}=await import('./planner-state.js?v=20261125-stay1');
         const saved=validatePlannerDraft(JSON.parse(localStorage.getItem(publicPlannerDraftKey)||'null'));
         if(!publicPlannerEdited&&saved&&saved.eventId===plannerEventData.id&&saved.eventYear===Number(plannerEventData.year)){
           publicPlannerDraftId=saved.draftId;
@@ -979,16 +997,10 @@ const loadPlannerCurrentEvent=async()=>{
     }
     publicPlannerReady=Boolean(plannerEventData);
     renderPlannerAccommodationOptions();updatePlanner();
-  }catch(error){console.debug('Aktuální nabídka ubytování není dostupná; Planner pokračuje bez live ceníku.',error);plannerEventData=null;plannerAccommodationOptions=[];renderPlannerAccommodationOptions();updatePlanner()}
+  }catch(error){console.debug('Aktuální nabídka ubytování není dostupná; Planner pokračuje bez live ceníku.',error);publicPlannerReady=false;plannerEventData=null;plannerAccommodationOptions=[];showEventOffer(null,await eventPresentation);renderPlannerAccommodationOptions();updatePlanner()}
 };
 loadPlannerCurrentEvent();
 
-if (googleCalendar && plannerSection) {
-const start = (plannerSection.dataset.eventStart || '2026-06-19').replaceAll('-','');
-const end = (plannerSection.dataset.eventEnd || '2026-06-22').replaceAll('-','');
-const details = 'E36 United — BMW E36 komunita, Show & Shine a víkend ve Zbraslavicích.';
-googleCalendar.href = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent('E36 United')}&dates=${start}/${end}&details=${encodeURIComponent(details)}&location=${encodeURIComponent('Zbraslavice, Česko')}`;
-}
 calendarButton?.addEventListener('click', () => {
 if (!calendarPopover) return;
 const willOpen = calendarPopover.hidden;
@@ -1069,9 +1081,9 @@ const encodePlannerHandoff=draft=>{
 const createPlannerHandoff=({persist=true,draftId=crypto.randomUUID()}={})=>{
   cleanupPlannerHandoffs();
   const now=Date.now(),createdAt=new Date(now).toISOString(),expiresAt=new Date(now+7*24*60*60*1000).toISOString();
-  const eventSection=planner?.closest('[data-event-start]'),eventStart=eventSection?.dataset.eventStart||'',eventId=plannerEventData?.id||eventSection?.dataset.eventId||null;
-  const eventYear=Number(plannerEventData?.year||eventSection?.dataset.eventYear||eventStart.slice(0,4))||new Date().getFullYear();
-  const attendanceType={Pátek:'full_weekend',Sobota:'saturday_only','Jen na otočku':'day_visit'}[plannerState.arrival];
+  if(!publicPlannerReady||!plannerEventData)throw new Error('Nabídka ročníku není dostupná.');
+  const {id:eventId,year:eventYear}=plannerEventData;
+  const attendanceType=plannerState.arrival==='Pátek'?(plannerState.departure==='Sobota'?'friday_only':'full_weekend'):plannerState.arrival==='Sobota'?'saturday_only':'day_visit';
   const showShine={'Chci soutěžit':'Ano','Možná':'Možná','Jedu se podívat':'Ne'}[plannerState.showshine];
   const draft={version:1,draftId,source:'weekend-planner',eventYear,eventId:eventId||null,createdAt,expiresAt,arrival:plannerState.arrival,departure:plannerState.departure,nights:plannerNights(),attendanceType,accommodation:plannerState.sleep,accommodationOptionId:plannerState.accommodationOptionId||null,accommodationUnits:plannerState.arrival==='Jen na otočku'||plannerState.sleep==='Bez ubytování'?0:plannerState.people,crew:plannerState.people,showShine};
   if(persist)try{localStorage.setItem(`${handoffStoragePrefix}${draftId}`,JSON.stringify(draft))}catch(error){console.debug('Planner handoff local storage unavailable.',error)}
@@ -1115,7 +1127,7 @@ const continueToMember=async mode=>{
   }catch{plannerNavigationFailed()}
 };
 
-inquiryTrigger?.addEventListener('click', e => {e.preventDefault();if(memberPlannerMode&&memberPlannerHasReservation)openExistingReservation();else if(memberPlannerMode)continueToMember(null);else openPlannerChoice()});
+inquiryTrigger?.addEventListener('click', e => {e.preventDefault();if(!publicPlannerReady)return;if(memberPlannerMode&&memberPlannerHasReservation)openExistingReservation();else if(memberPlannerMode)continueToMember(null);else openPlannerChoice()});
 qs('[data-planner-register]')?.addEventListener('click',()=>continueToMember('register'));
 qs('[data-planner-login]')?.addEventListener('click',()=>continueToMember('login'));
 qs('[data-planner-manual]')?.addEventListener('click',openInquiry);

@@ -1,6 +1,6 @@
 import {authRecoveryCopy,authPersistenceNotice,authDiagnostic} from './united-auth.js?v=20261101-auth1';
 import { firebaseConfig, portalConfig } from './firebase-config.js?v=20260924-merch2';
-import { renderAccountLinks } from './public-member-state.js?v=20261101-auth1';
+import { renderAccountLinks } from './public-member-state.js?v=20261125-stay1';
 import { showArrivalInvitation } from './member/arrival-invite.js?v=20261028-entry1';
 import { performMemberLogout } from './member-logout.js?v=20260826-predeploy-fix';
 import { createMemberApiClient } from './member/api.js?v=20261028-flow2';
@@ -12,7 +12,7 @@ import { createMemberShell } from './member/shell.js?v=20261104-nav1';
 import { createMemberOverview } from './member/modules/overview.js?v=20261101-detail1';
 import { createMemberGarage } from './member/modules/garage.js?v=20261031-compose1';
 import { createMemberPhotos } from './member/modules/photos.js?v=20261101-detail1';
-import { createMemberPlanner } from './member/modules/planner/index.js?v=20261101-detail1';
+import { createMemberPlanner } from './member/modules/planner/index.js?v=20261125-stay1';
 import {verifyNewPasswordAccount} from './member/registration-verification.js?v=20261023-mail1';
 import { formatCzk } from './member/modules/planner/payments.js?v=20261101-detail1';
 import { createMemberClub } from './member/modules/club/index.js?v=20261102-admin1';

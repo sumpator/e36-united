@@ -101,7 +101,7 @@ test('additive migration is executable and empty with foreign keys intact and ve
   assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(),[]);db.close();
 });
 test('public tracking is idempotent, strict, anonymous and cannot be claimed by a second member',async()=>{
-  const {db,env}=runtime(),plan=draft();
+  const {db,env}=runtime(),plan=draft();env.clock=()=>new Date('2027-06-01T12:00Z');
   for(let i=0;i<2;i++)assert.equal((await trackPlannerHandoff(post({draft:plan}),env,null,origin)).status,200);
   let row=db.prepare('SELECT * FROM public_planner_handoffs').get();assert.equal(row.member_id,null);assert.doesNotMatch(row.payload_json,/email|name/);
   assert.equal(db.prepare('SELECT COUNT(*) n FROM public_planner_handoffs').get().n,1);
@@ -140,10 +140,10 @@ test('real reservation success records conversion even if public/client tracking
   const {db,env}=runtime(),plan=draft();
   db.exec("INSERT INTO cars(id,member_id,model) VALUES('car','a','328i')");
   await putPlannerDraft(post({draft:plan}),env,user,origin);
-  const body={plannerDraftId:plan.draftId,carId:'car',arrival:'Jen na otočku',crew:2,attendanceType:'day_visit',accommodation:'Bez ubytování',accommodationUnits:0,showShine:'Ne'};
+  const body={eventId:'event',quotedTotalCzk:0,plannerDraftId:plan.draftId,carId:'car',arrival:'Jen na otočku',crew:2,attendanceType:'day_visit',accommodation:'Bez ubytování',accommodationUnits:0,showShine:'Ne'};
   assert.equal((await putCurrentReservation(post(body),env,user,origin)).status,409);
   assert.equal(db.prepare('SELECT COUNT(*) n FROM public_planner_handoffs').get().n,0);
-  db.exec("UPDATE events SET registration_status='open',admission_registered_czk=0 WHERE id='event'");
+  db.exec("UPDATE events SET starts_on='2027-08-13',ends_on='2027-08-15',registration_status='open',admission_registered_czk=0 WHERE id='event'");
   const response=await putCurrentReservation(post(body),env,user,origin);assert.equal(response.status,200);
   const reservation=(await response.json()).reservation,row=db.prepare('SELECT * FROM public_planner_handoffs').get();
   assert.equal(row.member_id,'a');assert.equal(row.reservation_id,reservation.id);assert.ok(row.reservation_created_at);

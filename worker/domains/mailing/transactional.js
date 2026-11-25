@@ -1,3 +1,5 @@
+import { storedStay,resolveStay } from '../../../event-stay.js';
+function stayFacts(stay,arrival){return stay?[['Příjezd',stay.arrival],['Odjezd',stay.departure],['Počet nocí účasti',String(stay.nights)]]:[['Příjezd',arrival]]}
 import {createSmtp2goAdapter,senderConfig} from './provider/smtp2go.js';
 import {renderTransactionalEmail,portalLink,czk} from './transactional-template.js';
 import {reservationPayment} from '../reservations/payments.js';
@@ -35,7 +37,7 @@ export async function transactionalContent(env,row){
  if(row.entity_type==='preliminary'){
   const p=await one(env,"SELECT p.*,m.email,e.title FROM preliminary_reservations p JOIN members m ON m.id=p.member_id JOIN events e ON e.id=p.event_id WHERE p.id=? AND p.status='active'",row.entity_id);
   if(!p||p.email.toLowerCase()!==row.recipient_email.toLowerCase())return null;
-  const data=JSON.parse(p.preferences_json);return {reference:p.title,facts:[['Příjezd',data.arrival],['Posádka',data.crew],['Ubytování',data.accommodation]],url:portalLink('reservation'),next:'Teď nic neplať. Plán je nezávazný; skutečnou rezervaci odešleš samostatně po otevření registrací.'};
+  const data=JSON.parse(p.preferences_json);return {reference:p.title,facts:[...stayFacts(resolveStay(data),data.arrival),['Posádka',data.crew],['Ubytování',data.accommodation]],url:portalLink('reservation'),next:'Teď nic neplať. Plán je nezávazný; skutečnou rezervaci odešleš samostatně po otevření registrací.'};
  }
  if(row.entity_type==='reservation'||row.entity_type==='request'){
   const r=await one(env,`SELECT r.*,m.email,e.title,e.year AS event_year,e.currency AS payment_currency,e.payment_deadline,e.payment_recipient_name,e.payment_account_display,e.payment_iban,e.payment_message_prefix,e.payment_test_mode,
@@ -50,7 +52,7 @@ export async function transactionalContent(env,row){
   }
   if((kind==='reservation_submitted'&&r.status!=='pending')||(['reservation_approved','request_approved','reservation_changed'].includes(kind)&&r.status!=='approved')||(kind==='reservation_cancelled'&&r.status!=='cancelled')||(kind==='reservation_rejected'&&r.status!=='rejected'))return null;
   const p=reservationPayment(r),actionable=['reservation_approved','request_approved','reservation_changed','reservation_payment'].includes(kind)&&r.status==='approved';
-  const details={reference:r.id,facts:[['Ročník',r.title],['Rezervace',r.id],['Příjezd',r.arrival],['Posádka',r.crew],['Ubytování',r.accommodation]],comment:request?.admin_comment||r.public_comment,url:portalLink(kind.includes('payment')||kind==='reservation_changed'?'payments':'reservation',{reservation:r.id,event:r.event_id})};
+  const details={reference:r.id,facts:[['Ročník',r.title],['Rezervace',r.id],...stayFacts(storedStay(r.attendance_type),r.arrival),['Posádka',r.crew],['Ubytování',r.accommodation]],comment:request?.admin_comment||r.public_comment,url:portalLink(kind.includes('payment')||kind==='reservation_changed'?'payments':'reservation',{reservation:r.id,event:r.event_id})};
   if(request)details.facts.push(['Žádost',request.id]);
   if(kind==='reservation_payment'){
    details.facts.push([payload.deltaCzk>=0?'Přijatá částka':'Oprava evidence úhrady',czk(payload.deltaCzk)]);

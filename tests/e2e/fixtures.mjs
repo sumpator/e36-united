@@ -70,7 +70,7 @@ const currentEvent = {
   id: 'united-2026',
   year: 2026,
   title: 'E36 United 2026',
-  registrationOpen: false,
+  registrationOpen: false, offerDate:'2026-06-01',startsOn:'2026-06-19',endsOn:'2026-06-21',admissionRegisteredCzk:0,
   fullWeekendNights: 2,
   saturdayOnlyNights: 1,
 };
@@ -141,6 +141,7 @@ export async function prepareE2ePage(page, {
   memberStatus = 'active',
   registrationOpen = false,
   preliminaryEnabled = false,
+  publicRegistrationOpen = registrationOpen || !preliminaryEnabled,
   reservation = null,
   cars = null,
   clubPayload = null,
@@ -252,7 +253,7 @@ export async function prepareE2ePage(page, {
       await jsonResponse(route,{ok:true,photos:approvedGallery||[]});return;
     }
     if (url.pathname === '/api/events/current') {
-      await jsonResponse(route, { event: currentEvent, accommodationOptions:accommodations });
+      await jsonResponse(route, { event: {...currentEvent,registrationOpen:publicRegistrationOpen,preliminaryEnabled}, accommodationOptions:accommodations });
       return;
     }
     if (url.pathname === '/api/navigation-state') {

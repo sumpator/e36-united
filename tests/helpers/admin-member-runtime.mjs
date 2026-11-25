@@ -4,9 +4,10 @@ export function memberRuntime({schema}={}){
  const db=new DatabaseSync(':memory:');db.exec(schema||readFileSync(new URL('../../db/schema.sql',import.meta.url),'utf8'));
  const queries=[];let writes=0,mediaReads=0;
  const prepare=(sql,args=[])=>({bind:(...values)=>prepare(sql,values),first:async()=>{queries.push({sql,args});return db.prepare(sql).get(...args)||null},all:async()=>{queries.push({sql,args});return{results:db.prepare(sql).all(...args)}},run:async()=>{queries.push({sql,args});if(/^\s*(SELECT|WITH)/i.test(sql))return{results:db.prepare(sql).all(...args),meta:{changes:0}};const result=db.prepare(sql).run(...args);writes+=Number(result.changes);return{meta:{changes:Number(result.changes)}}}});
- const env={DB:{prepare,async batch(statements){db.exec('BEGIN');try{const rows=[];for(const s of statements)rows.push(await s.run());db.exec('COMMIT');return rows}catch(e){db.exec('ROLLBACK');throw e}}},MEDIA:{async get(){mediaReads++;return{body:'synthetic image',httpMetadata:{contentType:'image/jpeg'}}}}};
+ const env={clock:()=>new Date('2026-06-01T12:00:00Z'),DB:{prepare,async batch(statements){db.exec('BEGIN');try{const rows=[];for(const s of statements)rows.push(await s.run());db.exec('COMMIT');return rows}catch(e){db.exec('ROLLBACK');throw e}}},MEDIA:{async get(){mediaReads++;return{body:'synthetic image',httpMetadata:{contentType:'image/jpeg'}}}}};
  db.exec(`INSERT INTO members(id,member_code,email,name,nickname,role) VALUES('a','EU-ADMIN','admin@example.invalid','Admin',NULL,'admin'),('m','EU-MEMBER','member@example.invalid','Same Name','First','member'),('n','EU-OTHER','other@example.invalid','Same Name','Second','member');
  INSERT INTO events(id,year,title,is_current) VALUES('e',2026,'United 2026',1),('old',2025,'United 2025',0);
+ UPDATE events SET starts_on='2026-06-19',ends_on='2026-06-21' WHERE id='e';
  INSERT INTO cars(id,member_id,model,nickname,is_primary) VALUES('c','m','BMW 328i','Blue',1),('c2','m','BMW 325i','Track',0),('cn','n','BMW 318i','Other',1);
  INSERT INTO car_photos(id,car_id,r2_key) VALUES('p','c','private/m/p'),('pn','cn','private/n/p');
  INSERT INTO gallery_submissions(id,member_id,car_id,r2_key,caption,status) VALUES('g','m','c','private/m/g','Synthetic','approved');

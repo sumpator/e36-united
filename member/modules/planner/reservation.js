@@ -45,7 +45,7 @@ export function normalizeReservation(source){
       year:snapshot.year||'',
       color:snapshot.color||'',
     },
-    arrival:source.arrival||'Pátek',
+    arrival:source.arrival||'', departure:source.departure||null,
     crew:Number(source.crew||1),
     sleep:source.accommodation||source.sleep||'Bez ubytování',
     attendanceType:source.attendanceType||'',

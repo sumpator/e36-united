@@ -175,7 +175,7 @@ test('explicit preliminary save emits once, ordinary edits and failed replay do 
 
 test('real reservation submission, review, current partial/full money and owner-scoped deep links use confirmed server data',async t=>{
  const r=memberRuntime();t.after(()=>r.db.close());r.db.exec("DELETE FROM reservations; UPDATE events SET registration_status='open',admission_registered_czk=500 WHERE id='e'");
- const input={carId:'c',arrival:'Jen na otočku',crew:1,accommodation:'Bez ubytování',showShine:'Ne',note:''};
+ const input={eventId:'e',quotedTotalCzk:500,carId:'c',arrival:'Jen na otočku',crew:1,accommodation:'Bez ubytování',showShine:'Ne',note:''};
  const response=await putCurrentReservation(request(input,'PUT'),r.env,member,origin);assert.equal(response.status,200);const id=(await response.json()).reservation.id;
  assert.equal((await putCurrentReservation(request(input,'PUT'),r.env,member,origin)).status,409);assert.equal(rows(r,'reservation_submitted').filter(x=>x.entity_id===id).length,1);
  const transport=capture();await deliver(r,rows(r,'reservation_submitted').find(x=>x.entity_id===id),transport);assert.match(transport.messages[0].text_body,/Zatím nic neplať/);

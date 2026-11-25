@@ -1,6 +1,7 @@
+import { resolveStay, storedStay, stayFitsEvent } from '../../../event-stay.js';
 import { reservationListQuery, reservationFilterSql } from '../../admin/lists.js';
 import { reservationPrice } from '../arrivals.js';
-import { getCurrentEvent, getRequestedAdminEvent, publicAdminEvent } from "../events.js";
+import { eventIsPublished, pragueToday, getCurrentEvent, getRequestedAdminEvent, publicAdminEvent } from "../events.js";
 import { json } from "../../http/responses.js";
 import { clean } from "../../utils/text.js";
 import {
@@ -156,6 +157,7 @@ function publicAdminReservation(reservation) {
       nickname: reservation.car_nickname || "",
     },
     attendanceType: reservation.attendance_type || "",
+    departure:storedStay(reservation.attendance_type)?.departure || null, stayNights:storedStay(reservation.attendance_type)?.nights ?? null,
     arrival: reservation.arrival || "",
     crew: Number(reservation.crew || 0),
     accommodation: reservation.accommodation || "",
@@ -265,10 +267,10 @@ async function getCurrentReservation(env, auth, origin, requestedId = null) {
     const event=await env.DB.prepare('SELECT * FROM events WHERE id=?').bind(owned.event_id).first();
     const reservation=await findCurrentReservation(env,auth.uid,owned.event_id);
     await hydrateReservationAccommodationVisual(env,reservation);await attachMemberReservationRequest(env,reservation);
-    return json({ok:true,event:publicMemberEvent(event),registrationOpen:!!event.is_current&&event.registration_status==='open',reservation:publicReservation(reservation),accommodationOptions:await listMemberAccommodationOptions(env,event.id,reservation)},200,origin);
+    return json({ok:true,event:publicMemberEvent(event),registrationOpen:eventIsPublished(event,pragueToday(env.clock?.()))&&event.registration_status==='open',reservation:publicReservation(reservation),accommodationOptions:await listMemberAccommodationOptions(env,event.id,reservation)},200,origin);
   }
   const event = await getCurrentEvent(env);
-  if (!event) {
+  if (!eventIsPublished(event,pragueToday(env.clock?.()))) {
     let reservation = await findLatestReservation(env, auth.uid);
     if (reservation && !reservation.payment_vs) {
       await ensureReservationPaymentVs(env, reservation.id, reservation.event_year);
@@ -306,7 +308,7 @@ async function getCurrentReservation(env, auth, origin, requestedId = null) {
 
 async function putCurrentReservation(request, env, auth, origin) {
   const event = await getCurrentEvent(env);
-  if (!event || event.registration_status !== "open") return json({ ok: false, error: "registration_closed", message: "Rezervace na aktuální event nejsou otevřené." }, 409, origin);
+  if (!eventIsPublished(event,pragueToday(env.clock?.())) || event.registration_status !== "open") return json({ ok: false, error: "registration_closed", message: "Rezervace na aktuální event nejsou otevřené." }, 409, origin);
 
   let body = {};
   try {
@@ -331,8 +333,10 @@ async function putCurrentReservation(request, env, auth, origin) {
   const crew = Number(body.crew);
   const requestedAccommodation = clean(body.accommodation);
   const accommodationOptionId = clean(body.accommodationOptionId);
-  const arrivalTypes = { "Pátek": "full_weekend", "Sobota": "saturday_only", "Jen na otočku": "day_visit" };
-  const attendanceType = arrivalTypes[arrival] || "";
+  if(body.eventId!==event.id)return json({ok:false,error:'event_changed',message:'Ročník formuláře již není aktuální. Obnov stránku a vyber pobyt znovu.'},409,origin);
+  const stay=resolveStay(body);
+  if(!stayFitsEvent(stay,event))return json({ok:false,error:'invalid_stay',message:'Upřesni příjezd a odjezd v termínu vybraného ročníku.'},400,origin);
+  const attendanceType=stay.attendanceType;
   const wantsAccommodation = attendanceType !== "day_visit" && requestedAccommodation !== "Bez ubytování";
   const accommodationUnits = wantsAccommodation ? Number(body.accommodationUnits) : 0;
 
@@ -397,6 +401,7 @@ async function putCurrentReservation(request, env, auth, origin) {
   const price = reservationPrice(existing ? existing.admission_czk : event.admission_registered_czk, pricing?.totalCzk || 0);
   const amountDueCzk = price.total;
   if(price.admission===null)return json({ok:false,error:'admission_not_configured',message:'Vstupné za auto zatím není nastavené. Registraci teď nelze odeslat.'},409,origin);
+  if(body.quotedTotalCzk!==amountDueCzk)return json({ok:false,error:'quote_changed',message:`Aktuální cena je ${amountDueCzk.toLocaleString('cs-CZ')} Kč. Obnov nabídku a potvrď ji znovu.`},409,origin);
   const reservationStatement = env.DB.prepare(`
     INSERT INTO reservations (
       id, member_id, event_id, car_id,
@@ -409,7 +414,7 @@ async function putCurrentReservation(request, env, auth, origin) {
     FROM events
     ${option ? "JOIN event_accommodation_options selected_option ON selected_option.id = ?" : ""}
     WHERE events.id = ?
-      AND (events.is_current = 1 OR NOT EXISTS (SELECT 1 FROM events current_event WHERE current_event.is_current = 1))
+      AND events.is_current = 1 AND events.starts_on = ? AND events.ends_on = ? AND events.ends_on >= ?
       AND events.registration_status = 'open' AND events.admission_registered_czk IS ?
       ${body.preliminaryId ? "AND EXISTS(SELECT 1 FROM preliminary_reservations p WHERE p.id=? AND p.member_id=? AND p.event_id=events.id AND p.status='active' AND p.revision=?) AND NOT EXISTS(SELECT 1 FROM reservations r WHERE r.member_id=? AND r.event_id=events.id)" : ''}
       ${option ? `AND selected_option.event_id = events.id AND selected_option.active = 1
@@ -454,7 +459,7 @@ async function putCurrentReservation(request, env, auth, origin) {
       admission_czk = excluded.admission_czk,
       submitted_at = CURRENT_TIMESTAMP,
       updated_at = excluded.updated_at
-    WHERE reservations.id = excluded.id
+    WHERE reservations.id = excluded.id AND reservations.status != 'approved'
   `);
   const baseBindings = [
     reservationId, auth.uid, car.id,
@@ -472,7 +477,7 @@ async function putCurrentReservation(request, env, auth, origin) {
     pricing.unitCount, auth.uid,
   ] : [];
   const preliminaryBindings=body.preliminaryId?[String(body.preliminaryId),auth.uid,Number(body.preliminaryRevision)||0,auth.uid]:[];
-  const statements = [reservationStatement.bind(...baseBindings, ...optionBindings, event.id, event.admission_registered_czk, ...preliminaryBindings, ...conditionBindings)];
+  const statements = [reservationStatement.bind(...baseBindings, ...optionBindings, event.id, event.starts_on,event.ends_on,pragueToday(env.clock?.()),event.admission_registered_czk, ...preliminaryBindings, ...conditionBindings)];
   if (option) {
     statements.push(env.DB.prepare(`
       INSERT INTO reservation_accommodation (
@@ -554,6 +559,9 @@ async function putCurrentReservation(request, env, auth, origin) {
           : "Pro tento event už máš uloženou rezervaci. Otevři ji a uprav nebo znovu odešli.",
       }, 409, origin);
     }
+    const latest=await getCurrentEvent(env);
+    if(!eventIsPublished(latest,pragueToday(env.clock?.()))||latest.id!==event.id||latest.registration_status!=='open')
+      return json({ok:false,error:'registration_closed',message:'Ročník nebo stav registrací se změnil. Obnov stránku.'},409,origin);
     if (option) return accommodationCapacityConflict(option.name, origin);
     return json({ ok: false, error: "registration_closed", message: "Rezervace byly mezitím uzavřeny. Rezervace nebyla uložena." }, 409, origin);
   }
@@ -597,6 +605,7 @@ function publicReservation(reservation) {
     changePending: reservation.status === "pending" && !!reservation.reviewed_at || reservation.member_request?.status==='pending'&&reservation.member_request?.type==='change' || false,
     cancellationPending: reservation.member_request?.status==='pending'&&reservation.member_request?.type==='cancellation' || false,
     attendanceType: reservation.attendance_type || "",
+    departure:storedStay(reservation.attendance_type)?.departure || null, stayNights:storedStay(reservation.attendance_type)?.nights ?? null,
     accommodationUnits: Number(reservation.accommodation_units || 0),
     accommodationSnapshot: mapAccommodationSnapshot(reservation),
     admissionCzk: reservation.admission_czk, amountDueCzk: Number(reservation.amount_due_czk || 0),
@@ -616,7 +625,7 @@ function publicMemberEvent(event) {
   return {
     id: event.id,
     year: Number(event.year || 0),
-    registrationStatus: event.registration_status || "closed",
+    startsOn:event.starts_on, endsOn:event.ends_on, registrationStatus: event.registration_status || "closed",
     admissionRegisteredCzk:event.admission_registered_czk, fullWeekendNights: Number(event.full_weekend_nights ?? 2),
     saturdayOnlyNights: Number(event.saturday_only_nights ?? 1),
   };

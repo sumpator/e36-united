@@ -65,6 +65,8 @@ function database(events = [{ id: 'event-2026', year: 2026, status: 'open' }]) {
   db.exec(plannerMigration);
   db.exec(reservationRequestMigration);
   db.exec(accommodationGalleryMigration);
+  db.exec("UPDATE events SET starts_on=year||'-06-18',ends_on=year||'-06-23'");
+  db.exec(readFileSync(new URL('../db/migrations/2026-09-19-preliminary-reservations.sql',import.meta.url),'utf8'));
   installReservationPayments(db);
   return db;
 }
@@ -169,17 +171,21 @@ async function submitWorkerReservation(db, { memberId, reservationId = null, peo
   db.prepare('INSERT OR IGNORE INTO members (id) VALUES (?)').run(memberId);
   db.prepare('INSERT OR IGNORE INTO cars (id, member_id, model, body, year, color, nickname) VALUES (?, ?, ?, ?, ?, ?, ?)')
     .run(`car-${memberId}`, memberId, '328i', 'Coupé', 1996, 'Modrá', 'Test E36');
+  const event=db.prepare('SELECT id,admission_registered_czk FROM events WHERE is_current=1').get();
+  const option=db.prepare('SELECT * FROM event_accommodation_options WHERE id=?').get(optionId);
+  const nights=arrival==='Pátek'?2:arrival==='Sobota'?1:0;
+  const quote=nights&&accommodation!=='Bez ubytování'&&option?price({people:accommodationUnits,capacity:option.capacity_per_unit,unitPrice:option.unit_price_czk,personPrice:option.person_price_czk,bedding:option.bedding_fee_per_person_czk,tax:option.city_tax_per_person_per_night_czk,nights}).total:0;
   const request = new Request('https://api.e36united.cz/api/reservations/current', {
     method: 'PUT', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      reservationId, carId: `car-${memberId}`, arrival, crew: people,
-      attendanceType: arrival === 'Pátek' ? 'full_weekend' : 'saturday_only',
+      eventId:event?.id,quotedTotalCzk:quote+(event?.admission_registered_czk||0),reservationId, carId: `car-${memberId}`, arrival, crew: people,
+      attendanceType: arrival === 'Pátek' ? 'full_weekend' : nights?'saturday_only':'day_visit',
       accommodation, accommodationOptionId: optionId, accommodationUnits,
       showShine: 'Ne', note: '',
       ...extraBody,
     }),
   });
-  return workerModule.putCurrentReservation(request, { DB: d1Binding(db) }, { uid: memberId }, 'https://e36united.cz');
+  return workerModule.putCurrentReservation(request, { clock:()=>new Date('2026-06-01T12:00Z'), DB: d1Binding(db) }, { uid: memberId }, 'https://e36united.cz');
 }
 
 async function setAdminReservationStatus(db, reservationId, status) {
@@ -187,29 +193,29 @@ async function setAdminReservationStatus(db, reservationId, status) {
     method: 'PATCH', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ status, reviewNote: '' }),
   });
-  return workerModule.patchAdminReservation(request, { DB: d1Binding(db) }, { uid: 'admin' }, reservationId, 'https://e36united.cz');
+  return workerModule.patchAdminReservation(request, { clock:()=>new Date('2026-06-01T12:00Z'), DB: d1Binding(db) }, { uid: 'admin' }, reservationId, 'https://e36united.cz');
 }
 
 async function recordFixtureBankPayment(db, reservationId, amountPaidCzk) {
   // These are new reservations with explicit admission. Seed their actual bank
   // ledger entry; the old aggregate PATCH is intentionally forbidden for them.
   db.prepare("INSERT OR IGNORE INTO members(id,name) VALUES('admin','Test Admin')").run();
-  return paymentStatement({ DB: d1Binding(db) }, { id: crypto.randomUUID(), eventId: 'event-2026', reservationId, amount: amountPaidCzk, method: 'bank', actorId: 'admin', reason: 'Isolated recorded payment' }).run();
+  return paymentStatement({ clock:()=>new Date('2026-06-01T12:00Z'), DB: d1Binding(db) }, { id: crypto.randomUUID(), eventId: 'event-2026', reservationId, amount: amountPaidCzk, method: 'bank', actorId: 'admin', reason: 'Isolated recorded payment' }).run();
 }
 
 async function submitChangeRequest(db,{memberId,reservationId,people,arrival='Pátek',accommodation='Chatka',optionId='cabin-a',accommodationUnits=people}){
   const request=new Request('https://api.e36united.cz/api/reservations/current/requests',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
-    reservationId,type:'change',memberNote:'',arrival,crew:people,accommodation,
+    reservationId,type:'change',memberNote:'',arrival,departure:arrival==='Jen na otočku'?'Stejný den':'Neděle',crew:people,accommodation,
     accommodationOptionId:accommodation==='Bez ubytování'?null:optionId,
     accommodationUnits:accommodation==='Bez ubytování'?0:accommodationUnits,showShine:'Ne',note:'',
   })});
-  return workerModule.submitReservationRequest(request,{DB:d1Binding(db)},{uid:memberId},reservationId,'https://e36united.cz');
+  return workerModule.submitReservationRequest(request,{clock:()=>new Date('2026-06-01T12:00Z'),DB:d1Binding(db)},{uid:memberId},reservationId,'https://e36united.cz');
 }
 
 async function approveChangeRequest(db,reservationId,requestId){
   db.prepare("INSERT OR IGNORE INTO members(id,name) VALUES('admin','Test Admin')").run();
   const request=new Request(`https://api.e36united.cz/api/admin/reservations/${reservationId}/requests/${requestId}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({decision:'approved',adminComment:''})});
-  return workerModule.reviewReservationRequest(request,{DB:d1Binding(db)},{uid:'admin'},reservationId,requestId,'https://e36united.cz');
+  return workerModule.reviewReservationRequest(request,{clock:()=>new Date('2026-06-01T12:00Z'),DB:d1Binding(db)},{uid:'admin'},reservationId,requestId,'https://e36united.cz');
 }
 
 class MemoryMedia {
@@ -307,7 +313,7 @@ test('9. re-approval is rejected when capacity is already full', async () => {
   addAllocation(db, { reservationId: 'r1', memberId: 'm1', units: 1, status: 'rejected' });
   addAllocation(db, { reservationId: 'r2', memberId: 'm2', units: 1, status: 'approved' });
   const request=new Request('https://api.e36united.cz/api/admin/reservations/r1',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:'approved',reviewNote:''})});
-  const response=await workerModule.patchAdminReservation(request,{DB:d1Binding(db)},{uid:'admin'},'r1','https://e36united.cz');
+  const response=await workerModule.patchAdminReservation(request,{clock:()=>new Date('2026-06-01T12:00Z'),DB:d1Binding(db)},{uid:'admin'},'r1','https://e36united.cz');
   assert.equal(response.status,409);
   assert.equal(db.prepare("SELECT status FROM reservations WHERE id='r1'").get().status,'rejected');
   assert.equal(db.prepare('SELECT COUNT(*) AS value FROM admin_actions').get().value,0);
@@ -316,12 +322,12 @@ test('9. re-approval is rejected when capacity is already full', async () => {
 test('10. admin cannot lower capacity below active blocked units', async () => {
   const db = database();
   const createRequest=new Request('https://api.e36united.cz/api/admin/accommodation',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({eventId:'event-2026',name:'Chatka A',kind:'cabin',inventoryMode:'limited',unitsTotal:3,capacityPerUnit:4,unitPriceCzk:2400,personPriceCzk:0,beddingFeePerPersonCzk:120,cityTaxPerPersonPerNightCzk:50,active:true})});
-  const createResponse=await workerModule.createAdminAccommodation(createRequest,{DB:d1Binding(db)},{uid:'admin'},'https://e36united.cz');
+  const createResponse=await workerModule.createAdminAccommodation(createRequest,{clock:()=>new Date('2026-06-01T12:00Z'),DB:d1Binding(db)},{uid:'admin'},'https://e36united.cz');
   assert.equal(createResponse.status,201);
   const optionId=(await createResponse.json()).option.id;
   addAllocation(db, { reservationId: 'r1', memberId: 'm1', optionId, units: 2, status: 'approved' });
   const request=new Request(`https://api.e36united.cz/api/admin/accommodation/${optionId}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({unitsTotal:1})});
-  const response=await workerModule.patchAdminAccommodation(request,{DB:d1Binding(db)},{uid:'admin'},optionId,'https://e36united.cz');
+  const response=await workerModule.patchAdminAccommodation(request,{clock:()=>new Date('2026-06-01T12:00Z'),DB:d1Binding(db)},{uid:'admin'},optionId,'https://e36united.cz');
   assert.equal(response.status,409);
   assert.equal(db.prepare('SELECT units_total FROM event_accommodation_options WHERE id=?').get(optionId).units_total, 3);
   assert.equal(db.prepare('SELECT COUNT(*) AS value FROM admin_actions').get().value,1,'only the successful create is audited');
@@ -330,21 +336,21 @@ test('10. admin cannot lower capacity below active blocked units', async () => {
 test('10a. capacity may be reduced exactly to approved usage', async () => {
   const db=database();addOption(db,{units:10});addAllocation(db,{reservationId:'r-approved',memberId:'m-approved',units:8,status:'approved'});
   const request=new Request('https://api.e36united.cz/api/admin/accommodation/cabin-a',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({unitsTotal:8})});
-  const response=await workerModule.patchAdminAccommodation(request,{DB:d1Binding(db)},{uid:'admin'},'cabin-a','https://e36united.cz');
+  const response=await workerModule.patchAdminAccommodation(request,{clock:()=>new Date('2026-06-01T12:00Z'),DB:d1Binding(db)},{uid:'admin'},'cabin-a','https://e36united.cz');
   assert.equal(response.status,200);assert.equal(db.prepare("SELECT units_total FROM event_accommodation_options WHERE id='cabin-a'").get().units_total,8);
 });
 
 test('10b. capacity reduction below ten approved units is blocked with a clear message', async () => {
   const db=database();addOption(db,{units:10});addAllocation(db,{reservationId:'r-approved',memberId:'m-approved',units:10,status:'approved'});
   const request=new Request('https://api.e36united.cz/api/admin/accommodation/cabin-a',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({unitsTotal:8})});
-  const response=await workerModule.patchAdminAccommodation(request,{DB:d1Binding(db)},{uid:'admin'},'cabin-a','https://e36united.cz');
+  const response=await workerModule.patchAdminAccommodation(request,{clock:()=>new Date('2026-06-01T12:00Z'),DB:d1Binding(db)},{uid:'admin'},'cabin-a','https://e36united.cz');
   assert.equal(response.status,409);assert.equal((await response.json()).message,'Kapacitu nelze snížit na 8. Aktuálně je potvrzeno 10 jednotek.');
 });
 
 test('10c. pending demand remains visible when capacity is reduced to approved usage', async () => {
   const db=database();addOption(db,{units:10});addAllocation(db,{reservationId:'r-approved',memberId:'m-approved',units:8,status:'approved'});addAllocation(db,{reservationId:'r-pending',memberId:'m-pending',units:2,status:'pending'});
   const request=new Request('https://api.e36united.cz/api/admin/accommodation/cabin-a',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({unitsTotal:8})});
-  const response=await workerModule.patchAdminAccommodation(request,{DB:d1Binding(db)},{uid:'admin'},'cabin-a','https://e36united.cz'),option=(await response.json()).option;
+  const response=await workerModule.patchAdminAccommodation(request,{clock:()=>new Date('2026-06-01T12:00Z'),DB:d1Binding(db)},{uid:'admin'},'cabin-a','https://e36united.cz'),option=(await response.json()).option;
   assert.equal(response.status,200);assert.deepEqual({approved:option.approvedUnits,pending:option.pendingUnits,free:option.freeUnits,conflict:option.pendingConflictUnits},{approved:8,pending:2,free:0,conflict:2});
 });
 
@@ -374,8 +380,8 @@ test('13. event selector scopes reservations to the selected year', async () => 
   const db = database([{ id: 'event-2025', year: 2025, status: 'closed' }, { id: 'event-2026', year: 2026, status: 'open' }]);
   db.prepare("INSERT INTO members (id,name,email,member_code) VALUES ('m25','Member 25','m25@example.test','EU-25'),('m26','Member 26','m26@example.test','EU-26')").run();
   db.prepare("INSERT INTO reservations (id,member_id,event_id,status) VALUES ('r25','m25','event-2025','approved'),('r26','m26','event-2026','pending')").run();
-  const response25=await workerModule.getAdminReservations({DB:d1Binding(db)},new URL('https://api.e36united.cz/api/admin/reservations?eventId=event-2025'),'https://e36united.cz');
-  const response26=await workerModule.getAdminReservations({DB:d1Binding(db)},new URL('https://api.e36united.cz/api/admin/reservations?eventId=event-2026'),'https://e36united.cz');
+  const response25=await workerModule.getAdminReservations({clock:()=>new Date('2026-06-01T12:00Z'),DB:d1Binding(db)},new URL('https://api.e36united.cz/api/admin/reservations?eventId=event-2025'),'https://e36united.cz');
+  const response26=await workerModule.getAdminReservations({clock:()=>new Date('2026-06-01T12:00Z'),DB:d1Binding(db)},new URL('https://api.e36united.cz/api/admin/reservations?eventId=event-2026'),'https://e36united.cz');
   assert.deepEqual((await response25.json()).reservations.map(row=>row.id),['r25']);
   assert.deepEqual((await response26.json()).reservations.map(row=>row.id),['r26']);
 });
@@ -383,7 +389,7 @@ test('13. event selector scopes reservations to the selected year', async () => 
 test('14. explicit current event is not automatically MAX(year)', async () => {
   const db = database([{ id: 'event-2025', year: 2025, status: 'closed' }, { id: 'event-2026', year: 2026, status: 'open' }]);
   const request=new Request('https://api.e36united.cz/api/admin/events/event-2025',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({isCurrent:true})});
-  const response=await workerModule.patchAdminEvent(request,{DB:d1Binding(db)},{uid:'admin'},'event-2025','https://e36united.cz');
+  const response=await workerModule.patchAdminEvent(request,{clock:()=>new Date('2026-06-01T12:00Z'),DB:d1Binding(db)},{uid:'admin'},'event-2025','https://e36united.cz');
   assert.equal(response.status,200);
   db.prepare("INSERT INTO events (id,year,registration_status,is_current,full_weekend_nights,saturday_only_nights) VALUES ('event-2027',2027,'closed',0,2,1)").run();
   const current = db.prepare('SELECT id FROM events ORDER BY is_current DESC, year DESC LIMIT 1').get();
@@ -497,7 +503,7 @@ test('21. capacity lowering and a concurrent approval cannot create confirmed ov
     method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ unitsTotal: 0 }),
   });
   const responses = await Promise.all([
-    workerModule.patchAdminAccommodation(request, { DB: d1Binding(db) }, { uid: 'admin' }, 'cabin-a', 'https://e36united.cz'),
+    workerModule.patchAdminAccommodation(request, { clock:()=>new Date('2026-06-01T12:00Z'), DB: d1Binding(db) }, { uid: 'admin' }, 'cabin-a', 'https://e36united.cz'),
     setAdminReservationStatus(db, 'r1', 'approved'),
   ]);
   assert.deepEqual(responses.map(response => response.status).sort(), [200, 409]);
@@ -596,10 +602,10 @@ test('28. a legacy crew-eight reservation stays readable and unchanged until red
   db.prepare("INSERT INTO members (id) VALUES ('legacy-member')").run();
   db.prepare("INSERT INTO cars (id,member_id,model,body,year) VALUES ('car-legacy-member','legacy-member','328i','Coupé',1996)").run();
   db.prepare("INSERT INTO reservations (id,member_id,event_id,car_id,crew,arrival,accommodation,accommodation_units,show_shine,status) VALUES ('legacy-eight','legacy-member','event-2026','car-legacy-member',8,'Jen na otočku','Bez ubytování',0,'Ne','approved')").run();
-  const adminResponse = await workerModule.getAdminReservations({ DB: d1Binding(db) }, new URL('https://api.e36united.cz/api/admin/reservations?eventId=event-2026'), 'https://e36united.cz');
+  const adminResponse = await workerModule.getAdminReservations({ clock:()=>new Date('2026-06-01T12:00Z'), DB: d1Binding(db) }, new URL('https://api.e36united.cz/api/admin/reservations?eventId=event-2026'), 'https://e36united.cz');
   assert.equal(adminResponse.status, 200);
   assert.equal((await adminResponse.json()).reservations.find(row => row.id === 'legacy-eight').crew, 8);
-  const readable = await workerModule.getCurrentReservation({ DB: d1Binding(db) }, { uid: 'legacy-member' }, 'https://e36united.cz');
+  const readable = await workerModule.getCurrentReservation({ clock:()=>new Date('2026-06-01T12:00Z'), DB: d1Binding(db) }, { uid: 'legacy-member' }, 'https://e36united.cz');
   assert.equal(readable.status, 200);
   assert.equal((await readable.json()).reservation.crew, 8);
   const unchanged = await submitWorkerReservation(db, { memberId: 'legacy-member', reservationId: 'legacy-eight', people: 8, arrival: 'Jen na otočku' });
@@ -635,7 +641,7 @@ test('29. paid reservations reconcile the four required edit scenarios without c
     const editResponse = await submitChangeRequest(db, { memberId: 'm1', reservationId: created.id, people: 3, accommodationUnits: 3 });
     assert.equal(editResponse.status, 201);
     const requestId=(await editResponse.json()).request.id;
-    const waitingResponse=await workerModule.getCurrentReservation({DB:d1Binding(db)},{uid:'m1'},'https://e36united.cz');
+    const waitingResponse=await workerModule.getCurrentReservation({clock:()=>new Date('2026-06-01T12:00Z'),DB:d1Binding(db)},{uid:'m1'},'https://e36united.cz');
     const waiting=(await waitingResponse.json()).reservation;
     assert.equal(waiting.id,created.id);
     assert.equal(waiting.status,'approved');
@@ -648,7 +654,7 @@ test('29. paid reservations reconcile the four required edit scenarios without c
     assert.deepEqual({ ...storedPending }, { ...beforeEdit });
 
     assert.equal((await approveChangeRequest(db,created.id,requestId)).status,200);
-    const approvedResponse = await workerModule.getCurrentReservation({ DB: d1Binding(db) }, { uid: 'm1' }, 'https://e36united.cz');
+    const approvedResponse = await workerModule.getCurrentReservation({ clock:()=>new Date('2026-06-01T12:00Z'), DB: d1Binding(db) }, { uid: 'm1' }, 'https://e36united.cz');
     assert.equal(approvedResponse.status, 200);
     const approved = (await approvedResponse.json()).reservation;
     assert.equal(approved.id, created.id);
@@ -677,7 +683,7 @@ test('30. member reservation writes reject protected finance and VS fields witho
 });
 
 test('31. accommodation photo upload, replacement, public delivery and removal share one R2 object', async () => {
-  const db=database();addOption(db);const MEDIA=new MemoryMedia(),env={DB:d1Binding(db),MEDIA};
+  const db=database();addOption(db);const MEDIA=new MemoryMedia(),env={clock:()=>new Date('2026-06-01T12:00Z'),DB:d1Binding(db),MEDIA};
   const upload=async bytes=>{const form=new FormData();form.append('file',new Blob([jpegFixture(bytes)],{type:'image/jpeg'}),'cabin.jpg');return workerModule.putAdminAccommodationPhoto(new Request('https://api.e36united.cz/api/admin/accommodation/cabin-a/photo',{method:'PUT',body:form}),env,{uid:'admin'},'cabin-a','https://e36united.cz')};
   const first=await upload('first-photo');assert.equal(first.status,200);const firstVisual=(await first.json()).visual;assert.equal(firstVisual.hasCustomPhoto,true);assert.match(firstVisual.imageUrl,/\/api\/accommodation\/media\/cabin-a\?v=/);
   const second=await upload('replacement-photo');assert.equal(second.status,200);const secondVisual=(await second.json()).visual;assert.notEqual(secondVisual.version,firstVisual.version,'replacement changes the cache version');
@@ -687,13 +693,13 @@ test('31. accommodation photo upload, replacement, public delivery and removal s
 });
 
 test('32. unauthenticated accommodation photo mutation is rejected before R2 or D1 access', async () => {
-  let touched=false;const env={DB:{prepare(){touched=true;throw new Error('DB must not be touched')}},MEDIA:{put(){touched=true;throw new Error('R2 must not be touched')}}};
+  let touched=false;const env={clock:()=>new Date('2026-06-01T12:00Z'),DB:{prepare(){touched=true;throw new Error('DB must not be touched')}},MEDIA:{put(){touched=true;throw new Error('R2 must not be touched')}}};
   const response=await workerModule.default.fetch(new Request('https://api.e36united.cz/api/admin/accommodation/cabin-a/photo',{method:'PUT'}),env);
   assert.equal(response.status,401);assert.equal(touched,false);
 });
 
 test('33. accommodation gallery keeps cover first, stable order, five-photo limit and no rejected-upload orphan', async () => {
-  const db=database();addOption(db);const MEDIA=new MemoryMedia(),env={DB:d1Binding(db),MEDIA};
+  const db=database();addOption(db);const MEDIA=new MemoryMedia(),env={clock:()=>new Date('2026-06-01T12:00Z'),DB:d1Binding(db),MEDIA};
   const upload=async(label)=>{const form=new FormData();form.append('file',new Blob([jpegFixture(label)],{type:'image/jpeg'}),`${label}.jpg`);return workerModule.postAdminAccommodationGalleryPhoto(new Request('https://api.e36united.cz/api/admin/accommodation/cabin-a/photos',{method:'POST',body:form}),env,{uid:'admin'},'cabin-a','https://e36united.cz')};
   const coverForm=new FormData();coverForm.append('file',new Blob([jpegFixture('cover-photo')],{type:'image/jpeg'}),'cover.jpg');
   assert.equal((await workerModule.putAdminAccommodationPhoto(new Request('https://api.e36united.cz/api/admin/accommodation/cabin-a/photo',{method:'PUT',body:coverForm}),env,{uid:'admin'},'cabin-a','https://e36united.cz')).status,200);
@@ -706,7 +712,7 @@ test('33. accommodation gallery keeps cover first, stable order, five-photo limi
 });
 
 test('34. additional accommodation photos reorder and delete independently while the cover remains unchanged', async () => {
-  const db=database();addOption(db);const MEDIA=new MemoryMedia(),env={DB:d1Binding(db),MEDIA};
+  const db=database();addOption(db);const MEDIA=new MemoryMedia(),env={clock:()=>new Date('2026-06-01T12:00Z'),DB:d1Binding(db),MEDIA};
   const put=async(path,label,method='POST')=>{const form=new FormData();form.append('file',new Blob([imageFixture('image/webp')],{type:'image/webp'}),`${label}.webp`);return method==='PUT'?workerModule.putAdminAccommodationPhoto(new Request(`https://api.e36united.cz${path}`,{method,body:form}),env,{uid:'admin'},'cabin-a','https://e36united.cz'):workerModule.postAdminAccommodationGalleryPhoto(new Request(`https://api.e36united.cz${path}`,{method,body:form}),env,{uid:'admin'},'cabin-a','https://e36united.cz')};
   await put('/api/admin/accommodation/cabin-a/photo','cover','PUT');await put('/api/admin/accommodation/cabin-a/photos','first');await put('/api/admin/accommodation/cabin-a/photos','second');
   let listing=await workerModule.getAdminAccommodation(env,new URL('https://api.e36united.cz/api/admin/accommodation?eventId=event-2026'),'https://e36united.cz'),photos=(await listing.json()).options[0].photos,firstId=photos[1].id,secondId=photos[2].id;
@@ -719,7 +725,7 @@ test('34. additional accommodation photos reorder and delete independently while
 });
 
 test('35. without a cover the first additional photo becomes visual and the empty option keeps fallback metadata', async () => {
-  const db=database();addOption(db);addOption(db,{id:'tent-empty',name:'Stan',kind:'tent'});const MEDIA=new MemoryMedia(),env={DB:d1Binding(db),MEDIA};
+  const db=database();addOption(db);addOption(db,{id:'tent-empty',name:'Stan',kind:'tent'});const MEDIA=new MemoryMedia(),env={clock:()=>new Date('2026-06-01T12:00Z'),DB:d1Binding(db),MEDIA};
   const form=new FormData();form.append('file',new Blob([imageFixture('image/png')],{type:'image/png'}),'first.png');await workerModule.postAdminAccommodationGalleryPhoto(new Request('https://api.e36united.cz/api/admin/accommodation/cabin-a/photos',{method:'POST',body:form}),env,{uid:'admin'},'cabin-a','https://e36united.cz');
   const listing=await workerModule.getAdminAccommodation(env,new URL('https://api.e36united.cz/api/admin/accommodation?eventId=event-2026'),'https://e36united.cz'),options=(await listing.json()).options,withPhoto=options.find(option=>option.id==='cabin-a'),empty=options.find(option=>option.id==='tent-empty');
   assert.equal(withPhoto.photos.length,1);assert.equal(withPhoto.photos[0].role,'additional');assert.equal(withPhoto.visual.imageUrl,withPhoto.photos[0].imageUrl);assert.equal(empty.photos.length,0);assert.equal(empty.visual.hasCustomPhoto,false);

@@ -1,3 +1,4 @@
+import { resolveStay,storedStay,stayFitsEvent } from '../../../event-stay.js';
 import { json } from '../../http/responses.js';
 import { clean } from '../../utils/text.js';
 import { calculateAccommodationPricing } from './pricing.js';
@@ -27,7 +28,7 @@ const requestView=row=>row?{
 
 function reservationSnapshot(row){
   return {
-    arrival:row.arrival||'',attendanceType:row.attendance_type||'',crew:Number(row.crew||1),
+    arrival:row.arrival||'',departure:storedStay(row.attendance_type)?.departure||null,attendanceType:row.attendance_type||'',crew:Number(row.crew||1),
     accommodation:row.accommodation||'Bez ubytování',accommodationOptionId:row.accommodation_option_id||null,
     accommodationUnits:Number(row.accommodation_units||0),showShine:row.show_shine||'Ne',note:row.note||'',
     amountDueCzk:Number(row.amount_due_czk||0),amountPaidCzk:Number(row.amount_paid_czk||0),
@@ -36,7 +37,7 @@ function reservationSnapshot(row){
 }
 
 async function reservationRequestSource(env,reservationId,memberId=null){
-  return env.DB.prepare(`SELECT r.*,e.year AS event_year,e.full_weekend_nights,e.saturday_only_nights,
+  return env.DB.prepare(`SELECT r.*,e.year AS event_year,e.starts_on,e.ends_on,e.full_weekend_nights,e.saturday_only_nights,
     ra.option_id AS accommodation_option_id,ra.option_name AS accommodation_option_name,ra.kind AS accommodation_option_kind,
     ra.people_count AS accommodation_people_count,ra.unit_count AS accommodation_unit_count,ra.unit_price_czk AS accommodation_unit_price_czk,
     ra.person_price_czk AS accommodation_person_price_czk,ra.bedding_fee_per_person_czk AS accommodation_bedding_fee_czk,
@@ -52,7 +53,9 @@ async function normalizeProposal(env,row,body){
   if(row.admission_czk==null)throw Object.assign(new Error('Stará testovací rezervace nemá nové cenové položky. Její vstupné ani úhrady neodhadujeme.'),{code:'legacy_price_snapshot_missing',status:409});
   const arrival=clean(body.arrival),crew=Number(body.crew),requestedAccommodation=clean(body.accommodation);
   const showShine=clean(body.showShine),note=clean(body.note).slice(0,1000),optionId=clean(body.accommodationOptionId);
-  const attendanceType=({Pátek:'full_weekend',Sobota:'saturday_only','Jen na otočku':'day_visit'})[arrival]||'';
+  const stay=resolveStay(body);
+  if(!stayFitsEvent(stay,row))throw Object.assign(new Error('Upřesni příjezd a odjezd v termínu ročníku.'),{code:'invalid_stay'});
+  const attendanceType=stay.attendanceType;
   const wantsAccommodation=attendanceType!=='day_visit'&&requestedAccommodation!=='Bez ubytování';
   const accommodationUnits=wantsAccommodation?Number(body.accommodationUnits):0;
   if(!['Pátek','Sobota','Jen na otočku'].includes(arrival))throw Object.assign(new Error('Vyber platný příjezd.'),{code:'invalid_arrival'});
@@ -77,7 +80,7 @@ async function normalizeProposal(env,row,body){
     }else pricing=calculateAccommodationPricing(row,option,accommodationUnits,attendanceType);
     option=option||{id:stored.optionId,name:stored.optionName,kind:stored.kind,active:0};
   }
-  return {arrival,attendanceType,crew,accommodation,accommodationOptionId:option?.id||null,
+  return {arrival,departure:stay.departure,attendanceType,crew,accommodation,accommodationOptionId:option?.id||null,
     accommodationUnits,showShine,note,amountDueCzk:(pricing?.totalCzk||0)+(row.admission_czk||0),
     accommodationSnapshot:option?{optionId:option.id,optionName:option.name,kind:option.kind,
       peopleCount:accommodationUnits,...pricing,...(retainsApproved&&option.active!==1?{retainedApprovedOption:true,configurationMissing}:{})}:null};
@@ -90,7 +93,7 @@ async function readBody(request,origin){
 
 async function submitReservationRequest(request,env,auth,reservationId,origin){
   const body=await readBody(request,origin);if(body instanceof Response)return body;
-  const allowed=new Set(['reservationId','type','memberNote','arrival','crew','accommodation','accommodationOptionId','accommodationUnits','showShine','note']);
+  const allowed=new Set(['reservationId','type','memberNote','arrival','departure','quotedTotalCzk','crew','accommodation','accommodationOptionId','accommodationUnits','showShine','note']);
   if(Object.keys(body).some(key=>!allowed.has(key)))return json({ok:false,error:'invalid_fields',message:'Žádost obsahuje nepovolené údaje.'},400,origin);
   const type=clean(body.type),memberNote=clean(body.memberNote).slice(0,1000);
   if(!['change','cancellation'].includes(type))return json({ok:false,error:'invalid_request_type',message:'Vyber změnu nebo zrušení rezervace.'},400,origin);
@@ -101,6 +104,7 @@ async function submitReservationRequest(request,env,auth,reservationId,origin){
   let proposed=null;
   if(type==='change'){
     try{proposed=await normalizeProposal(env,row,body)}catch(error){return json({ok:false,error:error.code||'invalid_request',message:error.message},error.status||400,origin)}
+    if(Object.hasOwn(body,'quotedTotalCzk')&&body.quotedTotalCzk!==proposed.amountDueCzk)return json({ok:false,error:'quote_changed',message:`Aktuální cena je ${proposed.amountDueCzk.toLocaleString('cs-CZ')} Kč. Obnov nabídku a potvrď ji znovu.`},409,origin);
     const snapshot=proposed.accommodationSnapshot,capacity=await getReservationChangeCapacity(env,reservationId,row.event_id,snapshot?.optionId||null,snapshot?.unitCount||0);
     if(snapshot&&!capacity)return json({ok:false,error:'accommodation_option_not_found',message:'Vybrané ubytování už není dostupné.'},409,origin);
     if(capacity&&!capacity.available)return accommodationCapacityConflict(capacity.optionName,origin,
@@ -190,7 +194,7 @@ async function reviewReservationRequest(request,env,auth,reservationId,requestId
   if(!['approved','rejected'].includes(decision))return json({ok:false,error:'invalid_decision',message:'Vyber schválení nebo zamítnutí.'},400,origin);
   const requestRow=await env.DB.prepare(`SELECT rr.*,r.status AS reservation_status,r.event_id,r.member_id,r.amount_paid_czk,r.amount_due_czk,r.admission_czk,
     r.arrival,r.attendance_type,r.crew,r.accommodation,r.accommodation_units,r.show_shine,r.note,
-    e.full_weekend_nights,e.saturday_only_nights,ra.option_id AS accommodation_option_id,ra.option_name AS accommodation_option_name,
+    e.starts_on,e.ends_on,e.full_weekend_nights,e.saturday_only_nights,ra.option_id AS accommodation_option_id,ra.option_name AS accommodation_option_name,
     ra.kind AS accommodation_option_kind,ra.people_count AS accommodation_people_count,ra.unit_count AS accommodation_unit_count,
     ra.unit_price_czk AS accommodation_unit_price_czk,ra.person_price_czk AS accommodation_person_price_czk,
     ra.bedding_fee_per_person_czk AS accommodation_bedding_fee_czk,ra.city_tax_per_person_per_night_czk AS accommodation_city_tax_czk,
@@ -223,6 +227,7 @@ async function reviewReservationRequest(request,env,auth,reservationId,requestId
   const proposed=parseJson(requestRow.proposed_json);
   if(!proposed)return json({ok:false,error:'invalid_request_data',message:'Navržené údaje nelze bezpečně načíst.'},409,origin);
   let normalized;try{normalized=await normalizeProposal(env,requestRow,proposed)}catch(error){return json({ok:false,error:error.code||'invalid_request',message:error.message},error.status||409,origin)}
+  if(proposed.amountDueCzk!==normalized.amountDueCzk)return json({ok:false,error:'quote_changed',message:'Cena návrhu se změnila. Člen musí nejprve potvrdit nový návrh.'},409,origin);
   const snapshot=normalized.accommodationSnapshot,option=snapshot?await env.DB.prepare('SELECT * FROM event_accommodation_options WHERE id=? AND event_id=?').bind(snapshot.optionId,requestRow.event_id).first():null;
   const capacity=await getReservationChangeCapacity(env,reservationId,requestRow.event_id,snapshot?.optionId||null,snapshot?.unitCount||0);
   if(snapshot&&!capacity)return json({ok:false,error:'accommodation_option_not_found',message:'Vybrané ubytování už není dostupné. Obnov detail žádosti.'},409,origin);

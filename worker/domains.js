@@ -11,6 +11,7 @@ import {
 } from "./domains/accommodation.js";
 import {
   getAdminEvents,
+  eventIsPublished,pragueToday,
   getCurrentEvent,
   getEventById,
   getRequestedAdminEvent,
@@ -96,6 +97,7 @@ async function getAdminOverview(env, url, origin) {
       COALESCE(SUM(CASE WHEN status = 'approved' THEN 1 ELSE 0 END), 0) AS status_approved,
       COALESCE(SUM(CASE WHEN status = 'rejected' THEN 1 ELSE 0 END), 0) AS status_rejected,
       COALESCE(SUM(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END), 0) AS status_cancelled,
+      COALESCE(SUM(CASE WHEN status IN ('pending', 'approved') AND attendance_type = 'friday_only' THEN 1 ELSE 0 END), 0) AS attendance_friday_only,
       COALESCE(SUM(CASE WHEN status IN ('pending', 'approved') AND attendance_type = 'full_weekend' THEN 1 ELSE 0 END), 0) AS attendance_full_weekend,
       COALESCE(SUM(CASE WHEN status IN ('pending', 'approved') AND attendance_type = 'saturday_only' THEN 1 ELSE 0 END), 0) AS attendance_saturday_only,
       COALESCE(SUM(CASE WHEN status IN ('pending', 'approved') AND attendance_type = 'day_visit' THEN 1 ELSE 0 END), 0) AS attendance_day_visit,
@@ -157,6 +159,7 @@ function mapAdminOverview(row = {}) {
       cancelled: Number(row.status_cancelled || 0),
     },
     attendance: {
+      fridayOnly: Number(row.attendance_friday_only || 0),
       fullWeekend: Number(row.attendance_full_weekend || 0),
       saturdayOnly: Number(row.attendance_saturday_only || 0),
       dayVisit: Number(row.attendance_day_visit || 0),
@@ -188,15 +191,17 @@ function mapAdminOverview(row = {}) {
 
 async function getPublicCurrentEvent(env, origin) {
   const event = await getCurrentEvent(env);
-  if (!event) return json({ ok: true, event: null, accommodationOptions: [] }, 200, origin);
-  const options = await listAccommodationOptions(env, event.id, true);
+  if (!eventIsPublished(event,pragueToday(env.clock?.()))) return json({ ok: true, event: null, accommodationOptions: [] }, 200, origin);
+  const preliminary=await env.DB.prepare('SELECT enabled FROM event_preliminary_settings WHERE event_id=?').bind(event.id).first();
+  const open=event.registration_status==='open';
+  const options=open || preliminary?.enabled ? await listAccommodationOptions(env,event.id,true) : [];
   return json({
     ok: true,
     event: {
       id: event.id,
       year: Number(event.year || 0),
       registrationStatus: event.registration_status || "closed", admissionRegisteredCzk:event.admission_registered_czk,
-      registrationOpen: event.registration_status === "open",
+      offerDate:pragueToday(env.clock?.()), title:event.title, registrationOpen:open, preliminaryEnabled:!open && preliminary?.enabled===1,
       startsOn: event.starts_on || null,
       endsOn: event.ends_on || null,
       venueName: event.venue_name || null,

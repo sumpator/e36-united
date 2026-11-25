@@ -1,5 +1,5 @@
 import { initUnitedAuth, authRecoveryCopy, authPersistenceNotice } from './united-auth.js?v=20261101-auth1';
-import { shouldShowJoinCta } from './planner-state.js?v=20261025-flow1';
+import { shouldShowJoinCta } from './planner-state.js?v=20261125-stay1';
 import { ACCOUNT_USED_KEY, hasUsedAccount, accountEntryHref } from './member/deep-links.js?v=20261028-entry1';
 
 export function renderAccountLinks(state, root=document){

@@ -165,7 +165,7 @@ test('disabled approved accommodation may be retained but cannot be newly select
 
 test('missing approved accommodation uses its stored snapshot only for a safe unchanged stay',async()=>{
   const r=prepare();r.db.exec('PRAGMA foreign_keys=OFF');r.db.exec("UPDATE reservation_accommodation SET option_id='removed-cab' WHERE reservation_id='r'; DELETE FROM event_accommodation_options WHERE id='cab'");r.db.exec('PRAGMA foreign_keys=ON');
-  let response=await submit(r,{...change,arrival:'Pátek',accommodationUnits:2,accommodationOptionId:'removed-cab',note:'Bez změny pobytu'});assert.equal(response.status,201);
+  let response=await submit(r,{...change,arrival:'Pátek',departure:'Neděle',accommodationUnits:2,accommodationOptionId:'removed-cab',note:'Bez změny pobytu'});assert.equal(response.status,201);
   const created=await response.json();assert.equal(created.request.proposed.accommodationSnapshot.configurationMissing,true);assert.equal(created.request.proposed.amountDueCzk,1200);
   assert.equal((await decide(r,created.request.id,'approved')).status,200);
   response=await submit(r,{...change,accommodationUnits:2,accommodationOptionId:'removed-cab',arrival:'Sobota'});assert.equal(response.status,409);

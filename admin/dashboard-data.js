@@ -30,7 +30,7 @@ export function chartModel(id,summary,analytics,range='all'){
   if(id==='statuses')return{unit:'registrace',kind:'bars',definition:'Disjunktní stavy všech uložených registrací vybraného ročníku.',
     rows:[['pending','Čekající'],['approved','Schválené'],['rejected','Zamítnuté'],['cancelled','Zrušené'],['draft','Koncepty']].map(([key,label])=>row(label,o.statuses?.[key],key))};
   if(id==='attendance')return{unit:'aktivní registrace',kind:'bars',definition:'Plánovaná účast pending + approved registrací. Nikoli skutečný příjezd / check-in.',
-    rows:[['fullWeekend','Celý víkend','full_weekend'],['saturdayOnly','Sobota','saturday_only'],['dayVisit','Na otočku','day_visit']].map(([key,label,type])=>row(label,o.attendance?.[key],'active',{drill:{attendance:type}}))};
+    rows:[['fullWeekend','Celý víkend','full_weekend'],['fridayOnly','Pátek → Sobota','friday_only'],['saturdayOnly','Sobota → Neděle','saturday_only'],['dayVisit','Na otočku','day_visit']].map(([key,label,type])=>row(label,o.attendance?.[key],'active',{drill:{attendance:type}}))};
   if(id==='sns')return{unit:'aktivní registrace',kind:'bars',definition:'Deklarovaný zájem pending + approved registrací. Nikoli přihlášky, hodnocení nebo výsledky.',
     rows:[['yes','Ano'],['maybe','Možná'],['no','Ne']].map(([key,label])=>row(label,o.showShine?.[key],'active',{drill:{sns:label}}))};
   return null;

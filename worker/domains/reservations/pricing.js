@@ -1,9 +1,8 @@
+import { storedStay } from '../../../event-stay.js';
 function calculateAccommodationPricing(event, option, peopleCount, attendanceType) {
   const capacityPerUnit = Math.max(1, Number(option.capacity_per_unit || 1));
   const unitCount = Math.ceil(peopleCount / capacityPerUnit);
-  const nights = attendanceType === "full_weekend"
-    ? Number(event.full_weekend_nights ?? 2)
-    : attendanceType === "saturday_only" ? Number(event.saturday_only_nights ?? 1) : 0;
+  const nights = storedStay(attendanceType).nights;
   const unitPriceCzk = Number(option.unit_price_czk || 0);
   const personPriceCzk = Number(option.person_price_czk || 0);
   const beddingFeePerPersonCzk = Number(option.bedding_fee_per_person_czk || 0);

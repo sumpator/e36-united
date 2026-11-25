@@ -186,9 +186,9 @@ test('reservation consumes the plan only after success and keeps it after failur
   await worker.putPlannerDraft(request({draft:draft()}),{DB},auth,'https://e36united.cz');
   const closed=await worker.putCurrentReservation(new Request('https://api.e36united.cz/api/reservations/current',{method:'PUT',headers:{'Content-Type':'application/json'},body:'{}'}),{DB},auth,'https://e36united.cz');
   assert.equal(closed.status,409);assert.equal(db.prepare('SELECT COUNT(*) AS count FROM member_planner_drafts').get().count,1);
-  db.prepare("UPDATE events SET registration_status='open'").run();
-  const reservationRequest=new Request('https://api.e36united.cz/api/reservations/current',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({carId:'car-a',arrival:'Jen na otočku',crew:1,attendanceType:'day_visit',accommodation:'Bez ubytování',accommodationOptionId:null,accommodationUnits:0,showShine:'Ne',note:''})});
-  const success=await worker.putCurrentReservation(reservationRequest,{DB},auth,'https://e36united.cz');
+  db.prepare("UPDATE events SET starts_on='2026-06-19',ends_on='2026-06-21',registration_status='open'").run();
+  const reservationRequest=new Request('https://api.e36united.cz/api/reservations/current',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({eventId:'event-2026',quotedTotalCzk:0,carId:'car-a',arrival:'Jen na otočku',crew:1,attendanceType:'day_visit',accommodation:'Bez ubytování',accommodationOptionId:null,accommodationUnits:0,showShine:'Ne',note:''})});
+  const success=await worker.putCurrentReservation(reservationRequest,{DB,clock:()=>new Date('2026-06-01T12:00Z')},auth,'https://e36united.cz');
   assert.equal(success.status,200);assert.equal(db.prepare('SELECT COUNT(*) AS count FROM reservations').get().count,1);assert.equal(db.prepare('SELECT COUNT(*) AS count FROM member_planner_drafts').get().count,0);
   const navigation=await jsonOf(await worker.getMemberNavigationState({DB},auth,'https://e36united.cz'));
   assert.deepEqual({hasWaitingPlan:navigation.payload.hasWaitingPlan,hasReservation:navigation.payload.hasReservation},{hasWaitingPlan:false,hasReservation:true});

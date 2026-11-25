@@ -9,7 +9,7 @@ import {putCurrentReservation,getCurrentReservation} from '../worker/domains/res
 import {getAdminSummary} from '../worker/admin/summary.js';
 const origin='https://e36united.cz',auth={uid:'m'};
 const req=(body,method='PUT',path='/api/preliminary-reservations/current',token)=>new Request('https://api.e36united.cz'+path,{method,headers:{Origin:origin,'Content-Type':'application/json',...(token?{Authorization:'Bearer '+token}:{})},...(method==='GET'?{}:{body:JSON.stringify(body)})});
-const preference={eventId:'e',revision:0,carId:'c',arrival:'Pátek',crew:2,crewDetails:['Řidič','Doprovod'],accommodation:'Chatka',accommodationOptionId:'cab',accommodationUnits:2,showShine:'Možná',note:'Nezávazná preference'};
+const preference={eventId:'e',revision:0,carId:'c',arrival:'Pátek',departure:'Neděle',crew:2,crewDetails:['Řidič','Doprovod'],accommodation:'Chatka',accommodationOptionId:'cab',accommodationUnits:2,showShine:'Možná',note:'Nezávazná preference'};
 function setup(){const r=memberRuntime();r.db.exec(`DELETE FROM reservations;UPDATE events SET registration_status='closed',admission_registered_czk=0 WHERE id='e';
  INSERT INTO event_preliminary_settings(event_id,enabled,write_token) VALUES('e',1,'fixture');
  INSERT INTO event_accommodation_options(id,event_id,name,kind,inventory_mode,units_total,capacity_per_unit,unit_price_czk,active) VALUES('cab','e','Chatka','cabin','limited',1,4,500,1);`);return r;}
@@ -60,24 +60,24 @@ test('non-binding plan allows no car while real reservation still requires one',
  const r=setup();assert.equal((await save(r,{...preference,carId:null})).status,200);
  let p=(await(await get(r)).json()).preliminary;assert.equal(p.preferences.carId,null);
  r.db.exec("UPDATE events SET registration_status='open' WHERE id='e'");
- const response=await putCurrentReservation(req({...p.preferences,preliminaryId:p.id,preliminaryRevision:p.revision}),r.env,auth,origin);
+ const response=await putCurrentReservation(req({eventId:'e',quotedTotalCzk:1500,...p.preferences,preliminaryId:p.id,preliminaryRevision:p.revision}),r.env,auth,origin);
  assert.equal(response.status,400);assert.equal((await response.json()).error,'car_required');p=(await(await get(r)).json()).preliminary;
  assert.equal(p.status,'active');assert.equal(r.db.prepare('SELECT COUNT(*) n FROM reservations').get().n,0);r.db.close();
 });
 test('day visit stores no accommodation and cancellation remains possible after registrations open',async()=>{
- const r=setup();assert.equal((await save(r,{...preference,arrival:'Jen na otočku'})).status,200);
+ const r=setup();assert.equal((await save(r,{...preference,arrival:'Jen na otočku',departure:'Stejný den'})).status,200);
  const p=(await (await get(r)).json()).preliminary;assert.equal(p.preferences.accommodation,'Bez ubytování');assert.equal(p.preferences.accommodationUnits,0);assert.equal(p.preferences.accommodationOptionId,null);
  r.db.exec("UPDATE events SET registration_status='open' WHERE id='e'");assert.equal((await cancelPreliminaryReservation(req({eventId:'e',revision:p.revision},'DELETE'),r.env,auth,origin)).status,200);r.db.close();
 });
 test('opening registration/read never converts; explicit confirmation validates latest price and consumes atomically',async()=>{
  const r=setup();await save(r);let p=(await (await get(r)).json()).preliminary;
- assert.equal((await putCurrentReservation(req({...p.preferences,preliminaryId:p.id,preliminaryRevision:p.revision}),r.env,auth,origin)).status,409);
+ assert.equal((await putCurrentReservation(req({eventId:'e',quotedTotalCzk:1500,...p.preferences,preliminaryId:p.id,preliminaryRevision:p.revision}),r.env,auth,origin)).status,409);
  r.db.exec("UPDATE events SET registration_status='open' WHERE id='e';UPDATE event_accommodation_options SET unit_price_czk=750 WHERE id='cab'");
  const before=snapshot(r);await get(r);await getCurrentReservation(r.env,auth,origin);assert.equal(snapshot(r),before);assert.equal((await (await get(r)).json()).preliminary.status,'active');
- const response=await putCurrentReservation(req({...p.preferences,preliminaryId:p.id,preliminaryRevision:p.revision}),r.env,auth,origin);assert.equal(response.status,200,await response.clone().text());
+ const response=await putCurrentReservation(req({eventId:'e',quotedTotalCzk:1500,...p.preferences,preliminaryId:p.id,preliminaryRevision:p.revision}),r.env,auth,origin);assert.equal(response.status,200,await response.clone().text());
  const real=(await response.json()).reservation;assert.equal(real.status,'pending');assert.equal(real.amountDueCzk,1500);assert.equal((await (await get(r)).json()).preliminary.status,'converted');
  assert.equal(r.db.prepare('SELECT COUNT(*) n FROM member_qr_identities').get().n,0);
- assert.equal((await putCurrentReservation(req({...p.preferences,preliminaryId:p.id,preliminaryRevision:p.revision}),r.env,auth,origin)).status,409);r.db.close();
+ assert.equal((await putCurrentReservation(req({eventId:'e',quotedTotalCzk:1500,...p.preferences,preliminaryId:p.id,preliminaryRevision:p.revision}),r.env,auth,origin)).status,409);r.db.close();
 });
 test('conversion revalidates capacity, car ownership, option activity and revision without losing interest',async()=>{
  for(const kind of ['capacity','car','option','revision']){
@@ -85,7 +85,7 @@ test('conversion revalidates capacity, car ownership, option activity and revisi
   if(kind==='capacity')r.db.exec("UPDATE event_accommodation_options SET units_total=0 WHERE id='cab'");
   if(kind==='car')r.db.exec("DELETE FROM cars WHERE id='c'");
   if(kind==='option')r.db.exec("UPDATE event_accommodation_options SET active=0 WHERE id='cab'");
-  const response=await putCurrentReservation(req({...p.preferences,preliminaryId:p.id,preliminaryRevision:kind==='revision'?99:p.revision}),r.env,auth,origin);
+  const response=await putCurrentReservation(req({eventId:'e',quotedTotalCzk:1500,...p.preferences,preliminaryId:p.id,quotedTotalCzk:1000,preliminaryRevision:kind==='revision'?99:p.revision}),r.env,auth,origin);
   assert.ok(response.status>=400,kind);assert.equal((await (await get(r)).json()).preliminary.status,'active');assert.equal(r.db.prepare('SELECT COUNT(*) n FROM reservations').get().n,0);r.db.close();
  }
 });

@@ -1,7 +1,8 @@
 const STAYS=Object.freeze([
-  {arrival:'Pátek',title:'Celý víkend',meta:'Pátek → Neděle · 2 noci',short:'Pá → Ne',image:'assets/images/program/friday.webp'},
-  {arrival:'Sobota',title:'Sobota → Neděle',meta:'1 noc · hlavní den + noc',short:'So → Ne',image:'assets/images/program/saturday.webp'},
-  {arrival:'Jen na otočku',title:'Na otočku',meta:'Bez noclehu',short:'Bez noclehu',image:'assets/images/program/sunday.jpg'},
+  {arrival:'Pátek',departure:'Neděle',title:'Celý víkend',meta:'Pátek → Neděle · 2 noci',short:'Pá → Ne',image:'assets/images/program/friday.webp'},
+  {arrival:'Sobota',departure:'Neděle',title:'Sobota → Neděle',meta:'1 noc · hlavní den + noc',short:'So → Ne',image:'assets/images/program/saturday.webp'},
+  {arrival:'Jen na otočku',departure:'Stejný den',title:'Na otočku',meta:'Bez noclehu',short:'Bez noclehu',image:'assets/images/program/sunday.jpg'},
+  {arrival:'Pátek',departure:'Sobota',title:'Pátek → Sobota',meta:'Pátek → Sobota · 1 noc',short:'Pá → So',image:'assets/images/program/friday.webp'},
 ]);
 
 const SHOW_SHINE=Object.freeze([
@@ -105,7 +106,7 @@ export function createMemberPlannerExperience(form){
   if(note){note.querySelector(':scope > span')?.remove();const textarea=note.querySelector('textarea');if(textarea){textarea.rows=3;textarea.setAttribute('aria-label','Poznámka pro tým')}}
 
   function sync(){
-    const stay=STAYS.find(item=>item.arrival===source.arrival?.value)||STAYS[0];
+    const stay=STAYS.find(item=>item.arrival===source.arrival?.value&&item.departure===form.elements.departure.value)||{arrival:'',title:'Vyber termín pobytu',meta:'Upřesni příjezd a odjezd',short:'',image:STAYS[0].image};
     const crew=Math.max(1,Math.min(5,Number(source.crew?.value)||1));
     const show=SHOW_SHINE.find(item=>item.value===source.showshine?.value)||SHOW_SHINE.at(-1);
     for(const [selector,item,alt] of [['[data-member-stay-image]',stay,stay.title],['[data-member-show-image]',show,show.copy]]){
@@ -116,8 +117,8 @@ export function createMemberPlannerExperience(form){
     shell.querySelector('[data-member-stay-title]').textContent=stay.title;
     shell.querySelector('[data-member-stay-meta]').textContent=stay.meta;
     shell.querySelector('[data-member-stay-preview]').textContent=stay.arrival==='Jen na otočku'?'Sobota / hlavní den':stay.title;
-    shell.querySelector('[data-member-night-preview]').textContent=stay.arrival==='Pátek'?'2 noci':stay.arrival==='Sobota'?'1 noc':'bez noclehu';
-    shell.querySelectorAll('[data-member-stay]').forEach(button=>{const active=STAYS[Number(button.dataset.memberStay)]?.arrival===stay.arrival;button.classList.toggle('is-active',active);button.setAttribute('aria-pressed',String(active));button.disabled=source.arrival?.disabled===true});
+    shell.querySelector('[data-member-night-preview]').textContent=stay.meta;
+    shell.querySelectorAll('[data-member-stay]').forEach(button=>{const active=STAYS[Number(button.dataset.memberStay)]===stay;button.classList.toggle('is-active',active);button.setAttribute('aria-pressed',String(active));button.disabled=source.arrival?.disabled===true});
     shell.querySelectorAll('[data-member-sleep]').forEach(button=>{const active=button.dataset.memberSleep===source.sleep?.value;button.classList.toggle('is-active',active);button.setAttribute('aria-pressed',String(active));button.disabled=source.sleep?.disabled===true||stay.arrival==='Jen na otočku'});
     shell.querySelectorAll('[data-member-show]').forEach(button=>{const active=button.dataset.memberShow===show.value;button.classList.toggle('is-active',active);button.setAttribute('aria-pressed',String(active));button.disabled=source.showshine?.disabled===true});
     shell.querySelector('[data-member-crew]').textContent=crew;
@@ -145,7 +146,13 @@ export function createMemberPlannerExperience(form){
 
   shell.addEventListener('click',event=>{
     const stayButton=event.target.closest('[data-member-stay]');
-    if(stayButton){setValue(source.arrival,STAYS[Number(stayButton.dataset.memberStay)]?.arrival||'Pátek');return}
+    if(stayButton){
+      const stay=STAYS[Number(stayButton.dataset.memberStay)];
+      form.elements.departure.value=stay.departure;
+      source.arrival.value=stay.arrival;
+      source.arrival.dispatchEvent(new Event('change',{bubbles:true}));
+      return;
+    }
     const sleepButton=event.target.closest('[data-member-sleep]');
     if(sleepButton){setValue(source.sleep,sleepButton.dataset.memberSleep);return}
     const showButton=event.target.closest('[data-member-show]');

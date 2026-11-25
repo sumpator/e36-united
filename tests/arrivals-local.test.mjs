@@ -16,8 +16,8 @@ async function call(r,body,{part='',method='POST',key=crypto.randomUUID(),revisi
 }
 const arrival=(name,extra={})=>({id:'arrival-'+name,memberId:'fixture-'+name,carId:'car-'+name,crew:2,cash:0,...extra});
 test('real reservation endpoint snapshots admission and keeps it when rates change',async()=>{
- const r=arrivalsRuntime();try{await seedArrivals(r);r.db.exec('UPDATE events SET is_current=0');r.db.prepare("UPDATE events SET is_current=1,registration_status='open' WHERE id=?").run(EVENT);
-  const body={carId:'car-unregistered',arrival:'Pátek',crew:2,accommodation:'Chatka',accommodationOptionId:'fixture-cabin',accommodationUnits:2,showShine:'Ne'};
+ const r=arrivalsRuntime();try{await seedArrivals(r);r.db.exec('UPDATE events SET is_current=0');r.db.prepare("UPDATE events SET is_current=1,starts_on='2091-07-01',ends_on='2091-07-10',registration_status='open' WHERE id=?").run(EVENT);
+  const body={eventId:EVENT,quotedTotalCzk:1300,carId:'car-unregistered',arrival:'Pátek',departure:'Neděle',crew:2,accommodation:'Chatka',accommodationOptionId:'fixture-cabin',accommodationUnits:2,showShine:'Ne'};
   const put=async b=>putCurrentReservation(new Request(origin+'/api/reservations/current',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)}),r.env,{uid:'fixture-unregistered'},origin);
   let response=await put(body);assert.equal(response.status,200,await response.clone().text());const reservation=r.db.prepare("SELECT * FROM reservations WHERE member_id='fixture-unregistered'").get();assert.equal(reservation.admission_czk,300);assert.equal(reservation.amount_due_czk,1300);
   r.db.prepare('UPDATE events SET admission_registered_czk=900 WHERE id=?').run(EVENT);response=await put({...body,reservationId:reservation.id});assert.equal(response.status,200,await response.clone().text());assert.equal(r.db.prepare('SELECT admission_czk FROM reservations WHERE id=?').get(reservation.id).admission_czk,300);
