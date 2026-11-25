@@ -233,6 +233,8 @@ test.describe('desktop member portal', () => {
     expect(observations.reservationRequestWrites[0]).toMatchObject({
       reservationId: 'reservation-2026-e2e',
       arrival: 'Sobota',
+      departure: 'Neděle',
+      quotedTotalCzk: 1635,
       crew: 3,
       accommodation: 'Chatka',
       accommodationOptionId: 'cabin-standard',
@@ -242,7 +244,7 @@ test.describe('desktop member portal', () => {
     });
     expect(observations.reservationRequestWrites[0]).not.toHaveProperty('carId');
     expect(observations.reservationRequestWrites[0]).not.toHaveProperty('attendanceType');
-    expect(Object.keys(observations.reservationRequestWrites[0]).sort()).toEqual(['accommodation','accommodationOptionId','accommodationUnits','arrival','crew','memberNote','note','reservationId','showShine','type'].sort());
+    expect(Object.keys(observations.reservationRequestWrites[0]).sort()).toEqual(['accommodation','accommodationOptionId','accommodationUnits','arrival','crew','departure','memberNote','note','quotedTotalCzk','reservationId','showShine','type'].sort());
     expect(observations.reservationWrites).toEqual([]);
     expect(observations.requests).toContain('POST /api/reservations/current/requests');
     await expect(page.locator('[data-reservation-request-status]')).toContainText('čeká na rozhodnutí');

@@ -6,7 +6,7 @@ import {bridge} from './merch-bridge.mjs';
 const account=page=>page.locator('.site-header .nav-links .nav-member');
 const benefit=page=>page.locator('[data-member-merch-benefit]');
 const sdk='https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js';
-const publicLabels=['Program','Show & Shine','Naplánovat','O nás','Galerie','United Merch'];
+const publicLabels=['Program','Show & Shine','Další sraz','O nás','Galerie','United Merch'];
 const publicTargets=['index.html#experience','index.html#show-shine','index.html#planer','o-nas.html','galerie.html','merch.html'];
 async function publicEntryReady(page){
  await expect(page.locator('.united-mobile-menu')).toBeAttached();
@@ -146,7 +146,7 @@ for(const authenticated of [false,true])test(`PUBLIC NAV responsive menu hover f
     await page.keyboard.press('Escape');await expect(dialog).toBeHidden();await expect(trigger).toHaveAttribute('aria-expanded','false');await expect(trigger).toBeFocused();
    }else{
     await expect(trigger).toBeHidden();await expect(nav).toBeVisible();
-    const active=nav.getByRole('link',{name:'United Merch',exact:true}),program=nav.getByRole('link',{name:'Program',exact:true}),planner=nav.getByRole('link',{name:'Naplánovat',exact:true});
+    const active=nav.getByRole('link',{name:'United Merch',exact:true}),program=nav.getByRole('link',{name:'Program',exact:true}),planner=nav.getByRole('link',{name:'Další sraz',exact:true});
     expect(await active.evaluate(n=>getComputedStyle(n,'::after').opacity)).toBe('1');
     await expect(planner).toHaveCSS('color',theme==='light'?'rgb(121, 83, 0)':'rgb(231, 198, 122)');await expect(planner).toHaveCSS('background-color','rgba(0, 0, 0, 0)');
     await program.hover();await expect(program).toHaveCSS('background-color','rgba(0, 0, 0, 0)');
@@ -189,7 +189,7 @@ test('PUBLIC NAV delayed homepage styles settle at the requested Planner fragmen
  const arrived=Promise.withResolvers(),release=Promise.withResolvers();
  await page.route('**/styles.css?*',async route=>{arrived.resolve();await release.promise;return route.continue()});
  try{
-  const navigation=page.getByRole('navigation',{name:'Hlavní navigace',exact:true}).getByRole('link',{name:'Naplánovat',exact:true}).click();
+  const navigation=page.getByRole('navigation',{name:'Hlavní navigace',exact:true}).getByRole('link',{name:'Další sraz',exact:true}).click();
   await arrived.promise;
   // Hold a real stylesheet, not the click or the app's handlers. The parser
   // can expose the fragment before its final geometry is available.
