@@ -88,3 +88,85 @@ for(const accommodation of ['Chatka','Bez ubytování'])test(`old encoded handof
  const observations=await prepareE2ePage(page,{authenticated:true});const now=Date.now(),draft={version:1,source:'weekend-planner',draftId:crypto.randomUUID(),eventId:'united-2026',eventYear:2026,createdAt:new Date(now).toISOString(),expiresAt:new Date(now+86400000).toISOString(),arrival:'Sobota',departure:'Neděle',nights:1,attendanceType:'saturday_only',crew:3,accommodation,accommodationOptionId:accommodation==='Chatka'?'cabin-standard':null,accommodationUnits:1,showShine:'Ne'};
  await page.goto('/member.html?section=reservation&draft='+draft.draftId+'#handoff='+Buffer.from(JSON.stringify(draft)).toString('base64url'));const form=page.locator('[data-reservation-form]');await expect(form.locator('[name=crew]')).toHaveValue('3');await expect(form.locator('[name=accommodationUnits]')).toHaveValue(accommodation==='Chatka'?'3':'0');expect(observations.reservationWrites).toEqual([]);expectNoUnexpectedClientErrors(observations);
 });
+
+test.describe('mobile cabin selection at the Planner fragment',()=>{
+  test.use({viewport:{width:390,height:844},hasTouch:true});
+
+  for(const input of ['keyboard','touch'])for(const timing of ['normal','delayed']){
+    test(input+' with '+timing+' font',async({page},info)=>{
+      const observations=await prepareE2ePage(page);
+      const requested=Promise.withResolvers(), release=Promise.withResolvers();
+      const fontPath={
+        linux:'/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
+        darwin:'/System/Library/Fonts/Supplemental/Arial.ttf',
+        win32:process.env.SystemRoot+'/Fonts/arial.ttf',
+      }[process.platform];
+      await page.route('**/planner-layout-test.ttf',async route=>{
+        requested.resolve();
+        await release.promise;
+        await route.fulfill({path:fontPath,contentType:'font/ttf'});
+      });
+      await page.addInitScript(()=>{
+        window.plannerAnchorCalls=0;
+        const scrollIntoView=Element.prototype.scrollIntoView;
+        Element.prototype.scrollIntoView=function(...args){
+          if(this.id==='planer')window.plannerAnchorCalls++;
+          return scrollIntoView.apply(this,args);
+        };
+        document.addEventListener('DOMContentLoaded',()=>{
+          const font=new FontFace('Planner layout test','url(/planner-layout-test.ttf)');
+          document.fonts.add(font);
+          window.plannerFontLoaded=font.load().then(()=>document.fonts.ready);
+        },{once:true});
+      });
+      const premium=page.locator('[data-accommodation-option-id="cabin-premium"]');
+      const snapshot=()=>premium.evaluate(card=>({
+        cardY:card.getBoundingClientRect().top,
+        scrollY,
+        heightAbovePlanner:document.querySelector('#planer').getBoundingClientRect().top+scrollY,
+        alignments:window.plannerAnchorCalls,
+        focus:document.activeElement?.tagName+':'+(document.activeElement?.dataset.accommodationOptionId||''),
+      }));
+      const settle=async()=>{
+        release.resolve();
+        await page.waitForLoadState('load');
+        await page.evaluate(async()=>{
+          await window.plannerFontLoaded;
+          await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+        });
+      };
+      try{
+        await page.goto('/#planer',{waitUntil:'domcontentloaded'});
+        await requested.promise;
+        if(timing==='normal'){
+          await settle();
+          await expect(page.locator('#planer')).toBeInViewport();
+        }
+        await premium.scrollIntoViewIfNeeded();
+        if(input==='keyboard')await premium.focus();
+        const before=await snapshot();
+        // A late font can settle after the visitor focuses a card but before Enter.
+        // On touch, release it after the native tap has selected the card.
+        if(timing==='delayed'&&input==='keyboard')await settle();
+        if(input==='keyboard')await page.keyboard.press('Enter');
+        else await premium.tap();
+        const selected=await snapshot();
+        if(timing==='delayed'&&input==='touch')await settle();
+        const after=await snapshot();
+        const measurements={input,timing,before,selected,after};
+        console.log('Planner geometry',JSON.stringify(measurements));
+        await info.attach('planner-geometry',{body:JSON.stringify(measurements),contentType:'application/json'});
+        await expect(premium).toHaveAttribute('aria-pressed','true');
+        await expect(premium).toBeFocused();
+        await expect(page.locator('[data-public-total]')).toContainText(/3\s640\sKč/);
+        for(const sample of [selected,after]){
+          expect(sample.alignments).toBe(before.alignments);
+          for(const key of ['cardY','scrollY','heightAbovePlanner']){
+            expect(Math.abs(sample[key]-before[key]),key).toBeLessThan(2);
+          }
+        }
+        expectNoUnexpectedClientErrors(observations);
+      }finally{release.resolve()}
+    });
+  }
+});
